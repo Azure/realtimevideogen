@@ -1,0 +1,5 @@
+torch
+pillow
+transformers
+torchvision
+diffusers

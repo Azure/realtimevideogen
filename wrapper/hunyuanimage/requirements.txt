@@ -1,0 +1,5 @@
+torchvision
+torchaudio
+flashinfer-python
+transformers
+pillow
