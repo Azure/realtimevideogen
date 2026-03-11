@@ -10,6 +10,8 @@ permissions:
   contents: read
   checks: write
   pull-requests: write
+  pages: write
+  id-token: write
 
 jobs:
   lint:
@@ -331,6 +333,12 @@ jobs:
         name: html-coverage-report
         path: htmlcov/
 
+    - name: Upload Pages artifact
+      if: always() && github.ref == 'refs/heads/main'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: htmlcov/
+
     - name: Code coverage summary
       if: always()
       uses: irongut/CodeCoverageSummary@v1.3.0
@@ -352,6 +360,20 @@ jobs:
       with:
         recreate: true
         path: code-coverage-results.md
+
+  deploy-coverage:
+    name: Deploy Coverage
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
 
   stats:
     name: Stats
