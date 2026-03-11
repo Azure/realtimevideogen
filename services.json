@@ -1,0 +1,718 @@
+{
+    "fantasytalking": {
+        "name": "fantasytalking",
+        "friendlyName": "Fantasy Talking",
+        "url": "https://github.com/Fantasy-AMAP/fantasy-talking",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "fantasytalking",
+            "tag": "v0.3.1"
+        },
+        "class": "textimageaudio2video",
+        "inputs": [
+            "text",
+            "image",
+            "audio"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 23
+        }
+    },
+    "flux": {
+        "name": "flux",
+        "friendlyName": "FLUX",
+        "url": "https://github.com/black-forest-labs/flux",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "flux",
+            "tag": "v0.3.1"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "fluxupscaler": {
+        "name": "fluxupscaler",
+        "friendlyName": "FLUX Upscaler",
+        "url": "https://huggingface.co/jasperai/Flux.1-dev-Controlnet-Upscaler",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "fluxupscaler",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "image",
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "fluxkrea": {
+        "name": "fluxkrea",
+        "friendlyName": "FLUX Krea",
+        "url": "https://github.com/krea-ai/flux-krea",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "fluxkrea",
+            "tag": "v0.3.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "fluxkontext": {
+        "name": "fluxkontext",
+        "friendlyName": "FLUX Kontext",
+        "url": "https://github.com/black-forest-labs/flux",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "fluxkontext",
+            "tag": "v0.3.1"
+        },
+        "class": "image2image",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "4kagent": {
+        "name": "4kagent",
+        "friendlyName": "4KAgent",
+        "url": "https://github.com/taco-group/4KAgent",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "4kagent",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "hidream": {
+        "name": "hidream",
+        "friendlyName": "HiDream I1",
+        "url": "https://github.com/HiDream-ai/HiDream-I1",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "hidream",
+            "tag": "v0.3.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "qwenimage": {
+        "name": "qwenimage",
+        "friendlyName": "Qwen Image",
+        "url": "https://huggingface.co/Qwen/Qwen-Image",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "qwenimage",
+            "tag": "v0.3.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "qwenimageedit": {
+        "name": "qwenimageedit",
+        "friendlyName": "Qwen Image Edit",
+        "url": "https://huggingface.co/Qwen/Qwen-Image-Edit",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "qwenimageedit",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "januspro": {
+        "name": "januspro",
+        "friendlyName": "Janus Pro",
+        "url": "https://github.com/deepseek-ai/Janus",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "januspro",
+            "tag": "v0.3.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "llamagen": {
+        "name": "llamagen",
+        "friendlyName": "LlamaGen",
+        "url": "https://github.com/FoundationVision/LlamaGen",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "llamagen",
+            "tag": "v0.3.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "bagel": {
+        "name": "bagel",
+        "friendlyName": "Bagel",
+        "url": "https://github.com/bytedance-seed/BAGEL",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "bagel",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "hunyuanimage": {
+        "name": "hunyuanimage",
+        "friendlyName": "Hunyuan Image",
+        "url": "https://huggingface.co/tencent/HunyuanImage-3.0",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "hunyuanimage",
+            "tag": "v0.3.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "hunyuanframepack": {
+        "name": "hunyuanframepack",
+        "friendlyName": "Hunyuan FramePack",
+        "url": "https://github.com/lllyasviel/FramePack",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "hunyuanframepack",
+            "tag": "v0.3.0"
+        },
+        "class": "textimage2video",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 30
+        }
+    },
+    "hunyuanframepackf1": {
+        "name": "hunyuanframepackf1",
+        "friendlyName": "Hunyuan FramePack F1",
+        "url": "https://github.com/lllyasviel/FramePack",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "hunyuanframepackf1",
+            "tag": "v0.3.1"
+        },
+        "class": "textimage2video",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 30
+        }
+    },
+    "hunyuanframepackvae": {
+        "name": "hunyuanframepackvae",
+        "friendlyName": "Hunyuan FramePack VAE",
+        "url": "https://github.com/lllyasviel/FramePack",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "hunyuanframepackvae",
+            "tag": "v0.3.0"
+        },
+        "class": "latent2video",
+        "inputs": [
+            "latent"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 30
+        }
+    },
+    "hunyuanavatar": {
+        "name": "hunyuanavatar",
+        "friendlyName": "Hunyuan Avatar",
+        "url": "https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "hunyuanavatar",
+            "tag": "v0.3.0"
+        },
+        "class": "textimageaudio2video",
+        "inputs": [
+            "text",
+            "image",
+            "audio"
+        ],
+        "outputs": [
+            "video"
+        ]
+    },
+    "kokoro": {
+        "name": "kokoro",
+        "friendlyName": "Kokoro",
+        "url": "https://github.com/hexgrad/kokoro",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "kokoro",
+            "tag": "v0.3.0"
+        },
+        "class": "text2audio",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "audio"
+        ]
+    },
+    "xtts": {
+        "name": "XTTS",
+        "friendlyName": "XTTS",
+        "url": "https://github.com/coqui-ai/TTS",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "xtts",
+            "tag": "v0.3.0"
+        },
+        "class": "text2audio",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "audio"
+        ]
+    },
+    "thinksound": {
+        "name": "thinksound",
+        "friendlyName": "ThinkSound",
+        "url": "https://github.com/FunAudioLLM/ThinkSound",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "thinksound",
+            "tag": "v0.3.0"
+        },
+        "class": "video2audio",
+        "inputs": [
+            "video"
+        ],
+        "outputs": [
+            "audio"
+        ]
+    },
+    "vibevoice": {
+        "name": "vibevoice",
+        "friendlyName": "VibeVoice",
+        "url": "https://github.com/microsoft/VibeVoice",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "vibevoice",
+            "tag": "v0.3.0"
+        },
+        "class": "text2audio",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "audio"
+        ]
+    },
+    "podcasttranscript": {
+        "name": "podcasttranscript",
+        "friendlyName": "Podcast Transcript",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "podcasttranscript",
+            "tag": "v0.3.0"
+        },
+        "class": "text2text",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "text"
+        ]
+    },
+    "slidetranscript": {
+        "name": "slidetranscript",
+        "friendlyName": "Slide Transcript",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "slidetranscript",
+            "tag": "v0.3.0"
+        },
+        "class": "text2text",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "text"
+        ]
+    },
+    "wan": {
+        "name": "wan",
+        "friendlyName": "Wan 2.1",
+        "url": "https://github.com/Wan-Video/Wan2.1",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "wan",
+            "tag": "v0.3.0"
+        },
+        "class": "textimage2video",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 16,
+            "heads": 40
+        }
+    },
+    "wan22": {
+        "name": "wan22",
+        "friendlyName": "Wan 2.2",
+        "url": "https://github.com/Wan-Video/Wan2.2",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "wan22",
+            "tag": "v0.3.0"
+        },
+        "class": "textimage2video",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 16,
+            "heads": 40
+        }
+    },
+    "yolo": {
+        "name": "yolo",
+        "friendlyName": "YOLO",
+        "url": "https://github.com/ultralytics/ultralytics",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "yolo",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "imageresize": {
+        "name": "imageresize",
+        "friendlyName": "Image Resize",
+        "url": "https://pillow.readthedocs.io/en/stable/reference/Image.html",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "imageresize",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "realesrgan": {
+        "name": "realesrgan",
+        "friendlyName": "Real-ESRGAN",
+        "url": "https://github.com/xinntao/Real-ESRGAN",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "realesrgan",
+            "tag": "v0.3.0"
+        },
+        "class": "image2image",
+        "inputs": [
+            "image"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "ltx": {
+        "name": "ltx",
+        "friendlyName": "LTX-Video",
+        "url": "hhttps://github.com/Lightricks/LTX-Video",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "ltx",
+            "tag": "v0.3.0"
+        },
+        "class": "textimage2video",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 24
+        }
+    },
+    "longcatvideo": {
+        "name": "longcatvideo",
+        "friendlyName": "LongCat-Video",
+        "url": "https://github.com/meituan-longcat/LongCat-Video",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "longcatvideo",
+            "tag": "v0.3.0"
+        },
+        "class": "textimage2video",
+        "inputs": [
+            "text",
+            "image"
+        ],
+        "outputs": [
+            "video"
+        ],
+        "properties": {
+            "fps": 24
+        }
+    },
+    "gemma": {
+        "name": "gemma",
+        "friendlyName": "Gemma 3",
+        "url": "https://github.com/google-deepmind/gemma",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "vllm/vllm-openai",
+            "tag": "v0.9.1"
+        },
+        "class": "text2text",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "text"
+        ]
+    },
+    "llama32": {
+        "name": "llama32",
+        "friendlyName": "Llama 3.2",
+        "url": "https://github.com/meta-llama/llama-models/",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "vllm/vllm-openai",
+            "tag": "v0.9.1"
+        },
+        "class": "text2text",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "text"
+        ]
+    },
+    "whisper": {
+        "name": "whisper",
+        "friendlyName": "Whisper",
+        "url": "https://github.com/openai/whisper",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "vllm-librosa",
+            "tag": "v0.9.1"
+        },
+        "class": "audio2text",
+        "inputs": [
+            "audio"
+        ],
+        "outputs": [
+            "text"
+        ]
+    },
+    "mock": {
+        "name": "mock",
+        "friendlyName": "Mock",
+        "url": "https://github.com/meta-llama/llama-models/",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "mock",
+            "tag": "v0.3.5"
+        },
+        "class": "mock",
+        "inputs": [
+            "any"
+        ],
+        "outputs": [
+            "any"
+        ]
+    },
+    "streamwise": {
+        "name": "streamwise",
+        "friendlyName": "StreamWise",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamwise",
+            "tag": "v0.3.5"
+        },
+        "class": "manager"
+    },
+    "streamcast": {
+        "name": "streamcast",
+        "friendlyName": "StreamCast",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamcast",
+            "tag": "v0.3.5"
+        },
+        "class": "doc2video"
+    },
+    "streampersona": {
+        "name": "streampersona",
+        "friendlyName": "StreamPersona",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streampersona",
+            "tag": "v0.3.5"
+        },
+        "class": "doc2video"
+    },
+    "streamshort": {
+        "name": "streamshort",
+        "friendlyName": "StreamShort",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamshort",
+            "tag": "v0.3.5"
+        },
+        "class": "video2video"
+    },
+    "streamdub": {
+        "name": "streamdub",
+        "friendlyName": "StreamDub",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamdub",
+            "tag": "v0.3.5"
+        },
+        "class": "video2video"
+    },
+    "streammovie": {
+        "name": "streammovie",
+        "friendlyName": "StreamMovie",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streammovie",
+            "tag": "v0.3.5"
+        },
+        "class": "video2video"
+    },
+    "streamanimate": {
+        "name": "streamanimate",
+        "friendlyName": "StreamAnimate",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamanimate",
+            "tag": "v0.3.5"
+        },
+        "class": "text2video"
+    },
+    "streamchat": {
+        "name": "streamchat",
+        "friendlyName": "StreamChat",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamchat",
+            "tag": "v0.3.5"
+        },
+        "class": "text2video"
+    },
+    "streamedit": {
+        "name": "streamedit",
+        "friendlyName": "StreamEdit",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamedit",
+            "tag": "v0.3.5"
+        },
+        "class": "video2video"
+    },
+    "streamlecture": {
+        "name": "streamlecture",
+        "friendlyName": "StreamLecture",
+        "dockerImage": {
+            "repository": "inigogrtgen-cjd9f3dydte2bzbb.azurecr.io",
+            "name": "streamlecture",
+            "tag": "v0.3.5"
+        },
+        "class": "doc2video"
+    }
+}
