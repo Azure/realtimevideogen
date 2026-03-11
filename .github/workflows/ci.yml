@@ -25,8 +25,22 @@ jobs:
         pip install flake8
         pip cache purge
 
-    - name: Run flake8
+    - name: Install shellcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+
+    - name: Run Python lint
+      if: always()
       run: flake8 . tests
+
+    - name: Run shell lint
+      if: always()
+      run: |
+        shellcheck $(git ls-files '*.sh')
+        shellcheck $(git ls-files '*.bash')
 
   test:
     name: Test
@@ -55,33 +69,11 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
-    - name: Install shellcheck
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y shellcheck
-        sudo apt-get clean
-        sudo rm -rf /var/lib/apt/lists/*
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements_dev.txt
         pip cache purge
-
-    - name: Check space
-      run: |
-        df -h
-        free -h
-
-    - name: Run Python lint
-      if: always()
-      run: flake8 . tests
-
-    - name: Run shell lint
-      if: always()
-      run: |
-        shellcheck $(git ls-files '*.sh')
-        shellcheck $(git ls-files '*.bash')
 
     - name: Run Python type checking
       if: always()
