@@ -23,12 +23,12 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install flake8 j2lint
-        pip cache purge
 
     - name: Install shellcheck
       run: |
@@ -39,7 +39,18 @@ jobs:
 
     - name: Run Python lint
       if: always()
-      run: flake8 . tests
+      run: flake8 . tests --output-file=flake8-results.txt --tee
+
+    - name: Annotate flake8 results
+      if: always()
+      uses: reviewdog/action-setup@v1
+
+    - name: Flake8 reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat flake8-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="flake8" -reporter=github-check -level=warning || true
 
     - name: Run shell lint
       if: always()
@@ -61,6 +72,21 @@ jobs:
         j2lint apps/streamlecture/templates/ --extensions html || true
         j2lint apps/streamanimate/templates/ --extensions html || true
 
+    - name: Lint summary
+      if: always()
+      run: |
+        echo "## Lint Results" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        if [ -s flake8-results.txt ]; then
+          FLAKE8_COUNT=$(wc -l < flake8-results.txt)
+          echo "**flake8:** ${FLAKE8_COUNT} issue(s)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          head -20 flake8-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "**flake8:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -73,6 +99,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: 'pip'
 
     - name: Install Node.js
       uses: actions/setup-node@v4
@@ -92,7 +119,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements_dev.txt
-        pip cache purge
 
     - name: Run Python type checking
       if: always()
@@ -109,6 +135,7 @@ jobs:
         pytest --junitxml=test-results-main.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               --ignore=tests/simulator \
               --ignore=tests/streamwise \
@@ -122,6 +149,7 @@ jobs:
         pytest --junitxml=test-results-simulator.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/simulator/*.py
 
@@ -133,6 +161,7 @@ jobs:
         pytest --junitxml=test-results-streamcast.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamcast.py
 
@@ -144,6 +173,7 @@ jobs:
         pytest --junitxml=test-results-streampersona.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streampersona.py
 
@@ -155,6 +185,7 @@ jobs:
         pytest --junitxml=test-results-streamshort.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamshort.py
 
@@ -166,6 +197,7 @@ jobs:
         pytest --junitxml=test-results-streamdub.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamdub.py
 
@@ -177,6 +209,7 @@ jobs:
         pytest --junitxml=test-results-streammovie.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streammovie.py
 
@@ -188,6 +221,7 @@ jobs:
         pytest --junitxml=test-results-streamedit.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamedit.py
 
@@ -199,6 +233,7 @@ jobs:
         pytest --junitxml=test-results-streamchat.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamchat.py
 
@@ -210,6 +245,7 @@ jobs:
         pytest --junitxml=test-results-streamlecture.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamlecture.py
 
@@ -221,6 +257,7 @@ jobs:
         pytest --junitxml=test-results-streamanimate.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise_app/test_streamanimate.py
 
@@ -232,6 +269,7 @@ jobs:
         pytest --junitxml=test-results-streamwise_app.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               --ignore=tests/streamwise_app/test_streamcast.py \
               --ignore=tests/streamwise_app/test_streampersona.py \
@@ -252,17 +290,11 @@ jobs:
         pytest --junitxml=test-results-streamwise.xml \
               --cov=. \
               --cov-report=term \
+              --durations=10 \
               -vv \
               tests/streamwise/
 
-    - name: Generate XML coverage report
-      if: always()
-      run: |
-        export COVERAGE_FILE=.coverage
-        coverage combine --keep .coverage.*
-        coverage xml -o coverage.xml --ignore-errors
-
-    - name: Generate HTML coverage report
+    - name: Generate coverage reports
       if: always()
       run: |
         export COVERAGE_FILE=.coverage
@@ -282,6 +314,8 @@ jobs:
       uses: EnricoMi/publish-unit-test-result-action@v2
       with:
         files: test-results*.xml
+        comment_mode: always
+        job_summary: true
 
     - name: Upload XML coverage report
       if: always()
@@ -306,6 +340,7 @@ jobs:
         format: markdown
         output: both
         fail_below_min: false
+        thresholds: '40 60'
 
     - name: Publish coverage to summary
       if: always()
