@@ -398,7 +398,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: Coverage Report
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
