@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>File viewer: {{ file_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+</head>
+<body>
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home">🏠</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('service_info', service_name=service_name) }}" title="Service">🌐</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('file_view', service_name=service_name, container_ip=container_ip, container_port=container_port, file_name=file_name) }}" title="Refresh">🔄</a>
+    </div>
+
+    <div class="container mt-4">
+        <h1 class="mb-3">
+            {{ content_type | get_content_type_emoji | safe }}
+            Viewing: <code>{{ file_name }}</code>
+        </h1>
+        <ul class="list-group mb-3">
+            <li class="list-group-item border-0 px-2 text-muted">
+                <strong>Service:</strong>
+                <a href="{{ url_for('service_info', service_name=service_name) }}" title="{{ service_name }}">
+                    {{ service_name | get_friendly_container_name | safe }} ({{ service_name }})
+                </a>
+            </li>
+            <li class="list-group-item border-0 px-2 text-muted">
+                <strong>Type:</strong>
+                {{ content_type }}
+            </li>
+            <li class="list-group-item border-0 px-2 text-muted">
+                <strong>From:</strong>
+                <a href="{{ url_for('container_info', service_name=service_name, container_ip=container_ip) }}" title="{{ container_ip }}">
+                    {{ container_ip }}:{{ container_port }}
+                </a>
+            </li>
+            {% if content_length %}
+                <li class="list-group-item border-0 px-2 text-muted">
+                    <strong>Size:</strong>
+                    {{ content_length | format_bytes | safe }}
+                </li>
+            {% endif %}
+        </ul>
+
+        <a class="btn btn-outline-info" href="{{ url_for('download_service_file', container_ip=container_ip, container_port=container_port, file_name=file_name) }}" title="Download" aria-label="Download">💾 Download</a>
+
+        {% if error %}
+            <div class="alert alert-danger">
+                <strong>Error:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        {% if content %}
+            {% if content_type == 'video/mp4' %}
+                <h2 class="mt-4">Video content</h2>
+                <div class="mb-4">
+                    <video controls class="w-100" style="max-width: {% if file_info and file_info.width %}{{ [file_info.width, 1280]|min }}{% else %}1280{% endif %}px;">
+                        <source src="{{ url_for('file_stream', container_ip=container_ip, container_port=container_port, file_name=file_name) }}" type="{{ content_type }}">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+
+                {% if file_info %}
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">🎬 Video Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Dimensions (W&times;H):</strong> {{ file_info.width }} × {{ file_info.height }} pixels</p>
+                                    <p><strong>Aspect ratio:</strong> {{ (file_info.width / file_info.height) | get_aspect_ratio | safe }}</strong>
+                                    <p><strong>Duration:</strong> {{ "%.3f" | format(file_info.duration_seconds) }} seconds</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Frame Rate:</strong> {{ "%.2f" | format(file_info.fps) }} fps</p>
+                                    <p><strong>Total Frames:</strong> {{ file_info.num_frames }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% elif content_type == 'audio/wav' or content_type == 'audio/x-wav' or content_type == 'audio/mpeg' %}
+                <h2 class="mt-4">Audio content</h2>
+                <div class="mb-4">
+                    <audio controls class="w-100" style="max-width: 720px;">
+                        <source src="{{ url_for('file_stream', container_ip=container_ip, container_port=container_port, file_name=file_name) }}" type="{{ content_type }}">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+
+                <h3 class="mt-4">Waveform</h3>
+                <div class="mb-4">
+                    <img src="{{ url_for('get_audio_waveform', container_ip=container_ip, container_port=container_port, file_name=file_name) }}" class="img-fluid rounded shadow">
+                </div>
+
+                {% if file_info %}
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">🎵 Audio Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Duration:</strong> {{ "%.3f" | format(file_info.duration_seconds) }} seconds</p>
+                                    <p><strong>Sample Rate:</strong> {{ file_info.samplerate }} Hz</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Channels:</strong> {{ file_info.channels }}</p>
+                                    <p><strong>Total Frames:</strong> {{ file_info.num_frames }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% elif content_type == 'image/png' or content_type == 'image/jpeg' %}
+                <h2 class="mt-4">Image content</h2>
+                <img src="{{ url_for('file_stream', container_ip=container_ip, container_port=container_port, file_name=file_name) }}" class="img-fluid rounded shadow">
+
+                {% if file_info %}
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">🖼️ Image Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Dimensions (W&times;H):</strong> {{ file_info.width }} &times; {{ file_info.height }} pixels</p>
+                            <p><strong>Aspect ratio:</strong> {{ (file_info.width / file_info.height) | get_aspect_ratio | safe }}</strong>
+                        </div>
+                    </div>
+                {% endif %}
+            {% elif content_type == 'text/plain' or content_type == 'text/plain; charset=utf-8' %}
+                <h2 class="mt-4">Text content</h2>
+                <div id="log-box"
+                    class="bg-dark text-white p-3 rounded"
+                    style="white-space: pre-wrap; font-family: monospace; max-height: 600px; overflow-y: auto;">
+                </div>
+                <script>
+                    const rawText = {{ content | tojson }};
+                    const ansiUp = new AnsiUp();
+                    const logBox = document.getElementById("log-box");
+                    logBox.innerHTML = ansiUp.ansi_to_html(rawText);
+                    logBox.scrollTop = logBox.scrollHeight;  // Scroll to the bottom after rendering
+                </script>
+
+                {% if file_info %}
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">📄 Text Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p><strong>Characters:</strong> {{ file_info.num_chars }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Words:</strong> {{ file_info.num_words }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Lines:</strong> {{ file_info.num_lines }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% elif content_type == 'application/pdf' %}
+                <h2 class="mt-4">PDF content</h2>
+                <iframe src="{{ url_for('file_stream', container_ip=container_ip, container_port=container_port, file_name=file_name) }}" class="w-100" style="height: 600px;">
+                </iframe>
+            {% elif content_type == 'application/json' or content_type == 'application/x-ndjson' %}
+                <h2 class="mt-4">JSON content</h2>
+                <pre class="bg-light p-3 rounded border">{{ content | json_pretty }}</pre>
+            {% elif file_name.endswith('.pt') %}
+                <h2 class="mt-4">PyTorch Tensor</h2>
+                <pre class="bg-light p-3 rounded border">{{ content }}</pre>
+
+                {% if file_info %}
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">🔢 Tensor Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Data Type:</strong> <code>{{ file_info.dtype }}</code></p>
+                                    <p><strong>Shape:</strong> <code>{{ file_info.shape }}</code></p>
+                                    <p><strong>Device:</strong> <code>{{ file_info.device }}</code></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Mean Value:</strong> <code>{{ file_info.mean }}</code></p>
+                                    <p><strong>Min Value:</strong> <code>{{ file_info.min }}</code></p>
+                                    <p><strong>Max Value:</strong> <code>{{ file_info.max }}</code></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <h2 class="mt-4">Content</h2>
+                <pre class="bg-light p-3 rounded border">{{ content }}</pre>
+            {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>
