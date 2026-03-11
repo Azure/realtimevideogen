@@ -1,0 +1,328 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['*']
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '10.x'
+
+    - name: Install ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+        ffmpeg -version
+        dpkg -s ffmpeg
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+
+    - name: Install shellcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements_dev.txt
+        pip cache purge
+
+    - name: Check space
+      run: |
+        df -h
+        free -h
+
+    - name: Run Python lint
+      if: always()
+      run: flake8 . tests
+
+    - name: Run shell lint
+      if: always()
+      run: |
+        shellcheck $(git ls-files '*.sh')
+        shellcheck $(git ls-files '*.bash')
+
+    - name: Run Python type checking
+      if: always()
+      run: |
+        mypy --install-types --non-interactive --show-traceback --ignore-missing-imports .
+        mypy --ignore-missing-imports . || true
+
+    - name: 'Run tests: Main'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.main
+        pytest --junitxml=test-results-main.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              --ignore=tests/simulator \
+              --ignore=tests/streamwise \
+              --ignore=tests/streamwise_app
+
+    - name: 'Run tests: Simulator'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.simulator
+        pytest --junitxml=test-results-simulator.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/simulator/*.py
+
+    - name: 'Run tests: StreamCast'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamcast
+        pytest --junitxml=test-results-streamcast.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamcast.py
+
+    - name: 'Run tests: StreamPersona'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streampersona
+        pytest --junitxml=test-results-streampersona.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streampersona.py
+
+    - name: 'Run tests: StreamShort'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamshort
+        pytest --junitxml=test-results-streamshort.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamshort.py
+
+    - name: 'Run tests: StreamDub'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamdub
+        pytest --junitxml=test-results-streamdub.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamdub.py
+
+    - name: 'Run tests: StreamMovie'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streammovie
+        pytest --junitxml=test-results-streammovie.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streammovie.py
+
+    - name: 'Run tests: StreamEdit'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamedit
+        pytest --junitxml=test-results-streamedit.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamedit.py
+
+    - name: 'Run tests: StreamChat'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamchat
+        pytest --junitxml=test-results-streamchat.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamchat.py
+
+    - name: 'Run tests: StreamLecture'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamlecture
+        pytest --junitxml=test-results-streamlecture.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamlecture.py
+
+    - name: 'Run tests: StreamAnimate'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamanimate
+        pytest --junitxml=test-results-streamanimate.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise_app/test_streamanimate.py
+
+    - name: 'Run tests: StreamWise apps'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamwise_app
+        pytest --junitxml=test-results-streamwise_app.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              --ignore=tests/streamwise_app/test_streamcast.py \
+              --ignore=tests/streamwise_app/test_streampersona.py \
+              --ignore=tests/streamwise_app/test_streamshort.py \
+              --ignore=tests/streamwise_app/test_streamdub.py \
+              --ignore=tests/streamwise_app/test_streammovie.py \
+              --ignore=tests/streamwise_app/test_streamedit.py \
+              --ignore=tests/streamwise_app/test_streamchat.py \
+              --ignore=tests/streamwise_app/test_streamlecture.py \
+              --ignore=tests/streamwise_app/test_streamanimate.py \
+              tests/streamwise_app
+
+    - name: 'Run tests: StreamWise'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamwise
+        pytest --junitxml=test-results-streamwise.xml \
+              --cov=. \
+              --cov-report=term \
+              -vv \
+              tests/streamwise/
+
+    - name: Generate coverage report
+      if: always()
+      run: |
+        export COVERAGE_FILE=.coverage
+        coverage combine --keep .coverage.*
+        coverage xml -o coverage.xml --ignore-errors
+
+    - name: HTML/Jinja lint
+      if: always()
+      run: |
+        j2lint streamwise/templates/ --extensions html || true
+        j2lint apps/streamcast/templates/ --extensions html || true
+        j2lint apps/streampersona/templates/ --extensions html || true
+        j2lint apps/streamshort/templates/ --extensions html || true
+        j2lint apps/streamdub/templates/ --extensions html || true
+        j2lint apps/streammovie/templates/ --extensions html || true
+        j2lint apps/streamedit/templates/ --extensions html || true
+        j2lint apps/streamchat/templates/ --extensions html || true
+        j2lint apps/streamlecture/templates/ --extensions html || true
+        j2lint apps/streamanimate/templates/ --extensions html || true
+
+    - name: List test files
+      if: always()
+      run: |
+        ls -l test-results*.xml
+        ls -l .coverage*
+        md5sum .coverage*
+
+    - name: Publish test results
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Unit Tests
+        path: test-results*.xml
+        reporter: java-junit
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: coverage.xml
+
+  stats:
+    name: Stats
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install cloc
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cloc
+        cloc .
+
+    - name: Generate cloc report (text)
+      run: |
+        cloc . \
+          --exclude-dir=.git,venv,node_modules \
+          --out=cloc-report.txt
+        cat cloc-report.txt
+
+    - name: Show lines of code
+      run: cat cloc-report.txt
+
+    - name: Upload cloc report (text)
+      uses: actions/upload-artifact@v4
+      with:
+        name: cloc-text
+        path: cloc-report.txt
+
+    - name: Lines of code (Markdown)
+      run: |
+        cloc . \
+          --exclude-dir=.git,venv,node_modules \
+          --md \
+          --out=cloc-summary.md
+        cat cloc-summary.md
+
+    - name: Show lines of code (Markdown)
+      run: cat cloc-summary.md
+
+    - name: Upload cloc report (Markdown)
+      uses: actions/upload-artifact@v4
+      with:
+        name: cloc-markdown
+        path: cloc-summary.md
+
+    - name: Publish summary
+      run: |
+        set -e
+
+        if [ ! -f cloc-summary.md ]; then
+          echo "cloc-summary.md not found!"
+          exit 1
+        fi
+
+        echo "# Lines of Code Report" > cloc-summary-wrapper.md
+        echo "" >> cloc-summary-wrapper.md
+        cat cloc-summary.md >> cloc-summary-wrapper.md
+
+        cat cloc-summary-wrapper.md >> "$GITHUB_STEP_SUMMARY"
