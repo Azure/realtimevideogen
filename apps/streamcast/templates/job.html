@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <title>Podcast Generation {{ job_id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>
+        const ansiUp = new AnsiUp();
+    </script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-info" href="{{ url_for('submit_job') }}" title="Submit Podcast Generation" aria-label="Submit Podcast Generation">🚀</a>
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+    </div>
+
+    <div class="container mb-5">
+        <h1 class="mb-4 text-center">Podcast Generation 📄→📽️</h1>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">ℹ️ Information</h5>
+                <p class="mb-2">
+                    <strong>Id:</strong>
+                    <span class="font-monospace">{{ job_id }}</span>
+                </p>
+                <p class="mb-2">
+                    <strong>Status:</strong>
+                    <span id="status-badge">
+                        {% if status %}
+                            {% if status == 'COMPLETED' %}
+                                <span class="badge bg-success">✅ Completed</span>
+                            {% elif status == 'STARTED' %}
+                                <span class="badge bg-warning text-dark">⌛ Started</span>
+                            {% elif status == 'RUNNING' %}
+                                <span class="badge bg-warning text-dark">⚙️ Running</span>
+                            {% elif status == 'FAILED' %}
+                                <span class="badge bg-danger">❌ Failed</span>
+                            {% elif status == 'EXPIRED' %}
+                                <span class="badge bg-danger">💀 Expired</span>
+                            {% elif status == 'UNKNOWN' %}
+                                <span class="badge bg-secondary">⁉️ Unknown</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ status }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">⁉️ Unknown</span>
+                        {% endif %}
+                    </span>
+                </p>
+                <p class="mb-2">
+                    <strong>Document:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='document.pdf') }}" 
+                    class="link-primary text-decoration-none">
+                    📑 View
+                    </a>
+                </p>
+
+                {% if times %}
+                    {% if times.STARTED %}
+                        <p class="mb-0">
+                            <strong style="display:inline-block; width:100px;">Start:</strong>
+                            <span class="local-time" data-timestamp="{{ times.STARTED.isoformat() }}Z">
+                                {{ times.STARTED }}
+                            </span>
+                        </p>
+                    {% endif %}
+                    {% if times.COMPLETED %}
+                        <p class="mb-0">
+                            <strong style="display:inline-block; width:100px;">Complete:</strong>
+                            <span class="local-time" data-timestamp="{{ times.COMPLETED.isoformat() }}Z">
+                                {{ times.COMPLETED }}
+                            </span>
+                        </p>
+                    {% endif %}
+                    {% if times.COMPLETED and times.STARTED %}
+                        <p class="mb-0">
+                            <strong style="display:inline-block; width:100px;">Generation:</strong>
+                            {{ ( times.COMPLETED - times.STARTED ) | format_duration | safe }}
+                        </p>
+                    {% endif %}
+                {% endif %}
+
+                {% if job_config and job_config.width and job_config.height %}
+                    <p class="mb-0">
+                        <strong style="display:inline-block; width:100px;">Resolution:</strong>
+                        {{ job_config.width }} x {{ job_config.height }}
+                    </p>
+                {% endif %}
+
+                {% if job_config and job_config.output_mode %}
+                    <p class="mb-0">
+                        <strong style="display:inline-block; width:100px;">Output:</strong>
+                        {% if job_config.output_mode == "audio_only" %}
+                            🔉 Audio only
+                        {% elif job_config.output_mode == "video_audio_synced" %}
+                            📽️🔉🗣️ Video &amp; Audio (lip synced)
+                        {% elif job_config.output_mode == "video_audio_unsynced" %}
+                            📽️🔉 Video &amp; Audio (unsynced)
+                        {% else %}
+                            {{ job_config.output_mode | format_string | safe }}
+                        {% endif %}
+                    </p>
+                {% endif %}
+
+                {% if job_request %}
+                    <details class="mt-3">
+                        <summary class="fw-bold">📩 Request</summary>
+                        <div class="row mt-2">
+                            {% for key, value in job_request.items() %}
+                                {% if not key.endswith('base64') %}
+                                    <div class="col-6 mb-1">
+                                        <strong>{{ key | format_string | safe }}:</strong>
+                                        {% if value == True %}
+                                            <span class="text-success">✅ True</span>
+                                        {% elif value == False %}
+                                            <span class="text-danger">❌ False</span>
+                                        {% else %}
+                                            <span class="font-monospace">{{ value | format_string | safe }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+                {% if job_config %}
+                    <details class="mt-3">
+                        <summary class="fw-bold">🛠️ Config</summary>
+                        <div class="row mt-2">
+                            {% for key, value in job_config.items() %}
+                                {% if not key.endswith('base64') %}
+                                    <div class="col-6 mb-1">
+                                        <strong>{{ key | format_string | safe }}:</strong>
+                                        {% if value == True %}
+                                            <span class="text-success">✅ True</span>
+                                        {% elif value == False %}
+                                            <span class="text-danger">❌ False</span>
+                                        {% else %}
+                                            <span class="font-monospace">{{ value | format_string | safe }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="error-box" class="alert alert-danger" role="alert" style="display: none;"></div>
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="transcript-waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Video</h2>
+                <div id="video-preview-wrapper" class="d-flex justify-content-center">
+                    <div id="video-preview" style="min-height: 300px;"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="images-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🖼️ Image</h2>
+                <div id="transcript-images" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;">⏳ Waiting for image descriptions...</div>
+                <div id="transcript-image-preview" class="mt-3 text-center" style="min-height: 300px;"></div>
+            </div>
+
+            <div class="col-12 mb-3" id="characters-section" style="display: none;">
+                <h2 class="mt-5 mb-3">👤 Characters</h2>
+                <div id="transcript-characters" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
+            </div>
+
+            <div class="col-12" id="dialogue-section" style="display: none;">
+                <h2 class="mt-5 mb-3">💬🗨️ Dialogue</h2>
+                <div id="transcript-dialogue" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 800px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            const videoPreview = document.getElementById("video-preview");
+            const imagePreview = document.getElementById("transcript-image-preview");
+
+            const imagesBox = document.getElementById("transcript-images");
+            const charactersBox = document.getElementById("transcript-characters");
+            const dialogueBox = document.getElementById("transcript-dialogue");
+
+            const waitingSection = document.getElementById("transcript-waiting-section");
+            const videoSection = document.getElementById("video-section");
+            const imagesSection = document.getElementById("images-section");
+            const charactersSection = document.getElementById("characters-section");
+            const dialogueSection = document.getElementById("dialogue-section");
+
+            const colorClasses = [
+                "text-primary",
+                "text-success",
+                "text-danger",
+                "text-warning",
+                "text-info",
+                "text-secondary"
+            ];
+            const characterColors = {};
+            function getCharacterColor(name) {
+                if (!characterColors[name]) {
+                    const index = Object.keys(characterColors).length % colorClasses.length;
+                    characterColors[name] = colorClasses[index];
+                }
+                return characterColors[name];
+            }
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if video exists
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoPreview.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoPreview.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        videoSection.style.display = "block";
+
+                        // Adjust video size once metadata is loaded
+                        const videoEl = videoPreview.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch(err) {
+                    setTimeout(fetchVideo, 1000); // retry after 1 second
+                }
+            }
+            fetchVideo();
+
+            // Image
+            const imageUrl = "{{ url_for('file_stream', job_id=job_id, file_name='main_image.png') }}";
+            async function fetchImage() {
+                try {
+                    const res = await fetch(imageUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if image exists
+                    if (!res.ok) throw new Error(res.statusText);
+
+                    const img = imagePreview.querySelector("img");
+                    if (!img || img.src !== imageUrl + "?t=" + Date.now()) {
+                        imagePreview.innerHTML = `
+                            <img src="${imageUrl}?t=${Date.now()}" 
+                                alt="Transcript image" 
+                                class="img-fluid rounded shadow-sm" 
+                                style="max-height: 300px; object-fit: contain;">
+                        `;
+                        imagesSection.style.display = "block";
+                    }
+                } catch(err) {
+                    setTimeout(fetchImage, 1000); // retry after 1 second
+                }
+            }
+
+            fetchImage();
+
+            // Transcript
+            const transcriptUrl = "{{ url_for('file_stream', job_id=job_id, file_name='podcast_transcript.jsonl') }}";
+
+            async function fetchTranscript() {
+                try {
+                    const res = await fetch(transcriptUrl + "?t=" + Date.now());
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+
+                    const lines = text.split("\n")
+                        .filter(line => line.trim())
+                        .map(line => {
+                            try {
+                                return JSON.parse(line);
+                            } catch(e) {
+                                console.error("Invalid JSONL line:", line, e);
+                                return null;
+                            }
+                        })
+                        .filter(obj => obj !== null);
+
+                    // Separate arrays
+                    const images = [];
+                    const characters = [];
+                    const dialogues = [];
+                    for (const item of lines) {
+                        switch(item.type) {
+                            case "image":     images.push(item.content); break;
+                            case "character": characters.push(item); break;
+                            case "dialogue":  dialogues.push(item); break;
+                            default:
+                                errorBox.style.display = "block";
+                                errorBox.textContent = "Unknown transcript item type: " + item.type;
+                        }
+                    }
+
+                    // Show sections once data is available
+                    if (images.length > 0) {
+                        waitingSection.style.display = "none";
+                        imagesSection.style.display = "";
+                        imagesBox.innerHTML = images.map(i => `<div class="mb-2">${i}</div>`).join("");
+                    }
+
+                    // Characters
+                    if (characters.length > 0) {
+                        waitingSection.style.display = "none";
+                        charactersSection.style.display = "";
+
+                        // charactersBox.innerHTML = ""; // clear container
+
+                        characters.forEach((c, i) => {
+                            const color = getCharacterColor(c.name);
+                            const wrapperId = `character-wrapper-${i}`;
+                            let wrapper = document.getElementById(wrapperId);
+
+                            // Wrapper for each character
+                            if (!wrapper) {
+                                wrapper = document.createElement("div");
+                                wrapper.className = "mb-3 d-flex align-items-start";
+                                wrapper.id = wrapperId;
+
+                                // Left: image placeholder
+                                const imgWrapper = document.createElement("div");
+                                imgWrapper.className = "me-3";
+                                imgWrapper.style.width = "160px";
+                                imgWrapper.style.height = "100px";
+                                imgWrapper.style.display = "flex";
+                                imgWrapper.style.alignItems = "center";
+                                imgWrapper.style.justifyContent = "center";
+
+                                const img = document.createElement("img");
+                                img.alt = c.name;
+                                img.className = "rounded shadow-sm";
+                                img.width = 160;
+                                img.height = 100;
+                                img.style.maxWidth = "160px";
+                                img.style.maxHeight = "100px";
+                                img.style.visibility = "hidden";
+                                imgWrapper.appendChild(img);
+
+                                // Right: text info
+                                const textDiv = document.createElement("div");
+                                textDiv.innerHTML = `👤 <span class="${color}"><strong>${c.name}</strong></span> [${c.gender}]: ${c.description}`;
+
+                                wrapper.appendChild(imgWrapper);
+                                wrapper.appendChild(textDiv);
+                                charactersBox.appendChild(wrapper);
+                            }
+
+                            // Only check/update if not already loaded
+                            const img = wrapper.querySelector("img");
+                            if (img) {
+                                const imgUrl = `/file_stream/{{ job_id }}/character_${String(i+1).padStart(3,'0')}.png`;
+                                if (!img.src.endsWith(imgUrl)) {
+                                    fetch(imgUrl + "?t=" + Date.now(), { method: "HEAD" })
+                                        .then(res => {
+                                            if (res.ok) {
+                                                img.src = imgUrl;
+                                                img.style.visibility = "visible";
+                                            }
+                                        })
+                                        .catch(() => { /* ignore missing image */ });
+                                }
+                            }
+                        });
+                    }
+
+                    // Dialogues
+                    if (dialogues.length > 0) {
+                        waitingSection.style.display = "none";
+                        dialogueSection.style.display = "";
+
+                        const audioPromises = [];
+                        dialogues.forEach((d, i) => {
+                            const wrapperId = `dialogue-${i}`;
+                            let wrapper = document.getElementById(wrapperId);
+
+                            // Wrapper for each dialogue
+                            if (!wrapper) {
+                                wrapper = document.createElement("div");
+                                wrapper.className = "mb-3 d-flex align-items-center";
+                                wrapper.id = wrapperId;
+
+                                // Left: preloaded audio player
+                                const audioWrapper = document.createElement("div");
+                                audioWrapper.className = "me-3";
+                                audioWrapper.style.width = "200px";
+                                audioWrapper.style.height = "30px";
+
+                                const audioPlayer = document.createElement("audio");
+                                audioPlayer.controls = true;
+                                audioPlayer.className = "mt-1";
+                                audioPlayer.style.width = "200px";
+                                audioPlayer.style.height = "30px";
+                                audioPlayer.innerHTML = `
+                                    <source id="src-${i}" type="audio/wav">
+                                    Your browser does not support the audio element.
+                                `;
+                                audioWrapper.appendChild(audioPlayer);
+
+                                // Right: dialogue text
+                                const color = getCharacterColor(d.character);
+                                const textDiv = document.createElement("div");
+                                textDiv.innerHTML = `💬 <span class="${color}"><strong>${d.character}</strong></span>: ${d.content}`;
+
+                                wrapper.appendChild(audioWrapper);
+                                wrapper.appendChild(textDiv);
+                                dialogueBox.appendChild(wrapper);
+                            }
+
+                            // Only fetch audio if not already loaded
+                            const audioPlayer = wrapper.querySelector("audio");
+                            if (audioPlayer) {
+                                const source = audioPlayer.querySelector("source");
+                                const audioUrl = `/file_stream/{{ job_id }}/${String(i).padStart(3,'0')}.wav`;
+                                if (!source.src.endsWith(audioUrl)) {
+                                    const audioPromise = fetch(audioUrl + "?t=" + Date.now(), { method: "HEAD" })
+                                        .then(res => {
+                                            if (res.ok) {
+                                                source.src = audioUrl;
+                                                audioPlayer.style.display = "";
+                                                audioPlayer.load();
+                                            }
+                                        })
+                                        .catch(() => { /* ignore missing audio */ });
+                                    audioPromises.push(audioPromise);
+                                }
+                            }
+                        });
+
+                        // Scroll to bottom after all checks
+                        Promise.all(audioPromises).finally(() => {
+                            dialogueBox.scrollTop = dialogueBox.scrollHeight;
+                        });
+                    }
+                } catch(err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get podcast transcript from " + transcriptUrl + ": " + err.message;
+                }
+            }
+
+            let transcriptInterval = null;
+            async function refreshTranscriptLoop() {
+                await fetchTranscript();
+                const status = await getJobStatus();
+                if (status) {
+                    updateStatusBadge(status);
+                    if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                        clearInterval(transcriptInterval);
+                    }
+                }
+            }
+
+            refreshTranscriptLoop();
+
+            transcriptInterval = setInterval(refreshTranscriptLoop, 1000);
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+        {% if audios %}
+        <h2 class="mt-5 mb-3">🔉 Audio</h2>
+        {% for file_name in audios %}
+            <!-- TODO -->
+            <audio controls class="w-100 mb-3">
+                <source src="{{ url_for('file_stream', job_id=job_id, file_name=file_name) }}" type="{{ content_type }}">
+                Your browser does not support the audio element.
+            </audio>
+        {% endfor %}
+        {% endif %}
+
+
+        {% if videos %}
+            <h2 class="mt-5 mb-3">📽️ Video</h2>
+            {% for file_name in videos %}
+                <video controls class="w-100 mb-3">
+                    <source src="{{ url_for('file_stream', job_id=job_id, file_name=file_name) }}" type="{{ content_type }}">
+                    Your browser does not support the video element.
+                </video>
+            {% endfor %}
+        {% endif %}
+
+
+        <h2 class="mt-5 mb-3">🗃️ Files</h2>
+        {% if files %}
+            <table id="files-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for file in files %}
+                    <tr>
+                        <td>{{ file.name | get_file_type_emoji | safe }}</td>
+                        <td><a href="{{ url_for('file_view', job_id=job_id, file_name=file.name) }}">{{ file.name }}</a></td>
+                        <td>{{ file.size | format_bytes | safe }}</td>
+                        <td>
+                            <span
+                                class="local-time"
+                                data-timestamp="{{ file.date.isoformat() }}"
+                                title="{{ file.date }}"
+                                aria-label="{{ file.date }}">
+                                    {{ file.date }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No files available.</p>
+        {% endif %}
+
+        {% if job %}
+            <h2 class="mt-5 mb-3">🎯 Job</h2>
+            <h4 class="mt-5 mb-3">⏳ Queue</h2>
+            <table id="queue-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Id</th>
+                        <th>Job</th>
+                        <th>Scene</th>
+                        <th>Sub-scene</th>
+                        <th>Service</th>
+                        <th>Class</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for request_id in job.get_queued_requests() %}
+                    {% set parsed_request_id = request_id | parse_request_id %}
+                    <tr>
+                        <td>{{ request_id }}</td>
+                        <td>{{ parsed_request_id.job_id }}</td>
+                        <td>{{ parsed_request_id.scene_id }}</td>
+                        <td>{{ parsed_request_id.sub_scene_id }}</td>
+                        <td>{{ parsed_request_id.service_name | get_friendly_container_name | safe }}</td>
+                        <td>{{ parsed_request_id.service_name | get_class_emoji | safe }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            {% if requests %}
+            <h3 class="mt-5 mb-3">📤 Requests</h2>
+            <table id="requests-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Id</th>
+                        <th>Scene</th>
+                        <th>Sub-scene</th>
+                        <th>Service</th>
+                        <th>Class</th>
+                        <th>Status</th>
+                        <th>Retries</th>
+                        <th>Deadline</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for request_id, request in requests.items() %}
+                    {% set parsed_request_id = request_id | parse_request_id %}
+                    <tr>
+                        <td>{{ request_id }}</td>
+                        <td>{{ parsed_request_id.scene_id }}</td>
+                        <td>{{ parsed_request_id.sub_scene_id }}</td>
+                        <td>{{ request.service_name | get_friendly_container_name | safe }}</td>
+                        <td>{{ request.service_name | get_class_emoji | safe }}</td>
+                        <td>
+                            {% if request.status.name == 'COMPLETED' %}
+                                <span aria-label="Completed" title="Completed">✅</span>
+                            {% elif request.status.name == 'CREATED' %}
+                                <span aria-label="Created" title="Created">🟢</span>
+                            {% elif request.status.name == 'STARTED' %}
+                                <span aria-label="Started" title="Started">🟢</span>
+                            {% elif request.status.name == 'RUNNING' %}
+                                <span aria-label="Running" title="In Progress">⚙️</span>
+                            {% elif request.status.name == 'FAILED' %}
+                                {% if request.exception %}
+                                    <span aria-label="{{ request.exception }}" title="{{ request.exception }}">❌</span>
+                                {% else %}
+                                    <span aria-label="Failed" title="Failed">❌</span>
+                                {% endif %}
+                            {% elif request.status.name == 'PENDING' %}
+                                <span aria-label="Pending" title="Pending">⌛</span>
+                            {% elif request.status.name == 'RETRYING' %}
+                                <span aria-label="Retrying" title="Retrying">🔄</span>
+                            {% elif request.status.name == 'UNKNOWN' %}
+                                <span aria-label="Unknown" title="Unknown">⁉️</span>
+                            {% else %}
+                                <span aria-label="{{ request.status }}" title="{{ request.status }}">⁉️ {{ request.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request.retries == 0 %}
+                                <span class="text-secondary" aria-label="No retries" title="No retries">0</span>
+                            {% elif request.retries < 5 %}
+                                <span class="text-warning">{{ request.retries }}</span>
+                            {% elif request.retries < 20 %}
+                                <span class="text-danger">{{ request.retries }}</span>
+                            {% elif request.retries >= 20 %}
+                                <span class="text-danger fw-bold">{{ request.retries }}</span>
+                            {% else %}
+                                {{ request.retries }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span
+                                class="local-time"
+                                data-timestamp="{{ request.deadline }}"
+                                title="{{ request.deadline }}"
+                                aria-label="{{ request.deadline }}">
+                                    {{ request.deadline }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll(".local-time").forEach(span => {
+                const ts = span.dataset.timestamp;
+                if (ts) {
+                    const dt = new Date(ts);
+                    // if timestamp is in seconds, convert to milliseconds
+                    // if (ts.length === 10) {
+                    //    dt.setTime(dt.getTime() * 1000);
+                    // }
+                    // seconds to milliseconds
+                    // const ms = parseFloat(ts) * 1000;
+                    // const dt = new Date(ms);
+                    // span.textContent = dt.toISOString();
+                    // span.textContent = dt.toLocaleString();
+                    span.textContent = dt.toLocaleString('sv-SE', { hour12: false });
+                }
+            });
+        });
+
+        $(document).ready(function () {
+            $('#queue-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 0, "asc" ]]
+            });
+            $('#requests-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 1, "asc" ], [ 2, "asc" ], [ 0, "asc" ]]
+            });
+            $('#files-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 1, "asc" ]]
+            });
+        });
+    </script>
+
+</body>
+</html>

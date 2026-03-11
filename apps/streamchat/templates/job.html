@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <title>Video Chat Generation {{ job_id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>
+        const ansiUp = new AnsiUp();
+    </script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+    <style>
+        .chat-box {
+            height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+        }
+
+        /* Common bubble style */
+        .chat-message {
+            max-width: 75%;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 1rem;
+            word-wrap: break-word;
+        }
+
+        /* User (right) */
+        .chat-user {
+            margin-left: auto;
+            background-color: #0d6efd;
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        /* Assistant (left) */
+        .chat-assistant {
+            margin-right: auto;
+            background-color: #e9ecef;
+            color: #212529;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        /* Optional labels */
+        .chat-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 0.1rem;
+        }
+
+        /* Error message bubble */
+        .chat-error {
+            margin-right: auto;
+            background-color: #f8d7da;
+            color: #842029;
+            border-bottom-left-radius: 0.25rem;
+            border: 1px solid #f5c2c7;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-info" href="{{ url_for('submit_job') }}" title="Submit Video Chat Generation" aria-label="Submit Video Chat Generation">🚀</a>
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+    </div>
+
+    <div class="container mb-5">
+        <h1 class="mb-4 text-center">👤💬 Video Chat 🗨️🤖</h1>
+
+        <div id="error-box" class="alert alert-danger" role="alert" style="display: none;">
+            <!-- Error messages will appear here -->
+        </div>
+
+        <div class="row g-3 mb-4">
+            <!-- Assistant media panel -->
+            <div class="col-12">
+                <div id="chat-media" class="card shadow-sm" style="width: 340px; margin: 0 auto;">
+                    <div class="d-flex flex-column align-items-center gap-2 p-2">
+                        <!-- Waiting message -->
+                        <div id="waiting-section"
+                            style="display: block; height: 200px; width: 320px; text-align: center;
+                                   display: flex; justify-content: center; align-items: center;">
+                            ⏳ Waiting...
+                        </div>
+
+                        <!-- Image + Audio -->
+                        <div id="chat-imageaudio" class="d-flex flex-column align-items-center gap-2">
+                            <img src="" style="width: 320px; height: auto; display: none;" alt="Assistant image"/>
+                            <audio controls style="width: 320px; display: none;"></audio>
+                        </div>
+
+                        <!-- Video -->
+                        <video id="chat-video" controls src="" style="display: none; max-height: 200px; max-width: 100%;">
+                            Your browser does not support the video element.
+                        </video>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat messages display -->
+            <div class="col-12">
+                <div id="chat" class="border rounded p-3" style="height: 400px; overflow-y: auto;">
+                    <!-- Chat messages will appear here -->
+                </div>
+            </div>
+
+            <!-- Input row -->
+            <div class="col-12">
+                <div class="input-group mb-2">
+                    <input
+                        id="message"
+                        type="text"
+                        class="form-control"
+                        placeholder="Type a message..."
+                        onkeydown="if(event.key === 'Enter') sendMessage()"
+                    />
+                    <!--
+                    <button
+                        id="recordBtn"
+                        class="btn btn-outline-secondary"
+                        type="button"
+                        onclick="startRecording(); toggleRecording(true);"
+                        title="Start recording">
+                        🎤
+                    </button>
+                    -->
+                    <button
+                        class="btn btn-primary"
+                        onclick="sendMessage()"
+                        title="Send message">
+                        🚀
+                    </button>
+                </div>
+                <!-- Recording status -->
+                <!--
+                <div class="d-flex align-items-center gap-2">
+                    <button
+                        id="stopBtn"
+                        class="btn btn-sm btn-danger"
+                        type="button"
+                        onclick="toggleRecording(false)"
+                        disabled>
+                        ⏹
+                    </button>
+                    <span id="recordingStatus" class="text-muted small">
+                        Not recording
+                    </span>
+                </div>
+                -->
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">ℹ️ Information</h5>
+                <p class="mb-2">
+                    <strong>Id:</strong>
+                    <span class="font-monospace">{{ job_id }}</span>
+                </p>
+                <p class="mb-2">
+                    <strong>Status:</strong>
+                    <span id="status-badge">
+                        {% if status %}
+                            {% if status == 'COMPLETED' %}
+                                <span class="badge bg-success">✅ Completed</span>
+                            {% elif status == 'STARTED' %}
+                                <span class="badge bg-warning text-dark">⌛ Started</span>
+                            {% elif status == 'RUNNING' %}
+                                <span class="badge bg-warning text-dark">⚙️ Running</span>
+                            {% elif status == 'FAILED' %}
+                                <span class="badge bg-danger">❌ Failed</span>
+                            {% elif status == 'EXPIRED' %}
+                                <span class="badge bg-danger">💀 Expired</span>
+                            {% elif status == 'UNKNOWN' %}
+                                <span class="badge bg-secondary">⁉️ Unknown</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ status }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">⁉️ Unknown</span>
+                        {% endif %}
+                    </span>
+                </p>
+                <p class="mb-2">
+                    <strong>Document:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='document.pdf') }}" 
+                    class="link-primary text-decoration-none">
+                        📑 View
+                    </a>
+                </p>
+
+                {% if times %}
+                    {% if times.STARTED %}
+                        <p class="mb-0">
+                            <strong style="display:inline-block; width:100px;">Start:</strong>
+                            <span class="local-time" data-timestamp="{{ times.STARTED.isoformat() }}Z">
+                                {{ times.STARTED }}
+                            </span>
+                        </p>
+                    {% endif %}
+                    {% if times.COMPLETED %}
+                        <p class="mb-0">
+                            <strong style="display:inline-block; width:100px;">Complete:</strong>
+                            <span class="local-time" data-timestamp="{{ times.COMPLETED.isoformat() }}Z">
+                                {{ times.COMPLETED }}
+                            </span>
+                        </p>
+                    {% endif %}
+                    {% if times.COMPLETED and times.STARTED %}
+                        <p class="mb-0">
+                            <strong style="display:inline-block; width:100px;">Generation:</strong>
+                            {{ ( times.COMPLETED - times.STARTED ) | format_duration | safe }}
+                        </p>
+                    {% endif %}
+                {% endif %}
+
+                {% if job_config and job_config.width and job_config.height %}
+                    <p class="mb-0">
+                        <strong style="display:inline-block; width:100px;">Resolution:</strong>
+                        {{ job_config.width }} x {{ job_config.height }}
+                    </p>
+                {% endif %}
+
+                {% if job_config and job_config.output_mode %}
+                    <p class="mb-0">
+                        <strong style="display:inline-block; width:100px;">Output:</strong>
+                        {% if job_config.output_mode == "audio_only" %}
+                            🔉 Audio only
+                        {% elif job_config.output_mode == "video_audio_synced" %}
+                            📽️🔉🗣️ Video &amp; Audio (lip synced)
+                        {% elif job_config.output_mode == "video_audio_unsynced" %}
+                            📽️🔉 Video &amp; Audio (unsynced)
+                        {% else %}
+                            {{ job_config.output_mode | format_string | safe }}
+                        {% endif %}
+                    </p>
+                {% endif %}
+
+                {% if job_request %}
+                    <details class="mt-3">
+                        <summary class="fw-bold">📩 Request</summary>
+                        <div class="row mt-2">
+                            {% for key, value in job_request.items() %}
+                                {% if not key.endswith('base64') %}
+                                    <div class="col-6 mb-1">
+                                        <strong>{{ key | format_string | safe }}:</strong>
+                                        {% if value == True %}
+                                            <span class="text-success">✅ True</span>
+                                        {% elif value == False %}
+                                            <span class="text-danger">❌ False</span>
+                                        {% else %}
+                                            <span class="font-monospace">{{ value | format_string | safe }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+                {% if job_config %}
+                    <details class="mt-3">
+                        <summary class="fw-bold">🛠️ Config</summary>
+                        <div class="row mt-2">
+                            {% for key, value in job_config.items() %}
+                                {% if not key.endswith('base64') %}
+                                    <div class="col-6 mb-1">
+                                        <strong>{{ key | format_string | safe }}:</strong>
+                                        {% if value == True %}
+                                            <span class="text-success">✅ True</span>
+                                        {% elif value == False %}
+                                            <span class="text-danger">❌ False</span>
+                                        {% else %}
+                                            <span class="font-monospace">{{ value | format_string | safe }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            async function getJobStatus() {
+                try {
+                    const statusUrl = "/api/job/{{ job_id }}/status";
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            let statusInterval = null;
+            async function refreshStatusLoop() {
+                const status = await getJobStatus();
+                if (status) {
+                    updateStatusBadge(status);
+                    if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                        clearInterval(statusInterval);
+                    }
+                }
+            }
+
+            refreshStatusLoop();
+            statusInterval = setInterval(refreshStatusLoop, 1000);
+
+            async function showMessageHistory() {
+                const res = await fetch("/chat/{{ job_id }}/history", {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                });
+                const responseJson = await res.json();
+                const chatHistory = responseJson.history;
+
+                let lastReplyId = 0;
+                const chat = document.getElementById("chat");
+                for (const line of chatHistory) {
+                    if (line.role === "user") {
+                        chat.innerHTML += `
+                            <div class="d-flex flex-column align-items-end" title="Question">
+                                <div class="chat-label">👤 You</div>
+                                <div class="chat-message chat-user">
+                                    ${line.content}
+                                </div>
+                            </div>
+                        `;
+                    } else if (line.role === "assistant") {
+                        chat.innerHTML += `
+                            <div class="d-flex flex-column align-items-start" title="Reply ${lastReplyId}">
+                                <div class="chat-label">🤖 Assistant</div>
+                                <div class="chat-message chat-assistant">
+                                    ${line.content}
+                                </div>
+                            </div>
+                        `;
+                        lastReplyId += 1;
+                    } else if (line.role === "system") {
+                        /* Ignore system messages for now */
+                    } else {
+                        chat.innerHTML += `
+                            <div class="d-flex flex-column align-items-start" title="Error">
+                                <div class="chat-label">⚠️ Unknown</div>
+                                <div class="chat-message chat-error">
+                                    ❌ Unknown role: ${line.role}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                chat.scrollTop = chat.scrollHeight;
+
+                if (lastReplyId > 0) {
+                    let replyId = lastReplyId - 1;
+                    showAudioReply(replyId);
+                    showVideoReply(replyId);
+                }
+            }
+
+            let mediaRecorder = null;
+            let audioChunks = [];
+
+            async function startRecording() {
+                if (!window.isSecureContext ||
+                    !navigator.mediaDevices ||
+                    !navigator.mediaDevices.getUserMedia) {
+                    alert(
+                        "Microphone access requires HTTPS or localhost.\n" +
+                        "Current page is not a secure context."
+                    );
+                    return;
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: "audio/webm" // Chrome/Edge/Firefox
+                });
+                audioChunks = [];
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                mediaRecorder.start();
+            }
+
+            function stopRecording() {
+                if (mediaRecorder == null || mediaRecorder.state !== "recording") {
+                    return Promise.resolve(null);
+                }
+                return new Promise((resolve) => {
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, {
+                            type: "audio/webm"
+                        });
+                        resolve(audioBlob);
+                    };
+                    mediaRecorder.stop();
+                });
+            }
+
+            function toggleRecording(isRecording) {
+                const recordBtn = document.getElementById("recordBtn");
+                const stopBtn = document.getElementById("stopBtn");
+                const status = document.getElementById("recordingStatus");
+                if (isRecording) {
+                    recordBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    status.textContent = "🎙 Recording...";
+                    status.classList.remove("text-muted");
+                    status.classList.add("text-danger");
+                } else {
+                    recordBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    status.textContent = "Not recording";
+                    status.classList.remove("text-danger");
+                    status.classList.add("text-muted");
+                    stopRecording();
+                }
+            }
+
+            async function sendMessage() {
+                const input = document.getElementById("message");
+                const inputAudio = await stopRecording(); // get the blob
+                const chat = document.getElementById("chat");
+
+                const text = input.value.trim();
+                if (!text)
+                    return;
+                input.value = "";
+
+                // Display user message (right)
+                chat.innerHTML += `
+                    <div class="d-flex flex-column align-items-end title="Question">
+                        <div class="chat-label">👤 You</div>
+                        <div class="chat-message chat-user">
+                            ${text}
+                        </div>
+                    </div>
+                `;
+                chat.scrollTop = chat.scrollHeight;
+
+                try {
+                    // Submit chat to HTTP server
+                    const startTime = performance.now();
+
+                    const formData = new FormData();
+                    formData.append("message", text);
+                    if (inputAudio) {
+                        formData.append("audio", inputAudio, "input.webm"); // or .wav
+                    }
+
+                    const res = await fetch("/chat/{{ job_id }}", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    /*
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        errorBox.style.display = "block";
+                        errorBox.textContent = "Cannot get chat reply: " + errorText;
+                        return;
+                    }
+                    */
+
+                    const totalTimeMs = (performance.now() - startTime).toFixed(1);
+
+                    // Start refreshing job status
+                    refreshStatusLoop();
+                    statusInterval = setInterval(refreshStatusLoop, 1000);
+
+                    const responseJson = await res.json();
+                    const replyId = responseJson.id;
+
+                    // Set the audio and video as soon as it is available
+                    showAudioReply(replyId);
+                    showVideoReply(replyId);
+
+                    const reply = responseJson.reply;
+
+                    // Assistant bubble (left)
+                    if (reply) {
+                        chat.innerHTML += `
+                            <div class="d-flex flex-column align-items-start" title="Reply ${replyId} in ${totalTimeMs} ms">
+                                <div class="chat-label">🤖 Assistant</div>
+                                <div class="chat-message chat-assistant">
+                                    ${reply}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        chat.innerHTML += `
+                            <div class="d-flex flex-column align-items-start" title="Reply ${replyId} with status ${res.status} in ${totalTimeMs} ms">
+                                <div class="chat-label">⚠️ Assistant</div>
+                                <div class="chat-message chat-error">
+                                    ❌ No reply received.
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (err) {
+                    console.error("Chat error:", err);
+                    chat.innerHTML += `
+                        <div class="d-flex flex-column align-items-start">
+                            <div class="chat-label">⚠️ Assistant</div>
+                            <div class="chat-message chat-error">
+                                ❌ ${err.message || "Something went wrong"}
+                            </div>
+                        </div>
+                    `;
+                } finally {
+                    chat.scrollTop = chat.scrollHeight;
+                }
+            }
+
+            async function showImage() {
+                const startTime = performance.now();
+                const imageUrl = `/file_stream/{{ job_id }}/main_image.png`;
+                const imgElement = document.querySelector("#chat-imageaudio img");
+                const waitingSection = document.getElementById("waiting-section");
+
+                const waitForImage = async (url, interval = 500) => {
+                    while (true) {
+                        try {
+                            const res = await fetch(imageUrl + "?t=" + Date.now(), { method: "HEAD" });
+                            if (res.ok) {
+                                await new Promise((resolve, reject) => {
+                                    imgElement.onload = resolve;
+                                    imgElement.onerror = reject; // handle broken images
+                                    imgElement.src = url; // triggers the browser to load it
+                                    imgElement.style.display = "block";
+                                });
+
+                                waitingSection.style.display = "none";
+
+                                const totalTimeMs = ((performance.now() - startTime)).toFixed(1);
+                                console.log(`Image on ${imageUrl} ready after ${totalTimeMs} ms`);
+
+                                return;  // exit loop
+                            }
+                        } catch (ex) {
+                            // ignore errors
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                };
+
+                await waitForImage(imageUrl);
+            }
+
+            async function showAudioReply(replyId) {
+                if (replyId == null || replyId < 0)
+                    return;
+                const startTime = performance.now();
+
+                const audioUrl = `/file_stream/{{ job_id }}/chat${String(replyId).padStart(3,'0')}.wav`;
+                const audioElement = document.querySelector("#chat-imageaudio audio");
+                const imgElement = document.querySelector("#chat-imageaudio img");
+
+                const waitingSection = document.getElementById("waiting-section");
+
+                const waitForAudio = async (url, interval = 200) => {
+                    while (true) {
+                        try {
+                            const res = await fetch(audioUrl + "?t=" + Date.now(), { method: "HEAD" });
+                            if (res.ok) {
+                                waitingSection.style.display = "none";
+
+
+                                audioElement.src = audioUrl;
+                                audioElement.load();
+
+                                imgElement.style.display = "block";
+                                audioElement.style.display = "block";
+
+                                audioElement.play().catch(e => console.log("Audio autoplay blocked"));
+
+                                const totalTimeMs = ((performance.now() - startTime)).toFixed(1);
+                                console.log(`Audio ${replyId} on ${audioUrl} ready after ${totalTimeMs} ms`);
+
+                                return;  // exit loop
+                            }
+                        } catch (ex) {
+                            // ignore errors
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                };
+
+                await waitForAudio(audioUrl);
+            }
+
+            async function showVideoReply(replyId) {
+                if (replyId == null || replyId < 0)
+                    return;
+                const startTime = performance.now();
+
+                const videoUrl = `/file_stream/{{ job_id }}/chat${String(replyId).padStart(3,'0')}.mp4`;
+                const videoElement = document.getElementById("chat-video");
+
+                const audioElement = document.querySelector("#chat-imageaudio audio");
+                const imgElement = document.querySelector("#chat-imageaudio img");
+                const waitingSection = document.getElementById("waiting-section");
+
+                const waitForVideo = async (url, interval = 500) => {
+                    while (true) {
+                        try {
+                            const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" });
+                            if (res.ok) {
+                                console.log(`Video ${replyId} on ${videoUrl} is available`);
+                                waitingSection.style.display = "none";
+
+                                // Hide the image/audio section
+                                audioElement.style.display = "none";
+                                imgElement.style.display = "none";
+                                
+                                // Show the video
+                                videoElement.src = videoUrl;
+                                videoElement.load();
+                                videoElement.style.display = "block";
+                                videoElement.play().catch(e => console.log("Video autoplay blocked"));
+
+                                const totalTimeMs = ((performance.now() - startTime)).toFixed(1);
+                                console.log(`Video ${replyId} on ${videoUrl} ready after ${totalTimeMs} ms`);
+
+                                return;  // exit loop
+                            }
+                        } catch (ex) {
+                            // ignore errors
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                };
+
+                await waitForVideo(videoUrl);
+            }
+
+            showImage();
+            showMessageHistory();
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+        {% if audios %}
+        <h2 class="mt-5 mb-3">🔉 Audio</h2>
+        {% for file_name in audios %}
+            <!-- TODO -->
+            <audio controls class="w-100 mb-3">
+                <source src="{{ url_for('file_stream', job_id=job_id, file_name=file_name) }}" type="{{ content_type }}">
+                Your browser does not support the audio element.
+            </audio>
+        {% endfor %}
+        {% endif %}
+
+
+        {% if videos %}
+            <h2 class="mt-5 mb-3">📽️ Video</h2>
+            {% for file_name in videos %}
+                <video controls class="w-100 mb-3">
+                    <source src="{{ url_for('file_stream', job_id=job_id, file_name=file_name) }}" type="{{ content_type }}">
+                    Your browser does not support the video element.
+                </video>
+            {% endfor %}
+        {% endif %}
+
+
+        <h2 class="mt-5 mb-3">🗃️ Files</h2>
+        {% if files %}
+            <table id="files-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for file in files %}
+                    <tr>
+                        <td>{{ file.name | get_file_type_emoji | safe }}</td>
+                        <td><a href="{{ url_for('file_view', job_id=job_id, file_name=file.name) }}">{{ file.name }}</a></td>
+                        <td>{{ file.size | format_bytes | safe }}</td>
+                        <td>
+                            <span
+                                class="local-time"
+                                data-timestamp="{{ file.date.isoformat() }}"
+                                title="{{ file.date }}"
+                                aria-label="{{ file.date }}">
+                                    {{ file.date }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No files available.</p>
+        {% endif %}
+
+        {% if job %}
+            <h2 class="mt-5 mb-3">🎯 Job</h2>
+            <h4 class="mt-5 mb-3">⏳ Queue</h2>
+            <table id="queue-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Id</th>
+                        <th>Job</th>
+                        <th>Scene</th>
+                        <th>Sub-scene</th>
+                        <th>Service</th>
+                        <th>Class</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for request_id in job.get_queued_requests() %}
+                    {% set parsed_request_id = request_id | parse_request_id %}
+                    <tr>
+                        <td>{{ request_id }}</td>
+                        <td>{{ parsed_request_id.job_id }}</td>
+                        <td>{{ parsed_request_id.scene_id }}</td>
+                        <td>{{ parsed_request_id.sub_scene_id }}</td>
+                        <td>{{ parsed_request_id.service_name | get_friendly_container_name | safe }}</td>
+                        <td>{{ parsed_request_id.service_name | get_class_emoji | safe }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            {% if requests %}
+            <h3 class="mt-5 mb-3">📤 Requests</h2>
+            <table id="requests-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Id</th>
+                        <th>Scene</th>
+                        <th>Sub-scene</th>
+                        <th>Service</th>
+                        <th>Class</th>
+                        <th>Status</th>
+                        <th>Retries</th>
+                        <th>Deadline</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for request_id, request in requests.items() %}
+                    {% set parsed_request_id = request_id | parse_request_id %}
+                    <tr>
+                        <td>{{ request_id }}</td>
+                        <td>{{ parsed_request_id.scene_id }}</td>
+                        <td>{{ parsed_request_id.sub_scene_id }}</td>
+                        <td>{{ request.service_name | get_friendly_container_name | safe }}</td>
+                        <td>{{ request.service_name | get_class_emoji | safe }}</td>
+                        <td>
+                            {% if request.status.name == 'COMPLETED' %}
+                                <span aria-label="Completed" title="Completed">✅</span>
+                            {% elif request.status.name == 'CREATED' %}
+                                <span aria-label="Created" title="Created">🟢</span>
+                            {% elif request.status.name == 'STARTED' %}
+                                <span aria-label="Started" title="Started">🟢</span>
+                            {% elif request.status.name == 'RUNNING' %}
+                                <span aria-label="Running" title="In Progress">⚙️</span>
+                            {% elif request.status.name == 'FAILED' %}
+                                {% if request.exception %}
+                                    <span aria-label="{{ request.exception }}" title="{{ request.exception }}">❌</span>
+                                {% else %}
+                                    <span aria-label="Failed" title="Failed">❌</span>
+                                {% endif %}
+                            {% elif request.status.name == 'PENDING' %}
+                                <span aria-label="Pending" title="Pending">⌛</span>
+                            {% elif request.status.name == 'RETRYING' %}
+                                <span aria-label="Retrying" title="Retrying">🔄</span>
+                            {% elif request.status.name == 'UNKNOWN' %}
+                                <span aria-label="Unknown" title="Unknown">⁉️</span>
+                            {% else %}
+                                <span aria-label="{{ request.status }}" title="{{ request.status }}">⁉️ {{ request.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request.retries == 0 %}
+                                <span class="text-secondary" aria-label="No retries" title="No retries">0</span>
+                            {% elif request.retries < 5 %}
+                                <span class="text-warning">{{ request.retries }}</span>
+                            {% elif request.retries < 20 %}
+                                <span class="text-danger">{{ request.retries }}</span>
+                            {% elif request.retries >= 20 %}
+                                <span class="text-danger fw-bold">{{ request.retries }}</span>
+                            {% else %}
+                                {{ request.retries }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span
+                                class="local-time"
+                                data-timestamp="{{ request.deadline }}"
+                                title="{{ request.deadline }}"
+                                aria-label="{{ request.deadline }}">
+                                    {{ request.deadline }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll(".local-time").forEach(span => {
+                const ts = span.dataset.timestamp;
+                if (ts) {
+                    const dt = new Date(ts);
+                    // span.textContent = dt.toISOString();
+                    // span.textContent = dt.toLocaleString();
+                    span.textContent = dt.toLocaleString('sv-SE', { hour12: false });
+                }
+            });
+        });
+
+        $(document).ready(function () {
+            $('#queue-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 0, "asc" ]]
+            });
+            $('#requests-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 1, "asc" ], [ 2, "asc" ], [ 0, "asc" ]]
+            });
+            $('#files-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 1, "asc" ]]
+            });
+        });
+    </script>
+
+</body>
+</html>

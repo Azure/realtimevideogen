@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Submit Edit Generation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>const ansiUp = new AnsiUp();</script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+    </div>
+
+    <div class="container py-4">
+        <h1>🚀 Submit Edit Generation</h1>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form id="job-form">
+                    <h4>📽️ Video</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="upload_video" class="form-label">Upload Video (mp4)</label>
+                            <input type="file" class="form-control" id="upload_video" name="upload_video" accept=".mp4">
+                        </div>
+                    </div>
+
+                    <h4>📽️ Output</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="resolution" class="form-label">🖥️ Resolution</label>
+                            <select class="form-select" id="resolution" name="resolution">
+                                <option value="high">⬆️ High (1280x800)</option>
+                                <option value="medium">↗️ Medium (640x400)</option>
+                                <option value="low">⬇️ Low (320x200)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quality" class="form-label">🌟 Quality</label>
+                            <select class="form-select" id="quality" name="quality">
+                                <option value="high">⬆️ High</option>
+                                <option value="medium">↗️ Medium</option>
+                                <option value="low">⬇️ Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checkboxes -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="debug_image" name="debug_image" value="1" checked>
+                                <label for="debug_image" class="form-check-label">
+                                    🧑‍💻 Debug
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Add debugging information to the video.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="upscaling" name="upscaling" value="1" checked>
+                                <label for="upscaling" class="form-check-label">
+                                    🖼️⬆️ Upscale
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Generate lower resolution and then upscale.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estimate + submit -->
+                    <div class="mb-3">
+                        <strong>⏳ Estimated generation time:</strong> <span id="generation_time_estimate">~45 seconds</span>
+                    </div>
+
+                    <div class="text-center">
+                        <button
+                            type="submit"
+                            class="btn btn-success btn-lg"
+                            style="width: 200px;">
+                            🚀 Submit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Output -->
+        <div id="output-card" class="card shadow-sm" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title">Response</h5>
+                <pre id="output" class="bg-dark text-white p-3 rounded" style="height: 300px; overflow: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                console.log("reader.result =", reader.result);
+                reader.onload = () => resolve(reader.result.split(',')[1]); // Strip "data:*/*;base64,"
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        };
+
+        function formatStringTime(totalSeconds) {
+            if (totalSeconds < 15)
+                return "15 seconds";
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return [
+                hours > 0 ? `${hours} hours` : "",
+                minutes > 0 ? `${minutes} minutes` : "",
+                (seconds > 0 || (hours === 0 && minutes === 0)) ? `${seconds} seconds` : ""
+            ].filter(Boolean).join(" ");
+        }
+
+        function estimateGenerationTime() {
+            const video_duration = parseInt(document.getElementById("video_duration_seconds").value);
+            const outputMode = document.getElementById("output_mode").value;
+
+            let estimatedTime = 15; // Default minimum time 15 seconds
+            if (outputMode === "audio_only") {
+                // Audio only: 45 seconds for 60 seconds
+                estimatedTime = 45.0 * (video_duration / 60.0);
+            } else {
+                // Video+Audio: 2200 seconds for 60 seconds
+                estimatedTime = 2200.0 * (video_duration / 60.0);
+            }
+            estimatedTime = Math.max(estimatedTime, 15); // Minimum 15 seconds
+            estimatedTime = Math.round(estimatedTime);
+            return formatStringTime(estimatedTime);
+        };
+
+        function updateGenerationTime() {
+            document.getElementById("generation_time_estimate").textContent = "~" + estimateGenerationTime();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("output_mode").addEventListener("change", updateGenerationTime);
+            updateGenerationTime();
+        });
+
+        document.getElementById("job-form").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const payload = {};
+
+            const fileInput = document.getElementById("upload_video");
+            if (!fileInput.files.length) {
+                alert("Please select an mp4 file.");
+                return;
+            }
+
+            const fileDoc = fileInput.files[0];
+            if (fileDoc) {
+                const MAX_FILE_SIZE_MB = 16;
+                const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+                if (fileDoc.size > MAX_FILE_SIZE) {
+                    alert(
+                        `File too large (${(fileDoc.size / 1024 / 1024).toFixed(1)} MB).\n` +
+                        `Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`
+                    );
+                    return;
+                }
+
+                var video_base64 = await fileToBase64(fileDoc);
+                payload.video_base64 = video_base64;
+            }
+
+            // Output / quality
+            payload.resolution = document.getElementById("resolution").value;
+            payload.quality = document.getElementById("quality").value;
+
+            // Extra flags
+            payload.debug_image = document.getElementById("debug_image").checked;
+            payload.upscaling = document.getElementById("upscaling").checked;
+
+            const output = document.getElementById("output");
+            try {
+                let apiUrl = "/api/job";
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const contentType = response.headers.get("Content-Type") || "";
+                if (contentType.includes("application/json")) {
+                    const data = await response.json();
+                    let formatted = `<pre class="text-white">${JSON.stringify(data, null, 2)}</pre>`;
+                    if (data.job_id) {
+                        window.location.href = `/job/${data.job_id}`;
+                    }
+                    output.innerHTML = formatted;
+                }  else {
+                    const text = await response.text();
+                    output.textContent = `Unexpected content-type: ${contentType}\n\n${text}`;
+                }
+                document.getElementById("output-card").style.display = "block";
+            } catch (err) {
+                output.textContent = "❌ Error: " + err.message;
+            }
+        });
+    </script>
+</body>
+</html>
