@@ -347,14 +347,14 @@ jobs:
 
     - name: Upload XML coverage report
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: xml-coverage-report
         path: coverage.xml
 
     - name: Upload HTML coverage report
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: html-coverage-report
         path: htmlcov/
@@ -388,7 +388,8 @@ jobs:
         recreate: true
         message: |
           ${{ steps.coverage-summary.outputs.summary || '' }}
-          :open_book: [Full HTML Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
+          :open_book: [Full HTML Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/) (updated on merge to main)
+          :file_folder: [Download HTML Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) — see *html-coverage-report* artifact
         path: code-coverage-results.md
 
   deploy-coverage:
@@ -430,7 +431,7 @@ jobs:
       run: cat cloc-report.txt
 
     - name: Upload cloc report (text)
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: cloc-text
         path: cloc-report.txt
@@ -447,7 +448,7 @@ jobs:
       run: cat cloc-summary.md
 
     - name: Upload cloc report (Markdown)
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: cloc-markdown
         path: cloc-summary.md
