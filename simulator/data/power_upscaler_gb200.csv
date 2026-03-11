@@ -1,0 +1,6 @@
+world_size,power_watts
+# Value from A100 ratio
+1,687
+2,1374
+4,2748
+8,5496
