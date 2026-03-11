@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ['*']
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   checks: write
@@ -19,10 +23,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Use Python 3.12
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
         cache: 'pip'
@@ -57,8 +61,15 @@ jobs:
     - name: Run shell lint
       if: always()
       run: |
-        shellcheck $(git ls-files '*.sh')
-        shellcheck $(git ls-files '*.bash')
+        shellcheck -f gcc $(git ls-files '*.sh') $(git ls-files '*.bash') > shellcheck-results.txt 2>&1 || true
+        cat shellcheck-results.txt
+
+    - name: Shellcheck reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat shellcheck-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="shellcheck" -reporter=github-check -level=warning || true
 
     - name: Run HTML/Jinja lint
       if: always()
@@ -88,6 +99,16 @@ jobs:
         else
           echo "**flake8:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
         fi
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        if [ -s shellcheck-results.txt ]; then
+          SC_COUNT=$(wc -l < shellcheck-results.txt)
+          echo "**shellcheck:** ${SC_COUNT} issue(s)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          head -20 shellcheck-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "**shellcheck:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+        fi
 
   test:
     name: Test
@@ -95,16 +116,16 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Use Python 3.12
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
         cache: 'pip'
 
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: '10.x'
 
@@ -304,16 +325,21 @@ jobs:
         coverage xml -o coverage.xml --ignore-errors
         coverage html -d htmlcov --ignore-errors
 
-    - name: List test files
+    - name: Test artifacts summary
       if: always()
       run: |
-        ls -l test-results*.xml
-        ls -l .coverage*
-        md5sum .coverage*
+        echo "## Test Artifacts" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+        for f in test-results*.xml; do
+          [ -f "$f" ] && echo "| $f | $(du -h "$f" | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
+        done
+        echo "| coverage.xml | $(du -h coverage.xml 2>/dev/null | cut -f1 || echo 'N/A') |" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Publish test results
       if: always()
-      uses: EnricoMi/publish-unit-test-result-action@v2
+      uses: EnricoMi/publish-unit-test-result-action@v3
       with:
         files: test-results*.xml
         comment_mode: always
@@ -321,25 +347,26 @@ jobs:
 
     - name: Upload XML coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: xml-coverage-report
         path: coverage.xml
 
     - name: Upload HTML coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: html-coverage-report
         path: htmlcov/
 
     - name: Upload Pages artifact
       if: always() && github.ref == 'refs/heads/main'
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v4
       with:
         path: htmlcov/
 
     - name: Code coverage summary
+      id: coverage-summary
       if: always()
       uses: irongut/CodeCoverageSummary@v1.3.0
       with:
@@ -359,6 +386,9 @@ jobs:
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         recreate: true
+        message: |
+          ${{ steps.coverage-summary.outputs.summary || '' }}
+          :open_book: [Full HTML Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
         path: code-coverage-results.md
 
   deploy-coverage:
@@ -373,7 +403,7 @@ jobs:
     steps:
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
 
   stats:
     name: Stats
@@ -381,7 +411,7 @@ jobs:
     if: always()
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install cloc
       run: |
@@ -400,7 +430,7 @@ jobs:
       run: cat cloc-report.txt
 
     - name: Upload cloc report (text)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: cloc-text
         path: cloc-report.txt
@@ -417,7 +447,7 @@ jobs:
       run: cat cloc-summary.md
 
     - name: Upload cloc report (Markdown)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: cloc-markdown
         path: cloc-summary.md
