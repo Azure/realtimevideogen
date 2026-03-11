@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install flake8
+        pip install flake8 j2lint
         pip cache purge
 
     - name: Install shellcheck
@@ -46,6 +46,20 @@ jobs:
       run: |
         shellcheck $(git ls-files '*.sh')
         shellcheck $(git ls-files '*.bash')
+
+    - name: Run HTML/Jinja lint
+      if: always()
+      run: |
+        j2lint streamwise/templates/ --extensions html || true
+        j2lint apps/streamcast/templates/ --extensions html || true
+        j2lint apps/streampersona/templates/ --extensions html || true
+        j2lint apps/streamshort/templates/ --extensions html || true
+        j2lint apps/streamdub/templates/ --extensions html || true
+        j2lint apps/streammovie/templates/ --extensions html || true
+        j2lint apps/streamedit/templates/ --extensions html || true
+        j2lint apps/streamchat/templates/ --extensions html || true
+        j2lint apps/streamlecture/templates/ --extensions html || true
+        j2lint apps/streamanimate/templates/ --extensions html || true
 
   test:
     name: Test
@@ -247,20 +261,6 @@ jobs:
         export COVERAGE_FILE=.coverage
         coverage combine --keep .coverage.*
         coverage xml -o coverage.xml --ignore-errors
-
-    - name: HTML/Jinja lint
-      if: always()
-      run: |
-        j2lint streamwise/templates/ --extensions html || true
-        j2lint apps/streamcast/templates/ --extensions html || true
-        j2lint apps/streampersona/templates/ --extensions html || true
-        j2lint apps/streamshort/templates/ --extensions html || true
-        j2lint apps/streamdub/templates/ --extensions html || true
-        j2lint apps/streammovie/templates/ --extensions html || true
-        j2lint apps/streamedit/templates/ --extensions html || true
-        j2lint apps/streamchat/templates/ --extensions html || true
-        j2lint apps/streamlecture/templates/ --extensions html || true
-        j2lint apps/streamanimate/templates/ --extensions html || true
 
     - name: List test files
       if: always()
