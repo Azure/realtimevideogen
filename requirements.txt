@@ -1,7 +1,7 @@
 ninja
 packaging
 
-torch==2.7.1
+torch==2.8.0
 torchvision==0.22.1
 xformers==0.0.31
 xfuser==0.4.3.post3
