@@ -1,0 +1,70 @@
+# FROM nvidia/cuda:12.9.1-devel-ubuntu24.04
+ARG DOCKER_REPO=reposmustbeset.azurecr.io
+
+FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CONDA_DIR=/opt/conda
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        wget \
+        gnupg2 \
+        git \
+        bzip2 \
+        libglib2.0-0 \
+        libxext6 \
+        libsm6 \
+        libxrender1 \
+        libgl1 \
+        ffmpeg \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+    bash miniconda.sh -b -p $CONDA_DIR && \
+    rm miniconda.sh && \
+    conda clean -afy
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
+    conda create -y -n rtgen python=3.12 && \
+    conda install -n rtgen pip -y && \
+    conda run -n rtgen pip install --upgrade pip && \
+    conda run -n rtgen pip install torch==2.7.1 ninja packaging && \
+    conda run -n rtgen pip cache purge
+
+COPY docker_files/base_requirements.txt /requirements.txt
+RUN conda run -n rtgen pip install -r /requirements.txt && \
+    conda run -n rtgen pip cache purge
+
+RUN git clone https://github.com/microsoft/VibeVoice.git vibevoice
+WORKDIR /vibevoice
+
+COPY docker_files/requirements.txt /vibevoice/requirements.txt
+RUN conda run -n rtgen pip install -r /vibevoice/requirements.txt && \
+    conda run -n rtgen pip cache purge
+
+RUN conda run -n rtgen hf download microsoft/VibeVoice-1.5B --local-dir microsoft/VibeVoice-1.5B
+RUN conda run -n rtgen hf download Qwen/Qwen2.5-1.5B --local-dir Qwen/Qwen2.5-1.5B
+
+COPY docker_files/*.py .
+COPY docker_files/*.bash .
+COPY docker_files/templates ./templates
+COPY docker_files/static ./static
+COPY docker_files/services.json .
+
+# VibeVoice files
+COPY docker_files/schedule /vibevoice/schedule
+COPY docker_files/voices /vibevoice/voices
+
+SHELL ["/bin/bash", "-c"]
+RUN echo "source activate rtgen" >> ~/.bashrc
+
+# docker run --gpus all -p 18080:8080 vibevoice
+# docker exec -it <container-id> ls -l /
+ENTRYPOINT ["bash", "run_httpserver.bash", "--vibevoice"]
+EXPOSE 8080

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+# Generate the Docker images.
+
+DEPLOYMENT_DIR=.
+# shellcheck disable=SC1090,SC1091
+source "$DEPLOYMENT_DIR/set_properties.sh"
+
+# curl -s -H "Metadata:true" "http://169.254.169.254/metadata/identity/info?api-version=2021-02-01" | jq .
+# az login --identity
+# az login
+# az account set --subscription $SUBSCRIPTION_ID
+# az acr list -o table
+az acr login --name "$ACR_NAME"
+
+# IMAGES=($(jq -r 'keys[]' ../services.json))
+mapfile -t IMAGES < <(jq -r 'keys[]' ../services.json)
+
+# Build the wrappers and apps images
+for IMAGE in "${IMAGES[@]}"; do
+  for DIR_TYPE in "wrappers" "apps"; do
+    TARGET_DIR="$DIR_TYPE/$IMAGE"
+    if [ -d "$TARGET_DIR" ]; then
+      (
+        cd "$TARGET_DIR" || exit
+        if [ -f setup_image.sh ]; then
+          echo "Build $IMAGE on $TARGET_DIR..."
+          bash setup_image.sh > /dev/null 2>&1
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "❌ Cannot build $IMAGE"
+          fi
+        fi
+      )
+    fi
+  done
+done
+
+# Push the images
+az acr login --name "$ACR_NAME"
+
+for IMAGE in "${IMAGES[@]}"; do
+  TAG=$(docker image ls "$ACR_URL/$IMAGE" --format "{{.Tag}}" \
+        | grep -v -E '^(latest|<none>)$' \
+        | sort -V \
+        | tail -n 1)
+  if [[ -n "$TAG" ]]; then
+    echo "Push $ACR_URL/$IMAGE:$TAG..."
+    docker push "$ACR_URL/$IMAGE:$TAG" > /dev/null 2>&1
+    STATUS=$?
+    if [ $STATUS -ne 0 ]; then
+      echo "❌ Cannot push $ACR_URL/$IMAGE:$TAG"
+    fi
+  else
+    echo "No valid tag found for $IMAGE"
+  fi
+done
