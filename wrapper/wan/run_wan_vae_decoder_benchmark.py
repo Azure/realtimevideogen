@@ -16,10 +16,6 @@ import torch
 import torch.amp as amp
 import torch.distributed as dist
 
-# Wan specific imports hardcoded: git clone https://github.com/Wan-Video/Wan2.1
-# import sys
-# sys.path.append("/mnt/inigog/Wan2.1/")
-
 
 # Original
 def decode_old(
@@ -231,7 +227,7 @@ def main() -> None:
     # Load VAE
     t0 = time.time()
     print(f"[{rank}] Loading WanVAE...")
-    ckpt_dir = "/mnt/inigog/Wan2.1/Wan2.1-I2V-14B-480P"
+    ckpt_dir = "Wan2.1/Wan2.1-I2V-14B-480P"
     vae = WanVAE(
         vae_pth=os.path.join(ckpt_dir, 'Wan2.1_VAE.pth'),
         device=device,
@@ -239,7 +235,7 @@ def main() -> None:
     print(f"[{rank}] Loaded WanVAE in {time.time() - t0:.3f} seconds")  # ~9 seconds
 
     # 0 DEBUG: VAE decode z shape torch.Size([1, 16, 21, 68, 90])
-    x0 = torch.load("/mnt/inigog/tensor_x0.pt").to(device)  # [16, 21, 68, 90]
+    x0 = torch.load("tensor_x0.pt").to(device)  # [16, 21, 68, 90]
     print(f"[{rank}] x0 shape: {x0.shape}")
     x0 = [x0]
 
@@ -269,7 +265,7 @@ def main() -> None:
 
     cache_video(
         tensor=video[None],
-        save_file="/mnt/inigog/video_debug_original.mp4",
+        save_file="video_debug_original.mp4",
         fps=16,
         nrow=1,
     )
@@ -302,7 +298,7 @@ def main() -> None:
             print(f"[{rank}@{retry}] videos shape: {video.shape}")  # [3, 81, 544, 720]
             # cache_video(
             #    tensor=video[None],
-            #    save_file=f"/mnt/inigog/video_debug_parallel_{retry}.mp4",
+            #    save_file=f"video_debug_parallel_{retry}.mp4",
             #    fps=16,
             #    nrow=1)
 
@@ -332,7 +328,7 @@ def main() -> None:
 
             cache_video(
                 tensor=video[None],
-                save_file=f"/mnt/inigog/video_debug_yield_{retry}.mp4",
+                save_file=f"video_debug_yield_{retry}.mp4",
                 fps=16,
                 nrow=1,
             )

@@ -1,0 +1,10 @@
+pandas
+matplotlib
+numpy
+tabulate
+ipywidgets
+tqdm
+
+# Solver
+pyomo
+highspy

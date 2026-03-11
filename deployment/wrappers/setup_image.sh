@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Argument parsing
+usage() {
+  echo "Usage: $0 <IMAGE_NAME> [--hf_token] [--push] [--folders folder1,folder2,...] [--platform linux/amd64|linux/arm64]"
+  exit 1
+}
+
+ensure_acr_login() {
+  local acr_name="$1"
+  if ! az acr login --name "$acr_name" >/dev/null 2>&1; then
+    echo "ERROR: Failed to log into ACR '$acr_name': az acr login --name $acr_name"
+    exit 1
+  fi
+}
+
+IMAGE_NAME="${1:-}"
+[[ -z "$IMAGE_NAME" ]] && usage
+
+WRAPPER_SUBFOLDERS=()
+PARENT_MODEL=""
+USE_HF_TOKEN=false
+PUSH_IMAGE=false
+
+PLATFORM="linux/amd64"  # "linux/arm64"
+if [[ "$(uname -m)" == "aarch64" ]]; then
+  PLATFORM="linux/arm64"
+fi
+
+shift || true
+
+# Parse optional flags
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --hf_token)
+      USE_HF_TOKEN=true
+      shift
+      ;;
+    --push)
+      PUSH_IMAGE=true
+      shift
+      ;;
+    --folders)
+      shift
+      IFS=',' read -r -a WRAPPER_SUBFOLDERS <<< "$1"
+      shift
+      ;;
+    --parent)
+      shift
+      PARENT_MODEL="$1"
+      shift
+      ;;
+    --platform)
+      shift
+      PLATFORM="$1"
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      ;;
+  esac
+done
+
+# Main script
+MAIN_DIR=$(realpath ../../..)
+DEPLOYMENT_DIR=$MAIN_DIR/deployment
+WRAPPERS_DIR=$MAIN_DIR/wrapper
+WRAPPER_DIR=$WRAPPERS_DIR/$IMAGE_NAME
+
+# shellcheck disable=SC1090,SC1091 
+source "$DEPLOYMENT_DIR/set_properties.sh"
+
+REPOSITORY=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.repository' "$MAIN_DIR/services.json")
+TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
+
+mkdir -p ./docker_files
+
+# Copy necessary files to the current directory
+cp "$MAIN_DIR"/requirements.txt ./docker_files/base_requirements.txt
+cp "$MAIN_DIR"/services.json ./docker_files/
+cp "$MAIN_DIR"/*.py ./docker_files/
+
+cp -R "$WRAPPERS_DIR"/static ./docker_files/
+cp -R "$WRAPPERS_DIR"/templates ./docker_files/
+
+cp "$WRAPPERS_DIR"/*.bash ./docker_files/
+cp "$WRAPPERS_DIR"/*.py ./docker_files/
+
+cp "$WRAPPER_DIR"/*.py ./docker_files/
+cp "$WRAPPER_DIR"/requirements.txt ./docker_files/
+
+# Copy parent model files if specified
+if [[ -n "$PARENT_MODEL" ]]; then
+  PARENT_DIR="$WRAPPERS_DIR/$PARENT_MODEL"
+  cp "$PARENT_DIR"/*.py ./docker_files/
+  cp "$PARENT_DIR"/requirements.txt ./docker_files/
+fi
+
+# Copy wrapper subfolders to docker_files
+for subfolder in "${WRAPPER_SUBFOLDERS[@]}"; do
+  SRC_DIR="$WRAPPER_DIR/$subfolder"
+  DEST_DIR="./docker_files/$subfolder"
+
+  if [[ -d "$SRC_DIR" ]]; then
+    mkdir -p "$DEST_DIR"
+    cp -R "$SRC_DIR"/* "$DEST_DIR"/
+  else
+    echo "WARNING: Subfolder '$SRC_DIR' does not exist, skipping"
+  fi
+done
+
+# Construct docker build command with optional token
+BUILD_ARGS=(
+  docker buildx build
+  --build-arg "DOCKER_REPO=${REPOSITORY}"
+  --platform "$PLATFORM"
+  -t "${IMAGE_NAME}:${TAG}"
+)
+
+if [[ "$USE_HF_TOKEN" == true ]]; then
+  if [[ -z "${HF_TOKEN:-}" ]]; then
+    echo "ERROR: --hf_token specified but HF_TOKEN is not set"
+    exit 1
+  fi
+  HF_TOKEN_FILE="docker_files/hf_token.txt"
+  echo "$HF_TOKEN" > "$HF_TOKEN_FILE"
+  BUILD_ARGS+=(
+    --secret "id=hf_token,src=$HF_TOKEN_FILE"
+  )
+fi
+
+ensure_acr_login "$REPOSITORY"
+
+# Build
+"${BUILD_ARGS[@]}" .
+
+# Cleanup secret
+if [[ "$USE_HF_TOKEN" == true && -f "$HF_TOKEN_FILE" ]]; then
+  rm -f "$HF_TOKEN_FILE"
+fi
+
+# Tag final image for pushing
+docker tag "${IMAGE_NAME}:${TAG}" "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+
+if [[ "$PUSH_IMAGE" == true ]]; then
+  docker push "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+fi

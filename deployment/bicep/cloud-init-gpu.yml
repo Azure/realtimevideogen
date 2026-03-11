@@ -1,0 +1,349 @@
+#cloud-config
+package_upgrade: true
+packages:
+- binutils
+- vim
+- git
+- jq
+- python-is-python3
+- python3-setuptools
+- python3-pip
+- unattended-upgrades
+- numactl
+- build-essential
+- cmake
+- devscripts
+- debhelper
+- fakeroot
+- check
+- libsubunit-dev
+- pkg-config
+- dkm
+- dkms
+- cmake
+- unzip
+- default-jre
+- ibverbs-utils
+- infiniband-diags
+- perftest
+- net-tools
+write_files:
+  - path: /etc/ssh/sshd_config
+    content: |
+         Port 22
+         Port 2222
+  - path: /home/azureuser/.ssh/authorized_keys
+    permissions: '0644'
+    append: true
+    content: |
+         ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5
+  - path: /home/azureuser/.bash_profile
+    append: true
+    content: |
+         source /mnt/azureuser/miniconda3/bin/activate
+         export PATH="/mnt/azureuser/miniconda3/bin:$HOME/.local/bin:$PATH"
+         export NCCL_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7
+         export NCCL_NET_GDR_LEVEL=2
+         export NCCL_SOCKET_IFNAME=eth0
+         export NCCL_P2P_LEVEL=SYS
+         export NCCL_IB_DISABLE=0
+         export NCCL_IB_TIMEOUT=22
+         export NCCL_IB_RETRY_CNT=10
+         #export NCCL_DEBUG=INFO
+         export NCCL_DEBUG=WARN
+         export NCCL_PLUGIN_DISABLE=1
+         export TORCH_CUDA_ARCH_LIST="8.0 9.0" # A100 H100
+         export NCCL_IB_GID_INDEX=0
+  - path: /home/azureuser/.bashrc
+    append: true
+    content: |
+         source /mnt/azureuser/miniconda3/bin/activate
+         export PATH="/mnt/azureuser/miniconda3/bin:$HOME/.local/bin:$PATH"
+         export NCCL_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7
+         export NCCL_NET_GDR_LEVEL=2
+         export NCCL_SOCKET_IFNAME=eth0
+         export NCCL_P2P_LEVEL=SYS
+         export NCCL_IB_DISABLE=0
+         export NCCL_IB_TIMEOUT=22
+         export NCCL_IB_RETRY_CNT=10
+         #export NCCL_DEBUG=INFO
+         export NCCL_DEBUG=WARN
+         export NCCL_PLUGIN_DISABLE=1
+         export TORCH_CUDA_ARCH_LIST="8.0 9.0" # A100 H100
+         export NCCL_IB_GID_INDEX=0
+  - path: /home/azureuser/install_azhpc_clean.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        cd /mnt/azureuser
+        git clone https://github.com/sherrychaojie/azhpc-images.git
+        cd /mnt/azureuser/azhpc-images/ubuntu/ubuntu-20.x/ubuntu-20.04-hpc/
+        time bash ./install.sh
+  - path: /home/azureuser/install_conda.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        mkdir -p /mnt/azureuser
+        wget -O /mnt/azureuser/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+        chmod +x /mnt/azureuser/Miniconda3.sh
+        /mnt/azureuser/Miniconda3.sh -b -p /mnt/azureuser/miniconda3
+        chown -R azureuser:azureuser /mnt/azureuser/miniconda3
+  - path: /home/azureuser/install_cleanup.sh
+    permissions: '0755'
+    content: |
+         #!/usr/bin/bash
+         # ESM
+         mkdir -p ~/relocated_apt
+         mv /etc/apt/apt.conf.d/20apt-esm-hook.conf ~/relocated_apt/.
+         apt-get -y remove libpathplan4 graphviz libcgraph6 libcdt5 libgvpr2 libgvc6 liblab-gamut1
+         apt-get -y autoremove
+  - path: /home/azureuser/setup_disks.sh
+    permissions: '0755'
+    content: |
+         #!/usr/bin/bash
+         apt-get -y install mdadm parted
+         if [ ! -b /dev/md0 ]; then
+            if [ -b /dev/nvme7n1 ] ; then
+              mdadm --create --verbose /dev/md0 --level=0 --raid-devices=8 /dev/nvme[0-7]n1
+              mkfs.ext4 /dev/md0
+              mkdir -p /mnt/raid0
+              mount /dev/md0 /mnt/raid0
+              chown -R azureuser:azureuser /mnt/raid0
+            elif [ -b /dev/nvme3n1 ] ; then
+              mdadm --create --verbose /dev/md0 --level=0 --raid-devices=4 /dev/nvme[0-3]n1
+              mkfs.ext4 /dev/md0
+              mkdir -p /mnt/raid0
+              mount /dev/md0 /mnt/raid0
+              chown -R azureuser:azureuser /mnt/raid0
+            fi
+         fi
+         if [[ ! -b /dev/sdc1 && -b /dev/sdc ]] && ! lsblk -n /dev/sdc | grep -q part; then
+            parted /dev/sdc -- mklabel gpt
+            parted /dev/sdc -- mkpart primary ext4 0% 100%
+            mkfs.ext4 /dev/sdc1
+            mkdir -p /mnt/sdc1
+            mount /dev/sdc1 /mnt/sdc1/
+            chown -R azureuser:azureuser /mnt/sdc1
+         fi
+  - path: /home/azureuser/limits.conf
+    content: |
+          # /etc/security/limits.conf
+          *               hard    memlock         unlimited
+          *               soft    memlock         unlimited
+          *               hard    nofile          unlimited
+          *               soft    nofile          unlimited
+          *               hard    stack           unlimited
+          *               soft    stack           unlimited
+  - path: /home/azureuser/install_docker.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        mkdir -p /etc/apt/keyrings/
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+        # Repository should be added by the NVIDIA HPC image but just in case
+        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list
+        max_attempts=5
+        attempt=1
+        while [[ ! -f /usr/bin/docker && $attempt -le $max_attempts ]]; do
+          echo "Installing Docker..."
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          # Repository should be added by the NVIDIA HPC image
+          apt-get install -y nvidia-docker2 nvidia-container-runtime nvidia-container-toolkit
+          attempt=$((attempt + 1))
+          if [[ ! -f /usr/bin/docker ]]; then
+            echo "Docker installation failed, retrying... ($attempt/5)"
+            sleep 30
+          fi
+        done
+        attempt=1
+        while [[ ! -f /usr/bin/nvidia-ctk && $attempt -le $max_attempts ]]; do
+          echo "Installing NVIDIA docker..."
+          apt-get update
+          apt-get install -y nvidia-docker2 nvidia-container-runtime nvidia-container-toolkit
+          attempt=$((attempt + 1))
+          if [[ ! -f /usr/bin/nvidia-ctk ]]; then
+            echo "NVIDIA docker installation failed, retrying... ($attempt/5)"
+            sleep 30
+          fi
+        done
+        if [[ -d /mnt/raid0 ]]; then
+          systemctl stop docker
+          chmod 777 /var/run/docker.sock
+          mv /var/lib/docker /mnt/raid0/
+          ln -s /mnt/raid0/docker /var/lib/docker
+          systemctl start docker
+        elif [[ -d /mnt ]]; then
+          systemctl stop docker
+          chmod 777 /var/run/docker.sock
+          mv /var/lib/docker /mnt/
+          ln -s /mnt/docker /var/lib/docker
+          systemctl start docker
+        fi
+  - path: /home/azureuser/install_k8s.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        mkdir -p /etc/apt/keyrings/
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
+        attempt=1
+        while [[ ! -f /usr/bin/kubectl && $attempt -le 5 ]]; do
+          echo "Installing Kubernetes components..."
+          apt-get update
+          apt-get install -y kubelet kubeadm kubectl nvidia-container-toolkit
+          attempt=$((attempt + 1))
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "Kubernetes installation failed, retrying... ($attempt/5)"
+            sleep 30
+          fi
+        done
+        systemctl enable --now kubelet
+        containerd config default | tee /etc/containerd/config.toml > /dev/null
+        nvidia-ctk runtime configure --runtime=containerd --nvidia-set-as-default
+        if [[ -d /mnt/raid0 ]]; then
+          systemctl stop containerd
+          mv /var/lib/containerd /mnt/raid0/
+          ln -s /mnt/raid0/containerd /var/lib/containerd
+          systemctl start containerd
+        elif [[ -d /mnt ]]; then
+          systemctl stop containerd
+          mv /var/lib/containerd /mnt/
+          ln -s /mnt/containerd /var/lib/containerd
+          systemctl start containerd
+        fi
+        chmod 777 /run/containerd/containerd.sock
+  - path: /home/azureuser/join_k8s.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/env bash
+        # Get key vault name
+        METADATA_OAUTH_URL="http://169.254.169.254/metadata/instance?api-version=2021-02-01&format=json"
+        VM_METADATA=`curl -s $METADATA_OAUTH_URL -H "Metadata:true"`
+        SUBSCRIPTION_ID=`echo "$VM_METADATA" | jq -r '.compute.subscriptionId'`
+        RESOURCE_GROUP_NAME=`echo "$VM_METADATA" | jq -r '.compute.resourceGroupName'`
+        ARM_TOKEN=`curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/' -H "Metadata:true" | jq -r '.access_token'`
+        ARM_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.KeyVault/vaults?api-version=2022-07-01"
+        VAULT_NAME=`curl -s -H "Authorization: Bearer ${ARM_TOKEN}" $ARM_URL | jq -r .value[0].name`
+        if [[ -z "$VAULT_NAME" || "$VAULT_NAME" == "null" ]]; then
+            echo "Key Vault not found in resource group $RESOURCE_GROUP_NAME"
+            exit 1
+        fi
+        # Get the join command from the key vault
+        KV_OAUTH_URL="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net"
+        KV_TOKEN=`curl -s $KV_OAUTH_URL -H Metadata:true | jq -r .access_token`
+        SECRET_NAME="kubejoincmd"
+        API_VERSION="7.4"
+        SECRET_URL="https://${VAULT_NAME}.vault.azure.net/secrets/${SECRET_NAME}?api-version=${API_VERSION}"
+        # kubeadm token create --print-join-command
+        # kubeadm join 10.0.0.5:6443 --token XXXX --discovery-token-ca-cert-hash sha256:YYYY
+        JOIN_CMD=`curl -s $SECRET_URL -H "Authorization: Bearer ${KV_TOKEN}" | jq -r .value`
+        if [[ -z "$JOIN_CMD" || "$JOIN_CMD" == "null" ]]; then
+            echo "Join command not found in Key Vault $VAULT_NAME in secret $SECRET_NAME"
+            exit 1
+        fi
+        echo "Joining K8s cluster with command: $JOIN_CMD"
+        $JOIN_CMD
+  - path: /home/azureuser/setup_k8s_net.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        modprobe br_netfilter
+        sysctl net.bridge.bridge-nf-call-iptables=1
+        sysctl net.ipv4.ip_forward=1
+        sysctl --system
+        VERSION="v1.3.0"
+        ARCH="amd64"
+        mkdir -p /opt/cni/bin
+        curl -L "https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-${ARCH}-${VERSION}.tgz" | tar -xz -C /opt/cni/bin
+  - path: /home/azureuser/setup_k8s_region.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        # ssh $NODE_IP mkdir -p .kube
+        # scp ~/.kube/config azureuser@$NODE_IP:~/.kube/config
+        # scp ~/setup_k8s_region.sh azureuser@$NODE_IP:~/setup_k8s_region.sh
+        # ssh $NODE_IP bash /home/azureuser/setup_k8s_region.sh
+        REGION=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2021-02-01" | jq -r .compute.location)
+        NODE_NAME=$(hostname)
+        NODE_NAME=${NODE_NAME,,}
+        kubectl label node "$NODE_NAME" azure/region="$REGION"
+  - path: /home/azureuser/reset_k8s_node.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        systemctl stop kubelet
+        systemctl stop containerd
+        bash /home/azureuser/setup_disks.sh
+        kubeadm reset -f
+        rm -Rf /var/lib/kubelet
+        rm -Rf /var/run/kubernetes
+        rm -Rf /etc/kubernetes
+        rm -Rf /etc/cni /var/lib/cni /opt/cni/bin
+        rm -Rf /var/lib/etcd
+        rm -Rf /run/flannel
+        mkdir -p /mnt/raid0/containerd
+        mkdir -p /mnt/raid0/docker
+        mkdir -p /mnt/raid0/kubelet
+        mkdir -p /mnt/containerd
+        mkdir -p /mnt/docker
+        mkdir -p /mnt/kubelet
+        ln -s /mnt/raid0/kubelet /var/lib
+        ip link set cni0 down
+        ip addr flush dev cni0
+        ip link delete cni0
+        ip link delete flannel.1
+        bash /home/azureuser/setup_k8s_net.sh
+        systemctl start containerd
+        systemctl start kubelet
+        echo "trigger: kubeadm join XXX"
+        bash /home/azureuser/join_k8s.sh
+  - path: /home/azureuser/check_installation.sh
+    permissions: '0755'
+    content: |
+        #!/usr/bin/bash
+        if [ ! -f /usr/bin/nvidia-smi ]; then
+          echo "NVIDIA driver not installed!"
+        fi
+        if [ ! -f /usr/bin/nv-fabricmanager ]; then
+          echo "NVIDIA Fabric Manager not installed!"
+        fi
+        if [ ! -f /usr/bin/dcgmi ]; then
+          echo "NVIDIA DC manager not installed!"
+        fi
+        if [ ! -f /usr/bin/nvidia-ctk ]; then
+          echo "NVIDIA CTK not installed!"
+        fi
+        if [ ! -f /usr/bin/kubectl ]; then
+          echo "Kubernetes not installed!"
+        fi
+        if [ ! -f /usr/bin/docker ]; then
+          echo "Docker not installed!"
+        fi
+        python -c "import torch; assert torch._C._cuda_getDeviceCount() > 0"
+        systemctl status nvidia-fabricmanager
+        if ! lsmod | grep -q "nvidia_peermem"; then echo "nvidia_peermem not found"; fi
+        if ! lsmod | grep -q "ib_umad"; then echo "ib_umad not found"; fi
+runcmd:
+  - mkdir -p /mnt/azureuser/huggingface
+  - chown -R azureuser:azureuser /home/azureuser/
+  - chown -R azureuser:azureuser /mnt/azureuser/
+  - bash /home/azureuser/setup_disks.sh
+  - bash /home/azureuser/install_conda.sh
+  - bash /home/azureuser/install_azhpc_clean.sh
+  - systemctl unmask unattended-upgrades.service
+  - systemctl enable unattended-upgrades.service
+  - bash /home/azureuser/install_cleanup.sh
+  - chown -R azureuser:azureuser /mnt/azureuser
+  - cp /etc/security/limits.conf /etc/security/limits.conf.bak
+  - cp /home/azureuser/limits.conf /etc/security/limits.conf
+  - systemctl daemon-reexec
+  - bash /home/azureuser/install_docker.sh
+  - bash /home/azureuser/install_k8s.sh
+  - bash /home/azureuser/setup_k8s_net.sh
+  - bash /home/azureuser/join_k8s.sh
+  - bash /home/azureuser/setup_k8s_region.sh
+  - bash /home/azureuser/check_installation.sh

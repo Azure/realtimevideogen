@@ -1,0 +1,6 @@
+tp,first_scene_time,per_scene_time
+1,1.365,0.167
+2,0.815,0.110
+4,0.547,0.078
+# TODO extraploated after 4 GPUs
+8,0.464,0.069

@@ -1,0 +1,7 @@
+world_size,avg_steps_time
+1,0.00
+# TODO
+# GB200,vae_dec with 10 steps, 784x496 pixels => 1.56 seconds out of 53.65 total
+# H200,vae_dec with 10 steps, 784x496 pixels => 2.05 seconds out of 85.11 total
+# H100,vae_dec with 10 steps, 784x496 pixels => 2.23 seconds out of 90.42 total
+# A100,vae_dec with 10 steps, 784x496 pixels => 5.15 seconds out of 169.86 total

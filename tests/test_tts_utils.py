@@ -78,7 +78,7 @@ async def test_fit_audio_to_duration() -> None:
 
 
 def test_generate_waveform_plt() -> None:
-    audio_path = "benchmark/samples/sample.wav"
+    audio_path = "tests/data/sample.wav"
     waveform_path = generate_waveform_plt(audio_path)
     assert waveform_path.endswith(".png")
     assert os.path.exists(waveform_path)
