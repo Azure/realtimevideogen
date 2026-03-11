@@ -1,0 +1,22 @@
+[S1] Hey, did you see that video about using the new Gemini 2.5 Pro for audio stuff?
+[S2] Oh yeah, the one talking about transcription and understanding audio? Pretty interesting don't you think?
+[S1] Totally. I've been looking for better ways to get transcripts from podcasts or meetings without having to listen to the whole thing.
+[S2] Exactly! And Gemini 2.5 seems like a big step up. It can do transcription, diarization – you know, figuring out who's speaking when – and even Q&A over the audio.
+[S1] That diarization part sounds amazing. So, what's the big deal with 2.5 Pro compared to the older models?
+[S2] The massive output token limit. The previous ones could only output around 8,000 tokens, which limited how much transcript you could get in one go.
+[S1] Ah, okay. So how many tokens can 2.5 Pro handle?
+[S2] Get this – 64,000 tokens out, That's huge.
+[S1] Wow, What does that translate to in terms of audio length?
+[S2] The video calculated it's roughly enough for a two-hour audio file's transcript in a single output. That's a game changer for longer recording time.
+[S1] Definitely. Before, you'd hit the limit after maybe 15 minutes or so with the 8k output models.
+[S2] Right. You could feed long audio in, but getting the full transcript out was the bottleneck. 2.5 Pro fixes that.
+[S1] And the speaker identification, the diarization, it seems pretty smart, even figuring out names sometimes?
+[S2] Yeah, it seems like if people say each other's names in the audio, the model can often pick that up and label the speakers correctly in the transcript. Pretty clever.
+[S1] That saves a ton of manual work. So you upload your MP3 or WAV file...
+[S2] Or FLAC, AAC... it supports quite a few formats. You upload it using the File API, especially for larger files. Dead simple.
+[S1] Then you just prompt it, asking for a transcript, maybe even with specific timestamps?
+[S2] Yep, and you can tell it how you want it formatted. The video showed getting timestamps and speaker labels like '[00:15] Speaker A: Dialogue here'.
+[S1] Nice. And once you have that transcript text, you can do other things, right? Like summaries?
+[S2] For sure. Feed that transcript back into Gemini and ask for bullet points, summaries, or ask specific questions about the content.
+[S1] This really opens up possibilities for analysing audio content at scale. Summarizing podcasts I don't have time for, finding key info in interviews...
+[S2] Definitely. It’s much better than the older models for these kinds of audio tasks. The quality and the length it can handle now are seriously impressive.

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Error</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="error-container">
+        <h1>Something went wrong</h1>
+        <p>{{ error_message }}</p>
+
+        {% if exception %}
+            <h2>Details:</h2>
+            <pre>{{ exception }}</pre>
+        {% endif %}
+
+        {% if traceback %}
+            <h2>Traceback:</h2>
+            <pre>{{ traceback }}</pre>
+        {% endif %}
+    </div>
+</body>
+</html>

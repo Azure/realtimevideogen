@@ -1,0 +1,10 @@
+torch
+
+kokoro
+scipy
+
+# Languages
+misaki[en]
+misaki[ja]
+misaki[zh]
+espeakng

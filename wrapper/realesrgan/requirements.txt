@@ -1,0 +1,14 @@
+torch
+torchvision
+numpy
+pillow
+opencv-python
+imageio[ffmpeg]
+# We need to lock the version because the download interface has changed in 0.26
+huggingface-hub==0.25.2
+# After this is HTTP server requirements
+colorlog
+nvidia-ml-py3
+quart
+hypercorn
+xfuser

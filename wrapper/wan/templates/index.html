@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>LMM Gen AI Video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+</head>
+<body style="font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 2rem;">
+    <!-- Video Generation Form -->
+    <div class="container mb-5">
+        <h1 class="mb-4 text-center">🎬 Generate Video</h1>
+        <form id="inputForm" class="p-4 border rounded shadow bg-light">
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label for="image_path" class="form-label">🖼️ Image Path</label>
+                    <input type="text" id="image_path" name="image_path" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label for="text_prompt" class="form-label">📝 Input Prompt</label>
+                    <textarea id="text_prompt" name="text_prompt" class="form-control" rows="4" required></textarea>
+                </div>
+                <div class="col-md-8">
+                    <label for="text_neg_prompt" class="form-label">🚫 Negative Prompt (optional)</label>
+                    <textarea id="text_neg_prompt" name="text_neg_prompt" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="sampling_steps" class="form-label">⚙️ Number of Steps</label>
+                    <input type="number" id="sampling_steps" name="sampling_steps" class="form-control" min="1" max="200" value="20" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="num_frames" class="form-label">🎞️ Number of Frames</label>
+                    <input type="number" id="num_frames" name="num_frames" class="form-control" min="1" max="81" value="81" oninput="updateTotalSeconds()" required>
+                    &rarr;<span id="frame_seconds">0</span> seconds (@16FPS)
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="start_frames" class="form-label">🔄 Start from Previous Frames (optional)</label>
+                    <input type="number" id="start_frames" name="start_frames" class="form-control" min="1" max="80" value="1" oninput="updatePrevSeconds()">
+                    &rarr;<span id="start_frames_seconds">0</span> seconds
+                </div>
+                <div class="col-md-3">
+                    <label for="start_lat_frames" class="form-label">🔄 Start from Previous Latent (optional)</label>
+                    <input type="number" id="start_lat_frames" name="start_lat_frames" class="form-control" min="0" max="17" value="0" oninput="updatePrevLatSeconds()">
+                    &rarr;<span id="start_lat_frames_seconds">0</span> seconds
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="videoGenBtn" type="button" class="btn btn-primary">🚀 Generate Video</button>
+            </div>
+        </form>
+
+        <div id="result" class="mt-3 text-center"></div>
+    </div>
+
+    <!-- Video Stream -->
+    <div class="container text-center mb-5">
+        <h2 class="mb-3">📺 Video Stream</h2>
+        <div class="border rounded shadow p-3 bg-light d-inline-block">
+            <img id="videoStream" src="/video_feed" class="img-fluid rounded mb-3" alt="Video stream" width="640" height="480">
+            <br>
+            <button id="reloadVideoBtn" type="button" class="btn btn-secondary">🔁 Reload Video</button>
+        </div>
+    </div>
+
+    <!-- Health Check -->
+    <div class="container text-center">
+        <h2 class="mb-3">📊 System Health Status</h2>
+        <pre id="healthStatus" class="text-start bg-light p-3 border rounded" style="max-height: 400px; overflow: auto;"></pre>
+        <button id="healthCheckBtn" type="button" class="btn btn-info mb-3">🩺 Reload Health</button>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
+  
+
+    <script>
+        function updateTotalSeconds() {
+            const input = document.getElementById("num_frames");
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val >= 0) {
+                const fps = 16; // Fixed FPS
+                document.getElementById("frame_seconds").textContent = (val/fps).toFixed(2);
+            } else {
+                document.getElementById("frame_seconds").textContent = "???";
+            }
+        }
+
+        function updatePrevSeconds() {
+            const input = document.getElementById("start_frames");
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val >= 0) {
+                const fps = 16; // Fixed FPS
+                document.getElementById("start_frames_seconds").textContent = (val/fps).toFixed(2);
+            } else {
+                document.getElementById("start_frames_seconds").textContent = "???";
+            }
+        }
+
+        function updatePrevLatSeconds() {
+            const input = document.getElementById("start_lat_frames");
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val >= 0) {
+                const fps = 16; // Fixed FPS
+                document.getElementById("start_lat_frames_seconds").textContent = ((((val-1)*4)+1)/fps).toFixed(2);
+            } else {
+                document.getElementById("start_lat_frames_seconds").textContent = "???";
+            }
+        }
+
+        function getLatestDitValue(obj) {
+            let latest_dit_step = -1; // Start from -1 to ensure you capture a valid step
+            let total_time = 0;
+            for (const [key, value] of Object.entries(obj)) {
+                if (/^dit_\d+$/.test(key) && value >= 0) {
+                    const step_number = parseInt(key.split("_")[1], 10); // "dit_XXX" -> XXX
+                    if (step_number > latest_dit_step) {
+                        latest_dit_step = step_number;
+                    }
+                    total_time += value; // Sum up the values here directly
+                }
+            }
+            return latest_dit_step === -1 ? null : { step: latest_dit_step, value: total_time };
+        }
+
+        async function updateGenerationStatus() {
+            const total_steps = parseInt(document.getElementById("sampling_steps").value, 10); // Parse to integer
+            try {
+                const response = await fetch("/health");
+                const data = await response.json();
+                let displayText = "";
+
+                if (Array.isArray(data.gen_timer) && data.gen_timer.length > 0) {
+                    const latest = data.gen_timer[data.gen_timer.length - 1];
+
+                    // Stop the check if the generation is complete
+                    if (latest?.total >= 0) {
+                        displayText = `✅ Generation complete. Total time: ${latest.total}s\n`;
+                        if (window.generateStatusInterval) {
+                            clearInterval(window.generateStatusInterval);
+                            window.generateStatusInterval = null;
+
+                            // Autoplay the video when complete
+                            document.getElementById("videoStream").src = "/video_feed?ts=" + new Date().getTime();
+                        }
+                    } else {
+                        const latestDit   = getLatestDitValue(latest);
+                        if (!latestDit) {
+                            displayText = "No generation data yet.";
+                        } else {
+                            const { step: latest_step, value: current_time } = latestDit;
+                            displayText = `Step ${latestDit.step}/${total_steps}: ${latestDit.value.toFixed(2)} seconds.`;
+                        }
+                    }
+                } else {
+                    displayText = "No generation data yet.";
+                }
+                document.getElementById("result").textContent = displayText;
+            } catch (err) {
+                document.getElementById("result").textContent = "Failed to fetch status.";
+            }
+        }
+
+        document.getElementById("videoGenBtn").addEventListener("click", async () => {
+            const image_path       = document.getElementById("image_path").value;
+            const text_prompt      = document.getElementById("text_prompt").value;
+            const text_neg_prompt  = document.getElementById("text_neg_prompt").value;
+            const sampling_steps   = document.getElementById("sampling_steps").value;
+            const num_frames       = document.getElementById("num_frames").value;
+            const start_frames     = document.getElementById("start_frames").value;
+            const start_lat_frames = document.getElementById("start_lat_frames").value;
+
+            const fetchPromise = fetch("/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "image_path"     :     image_path,
+                    "text_prompt"    :     text_prompt,
+                    "text_neg_prompt":     text_neg_prompt,
+                    "num_frames"     :     num_frames,
+                    "sampling_steps"  :     sampling_steps,
+                    "start_frames"    :     start_frames,
+                    "start_lat_frames": start_lat_frames,
+                })
+            });
+
+            document.getElementById("result").innerText = ""
+
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve("timeout"), 1000));
+            const result = await Promise.race([fetchPromise, timeoutPromise]);
+            if (result === "timeout") {
+                document.getElementById("result").innerText = "Video generation started in the background.";
+
+                // Start live update every second
+                if (!window.generateStatusInterval) {
+                    window.generateStatusInterval = setInterval(updateGenerationStatus, 1000);
+                }
+            } else {
+                const data = await result.json();
+                document.getElementById("result").innerText = "Response: " + JSON.stringify(data, null, 2);
+            }
+        });
+
+        document.getElementById("reloadVideoBtn").addEventListener("click", () => {
+            const video = document.getElementById("videoStream");
+            video.src = "/video_feed?ts=" + new Date().getTime();
+        });
+
+        document.getElementById("healthCheckBtn").addEventListener("click", async () => {
+            try {
+                const response = await fetch("/health");
+                const data = await response.json();
+                const formatted = JSON.stringify(data, null, 2);
+                document.getElementById("healthStatus").textContent = formatted;
+            } catch (err) {
+                document.getElementById("healthStatus").textContent = "Failed to fetch health status.";
+            }
+        });
+    </script>
+</body>
+</html>

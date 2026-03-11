@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Submit Video Chat Generation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>const ansiUp = new AnsiUp();</script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+    </div>
+
+    <div class="container py-4">
+        <h1>🚀 Submit Video Chat Generation</h1>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form id="job-form">
+                    <h4>🤖 Character</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Gender</label>
+                            <select class="form-select" id="gender_modifier" name="gender_modifier">
+                                <option value="female" selected>👩 Female</option>
+                                <option value="male">👨 Male</option>
+                                <option value="other">🧑 Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Style</label>
+                            <select class="form-select" id="style_modifier" name="style_modifier">
+                                <option value="">➖ None</option>
+                                <option value="cartoon">🎭 Cartoon</option>
+                                <option value="photorealistic" selected>📷 Photorealistic</option>
+                                <option value="flat">🔲 Flat</option>
+                                <option value="retro">🕹️ Retro</option>
+                                <option value="sketch">✏️ Sketch</option>
+                                <option value="oil">🖌️ Oil Painting</option>
+                                <option value="anime">🩰 Anime</option>
+                                <option value="concept">💡 Concept Art / Illustration</option>
+                                <option value="futuristic">🌌 Futuristic</option>
+                                <option value="fantastic">🧙 Fantasy</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Scene</label>
+                            <select class="form-select" id="scene_modifier" name="scene_modifier">
+                                <option value="plain" selected>➖ Plain</option>
+                                <option value="studio">🎙️ Studio</option>
+                                <option value="sofas">🛋️ Sofas</option>
+                                <option value="table">🪑 Table</option>
+                                <option value="library">📚 Library</option>
+                                <option value="outdoors">🌳 Outdoors</option>
+                                <option value="car">🚗 Car</option>
+                                <option value="theater">🎭 Theater</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="custom_prompt" class="form-label">📝 Custom prompt</label>
+                        <textarea id="custom_prompt" name="custom_prompt"
+                                  class="form-control" rows="2"
+                                  placeholder="Describe your own style, mood, or scene...">
+                        </textarea>
+                    </div>
+
+                    <h4>🔉 Audio</h4>
+                    <div class="mb-4">
+                        <label for="speech_speed" class="form-label">🎙️ Speech speed:</label>
+                        <span id="speech_speed_value">1.1</span>x
+                        <input type="range" class="form-range"
+                            id="speech_speed" name="speech_speed"
+                            value="1.1" min="0.5" max="2.0" step="0.1"
+                            oninput="document.getElementById('speech_speed_value').textContent = this.value">
+                    </div>
+
+                    <h4>📽️ Output</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="output_mode" class="form-label">🎚️ Mode</label>
+                            <select class="form-select" id="output_mode" name="output_mode">
+                                <option value="video_audio_synced">🔉🗣️ Video + Audio (synced)</option>
+                                <option value="video_audio_unsynced">📽️🔉 Video + Audio (unsynced)</option>
+                                <option value="audio_only">🔉 Audio Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="resolution" class="form-label">🖥️ Resolution</label>
+                            <select class="form-select" id="resolution" name="resolution">
+                                <option value="high">⬆️ High (1280x800)</option>
+                                <option value="medium">↗️ Medium (640x400)</option>
+                                <option value="low" selected>⬇️ Low (320x200)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quality" class="form-label">🌟 Quality</label>
+                            <select class="form-select" id="quality" name="quality">
+                                <option value="high">⬆️ High</option>
+                                <option value="medium" selected>↗️ Medium</option>
+                                <option value="low">⬇️ Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checkboxes -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="debug_image" name="debug_image" value="1" checked>
+                                <label for="debug_image" class="form-check-label">
+                                    🧑‍💻 Debug
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Add debugging information to the video.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="upscaling" name="upscaling" value="1" checked>
+                                <label for="upscaling" class="form-check-label">
+                                    🖼️⬆️ Upscale
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Generate lower resolution and then upscale.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="add_subtitles" name="add_subtitles" value="1" checked>
+                                <label for="add_subtitles" class="form-check-label">
+                                    📝 Subtitles
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="text-center">
+                        <button
+                            type="submit"
+                            class="btn btn-success btn-lg"
+                            style="width: 200px;">
+                            🚀 Submit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Output -->
+        <div id="output-card" class="card shadow-sm" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title">Response</h5>
+                <pre id="output" class="bg-dark text-white p-3 rounded" style="height: 300px; overflow: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]); // Strip "data:*/*;base64,"
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        };
+
+        function formatStringTime(totalSeconds) {
+            if (totalSeconds < 15)
+                return "15 seconds";
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return [
+                hours > 0 ? `${hours} hours` : "",
+                minutes > 0 ? `${minutes} minutes` : "",
+                (seconds > 0 || (hours === 0 && minutes === 0)) ? `${seconds} seconds` : ""
+            ].filter(Boolean).join(" ");
+        }
+
+        document.getElementById("job-form").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const payload = {};
+
+            // Custom prompts
+            if (document.getElementById("gender_modifier").value)
+                payload.gender_prompt = document.getElementById("gender_modifier").value || null;
+            if (document.getElementById("style_modifier").value)
+                payload.style_prompt = document.getElementById("style_modifier").value || null;
+            if (document.getElementById("scene_modifier").value)
+                payload.scene_prompt = document.getElementById("scene_modifier").value || null;
+            if (document.getElementById("custom_prompt").value.trim())
+                payload.custom_prompt = document.getElementById("custom_prompt").value.trim() || null;
+
+            // Output / quality
+            payload.output_mode = document.getElementById("output_mode").value;
+            payload.resolution = document.getElementById("resolution").value;
+            payload.quality = document.getElementById("quality").value;
+            payload.speech_speed = parseFloat(document.getElementById("speech_speed").value);
+
+            // Extra flags
+            payload.debug_image = document.getElementById("debug_image").checked;
+            payload.upscaling = document.getElementById("upscaling").checked;
+            payload.add_subtitles = document.getElementById("add_subtitles").checked;
+
+            const output = document.getElementById("output");
+            try {
+                let apiUrl = "/api/job";
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const contentType = response.headers.get("Content-Type") || "";
+                if (contentType.includes("application/json")) {
+                    const data = await response.json();
+                    let formatted = `<pre class="text-white">${JSON.stringify(data, null, 2)}</pre>`;
+                    if (data.job_id) {
+                        window.location.href = `/job/${data.job_id}`;
+                    }
+                    output.innerHTML = formatted;
+                }  else {
+                    const text = await response.text();
+                    output.textContent = `Unexpected content-type: ${contentType}\n\n${text}`;
+                }
+                document.getElementById("output-card").style.display = "block";
+            } catch (err) {
+                output.textContent = "❌ Error: " + err.message;
+            }
+        });
+    </script>
+</body>
+</html>

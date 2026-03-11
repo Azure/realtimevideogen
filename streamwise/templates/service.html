@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ service_name | get_friendly_container_name | safe }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+    
+    <!-- jQuery (required by DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>
+        const ansiUp = new AnsiUp();
+    </script>
+</head>
+
+<body>
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+        <a class="btn btn-outline-info" href="{{ url_for('nodes_info') }}" title="Nodes" aria-label="Nodes">🖧</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('service_info', service_name=svc.container_name) }}" title="Refresh" aria-label="Refresh">🔄</a>
+    </div>
+
+    <div class="container">
+    {% if not svc %}
+        <h1 class="mb-4">Service '{{ service_name | get_friendly_container_name  | safe }}' not found</h1>
+        <div class="mb-4">
+            <a class="btn btn-outline-primary" href="{{ url_for('add_pod', service_name=service_name) }}">
+                ➕ Add pod
+            </a>
+        </div>
+    {% elif svcs | length == 1 %}
+        <h1 class="mb-4">
+            🌐
+            {{ svc.container_name | get_friendly_container_name | safe }}
+            {{ svc.container_name | get_class_emoji | safe }}
+        </h1>
+    {% else %}
+        <h1 class="mb-4">
+            🌐
+            {{ svc.container_name | get_friendly_container_name | safe }}
+            {{ svc.container_name | get_class_emoji | safe }}
+        </h1>
+        <p class="text-muted">{{ svcs | length }} pods:</p>
+        <table id="rtgen-table" class="table table-bordered table-hover table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th title="Namespace" aria-label="Namespace">📂</th>
+                    <th>🫛 Pod</th>
+                    <th>🗄️ Node</th>
+                    <th>🌐 Address</th>
+                    <th title="Pod" aria-label="Pod">🫛</th>
+                    <th title="Service" aria-label="Service">🌐</th>
+                    <th title="Running" aria-label="Running">⚙️</th>
+                    <th title="Data type" aria-label="Data type">Data</th>
+                    <th>CPU</th>
+                    <th>Memory</th>
+                    <th>GPU</th>
+                    <th title="#Workers" aria-label="#Workers (Ulysses &times; Ring)">Workers</th>
+                    <th title="Generations" aria-label="Generations">Gens</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for svc in svcs %}
+                <tr>
+                    <td>{{ svc.namespace }}</td>
+                    <td>
+                        <a href="#pod-{{ svc.pod_name }}">
+                            {{ svc.pod_name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if svc.node_name %}
+                            <a href="{{ url_for('node_info', node_name=svc.node_name) }}" class="text-decoration-none">
+                            {{ svc.node_name }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    <td>
+                        {% if svc.node_name and svc.url and svc.url != "N/A" %}
+                            <a href="{{ svc.url }}" target="_blank">{{ svc.url }}</a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if svc.pod_status == 'Running' %}
+                            <span class="text-success" aria-label="Running" title="Running">✅</span>
+                        {% elif svc.pod_status == 'ContainerCreating' %}
+                            <span class="text-info" aria-label="Container Creating" title="Container Creating">🛠️</span>
+                        {% elif svc.pod_status == 'Pending' %}
+                            <span class="text-warning" aria-label="Pending" title="Pending">⏳</span>
+                        {% elif svc.pod_status == 'Failed' %}
+                            <span class="text-danger" aria-label="Failed" title="Failed">❌</span>
+                        {% elif svc.pod_status == 'Terminated' %}
+                            <span class="text-danger" aria-label="Terminated" title="Terminated">🛑</span>
+                        {% elif svc.pod_status == 'RunContainerError' %}
+                            <span class="text-danger" aria-label="Run Container Error" title="Run Container Error">❌</span>
+                        {% elif svc.pod_status == 'CrashLoopBackOff' %}
+                            <span class="text-danger" aria-label="Crash Loop Back Off" title="Crash Loop Back Off">💥</span>
+                        {% elif svc.pod_status == 'InvalidImageName' %}
+                            <span class="text-danger" aria-label="Invalid Image Name" title="Invalid Image Name">🐳⚠️</span>
+                        {% elif svc.pod_status == 'ImagePullBackOff' %}
+                            <span class="text-danger" aria-label="Image Pull Back Off" title="Image Pull Back Off">🐳⚠️</span>
+                        {% elif svc.pod_status == 'ErrImagePull' %}
+                            <span class="text-danger" aria-label="Image Pull Error" title="Image Pull Error">🐳❌</span>
+                        {% elif svc.pod_status == 'CreateContainerConfigError' %}
+                            <span class="text-danger" aria-label="Create Container Config Error" title="Create Container Config Error">❌</span>
+                        {% elif svc.pod_status == 'UnexpectedAdmissionError' %}
+                            <span class="text-danger" aria-label="Unexpected Admission Error" title="Unexpected Admission Error">❗</span>
+                        {% else %}
+                            <span aria-label="{{ svc.pod_status }}" title="{{ svc.pod_status }}">{{ svc.pod_status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if not svc.health %}
+                            <span class="text-muted">-</span>
+                        {% elif svc.health.status == 'initializing parallelism' %}
+                            <span class="text-info" aria-label="Initializing parallelism" title="Initializing parallelism">⏳</span>
+                        {% elif svc.health.status == 'loading model' %}
+                            <span class="text-info" aria-label="Loading model" title="Loading model">⏳</span>
+                        {% elif svc.health.status == 'parallelizing model' %}
+                            <span class="text-info" aria-label="Parallelizing model" title="Parallelizing model">⏳</span>
+                        {% elif svc.health.status == 'compiling model' %}
+                            <span class="text-info" aria-label="Compiling model" title="Compiling model">⏳</span>
+                        {% elif svc.health.status == 'failed' %}
+                            <span class="text-success" aria-label="Failed" title="Failed">❌</span>
+                        {% elif svc.health.status == 'Unhealthy (500)' %}
+                            <span class="text-success" aria-label="Unhealthy" title="Unhealthy">❌</span>
+                        {% elif svc.health.status == 'timeout' %}
+                            <span class="text-success" aria-label="Time out" title="Time out">🚫</span>
+                        {% elif svc.health.status == 'ok' %}
+                            <span class="text-success" aria-label="Running" title="Running">✅</span>
+                        {% else %}
+                            <span class="text-danger" aria-label="{{ svc.health.status }}" title="{{ svc.health.status }}">❌ {{ svc.health.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if not svc.health %}
+                            <span class="text-muted">-</span>
+                        {% elif svc.health.status != 'ok' %}
+                            <span class="text-danger" aria-label="Service not available" title="Service not available">❌</span>
+                        {% elif svc.health.running %}
+                            <span class="text-info" aria-label="Busy" title="Busy">⚙️</span>
+                        {% else %}
+                            <span class="text-success" aria-label="Ready" title="Ready">🟢</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not svc.health or not svc.health.dtype %}
+                            <span class="text-muted">-</span>
+                        {% elif svc.health.dtype.startswith('torch.') %}
+                            {{ svc.health.dtype[6:] }}
+                        {% else %}
+                            {{ svc.health.dtype }}
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {{ svc.cpu }}
+                    </td>
+                    <td class="text-end">
+                        {{ svc.memory | format_bytes | safe }}
+                    </td>
+                    <td class="text-end">
+                        {% if svc.gpu == 0 %}
+                            <span class="text-muted">-</span>
+                        {% else %}
+                            {{ svc.gpu }}
+                            {% if svc.health and svc.health.gpu %}
+                                &times;{{ svc.health.gpu | format_gpu_model | safe }}
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if not svc.health %}
+                            <span class="text-muted">-</span>
+                        {% elif svc.health.world_size and svc.health.world_size > 0 %}
+                            {{ svc.health.world_size }}
+                            {% if svc.health.ulysses_size and svc.health.ulysses_size > 0 and svc.health.ring_size and svc.health.ring_size > 0 %}
+                                ({{ svc.health.ulysses_size }}&times;{{ svc.health.ring_size }})
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if not svc.health or not svc.health.gen_timer %}
+                            <span class="text-muted">-</span>
+                        {% elif svc.health.gen_timer | length > 0 %}
+                            <span class="text-success">{{ svc.health.gen_timer | length }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mb-4">
+            <a
+                class="btn btn-outline-success"
+                href="{{ url_for('add_pod', service_name=service_name) }}"
+                title="Add Pod"
+                aria-label="Add Pod">
+                ➕
+            </a>
+        </div>
+    {% endif %}
+
+
+    {% for svc in svcs %}
+    <h2 class="mt-5 mb-4" id="pod-{{ svc.pod_name }}">
+        🫛 '{{ svc.pod_name }}' at '{{ svc.namespace }}'
+    </h2>
+
+    <div class="mb-4 d-flex align-items-center gap-2">
+        <span class="me-2 fw-semibold">Actions:</span>
+        <a
+            class="btn btn-outline-success btn-sm"
+            href="{{ url_for('add_pod', service_name=svc.container_name) }}"
+            title="Add Pod"
+            aria-label="Add Pod">
+        ➕
+        </a>
+            {% if svc.pod_ip and svc.container_port %}
+                <a
+                    class="btn btn-outline-success btn-sm"
+                    href="{{ url_for('submit_job_container', container_ip=svc.pod_ip, container_port=svc.container_port) }}"
+                    title="Submit Job"
+                    aria-label="Submit Job">
+                🎯
+                </a>
+            {% else %}
+                <a
+                    class="btn btn-outline-success btn-sm"
+                    href="{{ url_for('submit_job') }}"
+                    title="Submit Job"
+                    aria-label="Submit Job">
+                🎯
+                </a>
+            {% endif %}
+        <form
+            id="remove-pod-form-{{ svc.pod_name }}"
+            style="display:inline-block;"
+            class="m-0">
+            <button
+                type="button"
+                class="btn btn-outline-danger btn-sm"
+                title="Remove Pod"
+                aria-label="Remove Pod"
+                onclick="removePod('{{ svc.pod_name }}', '{{ svc.namespace }}', this)">
+                🗑️
+            </button>
+        </form>
+        <script>
+            function removePod(podName, namespace, btn) {
+                if (!confirm('Are you sure you want to remove pod  "' + podName + '"?'))
+                    return;
+                btn.disabled = true;
+                fetch(`/api/pod/${podName}` + (namespace ? `?namespace=${encodeURIComponent(namespace)}` : ''), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        response.json().then(data => {
+                            alert('Cannot remove pod: ' + (data.error || response.status));
+                            btn.disabled = false;
+                        });
+                    }
+                })
+                .catch(err => {
+                    alert('Error: ' + err);
+                    btn.disabled = false;
+                });
+            }
+        </script>
+    </div>
+    <table class="table table-striped table-bordered w-auto">
+        <tbody>
+            <tr>
+                <th scope="row">🗂️ Namespace</th>
+                <td>{{ svc.namespace }}</td>
+            </tr>
+            <tr>
+                <th scope="row">🫛 Pod</th>
+                <td>{{ svc.pod_name }}</td>
+            </tr>
+            <tr>
+                <th scope="row">📍 Address</th>
+                <td>
+                    {% if svc.url and svc.url != "N/A" %}
+                        <a href="{{ svc.url }}" target="_blank">{{ svc.url }}</a>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% if svc.load_balancer %}
+                <tr>
+                    <th scope="row">🌐 Public Address</th>
+                    <td>
+                        <a href="http://{{ svc.load_balancer.external_ip }}:{{ svc.load_balancer.external_port }}" target="_blank">
+                            http://{{ svc.load_balancer.external_ip }}:{{ svc.load_balancer.external_port }}
+                        </a>
+                        <span class="text-muted">⧉</span>
+                    </td>
+                </tr>
+            {% endif %}
+            <tr>
+                <th scope="row">📦 Container (K8s)</th>
+                <td>{{ svc.container_name | get_friendly_container_name | safe }} ({{ svc.container_name }})</td>
+            </tr>
+            <tr>
+                <th scope="row">🐳 Image</th>
+                <td>{{ svc.image }}</td>
+            </tr>
+            <tr>
+                <th scope="row">🏷️ Class</th>
+                <td>{{ svc.container_name | get_class_emoji | safe }}</td>
+            </tr>
+            <tr>
+                <th scope="row">🕒 Creation</th>
+                <td>
+                    {% if svc.start_time %}
+                        <span
+                        class="local-time"
+                        data-timestamp="{{ svc.start_time.isoformat() }}"
+                        title="{{ svc.start_time }}"
+                        aria-label="{{ svc.start_time }}">
+                            {{ svc.start_time }}
+                        </span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">🗄️ Node</th>
+                <td>
+                    {% if svc.node_name and svc.node_name != "N/A" %}
+                        <a href="{{ url_for('node_info', node_name=svc.node_name) }}" class="text-decoration-none">
+                        {{ svc.node_name }}
+                        </a>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr><th scope="row">⚙️ CPU</th><td>{{ svc.cpu }}</td></tr>
+            <tr><th scope="row">🗄️ Memory</th><td>{{ svc.memory | format_bytes | safe }} </td></tr>
+            <tr><th scope="row">🧮 GPU</th><td>
+                {% if svc.gpu and svc.gpu > 0 %}
+                    {{ svc.gpu }}
+                    {% if svc.gpu and svc.health and svc.health.gpu %}
+                        &times; {{ svc.health.gpu | format_gpu_model | safe }}
+                    {% endif %}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td></tr>
+            <tr><th scope="row">💾 Ephemeral storage</th><td>
+                {% if svc.ephemeral_storage and svc.ephemeral_storage > 0 %}
+                    {{ svc.ephemeral_storage | format_bytes | safe }}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td></tr>
+            <tr><th scope="row">📶 Pod status</th><td>
+                {% if svc.pod_status == 'Running' %}
+                    <span class="text-success">✅ Running</span>
+                {% elif svc.pod_status == 'ContainerCreating' %}
+                    <span class="text-info">🛠️ Container creating</span>
+                {% elif svc.pod_status == 'Pending' %}
+                    <span class="text-info">⏳ Pending</span>
+                {% elif svc.pod_status == 'Terminated' %}
+                    <span class="text-danger">🛑 Terminated</span>
+                {% elif svc.pod_status == 'CrashLoopBackOff' %}
+                    <span class="text-danger">💥 Crash loop back off</span>
+                {% elif svc.pod_status == 'InvalidImageName' %}
+                    <span class="text-danger">🐳⚠️ Invalid image name</span>
+                {% elif svc.pod_status == 'ImagePullBackOff' %}
+                    <span class="text-danger">🐳⚠️ Image pull back off</span>
+                {% elif svc.pod_status == 'ErrImagePull' %}
+                    <span class="text-danger">🐳❌ Error image pull</span>
+                {% elif svc.pod_status == 'CreateContainerConfigError' %}
+                    <span class="text-danger">❌ Create container config</span>
+                {% elif svc.pod_status == 'UnexpectedAdmissionError' %}
+                    <span class="text-danger">❗ Unexpected admission error</span>
+                {% elif svc.pod_status == 'Failed' %}
+                    <span class="text-danger">❌ Failed</span>
+                {% else %}
+                    {{ svc.pod_status }}
+                {% endif %}
+            </td></tr>
+            <tr><th scope="row">🩺 Service status</th><td>
+                {% if not svc.health %}
+                    <span class="text-muted">-</span>
+                {% elif svc.health.status == 'initializing parallelism' %}
+                    <span class="text-info">⏳ Initializing parallelism</span>
+                {% elif svc.health.status == 'loading model' %}
+                    <span class="text-info">⏳ Loading model</span>
+                {% elif svc.health.status == 'parallelizing model' %}
+                    <span class="text-info">⏳ Parallelizing model</span>
+                {% elif svc.health.status == 'compiling model' %}
+                    <span class="text-info" aria-label="" title="Compiling model">⏳ Compiling model</span>
+                {% elif svc.health.status == 'failed' %}
+                    <span class="text-danger">❌ Failed</span>
+                {% elif svc.health.status == 'timeout' %}
+                    <span class="text-danger">🚫 Timeout</span>
+                {% elif svc.health.status == 'ok' %}
+                    <span class="text-success">✅ Running</span>
+                {% else %}
+                    <span class="text-danger" aria-label="{{ svc.health.status }}" title="{{ svc.health.status }}">❌ {{ svc.health.status }}</span>
+                {% endif %}
+            </td></tr>
+            {% if svc.health %}
+            <tr><th>⚙️ Running</th><td>
+                {% if not svc.health %}
+                    <span class="text-muted">-</span>
+                {% elif svc.health.status != 'ok' %}
+                    <span class="text-danger">❌ Not available</span>
+                {% elif svc.health.running %}
+                    <span class="text-info">⚙️ Busy</span>
+                {% else %}
+                    <span class="text-success">🟢 Ready</span>
+                {% endif %}
+            </td></tr>
+            <tr>
+                <th scope="row">🧬 Data type</th>
+                <td>
+                    {% if svc.health.dtype %}
+                        {{ svc.health.dtype }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">🔥 Torch compile</th>
+                <td>
+                    {% if svc.health.torch_compile %}
+                        ✅
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">🎖️ Rank</th>
+                <td>
+                    {% if svc.health.rank %}
+                        {{ svc.health.rank }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">🌍 World size</th>
+                <td>
+                    {% if svc.health.world_size and svc.health.world_size >= 1 %}
+                        {{ svc.health.world_size }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">🧠 Ulysses size</th>
+                <td>
+                    {% if svc.health.ulysses_size and svc.health.ulysses_size >= 1 %}
+                        {{ svc.health.ulysses_size }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">💍 Ring size</th>
+                <td>
+                    {% if svc.health.ring_size and svc.health.ring_size >= 1 %}
+                        {{ svc.health.ring_size }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if svc.health and svc.health.gpu_info %}
+    <h3 class="mt-5 mb-2">🧮 GPU</h3>
+
+    <table class="table table-striped table-bordered w-auto">
+        <thead class="table-dark">
+            <tr>
+                <th></th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <th>GPU {{ gpu_info.index }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th>Current</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>
+                    {% if gpu_info.current %}
+                        ✅
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Model</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.name | format_gpu_model | safe }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Full model</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.name }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>SM utilization</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.sm_util }}%</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Memory utilization</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.mem_util }}%</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Memory</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>
+                    {{ gpu_info.mem_gib_used | default(0) | round(2) }} GiB /
+                    {{ gpu_info.mem_gib_total | default(0) | round(2) }} GiB
+                </td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Power</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>
+                    {{ gpu_info.power_draw_watts | default(0) | round(2) }} W /
+                    {{ gpu_info.power_limit_watts | default(0) | round(2) }} W
+                </td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Temperature</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.temp }} °C</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Graphics clock</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.graphics_clock }} MHz</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>SM clock</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.sm_clock }} MHz</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th>Memory clock</th>
+                {% for gpu_info in svc.health.gpu_info %}
+                <td>{{ gpu_info.mem_clock }} MHz</td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+
+    {% endif %}
+
+    {% if svc.events %}
+    <h3 class="mt-5 mb-2">📒 Events</h3>
+    <table class="table table-striped table-bordered w-auto">
+        <thead class="table-dark">
+            <tr>
+                <th>⌚ Time</th>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Message</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for event in svc.events %}
+            <tr>
+                <td>
+                    {% if event.last_timestamp %}
+                    <span
+                    class="local-time"
+                    data-timestamp="{{ event.last_timestamp.isoformat() }}"
+                    title="{{ event.last_timestamp }}"
+                    aria-label="{{ event.last_timestamp }}">
+                        {{ event.last_timestamp }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if event.type == 'Normal' %}
+                        <span class="text-success" title="Normal" aria-label="Normal">ℹ️</span>
+                    {% elif event.type == 'Warning' %}
+                        <span class="text-danger" title="Warning" aria-label="Warning">⚠️</span>
+                    {% else %}
+                        <span class="text-secondary">{{ event.type }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.reason == 'Scheduled' %}
+                        <span class="text-info">🗓️ Scheduled</span>
+                    {% elif event.reason == 'Pulling' %}
+                        <span class="text-info">🐳 Pulling image</span>
+                    {% elif event.reason == 'Pulled' %}
+                        <span class="text-success">🐳 Pulled image</span>
+                    {% elif event.reason == 'Created' %}
+                        <span class="text-success">✅ Created</span>
+                    {% elif event.reason == 'Started' %}
+                        <span class="text-success">🚀 Started</span>
+                    {% elif event.reason == 'Killing' %}
+                        <span class="text-warning">🛑 Killing</span>
+                    {% elif event.reason == 'Failed' %}
+                        <span class="text-danger">❌ Failed</span>
+                    {% elif event.reason == 'FailedScheduling' %}
+                        <span class="text-danger">❌🗓️ Failed scheduling</span>
+                    {% elif event.reason == 'BackOff' %}
+                        <span class="text-danger">❌🐳 Back off</span>
+                    {% else %}
+                        <span class="text-secondary">{{ event.reason }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ event.message }}</td>
+                <td>{{ event.count }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+
+    {% if svc.files %}
+        <h3 class="mt-5 mb-2">📂 Files</h3>
+        <table id="files-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th></th>
+                    <th>Path</th>
+                    <th>Size</th>
+                    <th>Date</th>
+                    <th>Download</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for file in svc.files %}
+                <tr>
+                {% if file.type == 'directory' %}
+                    <td>📁</td>
+                    <td>{{ file.name }}</td>
+                    <td data-sort="0">0</td>
+                    <td>{{ file.date | format_datetime | safe }}</td>
+                    <td><span class="text-muted">-</span></td>
+                {% else %}
+                    <td><a href="{{ url_for('file_view', service_name=service_name, container_ip=svc.pod_ip, container_port=svc.container_port, file_name=file.name) }}" class="text-decoration-none">{{ file.type | get_file_type_emoji | safe }}</a></td>
+                    <td><a href="{{ url_for('file_view', service_name=service_name, container_ip=svc.pod_ip, container_port=svc.container_port, file_name=file.name) }}" class="text-decoration-none">{{ file.name }}</a></td>
+                    <td data-sort="{{ file.size }}">{{ file.size | format_bytes | safe }}</td>
+                    <td>{{ file.date | format_datetime | safe }}</td>
+                    <td>
+                        <a href="{{ url_for('download_service_file', container_ip=svc.pod_ip, container_port=svc.container_port, file_name=file.name) }}" class="text-decoration-none">💾</a>
+                    </td>
+                {% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+
+    {% if svc.logs or service_name == 'gemma' or service_name == 'llama32' or service_name == 'whisper' %}
+        <h3 class="mt-5 mb-2">📜 Logs</h3>
+        {% if svc and svc.logs %}
+            <h4 class="mt-4">🐋 Docker</h4>
+            <div id="docker-log-box-{{ loop.index }}"
+                class="bg-dark text-white p-3 rounded"
+                style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+            </div>
+            <script>
+                const dockerLogBox{{ loop.index }} = document.getElementById("docker-log-box-{{ loop.index }}");
+                dockerLogBox{{ loop.index }}.innerHTML = ansiUp.ansi_to_html({{ svc.logs | tojson }});
+                dockerLogBox{{ loop.index }}.scrollTop = dockerLogBox{{ loop.index }}.scrollHeight;  // Scroll to the bottom after rendering
+            </script>
+        {% endif %}
+
+        {% if svc and svc.pod_ip and svc.container_port and service_name != 'gemma' and service_name != 'llama32' and service_name != 'whisper' %}
+            <h4 class="mt-4">🌐 Service</h4>
+            <div id="service-log-box-{{ loop.index }}"
+                class="bg-dark p-3 rounded"
+                style="white-space: pre-wrap; font-family: monospace; color: white; max-height: 400px; overflow-y: auto;">
+            </div>
+
+            <script>
+                const serviceLogBox{{ loop.index }} = document.getElementById("service-log-box-{{ loop.index }}");
+                {% if svc.load_balancer and svc.load_balancer.external_ip %}
+                    const logExternalUrl{{ loop.index }} = "{{ url_for('file_stream', container_ip=svc.load_balancer.external_ip, container_port=svc.load_balancer.external_port, file_name='streamwise.log') }}";
+                {% endif %}
+                const logUrl{{ loop.index }} = "{{ url_for('file_stream', container_ip=svc.pod_ip, container_port=svc.container_port, file_name='streamwise.log') }}";
+
+                class HttpError extends Error {
+                    constructor(status, statusText, bodyText) {
+                        super(`HTTP ${status} ${statusText}`);
+                        this.status = status;
+                        this.statusText = statusText;
+                        this.bodyText = bodyText;
+                        try {
+                            this.bodyJson = JSON.parse(bodyText);
+                        } catch {
+                            this.bodyJson = null;
+                        }
+                    }
+
+                    toDisplayString() {
+                        if (this.bodyJson?.error) {
+                            return this.bodyJson.error;
+                        }
+                        if (this.bodyJson) {
+                            return JSON.stringify(this.bodyJson, null, 2);
+                        }
+                        return this.bodyText || `${this.status} ${this.statusText}`;
+                    }
+                }
+
+                fetch(logUrl{{ loop.index }})
+                .then(res => {
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);
+                        });
+                    }
+                    return res.text();
+                })
+                .then(text => {
+                    const ansiUp = new AnsiUp();
+                    serviceLogBox{{ loop.index }}.style.setProperty("color", "white", "important");
+                    serviceLogBox{{ loop.index }}.innerHTML = ansiUp.ansi_to_html(text);
+                    serviceLogBox{{ loop.index }}.scrollTop = serviceLogBox{{ loop.index }}.scrollHeight;
+                })
+                .catch(err => {
+                    let message = err.message || String(err);
+                    if (err instanceof HttpError) {
+                        message = err.toDisplayString();
+                    }
+                    serviceLogBox{{ loop.index }}.style.setProperty("color", "red", "important");
+                    serviceLogBox{{ loop.index }}.textContent =
+                        `Cannot load service log file from '${logUrl{{ loop.index }}}'\n${message}`;
+                });
+            </script>
+        {% endif %}
+    {% endif %}
+
+
+    {% if svc.health %}
+        <h3 class="mt-5 mb-2">⌛ Timers</h3>
+
+        <a href="{{ url_for('service_timelines', service_name=svc.container_name) }}" class="btn btn-outline-primary mb-3">
+            📅 View Timeline
+        </a>
+
+        {% if svc.health.load_timer %}
+            <h4 class="mt-4">⚙️ Load</h4>
+            <ul>
+                {% if svc.health.load_timer.total %}
+                    <li><strong>Total:</strong> {{ svc.health.load_timer.total }} seconds</li>
+                {% endif %}
+                <ul>
+                    {% for k, v in svc.health.load_timer.items() %}
+                        {% if k != 'total' %}
+                            <li><strong>{{ k }}:</strong> {{ v }} seconds</li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </ul>
+        {% endif %}
+
+        {% if svc.health.gen_timer %}
+        <h4 class="mt-4">🚀 Generation</h4>
+        <ul>
+            <div class="accordion" id="genAccordion-{{ loop.index }}">
+            {% for job_id, gen_timer in svc.health.gen_timer.items() %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="genHeading-{{ loop.index }}-{{ loop.index0 }}">
+                    <button class="accordion-button collapsed"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#genCollapse-{{ loop.index }}-{{ loop.index0 }}"
+                            aria-expanded="false"
+                            aria-controls="genCollapse-{{ loop.index }}-{{ loop.index0 }}">
+                        <strong>{{ job_id or 'Generation ' ~ loop.index0 }}</strong>: {{ gen_timer.total }} seconds
+                    </button>
+                </h2>
+                <div id="genCollapse-{{ loop.index }}-{{ loop.index0 }}" class="accordion-collapse collapse" aria-labelledby="genHeading-{{ loop.index }}-{{ loop.index0 }}" data-bs-parent="#genAccordion-{{ loop.index }}">
+                    <div class="accordion-body">
+                        <ul>
+                        {% if gen_timer.total %}
+                        <li><strong>Total:</strong> {{ gen_timer.total }} seconds</li>
+                        {% endif %}
+                            <ul>
+                            {% for k, v in gen_timer.items() if k != 'total' %}
+                            <li><strong>{{ k }}:</strong> {{ v }} seconds</li>
+                            {% endfor %}
+                            </ul>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        </ul>
+        {% endif %}
+
+        {% if svc.health.vllm_metrics %}
+        <h4 class="mt-4">📊 vLLM</h4>
+
+        Requests:
+        <ul>
+            <li><strong>Running:</strong> {{ svc.health.vllm_metrics.num_requests_running | default(0) | int }}</li>
+            <li><strong>Waiting:</strong> {{ svc.health.vllm_metrics.num_requests_waiting | default(0) | int }}</li>
+            <li><strong>Total:</strong> {{ svc.health.vllm_metrics.request_success_total | default(0) | int }}</li>
+        </ul>
+
+        <table id="vllm-metrics-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for metric, value in svc.health.vllm_metrics.items() %}
+                <tr>
+                    <td>{{ metric }}</td>
+                    <td>{{ value }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    {% endif %}
+    {% endfor %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script>
+    $(document).ready(function () {
+        $('[id^="files-table-"]').each(function() {
+            $(this).DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[ 3, "desc" ]]  // Sort by date column (index 3) in descending order
+            });
+        });
+        $('[id^="vllm-metrics-table-"]').each(function() {
+            $(this).DataTable({
+                paging: true,
+                pageLength: 25
+            });
+        });
+    });
+    </script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        });
+        document.querySelectorAll(".local-time").forEach(el => {
+            const utcString = el.dataset.timestamp;
+            if (utcString) {
+                const date = new Date(utcString);
+                // el.textContent = localTime.toISOString(); // Customize format if needed
+                const parts = formatter.formatToParts(date);
+                const formatted = `${parts.find(p => p.type === 'year').value}/` +
+                                `${parts.find(p => p.type === 'month').value}/` +
+                                `${parts.find(p => p.type === 'day').value} ` +
+                                `${parts.find(p => p.type === 'hour').value}:` +
+                                `${parts.find(p => p.type === 'minute').value}:` +
+                                `${parts.find(p => p.type === 'second').value}`;
+                el.textContent = formatted;
+            }
+        });
+    });
+    </script>
+</body>
+</html>

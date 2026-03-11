@@ -1,0 +1,6 @@
+pillow
+torch
+protobuf
+xfuser
+# After this version, parallelism is broken
+diffusers==0.34.0
