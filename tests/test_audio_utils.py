@@ -103,7 +103,7 @@ async def test_base64() -> None:
 
 @pytest.mark.asyncio
 async def test_resize_wav() -> None:
-    audio_path = "benchmark/samples/sample.wav"
+    audio_path = "tests/data/sample.wav"
     audio_base64 = await read_file_base64(audio_path)
     duration_secs = get_audio_duration(audio_base64)
     assert duration_secs == 24.025
