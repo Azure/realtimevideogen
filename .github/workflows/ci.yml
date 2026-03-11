@@ -255,12 +255,20 @@ jobs:
               -vv \
               tests/streamwise/
 
-    - name: Generate coverage report
+    - name: Generate XML coverage report
       if: always()
       run: |
         export COVERAGE_FILE=.coverage
         coverage combine --keep .coverage.*
         coverage xml -o coverage.xml --ignore-errors
+
+    - name: Generate HTML coverage report
+      if: always()
+      run: |
+        export COVERAGE_FILE=.coverage
+        coverage combine --keep .coverage.*
+        coverage xml -o coverage.xml --ignore-errors
+        coverage html -d htmlcov --ignore-errors
 
     - name: List test files
       if: always()
@@ -275,12 +283,19 @@ jobs:
       with:
         files: test-results*.xml
 
-    - name: Upload coverage report
+    - name: Upload XML coverage report
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: coverage
+        name: xml-coverage-report
         path: coverage.xml
+
+    - name: Upload HTML coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: html-coverage-report
+        path: htmlcov/
 
     - name: Code coverage summary
       if: always()
