@@ -9,9 +9,8 @@ docker pull onerahmet/openai-whisper-asr-webservice:v1.9.1-gpu
 
 Upload to ACR:
 ```bash
-ACR_NAME="inigogrtgen"
-ACR_FULL_NAME="$ACR_NAME-cjd9f3dydte2bzbb"
-ACR_URL="$ACR_FULL_NAME.azurecr.io"
+source set_properties.sh
+
 IMAGE="onerahmet/openai-whisper-asr-webservice"
 TAG="v1.9.1-gpu"
 

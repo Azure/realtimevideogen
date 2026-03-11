@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: ['*']
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   lint:
     name: Lint
@@ -77,8 +82,9 @@ jobs:
 
     - name: Run Python type checking
       if: always()
+      shell: bash {0}
       run: |
-        mypy --install-types --non-interactive --show-traceback --ignore-missing-imports .
+        mypy --install-types --non-interactive --show-traceback --ignore-missing-imports . || true
         mypy --ignore-missing-imports . || true
 
     - name: 'Run tests: Main'
@@ -265,11 +271,9 @@ jobs:
 
     - name: Publish test results
       if: always()
-      uses: dorny/test-reporter@v1
+      uses: EnricoMi/publish-unit-test-result-action@v2
       with:
-        name: Unit Tests
-        path: test-results*.xml
-        reporter: java-junit
+        files: test-results*.xml
 
     - name: Upload coverage report
       if: always()

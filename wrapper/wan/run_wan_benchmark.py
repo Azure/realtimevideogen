@@ -63,7 +63,7 @@ def main() -> None:
     input_neg_prompt += "walking backwards"
 
     # Query 1
-    input_image = Image.open("/mnt/inigog/generated_image.png").convert("RGB")  # 640x480
+    input_image = Image.open("generated_image.png").convert("RGB")  # 640x480
     input_prompt = "The woman on the right speaks while the man on the left listens."
     input_neg_prompt = "No camera movement."
 
@@ -75,7 +75,7 @@ def main() -> None:
 
     # Warm-up run (loading models fully, etc)
     video = video_gen.generate(
-        img=Image.open("/mnt/inigog/warmup_image.png").convert("RGB"),
+        img=Image.open("warmup_image.png").convert("RGB"),
         prompt="Warmup prompt",
         neg_prompt="Warmup prompt",
         num_frames=4 + 1,
