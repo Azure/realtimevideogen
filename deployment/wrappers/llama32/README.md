@@ -3,9 +3,9 @@ We use a pre-created vLLM image.
 Took example from [here](https://medium.com/@amri369/self-host-llama-3-1-8-b-in-ec2-using-vllm-and-docker-1aefe4584b9a).
 
 ## Deploy
-Set the `HF_TOKEN` to a repo that has access to the gated models.
+Set `HF_TOKEN` in [`set_properties.sh`](../../../set_properties.sh) for access to gated models.
 ```bash
-export HF_TOKEN="hf_XXXX"
+source ../../../set_properties.sh
 ```
 
 ### Image management

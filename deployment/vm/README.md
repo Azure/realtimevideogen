@@ -16,7 +16,7 @@ Before starting, ensure you have:
 - **Docker**: Docker with NVIDIA container runtime
 - **Azure CLI**: For ACR access ([Install Guide](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli))
 - **Hugging Face Account**: Token for accessing gated models ([Get Token](https://huggingface.co/settings/tokens))
-- **Azure Container Registry (ACR)**: Created and accessible ([ACR Setup](acr/README.md))
+- **Azure Container Registry (ACR)**: Created and accessible ([ACR Setup](../acr/README.md))
 
 ## Setup Disks
 
@@ -80,11 +80,10 @@ ln -s /mnt/raid0/docker /var/lib/docker
 
 ### Login to ACR
 ```bash
-SUBSCRIPTION_ID="12345678-1234-1234-1234-123456789abc"  # TODO fill
-ACR_NAME="abcd"  # TODO fill
+source ../set_properties.sh  # sets AZ_SUBSCRIPTION_ID, ACR_NAME, etc.
 
 az login
-az account set --subscription $SUBSCRIPTION_ID
+az account set --subscription $AZ_SUBSCRIPTION_ID
 az acr login --name $ACR_NAME
 ```
 
@@ -103,21 +102,18 @@ az acr show --name $ACR_NAME
 Expected output should show ACR details including `adminUserEnabled: true`.
 
 ### Configure ACR Variables
+All ACR variables (`ACR_FULL_NAME`, `ACR_URL`, `ACR_USERNAME`, `ACR_EMAIL`) are defined in [`set_properties.sh`](../set_properties.sh).
+Make sure you have sourced it before proceeding:
 ```bash
-ACR_FULL_NAME="$ACR_NAME-xyz"  # TODO fill
-ACR_URL="$ACR_FULL_NAME.azurecr.io"
-ACR_USERNAME="abcd"  # TODO fill
-ACR_EMAIL="abcd@domain.com"  # TODO fill
+source ../set_properties.sh
 ```
-
-**Important:** Save these variables for later use in namespace setup and Helm deployments.
 
 ### Push Images to ACR
 
 Example of pushing an image to ACR:
 ```bash
-docker tag wan "$ACR_NAME.azurecr.io/wan"
-docker push "$ACR_NAME.azurecr.io/wan"
+docker tag wan "$ACR_URL/wan"
+docker push "$ACR_URL/wan"
 docker images
 ```
 
@@ -132,14 +128,14 @@ Once Docker and ACR are configured, you can pull and run individual containers:
 
 ```bash
 # Pull an image from ACR
-docker pull $ACR_NAME.azurecr.io/your-image:tag
+docker pull $ACR_URL/your-image:tag
 
 # Run a container with GPU support
 docker run --gpus all -d \
   --name your-container \
   -p 8080:8080 \
   -e HF_TOKEN=your_huggingface_token \
-  $ACR_NAME.azurecr.io/your-image:tag
+  $ACR_URL/your-image:tag
 ```
 
 **Verify container is running:**
@@ -163,5 +159,5 @@ docker logs your-container
 ## Next Steps
 
 For orchestrated deployments with multiple containers, consider:
-- **[Manual Kubernetes Setup](README.md#option-2-manual-kubernetes-cluster-setup)** - For on-premises or custom deployments
-- **[AKS Deployment](aks/README.md)** - For production-ready, managed Kubernetes
+- **[Manual Kubernetes Setup](../README.md#option-2-manual-kubernetes-cluster-setup)** - For on-premises or custom deployments
+- **[AKS Deployment](../aks/README.md)** - For production-ready, managed Kubernetes

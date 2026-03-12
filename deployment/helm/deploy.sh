@@ -3,9 +3,6 @@
 # shellcheck disable=SC1091
 source ../set_properties.sh
 
-SUBSCRIPTION_ID="7d07dbdd-8117-46e9-8f58-721da3f32fd4"
-K8S_NAMESPACE="rtgen"
-
 # Setup namespace
 if ! kubectl get namespace $K8S_NAMESPACE &> /dev/null; then
     kubectl create namespace $K8S_NAMESPACE
@@ -23,7 +20,7 @@ if ! az account show &> /dev/null; then
     az login
 fi
 az acr login --name "$ACR_NAME"
-az account set --subscription "$SUBSCRIPTION_ID"
+az account set --subscription "$AZ_SUBSCRIPTION_ID"
 az acr list --output table
 az acr update -n "$ACR_NAME" --admin-enabled true
 az acr credential show --name "$ACR_NAME"
@@ -51,8 +48,9 @@ kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token="$
 
 # Deploy Helm chart
 #helm install gpu-services . --namespace $K8S_NAMESPACE --create-namespace
-IMAGE_TAGS=$(jq -r 'to_entries | map("images.\(.key).tag=\(.value.dockerImage.tag)") | join(",")' ../../services.json)
+IMAGE_TAGS=$(jq -r 'to_entries | map(select(.value | type == "object" and has("dockerImage"))) | map("images.\(.key).tag=\(.value.dockerImage.tag)") | join(",")' ../../services.json)
 helm install gpu-services . \
   --namespace "$K8S_NAMESPACE" \
   --create-namespace \
+  --set "registry=$ACR_URL" \
   --set "$IMAGE_TAGS"

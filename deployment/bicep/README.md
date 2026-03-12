@@ -21,7 +21,7 @@ We use [Azure Bicep](https://github.com/Azure/bicep) to deploy and manage the in
 
 - `vm-gpu-k8s-deployment.bicep` - Main Bicep template
 - `vm-gpu-k8s-deployment.bicepparam` - Parameters file
-- `using-acr.md` - Instructions for using Azure Container Registry with this deployment
+- [../acr/README.md](../acr/README.md#using-acr-with-kubernetes-and-aks) - ACR usage guide for this deployment (Kubernetes and AKS)
 
 
 ## Create VMs
@@ -29,24 +29,24 @@ We deploy all the components using:
 ```powershell
 az bicep generate-params --file .\vm-gpu-k8s-deployment.bicep --output-format bicepparam --include-params all
 
-$RESOURCE_GROUP="<choose>"
-$REGION="<choose>"
+$AZ_RESOURCE_GROUP="<choose>"
+$AZ_REGION="<choose>"
 
-az group create --name $RESOURCE_GROUP --location $REGION
-az deployment group create --resource-group $RESOURCE_GROUP --parameters .\vm-gpu-k8s-deployment.bicepparam
+az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
+az deployment group create --resource-group $AZ_RESOURCE_GROUP --parameters .\vm-gpu-k8s-deployment.bicepparam
 ```
 
 ## Connect to VMs
 Connect to the control VM:
 ```powershell
-az network bastion ssh -n gpu-bastion-host -g $RESOURCE_GROUP --target-ip 10.0.0.4 --resource-port 22 --auth-type password --username azureuser
+az network bastion ssh -n gpu-bastion-host -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.4 --resource-port 22 --auth-type password --username azureuser
 ```
 For the other VMs, just change the IP.
 
 ## Setup K8s dashboard tunnel
 Setup the tunnel in Azure Bastion:
 ```powershell
-az network bastion tunnel -n gpu-bastion-host -g $RESOURCE_GROUP --target-ip 10.0.0.4 --resource-port 22 --port 12222
+az network bastion tunnel -n gpu-bastion-host -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.4 --resource-port 22 --port 12222
 ```
 
 Open the SSH tunnel for the K8s dashboard:

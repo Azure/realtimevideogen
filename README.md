@@ -80,7 +80,6 @@ If you use StreamWise in research, please cite:
 @article{streamwise2026,
   title={{StreamWise: Adaptive Serving for Real-Time Multi-Modal Generation}},
   author={Haoran Qiu, Gohar Irfan Chaudry, Chaojie Zhang, Íñigo Goiri, Esha Choukse, Rodrigo Fonseca, Ricardo Bianchini},
-  journal = {arXiv:2603.05800},
   year={2026}
 }
 ```

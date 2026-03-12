@@ -24,7 +24,6 @@ APP_DIR=$MAIN_DIR/$IMAGE_NAME
 # shellcheck disable=SC1090,SC1091 
 source "$DEPLOYMENT_DIR/set_properties.sh"
 
-REPOSITORY=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.repository' "$MAIN_DIR/services.json")
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
 mkdir -p docker_files
@@ -43,17 +42,17 @@ cp -R "$APP_DIR"/templates ./docker_files/
 
 cp "$MAIN_DIR/services.json" ./docker_files/
 
-ensure_acr_login "$REPOSITORY"
+ensure_acr_login "$DOCKER_REPO"
 
 # Build
 docker buildx build \
-  --build-arg DOCKER_REPO="${REPOSITORY}" \
+  --build-arg DOCKER_REPO="${DOCKER_REPO}" \
   -t "${IMAGE_NAME}:${TAG}" \
   ./docker_files/
 
 # Tag final image for pushing
-docker tag "${IMAGE_NAME}:${TAG}" "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+docker tag "${IMAGE_NAME}:${TAG}" "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"
 
 if [[ "$PUSH_IMAGE" == true ]]; then
-  docker push "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+  docker push "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"
 fi
