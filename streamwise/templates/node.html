@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>
+        {% if nodes | length == 1 %}
+            Node {{ nodes[0].node_name }}
+        {% else %}
+            Nodes
+        {% endif %}
+    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <!-- jQuery (required by DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+</head>
+
+<body>
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home">🏠</a>
+        {% if nodes | length == 1 %}
+            <a class="btn btn-outline-primary" href="{{ url_for('node_info', node_name=nodes[0].node_name) }}" title="Refresh">🔄</a>
+        {% else %}
+            <a class="btn btn-outline-primary" href="{{ url_for('nodes_info') }}" title="Refresh">🔄</a>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        {% if nodes | length > 1 %}
+            <h1 class="mb-4">Nodes</h1>
+            <table id="nodes-table" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Creation</th>
+                        <th>CPU</th>
+                        <th>Memory</th>
+                        <th>Ephemeral Storage</th>
+                        <th>GPU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for node in nodes %}
+                        <tr>
+                            <td>
+                                <a href="#node-{{ node.node_name }}">
+                                    {{ node.node_name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if node.is_ready %}
+                                    <span class="text-success" title="Ready" aria-label="Ready">✅</span>
+                                {% else %}
+                                    <span class="text-danger" title="Not Ready" aria-label="Not Ready">❌</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ node.creation_timestamp }}</td>
+                            <td>
+                                {{ node.allocatable_resources.cpu }}
+                            </td>
+                            <td>
+                                {{ node.allocatable_resources.memory | format_bytes | safe }}
+                            </td>
+                            <td>
+                                {{ node.allocatable_resources.storage | format_bytes | safe }}
+                            </td>
+                            <td>
+                                {% if node.capacity_resources.gpu == 0 or node.capacity_resources.gpu == "N/A" %}
+                                    <span class="text-muted">-</span>
+                                {% else %}
+                                    {{ node.allocatable_resources.gpu }} &times; {{ node.gpu_model | format_gpu_model | safe }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% for node in nodes %}
+            <h2 class="mt-5 mb-1" id="node-{{ node.node_name }}">
+                Node {{ node.node_name }} ⚙️
+            </h1>
+            <table class="table table-striped table-bordered w-auto">
+                <tbody>
+                    <tr>
+                        <th scope="row">Node Name</th>
+                        <td>{{ node.node_name }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Addresses</th>
+                        <td>
+                            <ul>
+                            {% for address in node.addresses %}
+                                <li>{{ address.type }}: {{ address.address }}</li>
+                            {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Region</th>
+                        <td>{{ node.region | get_friendly_region_name if node.region else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Ready</th>
+                        <td>
+                            {% if node.is_ready %}
+                                <span class="text-success" title="Ready" aria-label="Ready">✅</span>
+                            {% else %}
+                                <span class="text-danger" title="Not Ready" aria-label="Not Ready">❌</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">GPU model</th>
+                        <td>
+                            {% if node.gpu_model and node.gpu_model != "N/A" %}
+                                {{ node.gpu_model | format_gpu_model | safe }}
+                                ({{ node.gpu_model }})
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Architecture</th>
+                        <td>{{ node.architecture }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Kernel</th>
+                        <td>{{ node.kernel_version }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">OS</th>
+                        <td>{{ node.os_image }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Creation time</th>
+                        <td>{{ node.creation_timestamp }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Button to delete calling /api/node?name=XXXX DELETE-->
+            <button
+                type="button"
+                class="btn btn-outline-danger mb-3"
+                title="Remove Node"
+                aria-label="Remove Node"
+                onclick="removeNode('{{ node.node_name }}', this)">
+                🗑️
+            </button>
+
+            <script>
+                function removeNode(nodeName, btn) {
+                    if (!confirm('Are you sure you want to remove node "' + nodeName + '"?'))
+                        return;
+                    btn.disabled = true;
+                    fetch(`/api/node/${encodeURIComponent(nodeName)}`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/nodes';
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot remove node: ' + (data.error || response.status));
+                                btn.disabled = false;
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                        btn.disabled = false;
+                    });
+                }
+            </script>
+
+            <h3 class="mt-5 mb-1">⚙️ Resources</h3>
+            <table id="resources-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Resource</th>
+                        <th>Allocated</th>
+                        <th>Allocatable</th>
+                        <th>Capacity</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">CPU</th>
+                    <td>
+                        {% set ns = namespace(total_allocated_cpu=0.0) %}
+                        {% for pod in node.pods %}
+                            {% if pod.cpu > 0 %}
+                                {% set pod_cpu = pod.cpu | float %}
+                                {% set ns.total_allocated_cpu = ns.total_allocated_cpu + pod_cpu %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ ns.total_allocated_cpu | round(2) }}
+                    </td>
+                    <td>{{ node.allocatable_resources.cpu }}</td>
+                    <td>{{ node.capacity_resources.cpu }}</td>
+                    <td>
+                        {% set allocatable_cpu = node.allocatable_resources.cpu | float %}
+                        {% set percent_used = (ns.total_allocated_cpu / allocatable_cpu * 100) if allocatable_cpu > 0 else 0 %}
+
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar" role="progressbar"
+                                style="width: {{ percent_used }}%;"
+                                aria-valuenow="{{ ns.total_allocated_cpu }}"
+                                aria-valuemin="0"
+                                aria-valuemax="{{ allocatable_cpu }}">
+                                {{ '%.1f' % ns.total_allocated_cpu }} / {{ '%.1f' % allocatable_cpu }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Memory</th>
+                    <td>
+                        {% set ns = namespace(total_allocated_mem=0.0) %}
+                        {% for pod in node.pods %}
+                            {% if pod.memory %}
+                                {% set pod_mem = pod.memory | float %}
+                                {% set ns.total_allocated_mem = ns.total_allocated_mem + pod_mem %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ ns.total_allocated_mem | format_bytes }}
+                    </td>
+                    <td data-sort="{{ node.allocatable_resources.memory }}">{{ node.allocatable_resources.memory | format_bytes }}</td>
+                    <td data-sort="{{ node.capacity_resources.memory }}">{{ node.capacity_resources.memory | format_bytes }}</td>
+                    <td>
+                        {% set allocatable_mem = node.allocatable_resources.memory | float %}
+                        {% set percent_used = (ns.total_allocated_mem / allocatable_mem * 100) if allocatable_mem > 0 else 0 %}
+
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar" role="progressbar"
+                                style="width: {{ percent_used }}%;"
+                                aria-valuenow="{{ ns.total_allocated_mem }}"
+                                aria-valuemin="0"
+                                aria-valuemax="{{ allocatable_mem }}">
+                                {{ ns.total_allocated_mem | format_bytes }} / {{ allocatable_mem | format_bytes }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">GPU</th>
+                    <td>
+                        {% set ns = namespace(total_allocated_gpu=0) %}
+                        {% for pod in node.pods %}
+                            {% if pod.gpu %}
+                                {% set pod_gpu = pod.gpu | float %}
+                                {% set ns.total_allocated_gpu = ns.total_allocated_gpu + pod_gpu %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ ns.total_allocated_gpu }}
+                    </td>  
+                    <td>{{ node.allocatable_resources.gpu }}</td>
+                    <td>{{ node.capacity_resources.gpu }}</td>
+                    <td>
+                        {% set allocatable_gpu = node.allocatable_resources.gpu | float %}
+                        {% set percent_used = (ns.total_allocated_gpu / allocatable_gpu * 100) if allocatable_gpu > 0 else 0 %}
+
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar" role="progressbar"
+                                style="width: {{ percent_used }}%;"
+                                aria-valuenow="{{ ns.total_allocated_gpu }}"
+                                aria-valuemin="0"
+                                aria-valuemax="{{ allocatable_gpu }}">
+                                {{ ns.total_allocated_gpu }} / {{ allocatable_gpu }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="mt-5 mb-1">🫛 Pods</h3>
+            <table id="pods-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Namespace</th>
+                        <th>Pod</th>
+                        <th>Container</th>
+                        <th>Status</th>
+                        <th>IP</th>
+                        <th>URL</th>
+                        <th>CPU</th>
+                        <th>Memory</th>
+                        <th>GPU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pod in node.pods %}
+                    <tr>
+                        <td>{{ pod.namespace }}</td>
+                        <td>{{ pod.pod_name }}</td>
+                        <td>
+                            {% if pod.container_name | is_rtgen_container %}
+                                <a href="{{ url_for('service_info', service_name=pod.container_name) }}" class="text-decoration-none">
+                                {{ pod.container_name | get_friendly_container_name | safe }}
+                                </a>
+                            {% else %}
+                                {{ pod.container_name | get_friendly_container_name | safe }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pod.status == 'Running' %}
+                                <span class="text-success">✅ {{ pod.status }}</span>
+                            {% elif pod.status == 'Succeeded' %}
+                                <span class="text-info">✔️ {{ pod.status }}</span>
+                            {% elif pod.status == 'Pending' %}
+                                <span class="text-warning">⏳ {{ pod.status }}</span>
+                            {% elif pod.status == 'Failed' %}
+                                <span class="text-danger">❌ {{ pod.status }}</span>
+                            {% else %}
+                                <span class="text-danger">{{ pod.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ pod.pod_ip }}</td>
+                        <td>
+                            {% if pod.url and pod.url != "N/A" %}
+                                {{ pod.url }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pod.cpu %}
+                                {{ pod.cpu }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td data-sort="{{ pod.memory }}">
+                            {% if pod.memory %}
+                                {{ pod.memory | format_bytes }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pod.gpu %}
+                                {{ pod.gpu }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h3 class="mt-5 mb-1">🏷️ Labels</h3>
+            <table id="labels-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Namespace</th>
+                        <th>Label</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for label, value in node.labels.items() %}
+                    <tr>
+                        {% if '/' in label %}
+                            {% set parts = label.split('/') %}
+                            {% set label_ns = parts[0] %}
+                            {% set label_name = parts[1] %}
+                            <td>{{ label_ns }}</td>
+                            <td>{{ label_name }}</td>
+                        {% else %}
+                            <td>default</td>
+                            <td>{{ label }}</td>
+                        {% endif %}
+                        <td>
+                            {% if value == 'true' %}
+                                <span class="text-success">✅ True</span>
+                            {% elif value == 'false' %}
+                                <span class="text-danger">❌ False</span>
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h3 class="mt-5 mb-1">🐳 Images</h3>
+            <table id="images-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Names</th>
+                        <th>Size</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if node and node.images %}
+                        {% for image in node.images %}
+                            {% if image %}
+                                <tr>
+                                    <td>
+                                        <ul>
+                                            {% if not image.names or image.names | length == 0 %}
+                                                <li><span class="text-muted">N/A</span></li>
+                                            {% else %}
+                                                {% for name in image.names %}
+                                                    <li>{{ name }}</li>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </ul>
+                                    </td>
+                                    <td data-sort="{{ image.size_bytes }}">
+                                        {{ image.size_bytes | filesizeformat }}
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        {% endfor %}
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('[id^="resources-table-"]').each(function() {
+                $(this).DataTable({
+                    paging: false
+                });
+            });
+            $('[id^="labels-table-"]').each(function() {
+                $(this).DataTable({
+                    paging: true,
+                    pageLength: 10
+                });
+            });
+            $('[id^="images-table-"]').each(function() {
+                $(this).DataTable({
+                    paging: true,
+                    pageLength: 10
+                });
+            });
+            $('[id^="pods-table-"]').each(function() {
+                $(this).DataTable({
+                    paging: true,
+                    pageLength: 10
+                });
+            });
+        });
+    </script>
+</body>
+</html>

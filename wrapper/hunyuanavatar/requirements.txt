@@ -1,0 +1,1 @@
+# Empty as it comes from their git repo: https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar.git

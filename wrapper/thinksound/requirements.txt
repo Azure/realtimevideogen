@@ -1,0 +1,7 @@
+torch
+torchaudio
+torchvision
+open_clip_torch
+pandas
+omegaconf
+k-diffusion

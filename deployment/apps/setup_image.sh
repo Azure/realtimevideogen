@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Argument parsing
+usage() {
+  echo "Usage: $0 <IMAGE_NAME> [--push]"
+  exit 1
+}
+
+ensure_acr_login() {
+  local acr_name="$1"
+  if ! az acr login --name "$acr_name" >/dev/null 2>&1; then
+    echo "ERROR: Failed to log into ACR '$acr_name': az acr login --name $acr_name"
+    exit 1
+  fi
+}
+
+IMAGE_NAME="${1:-}"
+[[ -z "$IMAGE_NAME" ]] && usage
+
+PUSH_IMAGE=false
+shift || true
+
+# Parse optional flags
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --push)
+      PUSH_IMAGE=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      ;;
+  esac
+done
+
+# Main script
+MAIN_DIR=$(realpath ../../..)
+DEPLOYMENT_DIR=$MAIN_DIR/deployment
+APPS_DIR=$MAIN_DIR/apps
+APP_DIR=$APPS_DIR/$IMAGE_NAME
+
+# shellcheck disable=SC1090,SC1091
+source "$DEPLOYMENT_DIR/set_properties.sh"
+
+REPOSITORY=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.repository' "$MAIN_DIR/services.json")
+TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
+
+mkdir -p docker_files
+
+# Copy necessary files from the app directory to the current directory
+cp "$DEPLOYMENT_DIR/apps/Dockerfile" ./docker_files/
+
+cp "$APPS_DIR/requirements.txt" ./docker_files/requirements_streamwise.txt
+cp "$APPS_DIR/$IMAGE_NAME/requirements.txt" ./docker_files/requirements_"$IMAGE_NAME".txt
+
+cp "$MAIN_DIR"/*.py ./docker_files/
+cp "$APPS_DIR"/*.py ./docker_files/
+cp "$APPS_DIR"/*.bash ./docker_files/
+
+cp "$APP_DIR"/*.py ./docker_files/
+
+cp -R "$APPS_DIR"/static ./docker_files/
+cp -R "$APPS_DIR"/templates ./docker_files/
+cp -R "$APP_DIR"/templates/* ./docker_files/templates/
+
+cp "$MAIN_DIR/services.json" ./docker_files/
+
+ensure_acr_login "$REPOSITORY"
+
+# Build
+docker buildx build \
+  --build-arg DOCKER_REPO="${REPOSITORY}" \
+  --build-arg APP_NAME="${IMAGE_NAME}" \
+  -t "${IMAGE_NAME}:${TAG}" \
+  ./docker_files/
+
+# Tag final image for pushing
+docker tag "${IMAGE_NAME}:${TAG}" "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+
+if [[ "$PUSH_IMAGE" == true ]]; then
+  docker push "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+fi
