@@ -56,10 +56,10 @@ def test_run_flux_benchmark() -> None:
 
 
 def test_run_wan_benchmark() -> None:
-    with pytest.raises(FileNotFoundError):  # No such file or directory: '/mnt/inigog/generated_image.png'
+    with pytest.raises(FileNotFoundError):  # No such file or directory: 'generated_image.png'
         run_wan_benchmark_main()
 
 
 def test_run_wan_benchmark_batching_main() -> None:
-    with pytest.raises(FileNotFoundError):  # No such file or directory: '/mnt/inigog/generated_image.png'
+    with pytest.raises(FileNotFoundError):  # No such file or directory: 'generated_image.png'
         run_wan_benchmark_batching_main()

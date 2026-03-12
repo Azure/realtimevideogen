@@ -216,11 +216,11 @@ async def test_is_rtgen_container() -> None:
 async def test_get_docker_image() -> None:
     docker_image = await get_docker_image("flux")
     assert docker_image is not None
-    assert ".azurecr.io/flux:" in docker_image
+    assert "/flux:v" in docker_image
 
     docker_image = await get_docker_image("llamagen")
     assert docker_image is not None
-    assert ".azurecr.io/llamagen:" in docker_image
+    assert "/llamagen:v" in docker_image
 
     docker_image = await get_docker_image("nonexistent")
     assert docker_image is None
