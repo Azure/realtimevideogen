@@ -13,7 +13,7 @@ numpy<2
 imageio
 imageio-ffmpeg
 xfuser
-diffusers
+diffusers==0.37.0
 einops
 soundfile
 quart
