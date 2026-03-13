@@ -9,7 +9,7 @@ source "$DEPLOYMENT_DIR/set_properties.sh"
 # curl -s -H "Metadata:true" "http://169.254.169.254/metadata/identity/info?api-version=2021-02-01" | jq .
 # az login --identity
 # az login
-# az account set --subscription $SUBSCRIPTION_ID
+# az account set --subscription $AZ_SUBSCRIPTION_ID
 # az acr list -o table
 az acr login --name "$ACR_NAME"
 

@@ -496,7 +496,7 @@ async def get_docker_image(
         return None
     data_service_json = data_json[container_name]
     docker_image = data_service_json["dockerImage"]
-    docker_repo = docker_image["repository"]
+    docker_repo = docker_image.get("repository", os.environ.get("DOCKER_REPO", ""))
     docker_name = docker_image["name"]
     docker_tag = docker_image["tag"]
     return f"{docker_repo}/{docker_name}:{docker_tag}"

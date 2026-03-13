@@ -1,7 +1,7 @@
 # Deployment
 We deploy the images in Docker containers on top of Kubernetes.
 
-Microservices and containers:
+Some microservices and containers:
 * Text+image to video:
   * [Wan](wrappers/wan)
   * [Hunyuan FramePack](wrappers/hunyuanframepack)
@@ -11,7 +11,7 @@ Microservices and containers:
   * [Kokoro](wrappers/kokoro).
 * Text+image+audio to video
   * [Fantasy Talking](wrappers/fantasytalking)
-  * [Hunyuan Avatar](wrappers/hunyuanavatar) TODO
+  * [Hunyuan Avatar](wrappers/hunyuanavatar)
 * Documents to text (plot)
   * [Podcast Transcript](wrappers/podcasttranscript)
 * [LLM](wrappers/gemma):
@@ -55,12 +55,13 @@ Follow these steps in order:
 
 1. **[Create ACR](acr/README.md)** (if not already created)
 2. **[Login to ACR](#azure-container-registry-acr-setup)**
-3. **[Deploy AKS Cluster](aks/README.md)** - Follow the complete AKS deployment guide
-4. **[Configure Namespace](#kubernetes-namespace-setup)**
-5. **[Setup Storage](#storage-setup)**
-6. **[Configure Secrets](#secrets-configuration)**
-7. **[Install Helm](#helm-installation)** (optional if using StreamWise web UI)
-8. **Deploy Services** - Choose one of two approaches:
+3. **[Build & Push Docker Images](#building-and-pushing-docker-images)** - Build wrapper and app images, push to ACR
+4. **[Deploy AKS Cluster](aks/README.md)** - Follow the complete AKS deployment guide
+5. **[Configure Namespace](#kubernetes-namespace-setup)**
+6. **[Setup Storage](#storage-setup)**
+7. **[Configure Secrets](#secrets-configuration)**
+8. **[Install Helm](#helm-installation)** (optional if using StreamWise web UI)
+9. **Deploy Services** - Choose one of two approaches:
    - **[Deploy with Helm](helm/README.md)** (command-line approach)
    - **[Deploy with StreamWise Web UI](#alternative-deploy-with-streamwise-cluster-manager-web-ui)** (visual interface approach - recommended for beginners)
 
@@ -94,11 +95,12 @@ Follow the sections below in order:
 
 1. **[Setup Kubernetes](#kubernetes-installation)** - Install and configure K8s cluster
 2. **[Configure ACR](#azure-container-registry-acr-setup)**
-3. **[Configure Namespace](#kubernetes-namespace-setup)**
-4. **[Setup Storage](#storage-setup)**
-5. **[Configure Secrets](#secrets-configuration)**
-6. **[Install Helm](#helm-installation)** (optional if using StreamWise web UI)
-7. **Deploy Services** - Choose one of two approaches:
+3. **[Build & Push Docker Images](#building-and-pushing-docker-images)** - Build wrapper and app images, push to ACR
+4. **[Configure Namespace](#kubernetes-namespace-setup)**
+5. **[Setup Storage](#storage-setup)**
+6. **[Configure Secrets](#secrets-configuration)**
+7. **[Install Helm](#helm-installation)** (optional if using StreamWise web UI)
+8. **Deploy Services** - Choose one of two approaches:
    - **[Deploy with Helm](helm/README.md)** (command-line approach)
    - **[Deploy with StreamWise Web UI](#alternative-deploy-with-streamwise-cluster-manager-web-ui)** (visual interface approach)
 
@@ -125,12 +127,13 @@ Use this option for development, testing, or when you need to run containers dir
 
 ### VM with Docker Setup Steps
 
-For detailed setup instructions, see the **[VM Deployment Guide](vm.md)**. The guide covers:
+For detailed setup instructions, see the **[VM Deployment Guide](vm/README.md)**. The guide covers:
 
-1. **[Setup Disks](vm.md#setup-disks)** - Configure NVMe drives for Docker storage
-2. **[Install Docker](vm.md#docker-installation)** - Install Docker with NVIDIA runtime
-3. **[Configure ACR](vm.md#azure-container-registry-acr-setup)** - Login and configure ACR access
-4. **[Run Containers Manually](vm.md#running-containers-manually)** - Pull and run individual containers using `docker run`
+1. **[Setup Disks](vm/README.md#setup-disks)** - Configure NVMe drives for Docker storage
+2. **[Install Docker](vm/README.md#docker-installation)** - Install Docker with NVIDIA runtime
+3. **[Configure ACR](vm/README.md#azure-container-registry-acr-setup)** - Login and configure ACR access
+4. **[Build & Push Docker Images](#building-and-pushing-docker-images)** - Build wrapper and app images, push to ACR
+5. **[Run Containers Manually](vm/README.md#running-containers-manually)** - Pull and run individual containers using `docker run`
 
 
 ---
@@ -143,14 +146,14 @@ The following sections apply to **Options 2 and 3**. If you're using **Option 1 
 
 **Applies to:** Option 3 (VM Deployment with Docker)
 
-For detailed instructions on setting up VMs with Docker, including disk configuration, Docker installation, and ACR setup, see the **[VM Deployment Guide](vm.md)**.
+For detailed instructions on setting up VMs with Docker, including disk configuration, Docker installation, and ACR setup, see the **[VM Deployment Guide](vm/README.md)**.
 
 ### Azure Container Registry (ACR) Setup
 
 **Applies to:** Options 2 and 3
 
 For ACR login, configuration, and image management, refer to:
-- **Option 3 (VM with Docker)**: See the [VM Deployment Guide](vm.md#azure-container-registry-acr-setup)
+- **Option 3 (VM with Docker)**: See the [VM Deployment Guide](vm/README.md#azure-container-registry-acr-setup)
 - **Option 2 (Manual Kubernetes)**: Basic ACR login is covered below in the Kubernetes Installation section
 
 
@@ -203,6 +206,7 @@ systemctl restart containerd
 kubeadm reset -f
 kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.0.5
 kubeadm token create --print-join-command
+# Copy the KUBEADM_JOIN_TOKEN KUBEADM_JOIN_HASH from here
 ```
 
 ```bash
@@ -211,7 +215,7 @@ sudo chmod 777 /run/containerd/containerd.sock
 
 From the worker nodes, join the cluster using `kubeadm token create --print-join-command` and get the command:
 ```bash
-kubeadm join 10.0.0.5:6443 --token XXXX --discovery-token-ca-cert-hash sha256:YYYY
+kubeadm join 10.0.0.5:6443 --token $KUBEADM_JOIN_TOKEN --discovery-token-ca-cert-hash sha256:$KUBEADM_JOIN_HASH
 ```
 
 Setup `kubectl` to access the cluster:
@@ -293,7 +297,7 @@ Expected output should show nvidia device plugin pods running and nodes showing 
 
 Create the namespace for StreamWise:
 ```bash
-K8S_NAMESPACE="rtgen"
+source set_properties.sh  # provides K8S_NAMESPACE, HF_TOKEN, ACR_URL, etc.
 
 if ! kubectl get namespace $K8S_NAMESPACE &> /dev/null; then
     kubectl create namespace $K8S_NAMESPACE
@@ -341,8 +345,11 @@ Expected output should show persistent volumes with `Available` or `Bound` statu
 **Applies to:** Options 1, 2 (also covered in AKS guide)
 
 ##### Hugging Face Token
+Make sure `HF_TOKEN` is set in [`set_properties.sh`](set_properties.sh), then:
 ```bash
-# Set your HF_TOKEN environment variable or enter it when prompted
+source set_properties.sh
+
+# Falls back to prompt if not set
 if [ -z "$HF_TOKEN" ]; then
     read -p "Enter your Hugging Face token: " HF_TOKEN
 fi
@@ -434,8 +441,8 @@ Instead of using Helm from the command line, you can deploy the **StreamWise Clu
 3. **Configure environment variables** (for AKS with Load Balancer):
    ```bash
    # Get your load balancer IP
-   export LOAD_BALANCER_IP=$(az network public-ip show --resource-group $RESOURCE_GROUP --name aks-pods-public-ip | jq -r .ipAddress)
-   export RESOURCE_GROUP_NAME=$RESOURCE_GROUP
+   export LOAD_BALANCER_IP=$(az network public-ip show --resource-group $AZ_RESOURCE_GROUP --name aks-pods-public-ip | jq -r .ipAddress)
+   export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
    ```
 
 4. **Deploy StreamWise Pod and Service**:
@@ -599,7 +606,7 @@ kubectl proxy
 
 Connect to the dashboard:
 ```powershell
-az network bastion tunnel -n vnet-bastion -g $resource_group --target-ip 10.0.0.5 --resource-port 22 --port 2226
+az network bastion tunnel -n vnet-bastion -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.5 --resource-port 22 --port 2226
 ssh -L 8001:localhost:8001 azureuser@localhost -p 2226
 ```
 Available [here](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/).
@@ -627,7 +634,7 @@ kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy
 
 Then we can open port 8443 through bastion:
 ```powershell
-az network bastion tunnel -n vnet-bastion -g $resource_group --target-ip 10.0.0.5 --resource-port 22 --port 2226
+az network bastion tunnel -n vnet-bastion -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.5 --resource-port 22 --port 2226
 ```
 And then the port:
 ```bash
@@ -698,7 +705,7 @@ helm install --generate-name gpu-helm-charts/dcgm-exporter
 
 Setup the tunnel:
 ```powershell
-az network bastion tunnel -n vnet-bastion -g $resource_group --target-ip 10.0.0.5 --resource-port 22 --port 2225
+az network bastion tunnel -n vnet-bastion -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.5 --resource-port 22 --port 2225
 ssh -L 3000:localhost:3000 azureuser@localhost -p 2225
 ```
 
@@ -720,9 +727,73 @@ For a complete end-to-end AKS deployment workflow with all steps from prerequisi
 
 ---
 
-## Build images
-To build the docker images, all components have two main files:
-* setup_image.sh
-* Dockerfile
+## Building and Pushing Docker Images
 
-It may also contain `requirements.txt` with additional dependencies.
+All model wrappers (in [`wrappers/`](wrappers/)) and applications (in [`apps/`](apps/)) follow the same Docker image build pattern. Each component directory contains:
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Container image definition |
+| `setup_image.sh` | Build script (calls the shared [`wrappers/setup_image.sh`](wrappers/setup_image.sh)) |
+| `requirements.txt` | Python dependencies (if applicable) |
+
+Image names and tags are defined centrally in [`services.json`](../services.json).
+
+### Prerequisites
+
+```bash
+source set_properties.sh       # loads ACR_NAME, ACR_URL, HF_TOKEN, etc.
+az acr login --name $ACR_NAME  # authenticate to ACR
+```
+
+### Build All Images at Once
+
+The [`build_docker.sh`](build_docker.sh) script reads every service from `services.json`, builds each image via its `setup_image.sh`, and pushes them all to ACR:
+
+```bash
+cd deployment
+source set_properties.sh
+bash build_docker.sh
+```
+
+### Build a Single Wrapper Image
+
+Navigate to the wrapper directory and run its `setup_image.sh`:
+
+```bash
+cd deployment/wrappers/wan
+bash setup_image.sh            # build only
+bash setup_image.sh --push     # build and push to ACR
+```
+
+Some wrappers (e.g., `flux`, `gemma`, `llama32`) require a Hugging Face token for gated model access. These wrappers pass `--hf_token` automatically — just make sure `HF_TOKEN` is set in `set_properties.sh`.
+
+### Build a Single App Image
+
+```bash
+cd deployment/apps/streamwise
+bash setup_image.sh            # build only
+bash setup_image.sh --push     # build and push to ACR
+```
+
+### Push an Image Manually
+
+If you built an image without `--push`, you can push it separately:
+
+```bash
+source set_properties.sh
+az acr login --name $ACR_NAME
+docker push $ACR_URL/<image-name>:<tag>
+```
+
+### Verify Images in ACR
+
+```bash
+az acr repository list --name $ACR_NAME -o table
+az acr repository show-tags --name $ACR_NAME --repository <image-name> -o table
+```
+
+For more details, see:
+- [Wrappers build documentation](wrappers/README.md)
+- [Apps build documentation](apps/README.md)
+- [ACR setup and usage](acr/README.md)

@@ -3,9 +3,9 @@ We use a pre-created vLLM image.
 Took example from [here](https://medium.com/@amri369/self-host-llama-3-1-8-b-in-ec2-using-vllm-and-docker-1aefe4584b9a).
 
 ## Deploy
-Set the `HF_TOKEN` from [Hugging Face](https://huggingface.co/settings/tokens) to a repo that has access to the gated models.
+Set `HF_TOKEN` in [`set_properties.sh`](../../../set_properties.sh) (see [Hugging Face tokens](https://huggingface.co/settings/tokens)) for access to gated models.
 ```bash
-export HF_TOKEN="hf_XXXX"  # TODO fill
+source ../../../set_properties.sh
 export HF_HOME="/mnt/abcd/huggingface"  # TODO fill
 ```
 

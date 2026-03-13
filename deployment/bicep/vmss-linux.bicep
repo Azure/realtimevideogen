@@ -8,7 +8,7 @@ param computeNamePrefix string = 'vm'
 
 param zones array = ['1']
 
-param sku string = 'Standard_DS2_v2'
+param sku string = 'Standard_D16s_v5'
 
 param ospublisher string = 'MicrosoftCblMariner'
 param osoffer string = 'Cbl-Mariner'

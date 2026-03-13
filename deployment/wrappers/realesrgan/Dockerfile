@@ -3,6 +3,8 @@ ARG DOCKER_REPO=reposmustbeset.azurecr.io
 
 FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
+ARG DOCKER_REPO
+ENV DOCKER_REPO=${DOCKER_REPO}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
@@ -43,7 +45,9 @@ RUN conda run -n rtgen pip install -r /requirements.txt && \
 
 WORKDIR /realesrgan
 
-RUN conda run -n rtgen pip install git+https://github.com/sberbank-ai/Real-ESRGAN.git
+# RUN conda run -n rtgen pip install git+https://github.com/ai-forever/Real-ESRGAN.git
+RUN conda run -n rtgen pip install setuptools wheel && \
+    conda run -n rtgen pip install --no-build-isolation git+https://github.com/ai-forever/Real-ESRGAN.git
 
 COPY docker_files/requirements.txt .
 RUN conda run -n rtgen pip install -r requirements.txt && \

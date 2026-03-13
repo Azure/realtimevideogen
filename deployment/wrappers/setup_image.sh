@@ -72,10 +72,16 @@ WRAPPER_DIR=$WRAPPERS_DIR/$IMAGE_NAME
 # shellcheck disable=SC1090,SC1091 
 source "$DEPLOYMENT_DIR/set_properties.sh"
 
-REPOSITORY=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.repository' "$MAIN_DIR/services.json")
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
 mkdir -p ./docker_files
+
+# Copy parent model files if specified
+if [[ -n "$PARENT_MODEL" ]]; then
+  PARENT_DIR="$WRAPPERS_DIR/$PARENT_MODEL"
+  cp "$PARENT_DIR"/*.py ./docker_files/
+  cp "$PARENT_DIR"/requirements.txt ./docker_files/
+fi
 
 # Copy necessary files to the current directory
 cp "$MAIN_DIR"/requirements.txt ./docker_files/base_requirements.txt
@@ -90,13 +96,6 @@ cp "$WRAPPERS_DIR"/*.py ./docker_files/
 
 cp "$WRAPPER_DIR"/*.py ./docker_files/
 cp "$WRAPPER_DIR"/requirements.txt ./docker_files/
-
-# Copy parent model files if specified
-if [[ -n "$PARENT_MODEL" ]]; then
-  PARENT_DIR="$WRAPPERS_DIR/$PARENT_MODEL"
-  cp "$PARENT_DIR"/*.py ./docker_files/
-  cp "$PARENT_DIR"/requirements.txt ./docker_files/
-fi
 
 # Copy wrapper subfolders to docker_files
 for subfolder in "${WRAPPER_SUBFOLDERS[@]}"; do
@@ -114,7 +113,7 @@ done
 # Construct docker build command with optional token
 BUILD_ARGS=(
   docker buildx build
-  --build-arg "DOCKER_REPO=${REPOSITORY}"
+  --build-arg "DOCKER_REPO=${DOCKER_REPO}"
   --platform "$PLATFORM"
   -t "${IMAGE_NAME}:${TAG}"
 )
@@ -131,7 +130,7 @@ if [[ "$USE_HF_TOKEN" == true ]]; then
   )
 fi
 
-ensure_acr_login "$REPOSITORY"
+ensure_acr_login "$DOCKER_REPO"
 
 # Build
 "${BUILD_ARGS[@]}" .
@@ -142,8 +141,8 @@ if [[ "$USE_HF_TOKEN" == true && -f "$HF_TOKEN_FILE" ]]; then
 fi
 
 # Tag final image for pushing
-docker tag "${IMAGE_NAME}:${TAG}" "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+docker tag "${IMAGE_NAME}:${TAG}" "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"
 
 if [[ "$PUSH_IMAGE" == true ]]; then
-  docker push "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+  docker push "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"
 fi

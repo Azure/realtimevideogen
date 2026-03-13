@@ -4,6 +4,9 @@ ARG DOCKER_REPO=reposmustbeset.azurecr.io
 
 FROM ${DOCKER_REPO}/vllm/vllm-openai:v0.9.1
 
+ARG DOCKER_REPO
+ENV DOCKER_REPO=${DOCKER_REPO}
+
 # System deps (librosa needs soundfile)
 RUN apt-get update && apt-get install -y \
     libsndfile1 \
