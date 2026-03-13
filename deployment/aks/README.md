@@ -2,17 +2,24 @@
 
 This guide provides step-by-step instructions for deploying StreamWise and StreamCast on Azure Kubernetes Service (AKS).
 
+GitHub Copilot CLI can do the full deployment with a prompt like:
+```bash
+copilot -p "Deploy the full StreamWise stack on a new AKS cluster in swedencentral with 2 Spot H100 VMs. Use resource group aks-agent, ACR rtgen in acr RG, and HF token hf_XYZ. Reboot the GPU VMs after they come up." --allow-all
+```
+
 ## Prerequisites
 
 Before starting, ensure you have:
 - Azure CLI installed and configured ([Install Guide](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli))
 - kubectl installed (`az aks install-cli` or [Install Guide](https://kubernetes.io/docs/tasks/tools/))
 - Azure Container Registry (ACR) created ([ACR Setup](../acr/README.md))
+- Docker images built and pushed to ACR ([Build & Push Images](../README.md#building-and-pushing-docker-images))
 - Hugging Face token ([Get Token](https://huggingface.co/settings/tokens))
 
 Fill out configuration parameters in `set_properties.sh`
 * Azure resource group and region
 * ACR settings
+
 To load the parameters to use them later:
 ```bash
 source set_properties.sh
@@ -31,15 +38,15 @@ Review the Bicep parameters in [aks.bicep](aks.bicep) (cluster name, GPU VM size
 ```bash
 az login
 
-# Pick a name for your resource group and region
-RESOURCE_GROUP="my-resource-group"
-REGION="swedencentral"
+# Pick a name for your Azure resource group and region
+AZ_RESOURCE_GROUP="my-resource-group"
+AZ_REGION="swedencentral"
 
-az group create --name $RESOURCE_GROUP --location $REGION
+az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
 
 az deployment group create \
   --name AKSDeployment \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --template-file deployment/aks/aks.bicep \
   --parameters \
     clusterName=my-cluster \
@@ -58,29 +65,24 @@ Some available GPU VM sizes:
 > **Note:** The cluster name defaults to `<resource-group>-cluster`.
 > If the ACR role assignment fails (e.g. on redeployment), the cluster itself will still be created successfully.
 > Attach the ACR manually with:
-> `az aks update -g $RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
-
-> **Sizing note:** The default system node (`Standard_D8s_v5`, 8 vCPUs) has limited headroom.
-> Running StreamWise + StreamCast + other CPU services may exhaust it.
-> If pods get stuck in `Pending` with `Insufficient cpu`, scale the system pool:
-> `az aks nodepool scale -g $RESOURCE_GROUP --cluster-name $AKS_CLUSTER --name nodepool1 --node-count 2`
+> `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
 
 After deployment, retrieve the outputs and get cluster credentials:
 ```bash
 AKS_CLUSTER=$(az deployment group show \
   --name AKSDeployment \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.clusterName.value -o tsv)
 
 IP_ADDRESS=$(az deployment group show \
   --name AKSDeployment \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.publicIpAddress.value -o tsv)
 
 echo "AKS cluster: $AKS_CLUSTER"
 echo "Public IP:   $IP_ADDRESS"
 
-az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER
+az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
 ```
 
 **Verify AKS deployment:**
@@ -96,14 +98,13 @@ Expected output should show node(s) in `Ready` state.
 
 ### 2.1 Namespace
 ```bash
-K8S_NAMESPACE="rtgen"
 kubectl create namespace $K8S_NAMESPACE
 ```
 
 ### 2.2 Secrets
-Configure the Hugging Face token (required for model access):
+Configure the Hugging Face token (required for model access).
+Make sure `HF_TOKEN` is set in [`set_properties.sh`](../set_properties.sh), then:
 ```bash
-HF_TOKEN="hf_xxxxxxxxxxxxxxxxxxxx"  # TODO: fill with your token
 kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token=$HF_TOKEN
 ```
 
@@ -127,9 +128,9 @@ Set the environment variables needed by the YAML templates, then deploy.
 > The pod will show `ContainerCreating` during this time.
 
 ```bash
-export ACR_URL=$(az acr show --name <your-acr> --query loginServer -o tsv)
+source ../set_properties.sh  # provides ACR_URL, AZ_RESOURCE_GROUP, etc.
 export LOAD_BALANCER_IP=$IP_ADDRESS
-export RESOURCE_GROUP_NAME=$RESOURCE_GROUP
+export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
 cd deployment/aks
 
@@ -193,7 +194,7 @@ kubectl apply -f nvidia-device-plugin-ds.yaml
 Scale the GPU spot node pool up (it starts at 0 nodes):
 ```bash
 az aks nodepool scale \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --cluster-name $AKS_CLUSTER \
   --name spoth100 \
   --node-count 1
@@ -201,9 +202,9 @@ az aks nodepool scale \
 
 If these fails, scale the VMSS directly:
 ```bash
-MC_RESOURCE_GROUP="MC_${RESOURCE_GROUP}_${AKS_CLUSTER}_${REGION}"
+MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
 NODEPOOL_NAME=$(az aks nodepool list \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --cluster-name $AKS_CLUSTER \
   --query "[?starts_with(vmSize, 'Standard_N')].name | [0]" -o tsv)
 VMSS_NAME=$(az vmss list \
@@ -220,9 +221,9 @@ kubectl node-shell <node-name>
 
 Sometimes the NVIDIA setup with torch is not correct and we need to restart the VM:
 ```bash
-MC_RESOURCE_GROUP="MC_${RESOURCE_GROUP}_${AKS_CLUSTER}_${REGION}"
+MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
 NODEPOOL_NAME=$(az aks nodepool list \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --cluster-name $AKS_CLUSTER \
   --query "[?starts_with(vmSize, 'Standard_N')].name | [0]" -o tsv)
 VMSS_NAME=$(az vmss list \
@@ -252,11 +253,8 @@ Deploy model services through the StreamWise web UI or REST API.
 > A minimal StreamCast pipeline (gemma + kokoro + flux + yolo + hunyuanframepackf1) requires 8 GPUs.
 > For parallel execution of all services, add a second GPU node.
 
-### Option A: StreamWise Web UI
-Open `http://$IP_ADDRESS:8081` and use the visual interface to deploy and manage services.
-
-### Option B: REST API
-Deploy all services at once (requires enough GPU capacity for the full set):
+The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
+Use the REST API to deploy all services at once:
 ```bash
 curl -X POST "http://$IP_ADDRESS:8081/api/service"
 ```
@@ -285,12 +283,12 @@ kubectl get events -n rtgen --sort-by='.lastTimestamp'
 ```
 
 Common issues:
-- **Image pull errors**: Verify ACR is attached to AKS (`az aks check-acr -g $RESOURCE_GROUP -n $AKS_CLUSTER --acr <acrName>`)
+- **Image pull errors**: Verify ACR is attached to AKS (`az aks check-acr -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --acr <acrName>`)
 - **Pods stuck in Pending (Insufficient cpu)**: The system node pool doesn't have enough CPU. Scale up with `az aks nodepool scale` or use a larger VM size (see Sizing note in Step 1)
 - **GPU not available**: Ensure the GPU node pool is scaled up and the NVIDIA device plugin is running
-- **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
+- **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
 - **Secret errors**: Verify HF token is correctly configured with `kubectl get secret hf-token -n rtgen`
-- **ACR role assignment fails on redeployment**: The role already exists. Attach ACR manually: `az aks update -g $RESOURCE_GROUP -n $AKS_CLUSTER --attach-acr <acrName>`
+- **ACR role assignment fails on redeployment**: The role already exists. Attach ACR manually: `az aks update -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --attach-acr <acrName>`
 
 ## Cleanup
 
@@ -307,5 +305,5 @@ kubectl delete pv local-pv
 kubectl delete namespace rtgen
 
 # Delete entire resource group (includes AKS cluster and all resources)
-az group delete --name $RESOURCE_GROUP --yes --no-wait
+az group delete --name $AZ_RESOURCE_GROUP --yes --no-wait
 ```

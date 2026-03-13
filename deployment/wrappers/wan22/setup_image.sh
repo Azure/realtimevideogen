@@ -31,7 +31,6 @@ WRAPPER_DIR=$WRAPPERS_DIR/$IMAGE_NAME
 # shellcheck disable=SC1090,SC1091 
 source "$DEPLOYMENT_DIR/set_properties.sh"
 
-REPOSITORY=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.repository' "$MAIN_DIR/services.json")
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
 mkdir -p ./docker_files
@@ -55,12 +54,12 @@ cp "$WRAPPERS_DIR"/wan/*.py ./docker_files/
 cp "$WRAPPERS_DIR"/wan22/wrapper_wan22.py ./docker_files/
 
 docker buildx build \
-  --build-arg "DOCKER_REPO=${REPOSITORY}" \
+  --build-arg "DOCKER_REPO=${DOCKER_REPO}" \
   -t "${IMAGE_NAME}:${TAG}" \
   .
 
-docker tag "${IMAGE_NAME}:${TAG}" "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+docker tag "${IMAGE_NAME}:${TAG}" "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"
 
 if [[ "$PUSH_IMAGE" == true ]]; then
-  docker push "${REPOSITORY}/${IMAGE_NAME}:${TAG}"
+  docker push "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"
 fi

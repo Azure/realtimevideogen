@@ -3,6 +3,8 @@ ARG DOCKER_REPO=reposmustbeset.azurecr.io
 
 FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
+ARG DOCKER_REPO
+ENV DOCKER_REPO=${DOCKER_REPO}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
@@ -37,7 +39,8 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
     conda run -n rtgen pip install torch==2.7.1 ninja packaging && \
     conda run -n rtgen pip cache purge
 
-RUN conda run -n rtgen pip install git+https://github.com/huggingface/diffusers@22b229b && \
+# RUN conda run -n rtgen pip install git+https://github.com/huggingface/diffusers@22b229b && \
+RUN conda run -n rtgen pip install diffusers==0.37.0 && \
     conda run -n rtgen pip cache purge
 
 COPY docker_files/base_requirements.txt /requirements.txt

@@ -3,6 +3,8 @@ ARG DOCKER_REPO=reposmustbeset.azurecr.io
 
 FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
+ARG DOCKER_REPO
+ENV DOCKER_REPO=${DOCKER_REPO}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
@@ -42,6 +44,11 @@ RUN conda run -n rtgen pip install git+https://github.com/huggingface/diffusers@
 
 COPY docker_files/base_requirements.txt /requirements.txt
 RUN conda run -n rtgen pip install -r /requirements.txt && \
+    conda run -n rtgen pip cache purge
+
+# Install flash attention separately
+RUN conda run -n rtgen pip install psutil numpy
+RUN conda run -n rtgen pip install --no-build-isolation flash-attn==2.7.4.post1 && \
     conda run -n rtgen pip cache purge
 
 #RUN git clone https://github.com/Dao-AILab/flash-attention && \

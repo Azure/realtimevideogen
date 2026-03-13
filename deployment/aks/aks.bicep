@@ -5,7 +5,7 @@ param clusterName string = '${resourceGroup().name}-cluster'
 param location string = resourceGroup().location
 
 @description('VM size for the system node pool.')
-param systemNodeVmSize string = 'Standard_D8s_v5'
+param systemNodeVmSize string = 'Standard_D16s_v5'
 
 @description('Number of nodes in the system node pool.')
 param systemNodeCount int = 1

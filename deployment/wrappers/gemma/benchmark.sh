@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC1091
+source "$(dirname "$0")/../../set_properties.sh"
+
 # Start the vLLM server in a Docker container
 export NUM_GPUS=4
 export NUM_GPUS=1
 export HF_HOME="/mnt/raid0/huggingface/"
 export PORT=18088
 export NETWORK_NAME="myvnet"
-export HF_TOKEN="hf_XXXX"  # TODO fill in your Hugging Face token
 export CONTAINER_NAME="vllm"
 export MODEL="google/gemma-3-27b-it"
 export VLLM_IMAGE="vllm/vllm-openai:latest"

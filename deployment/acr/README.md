@@ -3,29 +3,208 @@ For compliance, we only use images from a dedicated [ACR](https://learn.microsof
 We clone public Docker images (vLLM, Kubernetes,...) into our own ACR and upload the Docker images into it too.
 
 ## Create an ACR
+
+First, configure your environment variables in [`set_properties.sh`](../set_properties.sh) (see `AZ_SUBSCRIPTION_ID`, `AZ_RESOURCE_GROUP`, `AZ_REGION`, `ACR_NAME`).
+
 ```bash
-SUBSCRIPTION_ID="12345678-1234-1234-1234-123456789abc"  # TODO fill
-RESOURCE_GROUP="abcd-acr"  # TODO fill
-REGION="eastus"  # TODO fill
-ACR_NAME="abcd"  # TODO fill
+source ../set_properties.sh
 
 az login
-az account set --subscription $SUBSCRIPTION_ID
+az account set --subscription $AZ_SUBSCRIPTION_ID
 
 az group create \
-  --name $RESOURCE_GROUP \
-  --location $REGION
+  --name $AZ_RESOURCE_GROUP \
+  --location $AZ_REGION
 
 az acr create \
-  --resource-group $RESOURCE_GROUP \
+  --resource-group $AZ_RESOURCE_GROUP \
   --name $ACR_NAME \
   --sku Standard \
   --admin-enabled true
 
 az acr show \
-  -g $RESOURCE_GROUP \
+  -g $AZ_RESOURCE_GROUP \
   --name $ACR_NAME
 ```
 
 ## Login and Configuration
 For login and credential setup, see [Deployment README](../README.md#azure-container-registry-acr).
+
+## Using ACR with Kubernetes and AKS
+We use ACR for:
+- Kubernetes control plane images
+- NVIDIA GPU operators and device plugins
+- Application and model wrapper container images
+
+### Kubernetes Control Plane Images
+Get a list of images that are needed:
+```bash
+kubeadm config images list
+```
+
+Either manually upload these images to an ACR, or use the following script.
+Make sure you have sourced [`set_properties.sh`](../set_properties.sh) first (`source ../set_properties.sh`).
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+source ../set_properties.sh
+
+echo "[INFO] Fetching Kubernetes images using kubeadm..."
+images=$(kubeadm config images list | grep registry.k8s.io)
+
+for image in $images; do
+    echo "----------------------------------------"
+    echo "[INFO] Processing image: $image"
+
+    # Extract just the name after registry.k8s.io/
+    name=$(echo "$image" | sed 's|registry.k8s.io/||')
+
+     # Extract repo (last path component) and tag
+    repo=$(basename "$(echo "$name" | cut -d: -f1)")
+    tag=$(echo "$name" | cut -d: -f2)
+
+    # Target images
+    target="$DOCKER_REPO/$repo:$tag"
+
+    echo "[INFO] Pulling $image..."
+    docker pull "$image"
+
+    echo "[INFO] Tagging $image as $target"
+    docker tag "$image" "$target"
+
+    echo "[INFO] Pushing $target..."
+    docker push "$target"
+
+    echo "[SUCCESS] $image -> $target"
+done
+
+echo "[DONE] All images processed."
+```
+
+After that we can change the image registry:
+```bash
+sudo kubeadm init \
+  --pod-network-cidr=10.244.0.0/16 \
+  --apiserver-advertise-address=$IP \
+  --image-repository="$DOCKER_REPO"
+```
+
+You might have a `401 unauthorize` error. If so, add this to `/etc/containerd/config.toml`:
+
+```toml
+[plugins."io.containerd.grpc.v1.cri".registry.configs."$DOCKER_REPO".auth]
+    username = "$ACR_NAME"
+    password = "<password>"
+```
+
+Note: `username` and `password` can be found from `az acr credential show -n $ACR_NAME`.
+
+To set it up programmatically in containerd:
+```bash
+source ../set_properties.sh
+ACR_LOGIN_SERVER=$(az acr show -n $ACR_NAME --query loginServer -o tsv)
+USERNAME=$(az acr credential show -n $ACR_NAME --query username -o tsv)
+PASSWORD=$(az acr credential show -n $ACR_NAME --query passwords[0].value -o tsv)
+sudo tee -a /etc/containerd/config.toml > /dev/null <<EOF
+[plugins."io.containerd.grpc.v1.cri".registry.configs."$ACR_LOGIN_SERVER".auth]
+    username = "$USERNAME"
+    password = "$PASSWORD"
+EOF
+sudo systemctl restart containerd
+```
+
+To set it up programmatically in Kubernetes:
+```bash
+source ../set_properties.sh
+ACR_PASSWORD=$(az acr credential show --name $ACR_NAME | jq -r '.passwords[0].value')
+
+ACR_NAMESPACE="acr-credentials"
+if ! kubectl get namespace $ACR_NAMESPACE &> /dev/null; then
+  kubectl create namespace $ACR_NAMESPACE
+fi
+kubectl create secret docker-registry acr-credentials  \
+  -n $ACR_NAMESPACE \
+  --docker-server=$ACR_URL \
+  --docker-username=$ACR_USERNAME \
+  --docker-password=$ACR_PASSWORD \
+  --docker-email=$ACR_EMAIL \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+for ns in kube-system kube-flannel nvidia-device-plugin rtgen; do
+  if ! kubectl get namespace $ns &> /dev/null; then
+    kubectl create namespace $ns
+  fi
+  kubectl create secret docker-registry acr-credentials  \
+    -n $ns \
+    --docker-server=$ACR_URL \
+    --docker-username=$ACR_USERNAME \
+    --docker-password=$ACR_PASSWORD \
+    --docker-email=$ACR_EMAIL \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl patch serviceaccount default -n $ns --type='json' -p='[{"op": "add", "path": "/imagePullSecrets/-", "value": {"name":"acr-credentials"}}]'
+done
+```
+
+Restart the `containerd` service after setup:
+```bash
+sudo systemctl restart containerd
+```
+
+### Networking
+```bash
+kubectl apply -f kube-flannel-from-acr.yml
+```
+
+### NVIDIA GPU Operators
+```bash
+kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/main/deployments/gpu-operator/crds/nvidia.com_clusterpolicies.yaml
+kubectl apply -f rendered-gpu-operator-from-acr.yaml
+```
+
+Note: `rendered-gpu-operator-from-acr.yaml` is generated by `helm install gpu-operator nvidia-operator/gpu-operator -n gpu-operator --create-namespace -f rendered-gpu-operator.yaml` with container image source changed to ACR.
+
+### Custom/Application Images
+
+Model wrappers and applications each have a `setup_image.sh` build script and `Dockerfile`.
+Image names and tags come from [`services.json`](../../services.json).
+
+**Build and push all images at once** using [`build_docker.sh`](../build_docker.sh):
+
+```bash
+cd deployment
+source set_properties.sh
+bash build_docker.sh
+```
+
+This reads every service from `services.json`, builds each image via its `setup_image.sh`, and pushes them to `$ACR_URL`.
+
+**Build a single wrapper or app image:**
+
+```bash
+cd deployment/wrappers/<name>       # or deployment/apps/<name>
+bash setup_image.sh                 # build only
+bash setup_image.sh --push          # build and push to ACR
+```
+
+**Push an image manually** (if built without `--push`):
+
+```bash
+source ../set_properties.sh
+az acr login --name $ACR_NAME
+docker push $ACR_URL/<image-name>:<tag>
+```
+
+**Verify images in ACR:**
+
+```bash
+az acr repository list --name $ACR_NAME -o table
+```
+
+For a full explanation of the build workflow and `setup_image.sh` flags, see [Building and Pushing Docker Images](../README.md#building-and-pushing-docker-images).
+
+### Azure Kubernetes Service (AKS)
+Attach the ACR to an AKS cluster:
+```bash
+az aks update -g $RESOURCE_GROUP_NAME --name $AKS_CLUSTER --attach-acr $ACR_NAME
+```

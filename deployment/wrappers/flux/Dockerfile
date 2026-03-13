@@ -3,6 +3,8 @@ ARG DOCKER_REPO=reposmustbeset.azurecr.io
 
 FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
+ARG DOCKER_REPO
+ENV DOCKER_REPO=${DOCKER_REPO}
 ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda

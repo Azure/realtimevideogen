@@ -227,7 +227,7 @@ var vnetPeerings = [
 
 
 @description('Control plane VMSS VM SKU')
-param skuControl string = 'Standard_D8s_v5'
+param skuControl string = 'Standard_D16s_v5'
 
 @description('OS publisher for the VMSS')
 param ospublisher string = 'Canonical'
