@@ -12,7 +12,7 @@ torchvision
 numpy<2
 imageio
 imageio-ffmpeg
-xfuser
+xfuser==0.4.5
 diffusers==0.37.0
 einops
 soundfile
