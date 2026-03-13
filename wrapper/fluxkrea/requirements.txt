@@ -1,2 +1,2 @@
-diffusers>=0.34.0
+diffusers
 protobuf

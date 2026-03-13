@@ -5,6 +5,7 @@ FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
+ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
@@ -27,7 +28,14 @@ RUN apt-get update && \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"; \
+    else \
+        echo "Unsupported architecture: $TARGETARCH" && exit 1; \
+    fi && \
+    wget $MINICONDA_URL -O miniconda.sh && \
     bash miniconda.sh -b -p $CONDA_DIR && \
     rm miniconda.sh && \
     conda clean -afy
@@ -36,10 +44,8 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
     conda create -y -n rtgen python=3.12 && \
     conda install -n rtgen pip -y && \
     conda run -n rtgen pip install --upgrade pip && \
-    conda run -n rtgen pip install torch==2.7.1 ninja packaging && \
-    conda run -n rtgen pip cache purge
-
-RUN conda run -n rtgen pip install git+https://github.com/huggingface/diffusers@22b229b && \
+    conda run -n rtgen pip install torch==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128 && \
+    conda run -n rtgen pip install ninja packaging && \
     conda run -n rtgen pip cache purge
 
 COPY docker_files/base_requirements.txt /requirements.txt
@@ -48,18 +54,8 @@ RUN conda run -n rtgen pip install -r /requirements.txt && \
 
 # Install flash attention separately
 RUN conda run -n rtgen pip install psutil numpy
-RUN conda run -n rtgen pip install --no-build-isolation flash-attn==2.7.4.post1 && \
+RUN conda run -n rtgen pip install --no-build-isolation flash-attn==2.8.2 && \
     conda run -n rtgen pip cache purge
-
-#RUN git clone https://github.com/Dao-AILab/flash-attention && \
-#RUN git clone --branch v2.7.4 https://github.com/Dao-AILab/flash-attention.git && \
-# Skip flash-attn installation here but rather install it in requirements.txt
-# RUN git clone https://github.com/Dao-AILab/flash-attention /tmp/flash-attention && \
-#     cd /tmp/flash-attention && \
-#     git checkout df1847a74ad0f9cee007ed186fab44f83fa03fad && \
-#     cd hopper && \
-#     conda run -n rtgen python setup.py install && \
-#     rm -rf /tmp/flash-attention
 
 RUN git clone https://github.com/Wan-Video/Wan2.2.git wan22 && \
     cd wan22 && \

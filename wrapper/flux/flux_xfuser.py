@@ -17,7 +17,7 @@ from xfuser.core.distributed import get_sequence_parallel_world_size
 from xfuser.core.distributed import get_sequence_parallel_rank
 from xfuser.core.distributed import get_sp_group
 
-from xfuser.model_executor.layers.attention_processor import xFuserFluxAttnProcessor2_0
+from xfuser.model_executor.models.transformers.transformer_flux import xFuserFluxAttnProcessor
 
 
 def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
@@ -60,7 +60,7 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
             txt_ids = torch.chunk(txt_ids, sp_world, dim=-2)[sp_rank]
 
         for block in transformer.transformer_blocks + transformer.single_transformer_blocks:
-            block.attn.processor = xFuserFluxAttnProcessor2_0()
+            block.attn.processor = xFuserFluxAttnProcessor()
 
         output = original_forward(
             hidden_states,

@@ -19,6 +19,12 @@ IMAGE_NAME="${1:-}"
 [[ -z "$IMAGE_NAME" ]] && usage
 
 PUSH_IMAGE=false
+
+PLATFORM="linux/amd64"  # "linux/arm64"
+if [[ "$(uname -m)" == "aarch64" ]]; then
+  PLATFORM="linux/arm64"
+fi
+
 shift || true
 
 # Parse optional flags
@@ -72,6 +78,7 @@ ensure_acr_login "$DOCKER_REPO"
 docker buildx build \
   --build-arg DOCKER_REPO="${DOCKER_REPO}" \
   --build-arg APP_NAME="${IMAGE_NAME}" \
+  --platform "${PLATFORM}" \
   -t "${IMAGE_NAME}:${TAG}" \
   ./docker_files/
 

@@ -44,7 +44,7 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
     conda create -y -n rtgen python=3.12 && \
     conda install -n rtgen pip -y && \
     conda run -n rtgen pip install --upgrade pip && \
-    conda run -n rtgen pip install torch==2.7.1+cu128 --index-url https://download.pytorch.org/whl/cu128 && \
+    conda run -n rtgen pip install torch==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128 && \
     conda run -n rtgen pip install ninja packaging && \
     conda run -n rtgen pip cache purge
 
@@ -54,7 +54,7 @@ RUN conda run -n rtgen pip install -r /requirements.txt && \
 
 # Install flash attention separately
 RUN conda run -n rtgen pip install psutil numpy
-RUN conda run -n rtgen pip install --no-build-isolation flash-attn==2.7.4.post1 && \
+RUN conda run -n rtgen pip install --no-build-isolation flash-attn==2.8.2 && \
     conda run -n rtgen pip cache purge
 
 WORKDIR /kokoro

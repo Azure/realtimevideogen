@@ -1,11 +1,11 @@
 ninja
 packaging
 
-torch==2.8.0
+torch==2.7.1
 torchvision==0.22.1
 xformers==0.0.31
-xfuser==0.4.3.post3
-diffusers==0.37.0
+xfuser==0.4.5
+diffusers==0.36.0
 transformers==4.56.2
 
 # flash-attn==2.7.4.post1 # requires --no-build-isolation
