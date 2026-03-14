@@ -137,7 +137,8 @@ def get_service_names() -> List[str]:
     services = {}
     with open("services.json", "r", encoding="utf-8") as file:
         services = json.load(file)
-    return list(services.keys())
+    # Only include entries that represent runnable model services (have a class field)
+    return [name for name, config in services.items() if "class" in config]
 
 
 def get_model(

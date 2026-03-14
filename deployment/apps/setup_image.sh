@@ -47,8 +47,11 @@ DEPLOYMENT_DIR=$MAIN_DIR/deployment
 APPS_DIR=$MAIN_DIR/apps
 APP_DIR=$APPS_DIR/$IMAGE_NAME
 
-# shellcheck disable=SC1090,SC1091
-source "$DEPLOYMENT_DIR/set_properties.sh"
+# Source set_properties.sh only if DOCKER_REPO is not already provided in the environment
+if [[ -z "${DOCKER_REPO:-}" ]]; then
+  # shellcheck disable=SC1090,SC1091
+  source "$DEPLOYMENT_DIR/set_properties.sh"
+fi
 
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
@@ -72,12 +75,17 @@ cp -R "$APP_DIR"/templates/* ./docker_files/templates/
 
 cp "$MAIN_DIR/services.json" ./docker_files/
 
-ensure_acr_login "$DOCKER_REPO"
+if [[ "$PUSH_IMAGE" == true ]]; then
+  ensure_acr_login "$DOCKER_REPO"
+fi
+
+BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
 
 # Build
 docker buildx build \
   --build-arg DOCKER_REPO="${DOCKER_REPO}" \
   --build-arg APP_NAME="${IMAGE_NAME}" \
+  --build-arg BASE_TAG="${BASE_TAG}" \
   --platform "${PLATFORM}" \
   -t "${IMAGE_NAME}:${TAG}" \
   ./docker_files/
