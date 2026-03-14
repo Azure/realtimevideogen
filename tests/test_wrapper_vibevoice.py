@@ -308,3 +308,132 @@ def test_dpm_solver_scheduler() -> None:
 
     with pytest.raises(ValueError):
         betas_for_alpha_bar(10, alpha_transform_type="unknown")
+
+
+def test_dpm_solver_set_timesteps() -> None:
+    """Test DPMSolverMultistepScheduler.set_timesteps, rescale_zero_terminal_snr, add_noise, get_velocity."""
+    import numpy as np
+    import torch as real_torch
+
+    class DummyDPMSchedulerMixin:
+        pass
+
+    class DummyDPMConfigMixin:
+        pass
+
+    def passthrough_register_to_config(func):
+        return func
+
+    dpm_sched_utils = ModuleType("diffusers.schedulers.scheduling_utils")
+    dpm_sched_utils.SchedulerMixin = DummyDPMSchedulerMixin
+    dpm_sched_utils.SchedulerOutput = MagicMock
+    dpm_sched_utils.KarrasDiffusionSchedulers = MagicMock()
+
+    dpm_conf = ModuleType("diffusers.configuration_utils")
+    dpm_conf.ConfigMixin = DummyDPMConfigMixin
+    dpm_conf.register_to_config = passthrough_register_to_config
+
+    dpm_mocks = {
+        "diffusers.schedulers": ModuleType("diffusers.schedulers"),
+        "diffusers.schedulers.scheduling_utils": dpm_sched_utils,
+        "diffusers.configuration_utils": dpm_conf,
+        "diffusers.utils": MagicMock(),
+        "diffusers.utils.torch_utils": MagicMock(),
+        "numpy": np,
+        "torch": real_torch,
+    }
+
+    with temp_sys_path("wrapper/vibevoice"):
+        with patch.dict(sys.modules, dpm_mocks):
+            from schedule.dpm_solver import (
+                DPMSolverMultistepScheduler,
+                rescale_zero_terminal_snr,
+            )
+
+    # set_timesteps with different timestep_spacing values
+    for spacing in ["linspace", "leading", "trailing"]:
+        s = DPMSolverMultistepScheduler(num_train_timesteps=100, timestep_spacing=spacing)
+        s.set_timesteps(10)
+        assert s.num_inference_steps == 10
+        assert len(s.timesteps) == 10
+
+    # set_timesteps with use_karras_sigmas covers _convert_to_karras + _sigma_to_t
+    s_karras = DPMSolverMultistepScheduler(num_train_timesteps=100, use_karras_sigmas=True)
+    s_karras.set_timesteps(10)
+    assert s_karras.num_inference_steps == 10
+
+    # set_timesteps with use_lu_lambdas covers _convert_to_lu + _sigma_to_t
+    s_lu = DPMSolverMultistepScheduler(num_train_timesteps=100, use_lu_lambdas=True)
+    s_lu.set_timesteps(10)
+    assert s_lu.num_inference_steps == 10
+
+    # set_timesteps with custom timesteps list
+    s_custom = DPMSolverMultistepScheduler(num_train_timesteps=100)
+    s_custom.set_timesteps(timesteps=[80, 60, 40, 20])
+    assert s_custom.num_inference_steps == 4
+
+    # Error: neither argument provided
+    with pytest.raises(ValueError, match="Must pass exactly one"):
+        s_custom.set_timesteps()
+
+    # Error: both provided
+    with pytest.raises(ValueError, match="Can only pass one"):
+        s_custom.set_timesteps(num_inference_steps=10, timesteps=[80, 60])
+
+    # Error: custom timesteps with karras_sigmas
+    with pytest.raises(ValueError, match="use_karras_sigmas"):
+        s_karras.set_timesteps(timesteps=[80, 60])
+
+    # __len__, set_begin_index, step_index and begin_index properties
+    s = DPMSolverMultistepScheduler(num_train_timesteps=200)
+    assert len(s) == 200
+    s.set_begin_index(5)
+    assert s.begin_index == 5
+    assert s.step_index is None  # before any step
+
+    # rescale_zero_terminal_snr
+    betas = real_torch.linspace(0.0001, 0.02, 100)
+    rescaled = rescale_zero_terminal_snr(betas)
+    assert rescaled is not None
+    assert rescaled.shape == betas.shape
+
+    # add_noise and get_velocity
+    s.set_timesteps(10)
+    original = real_torch.randn(2, 4)
+    noise = real_torch.randn(2, 4)
+    timesteps = real_torch.IntTensor([50, 80])
+    noisy = s.add_noise(original, noise, timesteps)
+    assert noisy.shape == original.shape
+    velocity = s.get_velocity(original, noise, timesteps)
+    assert velocity.shape == original.shape
+
+    # _sigma_to_alpha_sigma_t and _sigma_to_t are exercised by set_timesteps
+    # Make sure sigmas attribute exists after set_timesteps
+    assert hasattr(s, "sigmas")
+    assert s.sigmas is not None
+
+
+def test_vibevoice_model_methods() -> None:
+    """Test _assert_model_init, init_parallelism, init_model_parallelism, model_compile."""
+    with patch.dict(sys.modules, mock_modules):
+        from vibevoice.wrapper_vibevoice import VibeVoiceGeneration as _VVG
+
+    model = _VVG()
+
+    # _assert_model_init raises before model is initialized (status != "ok")
+    with pytest.raises(ValueError, match="Model not initialized"):
+        model._assert_model_init()
+
+    # init_parallelism runs without error (no CUDA in test env, uses CPU path)
+    model.init_parallelism()
+    assert hasattr(model, "rank")
+    assert hasattr(model, "world_size")
+
+    # init_model_parallelism: world_size=1, just logs a warning if > 1
+    model.init_model_parallelism()
+
+    # model_compile: short-circuits when torch_compile=False
+    model.torch_compile = False
+    model.model_compile()  # should return immediately without error
+
+    del model

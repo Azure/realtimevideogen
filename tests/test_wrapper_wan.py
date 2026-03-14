@@ -175,3 +175,60 @@ async def test_wan_get_rest_args_full() -> None:
     assert result["args"]["width"] == 640
     assert result["args"]["height"] == 480
     assert result["args"]["prompt"] == "test prompt"
+
+
+@pytest.mark.asyncio
+async def test_wan_get_rest_args_extra_params() -> None:
+    """Test get_rest_args with neg_prompt, sampling_steps, output_type and video_seconds."""
+    with patch.dict(sys.modules, mock_modules):
+        from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
+        from image_utils import img_to_base64 as _img_to_base64
+
+    model = _Wan21()
+    model.init()
+
+    img = Image.new("RGB", (40, 30))
+    img_base64 = _img_to_base64(img)
+
+    # neg_prompt, sampling_steps, output_type
+    result = await model.get_rest_args({
+        "img": img_base64,
+        "prompt": "test prompt",
+        "neg_prompt": "bad quality",
+        "sampling_steps": 20,
+        "output_type": "video_path",
+    })
+    assert result["args"]["neg_prompt"] == "bad quality"
+    assert result["args"]["sampling_steps"] == 20
+    assert result["args"]["output_type"] == "video_path"
+
+    # video_seconds branch: converts seconds to num_frames using FPS and vae_stride
+    result_secs = await model.get_rest_args({
+        "img": img_base64,
+        "prompt": "test prompt",
+        "video_seconds": 2.0,
+    })
+    # num_frames should be computed from video_seconds
+    assert result_secs["args"]["num_frames"] >= 1
+
+
+def test_wan_assert_model_init() -> None:
+    """Test that _assert_model_init raises when model components are not loaded."""
+    with patch.dict(sys.modules, mock_modules):
+        from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
+
+    model = _Wan21()
+    # Status is "initializing" (init() not called yet), base raises ValueError
+    with pytest.raises(ValueError, match="Model not initialized"):
+        model._assert_model_init()
+
+
+def test_wan_model_compile_no_op() -> None:
+    """Test model_compile returns immediately when torch_compile=False."""
+    with patch.dict(sys.modules, mock_modules):
+        from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
+
+    model = _Wan21()
+    model.init()
+    model.torch_compile = False
+    model.model_compile()  # should not raise
