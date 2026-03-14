@@ -33,7 +33,8 @@ mock_modules = {
 }
 mock_modules.update(mock_torch.get_sub_modules())
 
-sys.path.append("fantasytalking")
+sys.path.append("wrapper")
+sys.path.append("wrapper/hunyuanavatar")
 
 with patch.dict(sys.modules, mock_modules):
     from image_utils import img_to_base64

@@ -121,3 +121,24 @@ async def test_hunyuanframepackf1_assert_args() -> None:
         model._assert_args(height=512, width=769)
 
     del model
+
+
+@pytest.mark.asyncio
+async def test_hunyuanframepackf1_generate_proceeds_past_text_encoding() -> None:
+    """generate() proceeds past _encode_text when it is patched to return mock values."""
+    model = HunyuanFramepackF1Generation()
+    model.init()
+
+    img = Image.new("RGB", (768, 512))
+    six_mocks = tuple(MagicMock() for _ in range(6))
+
+    with patch.object(model, "_encode_text", return_value=six_mocks):
+        with pytest.raises(ValueError):
+            await model.generate(
+                img=img,
+                prompt="test prompt",
+                height=512,
+                width=768,
+            )
+
+    del model

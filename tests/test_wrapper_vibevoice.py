@@ -243,3 +243,68 @@ def test_timestep_samplers() -> None:
     logit = LogitNormalSampler(timesteps=100)
     result_l = logit.sample(batch_size=4, device=mock_torch.device('cpu'))
     assert result_l is not None
+
+
+def test_dpm_solver_scheduler() -> None:
+    """DPMSolverMultistepScheduler can be imported and instantiated with mocked deps."""
+    import numpy as np
+    import torch as real_torch
+
+    # Build minimal diffusers mocks with a proper pass-through register_to_config
+    class DummyDPMSchedulerMixin:
+        pass
+
+    class DummyDPMConfigMixin:
+        pass
+
+    def passthrough_register_to_config(func):
+        return func
+
+    dpm_sched_utils = ModuleType("diffusers.schedulers.scheduling_utils")
+    dpm_sched_utils.SchedulerMixin = DummyDPMSchedulerMixin
+    dpm_sched_utils.SchedulerOutput = MagicMock
+    dpm_sched_utils.KarrasDiffusionSchedulers = MagicMock()
+
+    dpm_conf = ModuleType("diffusers.configuration_utils")
+    dpm_conf.ConfigMixin = DummyDPMConfigMixin
+    dpm_conf.register_to_config = passthrough_register_to_config
+
+    dpm_mocks = {
+        "diffusers.schedulers": ModuleType("diffusers.schedulers"),
+        "diffusers.schedulers.scheduling_utils": dpm_sched_utils,
+        "diffusers.configuration_utils": dpm_conf,
+        "diffusers.utils": MagicMock(),
+        "diffusers.utils.torch_utils": MagicMock(),
+        "numpy": np,
+        "torch": real_torch,
+    }
+
+    with temp_sys_path("wrapper/vibevoice"):
+        with patch.dict(sys.modules, dpm_mocks):
+            from schedule.dpm_solver import DPMSolverMultistepScheduler
+
+    scheduler = DPMSolverMultistepScheduler(num_train_timesteps=100)
+    assert scheduler is not None
+    assert hasattr(scheduler, "betas")
+    assert hasattr(scheduler, "alphas_cumprod")
+
+    # Test other beta schedules to cover more branches
+    for schedule in ["scaled_linear", "squaredcos_cap_v2", "cosine"]:
+        s = DPMSolverMultistepScheduler(num_train_timesteps=50, beta_schedule=schedule)
+        assert hasattr(s, "betas")
+
+    # Unknown schedule raises NotImplementedError
+    with pytest.raises(NotImplementedError):
+        DPMSolverMultistepScheduler(beta_schedule="unknown_schedule")
+
+    # Test betas_for_alpha_bar directly with different alpha_transform_types
+    with temp_sys_path("wrapper/vibevoice"):
+        with patch.dict(sys.modules, dpm_mocks):
+            from schedule.dpm_solver import betas_for_alpha_bar
+
+    for alpha_type in ["cosine", "exp", "cauchy", "laplace"]:
+        betas = betas_for_alpha_bar(10, alpha_transform_type=alpha_type)
+        assert betas is not None
+
+    with pytest.raises(ValueError):
+        betas_for_alpha_bar(10, alpha_transform_type="unknown")

@@ -29,6 +29,16 @@ with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("apps", "apps/streamdub"):
         from apps.streamdub.streamdub import StreamDubApp
 
+scene_mocks_base = {
+    'scenedetect': MagicMock(),
+    'scenedetect.detectors': MagicMock(),
+    'scenedetect.stats_manager': MagicMock(),
+}
+
+with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+    with temp_sys_path("apps", "apps/streamdub"):
+        from apps.streamdub.streamdub_job import StreamDubJob
+
 
 streamdub_app = StreamDubApp()
 
@@ -107,3 +117,48 @@ def test_to_language() -> None:
 
     # Unknown code defaults to American English
     assert to_language("z") == "American English"
+
+
+@pytest.mark.asyncio
+async def test_streamdub_job_no_video() -> None:
+    """StreamDubJob.gen_dub with missing video raises ValueError."""
+    job = StreamDubJob(
+        job_id="test_no_video",
+        service_manager=MagicMock(),
+    )
+    with pytest.raises(ValueError, match="Missing 'video_base64'"):
+        await job.gen_dub(video_base64=None)
+
+
+@pytest.mark.asyncio
+async def test_streamdub_job_generate_no_video() -> None:
+    """StreamDubJob.generate with missing video_base64 raises ValueError."""
+    job = StreamDubJob(
+        job_id="test_generate_no_video",
+        service_manager=MagicMock(),
+    )
+    with pytest.raises(ValueError, match="Missing 'video_base64'"):
+        await job.generate(job_config={})
+
+
+@pytest.mark.asyncio
+async def test_streamdub_job_detect_scenes_missing_file() -> None:
+    """StreamDubJob.detect_scenes raises FileNotFoundError when video file is absent."""
+    job = StreamDubJob(
+        job_id="test_detect_no_file",
+        service_manager=MagicMock(),
+    )
+    with pytest.raises(FileNotFoundError):
+        await job.detect_scenes()
+
+
+@pytest.mark.asyncio
+async def test_streamdub_job_gen_dub_no_scenes() -> None:
+    """gen_dub with a valid video but no detected scenes raises ValueError."""
+    job = StreamDubJob(
+        job_id="test_gen_dub_no_scenes",
+        service_manager=MagicMock(),
+    )
+    # "AAAA" is valid base64; scenedetect mocks return empty scene list
+    with pytest.raises(ValueError, match="No scenes detected"):
+        await job.gen_dub(video_base64="AAAA")

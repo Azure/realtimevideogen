@@ -56,9 +56,7 @@ async def test_xtts_get_rest_args_validation() -> None:
         await model.get_rest_args({})
 
     result = await model.get_rest_args({"text": "hello"})
-    assert result is not None
     assert result["task"] == "xtts"
-    assert "args" in result
     assert result["args"]["text"] == "hello"
 
 
@@ -66,5 +64,4 @@ async def test_xtts_get_rest_args_validation() -> None:
 async def test_xtts_get_health() -> None:
     model = XTTSGeneration()
     health = model.get_health()
-    assert health is not None
     assert isinstance(health, dict)
