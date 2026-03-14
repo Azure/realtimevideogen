@@ -208,8 +208,8 @@ async def test_wan_get_rest_args_extra_params() -> None:
         "prompt": "test prompt",
         "video_seconds": 2.0,
     })
-    # num_frames should be computed from video_seconds
-    assert result_secs["args"]["num_frames"] >= 1
+    # FPS=16, vae_stride[0]=4: num_frames = 1 + ((int(2.0*16)-1) // 4) * 4 = 29
+    assert result_secs["args"]["num_frames"] == 29
 
 
 def test_wan_assert_model_init() -> None:

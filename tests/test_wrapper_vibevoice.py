@@ -373,7 +373,7 @@ def test_dpm_solver_set_timesteps() -> None:
     assert s_custom.num_inference_steps == 4
 
     # Error: neither argument provided
-    with pytest.raises(ValueError, match="Must pass exactly one"):
+    with pytest.raises(ValueError, match="Must pass exactly one of"):
         s_custom.set_timesteps()
 
     # Error: both provided
@@ -426,8 +426,8 @@ def test_vibevoice_model_methods() -> None:
 
     # init_parallelism runs without error (no CUDA in test env, uses CPU path)
     model.init_parallelism()
-    assert hasattr(model, "rank")
-    assert hasattr(model, "world_size")
+    assert model.rank == 0
+    assert model.world_size == 1
 
     # init_model_parallelism: world_size=1, just logs a warning if > 1
     model.init_model_parallelism()
