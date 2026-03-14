@@ -406,6 +406,31 @@ jobs:
       id: deployment
       uses: actions/deploy-pages@v4
 
+  docker-imageresize:
+    name: Docker imageresize
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build docker context
+      working-directory: deployment/wrappers/imageresize
+      run: |
+        mkdir -p docker_files
+        cp ../../../*.py docker_files/
+        cp ../../../wrapper/*.py docker_files/
+        cp ../../../wrapper/imageresize/*.py docker_files/
+
+    - name: Build imageresize CI image
+      working-directory: deployment/wrappers/imageresize
+      run: docker build -f Dockerfile.ci -t imageresize:ci .
+
+    - name: Test imageresize resize
+      run: docker run --rm imageresize:ci
+
   stats:
     name: Stats
     runs-on: ubuntu-latest

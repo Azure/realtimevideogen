@@ -74,10 +74,13 @@ cp "$MAIN_DIR/services.json" ./docker_files/
 
 ensure_acr_login "$DOCKER_REPO"
 
+BASE_TAG=$(jq -r '."streamwise-base".dockerImage.tag' "$MAIN_DIR/services.json")
+
 # Build
 docker buildx build \
   --build-arg DOCKER_REPO="${DOCKER_REPO}" \
   --build-arg APP_NAME="${IMAGE_NAME}" \
+  --build-arg BASE_TAG="${BASE_TAG}" \
   --platform "${PLATFORM}" \
   -t "${IMAGE_NAME}:${TAG}" \
   ./docker_files/

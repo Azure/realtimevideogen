@@ -111,9 +111,12 @@ for subfolder in "${WRAPPER_SUBFOLDERS[@]}"; do
 done
 
 # Construct docker build command with optional token
+BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
+
 BUILD_ARGS=(
   docker buildx build
   --build-arg "DOCKER_REPO=${DOCKER_REPO}"
+  --build-arg "BASE_TAG=${BASE_TAG}"
   --platform "$PLATFORM"
   -t "${IMAGE_NAME}:${TAG}"
 )
