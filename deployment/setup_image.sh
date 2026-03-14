@@ -7,23 +7,16 @@ usage() {
   exit 1
 }
 
-ensure_acr_login() {
-  local acr_name="$1"
-  if ! az acr login --name "$acr_name" >/dev/null 2>&1; then
-    echo "ERROR: Failed to log into ACR '$acr_name': az acr login --name $acr_name"
-    exit 1
-  fi
-}
+# Shared utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=setup_lib.sh
+source "$SCRIPT_DIR/setup_lib.sh"
 
 IMAGE_NAME="${1:-}"
 [[ -z "$IMAGE_NAME" ]] && usage
 
 PUSH_IMAGE=false
-
-PLATFORM="linux/amd64"
-if [[ "$(uname -m)" == "aarch64" ]]; then
-  PLATFORM="linux/arm64"
-fi
+PLATFORM=$(detect_platform)
 
 shift || true
 
@@ -47,7 +40,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Main script
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 MAIN_DIR=$(realpath "$SCRIPT_DIR/..")
 DEPLOYMENT_DIR=$MAIN_DIR/deployment
 IMAGE_DIR=$DEPLOYMENT_DIR/$IMAGE_NAME

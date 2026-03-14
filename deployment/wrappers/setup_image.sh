@@ -7,13 +7,8 @@ usage() {
   exit 1
 }
 
-ensure_acr_login() {
-  local acr_name="$1"
-  if ! az acr login --name "$acr_name" >/dev/null 2>&1; then
-    echo "ERROR: Failed to log into ACR '$acr_name': az acr login --name $acr_name"
-    exit 1
-  fi
-}
+# shellcheck source=../setup_lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../setup_lib.sh"
 
 IMAGE_NAME="${1:-}"
 [[ -z "$IMAGE_NAME" ]] && usage
@@ -23,10 +18,7 @@ PARENT_MODEL=""
 USE_HF_TOKEN=false
 PUSH_IMAGE=false
 
-PLATFORM="linux/amd64"  # "linux/arm64"
-if [[ "$(uname -m)" == "aarch64" ]]; then
-  PLATFORM="linux/arm64"
-fi
+PLATFORM=$(detect_platform)
 
 shift || true
 
@@ -71,8 +63,13 @@ WRAPPER_DIR=$WRAPPERS_DIR/$IMAGE_NAME
 
 # Source set_properties.sh only if DOCKER_REPO is not already provided in the environment
 if [[ -z "${DOCKER_REPO:-}" ]]; then
-  # shellcheck disable=SC1090,SC1091
-  source "$DEPLOYMENT_DIR/set_properties.sh"
+  if [[ -f "$DEPLOYMENT_DIR/set_properties.sh" ]]; then
+    # shellcheck disable=SC1090,SC1091
+    source "$DEPLOYMENT_DIR/set_properties.sh"
+  else
+    echo "ERROR: DOCKER_REPO is not set and $DEPLOYMENT_DIR/set_properties.sh does not exist"
+    exit 1
+  fi
 fi
 
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")

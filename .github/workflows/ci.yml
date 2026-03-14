@@ -454,7 +454,7 @@ jobs:
           -H "Content-Type: application/json" \
           -d "{\"img\": \"$IMG_BASE64\", \"width\": 200, \"height\": 200}" \
           -o /dev/null
-        echo "PASS: imageresize endpoint responded successfully"
+        echo "✅ PASS: imageresize endpoint responded successfully"
 
     - name: Stop imageresize container
       if: always()
