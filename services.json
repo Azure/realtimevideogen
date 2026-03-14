@@ -1,4 +1,12 @@
 {
+    "base": {
+        "name": "base",
+        "friendlyName": "Wrapper Base Image",
+        "dockerImage": {
+            "name": "base",
+            "tag": "v1.0.0"
+        }
+    },
     "fantasytalking": {
         "name": "fantasytalking",
         "friendlyName": "Fantasy Talking",
