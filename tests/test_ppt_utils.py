@@ -3,11 +3,16 @@ Tests for ppt_utils.py using mocks for external dependencies
 (python-pptx, LibreOffice via subprocess, and PyMuPDF/fitz).
 """
 
-import os
+import logging
+import sys
 import pytest
 
-from unittest.mock import MagicMock, patch, call
-from typing import Generator
+from unittest.mock import MagicMock, patch
+
+sys.path.append("wrapper")
+
+from ppt_utils import get_num_slides
+from ppt_utils import pptx_to_images
 
 
 # ---------------------------------------------------------------------------
@@ -25,7 +30,6 @@ class TestGetNumSlides:
 
     def test_counts_visible_slides(self) -> None:
         """Only visible slides are counted when count_hidden=False."""
-        from ppt_utils import get_num_slides
         slides = [
             self._make_slide(show=None),   # visible
             self._make_slide(show=None),   # visible
@@ -41,7 +45,6 @@ class TestGetNumSlides:
 
     def test_counts_all_slides_with_count_hidden_true(self) -> None:
         """All slides (including hidden) are counted when count_hidden=True."""
-        from ppt_utils import get_num_slides
         slides = [
             self._make_slide(show=None),   # visible
             self._make_slide(show="0"),    # hidden
@@ -57,7 +60,6 @@ class TestGetNumSlides:
 
     def test_empty_presentation(self) -> None:
         """Empty presentation returns 0."""
-        from ppt_utils import get_num_slides
         presentation = MagicMock()
         presentation.slides = []
 
@@ -68,7 +70,6 @@ class TestGetNumSlides:
 
     def test_all_hidden_returns_zero_by_default(self) -> None:
         """All-hidden slides return 0 when count_hidden=False."""
-        from ppt_utils import get_num_slides
         slides = [
             self._make_slide(show="0"),
             self._make_slide(show="0"),
@@ -83,7 +84,6 @@ class TestGetNumSlides:
 
     def test_passes_path_to_presentation(self) -> None:
         """The PPTX path is forwarded to pptx.Presentation."""
-        from ppt_utils import get_num_slides
         presentation = MagicMock()
         presentation.slides = []
 
@@ -133,7 +133,6 @@ class TestPptxToImages:
 
     def test_raises_on_libreoffice_failure(self, tmp_path) -> None:
         """RuntimeError is raised when LibreOffice returns non-zero exit code."""
-        from ppt_utils import pptx_to_images
         pptx_path = str(tmp_path / "slides.pptx")
         with patch("ppt_utils.subprocess.run",
                    return_value=self._make_subprocess_result(returncode=1)):
@@ -142,7 +141,6 @@ class TestPptxToImages:
 
     def test_raises_when_pdf_not_found(self, tmp_path) -> None:
         """FileNotFoundError is raised when the expected PDF is not produced."""
-        from ppt_utils import pptx_to_images
         pptx_path = str(tmp_path / "slides.pptx")
         # LibreOffice succeeds but the PDF does not exist on disk.
         with patch("ppt_utils.subprocess.run",
@@ -152,10 +150,8 @@ class TestPptxToImages:
 
     def test_returns_image_paths_for_each_page(self, tmp_path) -> None:
         """Returns one image path per PDF page."""
-        from ppt_utils import pptx_to_images
         num_pages = 3
         pptx_path = str(tmp_path / "slides.pptx")
-        pdf_path = str(tmp_path / "slides.pdf")
 
         # Create a dummy PDF file so os.path.exists passes.
         (tmp_path / "slides.pdf").touch()
@@ -174,7 +170,6 @@ class TestPptxToImages:
 
     def test_libreoffice_command_uses_correct_args(self, tmp_path) -> None:
         """The LibreOffice command includes --headless, --convert-to pdf, and the file path."""
-        from ppt_utils import pptx_to_images
         pptx_path = str(tmp_path / "slides.pptx")
 
         with patch("ppt_utils.subprocess.run",
@@ -195,8 +190,6 @@ class TestPptxToImages:
 
     def test_logger_receives_stdout_and_stderr(self, tmp_path) -> None:
         """When a logger is passed, LibreOffice stdout and stderr are forwarded."""
-        from ppt_utils import pptx_to_images
-        import logging
         pptx_path = str(tmp_path / "slides.pptx")
         mock_logger = MagicMock(spec=logging.Logger)
 
@@ -213,10 +206,8 @@ class TestPptxToImages:
 
     def test_custom_width_and_height_applied(self, tmp_path) -> None:
         """Custom width/height are used to build the fitz.Matrix scale factors."""
-        from ppt_utils import pptx_to_images
         num_pages = 1
         pptx_path = str(tmp_path / "deck.pptx")
-        pdf_path = str(tmp_path / "deck.pdf")
         (tmp_path / "deck.pdf").touch()
 
         fitz_doc = self._make_fitz_doc(num_pages=num_pages)
@@ -237,10 +228,8 @@ class TestPptxToImages:
 
     def test_no_width_height_uses_dpi(self, tmp_path) -> None:
         """When width=None and height=None, a DPI-based fitz.Matrix is used."""
-        from ppt_utils import pptx_to_images
         num_pages = 1
         pptx_path = str(tmp_path / "deck.pptx")
-        pdf_path = str(tmp_path / "deck.pdf")
         (tmp_path / "deck.pdf").touch()
 
         fitz_doc = self._make_fitz_doc(num_pages=num_pages)

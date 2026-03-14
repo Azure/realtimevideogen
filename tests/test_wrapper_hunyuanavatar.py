@@ -78,3 +78,34 @@ async def test_hunyuan_avater() -> None:
         # assert video_frames is not None
 
     del model
+
+
+@pytest.mark.asyncio
+async def test_hunyuan_avatar_get_rest_args_validation() -> None:
+    model = HunyuanAvatarGeneration()
+
+    with pytest.raises(ValueError):
+        await model.get_rest_args(None)
+
+    # Missing img
+    with pytest.raises(ValueError):
+        await model.get_rest_args({})
+
+    # Missing audio
+    img = Image.new("RGB", (40, 30))
+    img_base64 = img_to_base64(img)
+    with pytest.raises(ValueError):
+        await model.get_rest_args({"img": img_base64})
+
+    # Missing prompt - use valid base64 audio ("test" decodes cleanly)
+    with pytest.raises(ValueError):
+        await model.get_rest_args({"img": img_base64, "audio": "test"})
+
+    # All required params succeeds
+    result = await model.get_rest_args({
+        "img": img_base64,
+        "audio": "test",
+        "prompt": "test prompt",
+    })
+    assert result is not None
+    assert "args" in result

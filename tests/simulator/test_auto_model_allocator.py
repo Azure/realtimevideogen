@@ -15,7 +15,7 @@ import logging
 
 import pytest
 from dataclasses import replace
-from unittest.mock import patch
+from unittest.mock import patch as _patch  # noqa: F401 (used in test_unsupported_solver_raises)
 
 # Add current path
 sys.path.append(os.getcwd())
@@ -25,12 +25,10 @@ from tests.test_utils import temp_sys_path
 with temp_sys_path("simulator"):
     from sim_types import GPUType
     from sim_types import Model
-    from sim_types import Objective
     from sim_types import QualityLevel
     from sim_types import Solver
 
     from constants import DEFAULT_WORKFLOW_CONFIG
-    from constants import GPU_SPOT_COST
 
     from data_loading import load_latency_data
 
@@ -45,6 +43,7 @@ with temp_sys_path("simulator"):
     from naive_baseline import NaiveAllocator
     from hexgen import HexGenAllocator
     from helix import HelixAllocator
+    from milp import MILPAllocator
 
     from workflows import PODCAST_WORKFLOW
 
@@ -117,7 +116,6 @@ def test_helix_solver_routes_to_helix_allocator() -> None:
 
 def test_highs_solver_routes_to_milp_allocator() -> None:
     """AutoModelAllocator uses MILPAllocator when solver=HIGHS."""
-    from milp import MILPAllocator
     latency_data = load_latency_data("simulator/data/")
     policy = replace(STREAMWISE_POLICY, solver=Solver.HIGHS)
     allocator = AutoModelAllocator(
@@ -130,7 +128,6 @@ def test_highs_solver_routes_to_milp_allocator() -> None:
 
 def test_gurobi_solver_routes_to_milp_allocator() -> None:
     """AutoModelAllocator uses MILPAllocator when solver=GUROBI."""
-    from milp import MILPAllocator
     latency_data = load_latency_data("simulator/data/")
     policy = replace(STREAMWISE_POLICY, solver=Solver.GUROBI)
     allocator = AutoModelAllocator(
@@ -143,7 +140,6 @@ def test_gurobi_solver_routes_to_milp_allocator() -> None:
 
 def test_unsupported_solver_raises() -> None:
     """Building AutoModelAllocator with an unrecognised solver raises ValueError."""
-    from unittest.mock import patch as _patch
     latency_data = load_latency_data("simulator/data/")
     policy = replace(STREAMWISE_POLICY)
 

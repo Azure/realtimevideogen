@@ -10,6 +10,7 @@ from types import ModuleType
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.test_utils import temp_sys_path
 
 mock_torch = TorchMock()
 
@@ -191,3 +192,54 @@ def test_audio_streamer() -> None:
         sample_indices=MagicMock(),
     )
     audio_streamer.end(sample_indices=MagicMock())
+
+
+def test_voice_mapper() -> None:
+    with patch.dict(sys.modules, mock_modules):
+        from vibevoice.wrapper_vibevoice import VoiceMapper
+
+    voice_mapper = VoiceMapper()
+    voice_mapper.setup_voice_presets()
+
+    # voice_presets is a dict (may be empty or populated depending on environment)
+    assert isinstance(voice_mapper.voice_presets, dict)
+
+    if not voice_mapper.voice_presets:
+        # No voices available: get_voice_path raises ValueError
+        with pytest.raises(ValueError, match="No voice presets available"):
+            voice_mapper.get_voice_path("any_speaker")
+    else:
+        # Voices available: get_voice_path returns a path for any speaker name
+        path = voice_mapper.get_voice_path("any_speaker")
+        assert isinstance(path, str)
+
+
+@pytest.mark.asyncio
+async def test_vibevoice_get_rest_args_voice() -> None:
+    with patch.dict(sys.modules, mock_modules):
+        from vibevoice.wrapper_vibevoice import VibeVoiceGeneration as _VVG
+
+    model = _VVG()
+
+    # Custom voice parameter is returned in args
+    result = await model.get_rest_args({"text": "Hello world", "voice": "custom_voice"})
+    assert result["args"]["voice"] == "custom_voice"
+
+    # Default voice returned when voice not specified
+    result_default = await model.get_rest_args({"text": "Hello world"})
+    assert "voice" in result_default["args"]
+    assert result_default["args"]["voice"] == "af_heart"
+
+
+def test_timestep_samplers() -> None:
+    with temp_sys_path("wrapper/vibevoice"):
+        with patch.dict(sys.modules, {'torch': mock_torch}):
+            from schedule.timestep_sampler import UniformSampler, LogitNormalSampler
+
+    uniform = UniformSampler(timesteps=100)
+    result_u = uniform.sample(batch_size=4, device=mock_torch.device('cpu'))
+    assert result_u is not None
+
+    logit = LogitNormalSampler(timesteps=100)
+    result_l = logit.sample(batch_size=4, device=mock_torch.device('cpu'))
+    assert result_l is not None
