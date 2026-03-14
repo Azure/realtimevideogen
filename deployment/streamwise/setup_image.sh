@@ -11,23 +11,23 @@ ensure_acr_login() {
 
 IMAGE_NAME="streamwise"
 
-PUSH_IMAGE=true
+PUSH_IMAGE=false
 
 PLATFORM="linux/amd64"  # "linux/arm64"
 if [[ "$(uname -m)" == "aarch64" ]]; then
   PLATFORM="linux/arm64"
 fi
 
-# TODO: Replace this with a call to the generic setup_image.sh script in wrappers
-# bash ../wrappers/setup_image.sh "$IMAGE_NAME" "$@"
-
 # Main script
 MAIN_DIR=$(realpath ../..)
 DEPLOYMENT_DIR=$MAIN_DIR/deployment
 APP_DIR=$MAIN_DIR/$IMAGE_NAME
 
-# shellcheck disable=SC1090,SC1091 
-source "$DEPLOYMENT_DIR/set_properties.sh"
+# Source set_properties.sh only if DOCKER_REPO is not already provided in the environment
+if [[ -z "${DOCKER_REPO:-}" ]]; then
+  # shellcheck disable=SC1090,SC1091
+  source "$DEPLOYMENT_DIR/set_properties.sh"
+fi
 
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
@@ -47,9 +47,11 @@ cp -R "$APP_DIR"/templates ./docker_files/
 
 cp "$MAIN_DIR/services.json" ./docker_files/
 
-ensure_acr_login "$DOCKER_REPO"
+BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
 
-BASE_TAG=$(jq -r '."streamwise-base".dockerImage.tag' "$MAIN_DIR/services.json")
+if [[ "$PUSH_IMAGE" == true ]]; then
+  ensure_acr_login "$DOCKER_REPO"
+fi
 
 # Build
 docker buildx build \

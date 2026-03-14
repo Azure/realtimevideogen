@@ -1,4 +1,4 @@
-# base image has CUDA, Miniconda, rtgen conda env with torch, and base_requirements
+# base image has CUDA, Miniconda, streamwise conda env with torch, and base_requirements
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
 ARG BASE_TAG=v1.0.0
 
@@ -13,12 +13,12 @@ RUN git clone https://github.com/lllyasviel/FramePack.git hunyuanframepack
 WORKDIR /hunyuanframepack
 
 COPY docker_files/requirements.txt .
-RUN conda run -n rtgen pip install -r requirements.txt && \
-    conda run -n rtgen pip cache purge
+RUN conda run -n streamwise pip install -r requirements.txt && \
+    conda run -n streamwise pip cache purge
 
 # Download HunyuanVideo and FramePackI2V_HY models from Hugging Face
-RUN conda run -n rtgen hf download hunyuanvideo-community/HunyuanVideo --local-dir hunyuanvideo-community/HunyuanVideo && \
-    conda run -n rtgen hf download lllyasviel/FramePackI2V_HY --local-dir lllyasviel/FramePackI2V_HY
+RUN conda run -n streamwise hf download hunyuanvideo-community/HunyuanVideo --local-dir hunyuanvideo-community/HunyuanVideo && \
+    conda run -n streamwise hf download lllyasviel/FramePackI2V_HY --local-dir lllyasviel/FramePackI2V_HY
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
@@ -26,7 +26,7 @@ COPY docker_files/templates ./templates
 COPY docker_files/static ./static
 
 SHELL ["/bin/bash", "-c"]
-RUN echo "source activate rtgen" >> ~/.bashrc
+RUN echo "source activate streamwise" >> ~/.bashrc
 
 # docker run --gpus all -p 18080:8080 hunyuanframepack
 # docker exec -it <container-id> ls -l /

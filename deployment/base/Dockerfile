@@ -1,6 +1,7 @@
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
+ARG BASE_IMAGE=${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
-FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
+FROM ${BASE_IMAGE}
 
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
@@ -38,11 +39,19 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     bash miniconda.sh -b -p $CONDA_DIR && \
     rm miniconda.sh && \
     conda clean -afy
+
+ARG TORCH_PACKAGE=torch==2.8.0+cu128
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
+
 RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
     conda create -y -n streamwise python=3.12 && \
     conda install -n streamwise pip -y && \
     conda run -n streamwise pip install --upgrade pip && \
-    conda run -n streamwise pip install torch==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128 && \
+    conda run -n streamwise pip install "${TORCH_PACKAGE}" --index-url "${TORCH_INDEX_URL}" && \
     conda run -n streamwise pip install ninja packaging && \
+    conda run -n streamwise pip cache purge
+
+COPY docker_files/base_requirements.txt /requirements.txt
+RUN conda run -n streamwise pip install -r /requirements.txt && \
     conda run -n streamwise pip cache purge

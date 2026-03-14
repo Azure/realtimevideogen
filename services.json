@@ -7,14 +7,6 @@
       "tag": "v1.0.0"
     }
   },
-  "streamwise-base": {
-    "name": "streamwise-base",
-    "friendlyName": "StreamWise Base Image",
-    "dockerImage": {
-      "name": "streamwise-base",
-      "tag": "v1.0.0"
-    }
-  },
   "fantasytalking": {
     "name": "fantasytalking",
     "friendlyName": "Fantasy Talking",

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Argument parsing
 usage() {
-  echo "Usage: $0 <IMAGE_NAME> [--push]"
+  echo "Usage: $0 <IMAGE_NAME> [--push] [--platform linux/amd64|linux/arm64]"
   exit 1
 }
 
@@ -20,7 +20,7 @@ IMAGE_NAME="${1:-}"
 
 PUSH_IMAGE=false
 
-PLATFORM="linux/amd64"  # "linux/arm64"
+PLATFORM="linux/amd64"
 if [[ "$(uname -m)" == "aarch64" ]]; then
   PLATFORM="linux/arm64"
 fi
@@ -34,6 +34,11 @@ while [[ $# -gt 0 ]]; do
       PUSH_IMAGE=true
       shift
       ;;
+    --platform)
+      shift
+      PLATFORM="$1"
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       usage
@@ -42,10 +47,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Main script
-MAIN_DIR=$(realpath ../../..)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MAIN_DIR=$(realpath "$SCRIPT_DIR/..")
 DEPLOYMENT_DIR=$MAIN_DIR/deployment
-APPS_DIR=$MAIN_DIR/apps
-APP_DIR=$APPS_DIR/$IMAGE_NAME
+IMAGE_DIR=$DEPLOYMENT_DIR/$IMAGE_NAME
 
 # Source set_properties.sh only if DOCKER_REPO is not already provided in the environment
 if [[ -z "${DOCKER_REPO:-}" ]]; then
@@ -55,40 +60,35 @@ fi
 
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
-mkdir -p docker_files
+mkdir -p "$IMAGE_DIR/docker_files"
+cp "$MAIN_DIR/requirements.txt" "$IMAGE_DIR/docker_files/base_requirements.txt"
 
-# Copy necessary files from the app directory to the current directory
-cp "$DEPLOYMENT_DIR/apps/Dockerfile" ./docker_files/
+BUILD_ARGS=(
+  docker buildx build
+  --build-arg "DOCKER_REPO=${DOCKER_REPO}"
+  --build-arg "TARGETARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+  --platform "$PLATFORM"
+  -t "${IMAGE_NAME}:${TAG}"
+  "$IMAGE_DIR"
+)
 
-cp "$APPS_DIR/requirements.txt" ./docker_files/requirements_streamwise.txt
-cp "$APPS_DIR/$IMAGE_NAME/requirements.txt" ./docker_files/requirements_"$IMAGE_NAME".txt
-
-cp "$MAIN_DIR"/*.py ./docker_files/
-cp "$APPS_DIR"/*.py ./docker_files/
-cp "$APPS_DIR"/*.bash ./docker_files/
-
-cp "$APP_DIR"/*.py ./docker_files/
-
-cp -R "$APPS_DIR"/static ./docker_files/
-cp -R "$APPS_DIR"/templates ./docker_files/
-cp -R "$APP_DIR"/templates/* ./docker_files/templates/
-
-cp "$MAIN_DIR/services.json" ./docker_files/
+# Allow CI to override Dockerfile ARGs via environment variables
+if [[ -n "${BASE_IMAGE:-}" ]]; then
+  BUILD_ARGS+=(--build-arg "BASE_IMAGE=${BASE_IMAGE}")
+fi
+if [[ -n "${TORCH_PACKAGE:-}" ]]; then
+  BUILD_ARGS+=(--build-arg "TORCH_PACKAGE=${TORCH_PACKAGE}")
+fi
+if [[ -n "${TORCH_INDEX_URL:-}" ]]; then
+  BUILD_ARGS+=(--build-arg "TORCH_INDEX_URL=${TORCH_INDEX_URL}")
+fi
 
 if [[ "$PUSH_IMAGE" == true ]]; then
   ensure_acr_login "$DOCKER_REPO"
 fi
 
-BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
-
 # Build
-docker buildx build \
-  --build-arg DOCKER_REPO="${DOCKER_REPO}" \
-  --build-arg APP_NAME="${IMAGE_NAME}" \
-  --build-arg BASE_TAG="${BASE_TAG}" \
-  --platform "${PLATFORM}" \
-  -t "${IMAGE_NAME}:${TAG}" \
-  ./docker_files/
+"${BUILD_ARGS[@]}"
 
 # Tag final image for pushing
 docker tag "${IMAGE_NAME}:${TAG}" "${DOCKER_REPO}/${IMAGE_NAME}:${TAG}"

@@ -3,7 +3,7 @@ ARG DOCKER_REPO=reposmustbeset.azurecr.io
 ARG APP_NAME=streamwiseapp
 ARG BASE_TAG=v1.0.0
 
-FROM ${DOCKER_REPO}/streamwise-base:${BASE_TAG}
+FROM ${DOCKER_REPO}/base:${BASE_TAG}
 
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
