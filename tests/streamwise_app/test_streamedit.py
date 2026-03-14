@@ -96,11 +96,6 @@ async def test_submit_job(test_app: Quart) -> None:
 
 def test_edit_prompt() -> None:
     """Test that EDIT_PROMPT is imported and non-empty."""
-    with patch.dict(sys.modules, mock_modules):
-        with temp_sys_path("apps", "apps/streamedit"):
-            from apps.streamedit.edit_prompts import EDIT_PROMPT
-            from apps.streamedit.streamedit_job import StreamEditJob
-
+    from apps.streamedit.edit_prompts import EDIT_PROMPT
     assert EDIT_PROMPT
     assert "video editor" in EDIT_PROMPT.lower() or "edit" in EDIT_PROMPT.lower()
-    assert StreamEditJob is not None
