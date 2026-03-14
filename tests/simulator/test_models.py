@@ -445,3 +445,4 @@ def test_disable_zeroes_allocation() -> None:
     assert alloc.time_first == 0.0
     assert alloc.energy == 0.0
     assert alloc.get_num_gpus() == 0
+
