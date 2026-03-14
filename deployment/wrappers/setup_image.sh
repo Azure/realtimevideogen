@@ -7,7 +7,7 @@ usage() {
   exit 1
 }
 
-# shellcheck source=../setup_lib.sh
+# shellcheck source=deployment/setup_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../setup_lib.sh"
 
 IMAGE_NAME="${1:-}"
@@ -120,6 +120,7 @@ BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
 
 BUILD_ARGS=(
   docker buildx build
+  --load
   --build-arg "DOCKER_REPO=${DOCKER_REPO}"
   --build-arg "BASE_TAG=${BASE_TAG}"
   --platform "$PLATFORM"

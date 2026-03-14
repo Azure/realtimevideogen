@@ -9,7 +9,7 @@ usage() {
 
 # Shared utilities
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=setup_lib.sh
+# shellcheck source=deployment/setup_lib.sh
 source "$SCRIPT_DIR/setup_lib.sh"
 
 IMAGE_NAME="${1:-}"
@@ -73,6 +73,7 @@ fi
 
 BUILD_ARGS=(
   docker buildx build
+  --load
   --build-arg "DOCKER_REPO=${DOCKER_REPO}"
   --build-arg "BASE_TAG=${BASE_TAG}"
   --build-arg "TARGETARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
