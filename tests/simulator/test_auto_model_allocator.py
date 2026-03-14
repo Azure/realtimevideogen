@@ -153,10 +153,12 @@ def test_upscaler_disabled_for_low_resolution(caplog) -> None:
     """
     latency_data = load_latency_data("simulator/data/")
 
-    # Build a workflow with LOW target resolution (no upscaler work)
+    # Build a workflow with LOW target resolution (no upscaler work).
+    # Use a fresh copy of model_work to avoid mutating the global PODCAST_WORKFLOW.
     low_workflow = replace(
         PODCAST_WORKFLOW,
         target_resolution=QualityLevel.LOW,
+        model_work=dict(PODCAST_WORKFLOW.model_work),
     )
     # __post_init__ strips UPSCALER from model_work when resolution is not HIGH.
     assert Model.UPSCALER not in low_workflow.model_work
