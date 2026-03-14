@@ -100,3 +100,24 @@ async def test_hunyuanframepackf1() -> None:
             output_type="video_frames")
 
     del model
+
+
+@pytest.mark.asyncio
+async def test_hunyuanframepackf1_assert_args() -> None:
+    """_assert_args raises for image sizes not divisible by vae_stride."""
+    model = HunyuanFramepackF1Generation()
+    model.init()
+    assert model.vae_stride == (4, 8, 8)
+
+    # Valid size: both height and width divisible by 8
+    model._assert_args(height=512, width=768)
+
+    # Height not divisible by 8
+    with pytest.raises(ValueError, match="Height"):
+        model._assert_args(height=513, width=768)
+
+    # Width not divisible by 8
+    with pytest.raises(ValueError, match="Width"):
+        model._assert_args(height=512, width=769)
+
+    del model

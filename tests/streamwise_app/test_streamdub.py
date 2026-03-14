@@ -101,6 +101,9 @@ def test_to_language() -> None:
     assert to_language("c") == "Chinese"
     assert to_language("r") == "Russian"
 
+    # Case-insensitive: uppercase valid code maps to correct language
+    assert to_language("E") == "Spanish"
+    assert to_language("F") == "French"
+
     # Unknown code defaults to American English
     assert to_language("z") == "American English"
-    assert to_language("A") == "American English"  # Case-insensitive
