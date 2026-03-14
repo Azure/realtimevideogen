@@ -70,7 +70,7 @@ RUN git clone https://github.com/Fantasy-AMAP/fantasy-talking.git fantasytalking
 
 WORKDIR /fantasytalking
 
-# User this instead of https://github.com/Fantasy-AMAP/fantasy-talking.git/requirements.txt
+# Use this instead of https://github.com/Fantasy-AMAP/fantasy-talking.git/requirements.txt
 COPY docker_files/requirements.txt .
 RUN conda run -n rtgen pip install -r requirements.txt && \
     conda run -n rtgen pip cache purge
