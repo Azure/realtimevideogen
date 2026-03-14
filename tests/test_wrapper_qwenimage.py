@@ -96,3 +96,32 @@ async def test_wrapper_qwenimage() -> None:
     assert image.size == (64, 48)  # Returns the mock value
 
     del model
+
+
+@pytest.mark.asyncio
+async def test_wrapper_qwenimage_assert_args() -> None:
+    """_assert_args raises for image sizes not evenly divisible across GPUs."""
+    model = QwenImageGeneration()
+    model.init()
+    model.pipeline = MagicMock(return_value=MagicMock(images=[
+        Image.new("RGB", (64, 48), color="red")
+    ]))
+    model.pipeline.vae_scale_factor = 8  # latent factor = 8
+
+    # Single GPU (world_size=1): any size accepted
+    model.world_size = 1
+    model.rank = 0
+    image = await model.generate(prompt="test", height=512, width=512)
+    assert image is not None
+
+    # Multi-GPU (world_size=3): latent shape 1024 is not divisible by 3 → raises
+    model.world_size = 3
+    with pytest.raises(ValueError, match="not supported for"):
+        await model.generate(prompt="test", height=512, width=512)
+
+    # Multi-GPU (world_size=4): latent shape 1024 is divisible by 4 → OK
+    model.world_size = 4
+    image = await model.generate(prompt="test", height=512, width=512)
+    assert image is not None
+
+    del model

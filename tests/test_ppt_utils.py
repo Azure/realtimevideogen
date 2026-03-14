@@ -158,8 +158,7 @@ class TestPptxToImages:
         pdf_path = str(tmp_path / "slides.pdf")
 
         # Create a dummy PDF file so os.path.exists passes.
-        with open(pdf_path, "w"):
-            pass
+        (tmp_path / "slides.pdf").touch()
 
         fitz_doc = self._make_fitz_doc(num_pages=num_pages)
 
@@ -218,8 +217,7 @@ class TestPptxToImages:
         num_pages = 1
         pptx_path = str(tmp_path / "deck.pptx")
         pdf_path = str(tmp_path / "deck.pdf")
-        with open(pdf_path, "w"):
-            pass
+        (tmp_path / "deck.pdf").touch()
 
         fitz_doc = self._make_fitz_doc(num_pages=num_pages)
 
@@ -243,7 +241,7 @@ class TestPptxToImages:
         num_pages = 1
         pptx_path = str(tmp_path / "deck.pptx")
         pdf_path = str(tmp_path / "deck.pdf")
-        open(pdf_path, "w").close()
+        (tmp_path / "deck.pdf").touch()
 
         fitz_doc = self._make_fitz_doc(num_pages=num_pages)
 

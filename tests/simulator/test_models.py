@@ -100,19 +100,16 @@ def test_get_model_allocation_zero_replicas() -> None:
 
 def test_get_model_allocation_unknown_model_raises() -> None:
     """Factory raises ValueError for an unregistered Model value."""
-    # Use a sentinel that is not a real model; we patch by temporarily removing
-    # an entry from the registry to simulate an unknown model.
+    from unittest.mock import patch as _patch
     from models import _MODEL_ALLOCATION_REGISTRY
-    model = Model.GEMMA
-    original = _MODEL_ALLOCATION_REGISTRY.pop(model)
-    try:
+    # Temporarily remove GEMMA from the registry using patch.dict
+    with _patch.dict(_MODEL_ALLOCATION_REGISTRY, {}, clear=False) as patched:
+        patched.pop(Model.GEMMA, None)
         with pytest.raises(ValueError, match="No ModelAllocation for model"):
             get_model_allocation(
-                model=model,
+                model=Model.GEMMA,
                 gpu_type=GPUType.A100,
             )
-    finally:
-        _MODEL_ALLOCATION_REGISTRY[model] = original
 
 
 # ---------------------------------------------------------------------------

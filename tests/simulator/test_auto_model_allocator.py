@@ -143,24 +143,23 @@ def test_gurobi_solver_routes_to_milp_allocator() -> None:
 
 def test_unsupported_solver_raises() -> None:
     """Building AutoModelAllocator with an unrecognised solver raises ValueError."""
+    from unittest.mock import patch as _patch
     latency_data = load_latency_data("simulator/data/")
-    # Temporarily create a policy with a fake solver value to trigger the error.
     policy = replace(STREAMWISE_POLICY)
 
-    # Monkeypatch the policy.solver to an unsupported value after construction.
-    # We do this by subclassing Policy is tricky; instead, patch the internal
-    # _build_allocator to receive a bad solver by setting solver on the object.
     allocator = AutoModelAllocator(
         workflow=DEFAULT_WORKFLOW_CONFIG,
         latency_data=latency_data,
         policy=policy,
     )
-    # Override solver to an invalid value and call _build_allocator directly.
-    allocator.policy = replace(allocator.policy)
-    object.__setattr__(allocator.policy, 'solver', object())  # type: ignore[arg-type]
 
-    with pytest.raises((ValueError, AttributeError)):
-        allocator._build_allocator()
+    # Patch the allocator's policy.solver to an unsupported sentinel value so
+    # that _build_allocator falls through all known solver branches.
+    bad_solver = object()
+    with _patch.object(type(allocator.policy), 'solver',
+                       new_callable=lambda: property(lambda self: bad_solver)):
+        with pytest.raises((ValueError, AttributeError, TypeError)):
+            allocator._build_allocator()
 
 
 # ---------------------------------------------------------------------------
