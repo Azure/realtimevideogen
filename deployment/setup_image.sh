@@ -53,23 +53,40 @@ DEPLOYMENT_DIR=$MAIN_DIR/deployment
 IMAGE_DIR=$DEPLOYMENT_DIR/$IMAGE_NAME
 
 # Source set_properties.sh only if DOCKER_REPO is not already provided in the environment
-if [[ -z "${DOCKER_REPO:-}" ]]; then
+if [[ -z "${DOCKER_REPO:-}" ]] && [[ -f "$DEPLOYMENT_DIR/set_properties.sh" ]]; then
   # shellcheck disable=SC1090,SC1091
   source "$DEPLOYMENT_DIR/set_properties.sh"
 fi
 
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
+BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
 
 mkdir -p "$IMAGE_DIR/docker_files"
+
+# Copy Dockerfile and base requirements into the build context
+cp "$IMAGE_DIR/Dockerfile" "$IMAGE_DIR/docker_files/"
 cp "$MAIN_DIR/requirements.txt" "$IMAGE_DIR/docker_files/base_requirements.txt"
+
+# Image-specific file preparation
+if [[ "$IMAGE_NAME" == "streamwise" ]]; then
+  APP_DIR="$MAIN_DIR/$IMAGE_NAME"
+  cp "$APP_DIR/requirements.txt" "$IMAGE_DIR/docker_files/"
+  cp "$MAIN_DIR"/*.py "$IMAGE_DIR/docker_files/"
+  cp "$APP_DIR"/*.py "$IMAGE_DIR/docker_files/"
+  cp "$APP_DIR"/*.bash "$IMAGE_DIR/docker_files/"
+  [[ -d "$APP_DIR/static" ]] && cp -R "$APP_DIR/static" "$IMAGE_DIR/docker_files/"
+  [[ -d "$APP_DIR/templates" ]] && cp -R "$APP_DIR/templates" "$IMAGE_DIR/docker_files/"
+  cp "$MAIN_DIR/services.json" "$IMAGE_DIR/docker_files/"
+fi
 
 BUILD_ARGS=(
   docker buildx build
   --build-arg "DOCKER_REPO=${DOCKER_REPO}"
+  --build-arg "BASE_TAG=${BASE_TAG}"
   --build-arg "TARGETARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
   --platform "$PLATFORM"
   -t "${IMAGE_NAME}:${TAG}"
-  "$IMAGE_DIR"
+  "$IMAGE_DIR/docker_files"
 )
 
 # Allow CI to override Dockerfile ARGs via environment variables

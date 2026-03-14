@@ -52,6 +52,6 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
     conda run -n streamwise pip install ninja packaging && \
     conda run -n streamwise pip cache purge
 
-COPY docker_files/base_requirements.txt /requirements.txt
+COPY base_requirements.txt /requirements.txt
 RUN conda run -n streamwise pip install -r /requirements.txt && \
     conda run -n streamwise pip cache purge
