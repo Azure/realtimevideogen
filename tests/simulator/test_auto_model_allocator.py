@@ -15,7 +15,7 @@ import logging
 
 import pytest
 from dataclasses import replace
-from unittest.mock import patch as _patch  # noqa: F401 (used in test_unsupported_solver_raises)
+from unittest.mock import patch as _patch
 
 # Add current path
 sys.path.append(os.getcwd())
@@ -49,31 +49,16 @@ with temp_sys_path("simulator"):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _make_greedy_policy(**overrides):
-    """Return a Policy with solver=GREEDY."""
-    return replace(STREAMWISE_POLICY, solver=Solver.GREEDY, **overrides)
-
-
-def _make_naive_policy(**overrides):
-    """Return a Policy with solver=NAIVE."""
-    return replace(NAIVE_POLICY, solver=Solver.NAIVE, **overrides)
-
-
-# ---------------------------------------------------------------------------
 # Solver routing
 # ---------------------------------------------------------------------------
 
 def test_greedy_solver_routes_to_greedy_allocator() -> None:
     """AutoModelAllocator uses GreedyAllocator when solver=GREEDY."""
     latency_data = load_latency_data("simulator/data/")
-    policy = _make_greedy_policy()
     allocator = AutoModelAllocator(
         workflow=DEFAULT_WORKFLOW_CONFIG,
         latency_data=latency_data,
-        policy=policy,
+        policy=replace(STREAMWISE_POLICY, solver=Solver.GREEDY),
     )
     assert isinstance(allocator._allocator, GreedyAllocator)
 
@@ -81,11 +66,10 @@ def test_greedy_solver_routes_to_greedy_allocator() -> None:
 def test_naive_solver_routes_to_naive_allocator() -> None:
     """AutoModelAllocator uses NaiveAllocator when solver=NAIVE."""
     latency_data = load_latency_data("simulator/data/")
-    policy = _make_naive_policy()
     allocator = AutoModelAllocator(
         workflow=DEFAULT_WORKFLOW_CONFIG,
         latency_data=latency_data,
-        policy=policy,
+        policy=replace(NAIVE_POLICY, solver=Solver.NAIVE),
     )
     assert isinstance(allocator._allocator, NaiveAllocator)
 
@@ -205,7 +189,7 @@ def test_greedy_allocation_produces_valid_result() -> None:
     allocator = AutoModelAllocator(
         workflow=DEFAULT_WORKFLOW_CONFIG,
         latency_data=latency_data,
-        policy=_make_greedy_policy(),
+        policy=replace(STREAMWISE_POLICY, solver=Solver.GREEDY),
     )
     result = allocator.allocate(num_gpus={GPUType.A100: 8})
     assert result.total_time_s > 0.0

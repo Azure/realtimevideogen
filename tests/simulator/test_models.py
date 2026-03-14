@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 import os
 import pytest
+from unittest.mock import patch
 
 # Add current path
 sys.path.append(os.getcwd())
@@ -20,9 +21,7 @@ with temp_sys_path("simulator"):
     from sim_types import Model
     from sim_types import QualityLevel
     from sim_types import LatencyData
-    from sim_types import LatencyGPUTypeData
     from sim_types import PowerData
-    from sim_types import PowerGPUTypeData
 
     from constants import DEFAULT_WORKFLOW_CONFIG
 
@@ -35,6 +34,7 @@ with temp_sys_path("simulator"):
     from models import get_model_allocation
     from models import _calculate_total_time
     from models import assert_pixel_config
+    from models import _MODEL_ALLOCATION_REGISTRY
     from models import GemmaModelAllocation
     from models import FluxModelAllocation
     from models import HFModelAllocation
@@ -100,10 +100,8 @@ def test_get_model_allocation_zero_replicas() -> None:
 
 def test_get_model_allocation_unknown_model_raises() -> None:
     """Factory raises ValueError for an unregistered Model value."""
-    from unittest.mock import patch as _patch
-    from models import _MODEL_ALLOCATION_REGISTRY
     # Temporarily remove GEMMA from the registry using patch.dict
-    with _patch.dict(_MODEL_ALLOCATION_REGISTRY, {}, clear=False) as patched:
+    with patch.dict(_MODEL_ALLOCATION_REGISTRY, {}, clear=False) as patched:
         patched.pop(Model.GEMMA, None)
         with pytest.raises(ValueError, match="No ModelAllocation for model"):
             get_model_allocation(
@@ -128,23 +126,20 @@ def test_calculate_total_time_negative_replicas() -> None:
 
 def test_calculate_total_time_single_replica() -> None:
     """Single replica: total_work * time_per_work, clamped to time_per_work."""
-    result = _calculate_total_time(10.0, 1, 5.0)
     # 10 work / 1 replica * 5.0 = 50.0
-    assert result == 50.0
+    assert _calculate_total_time(10.0, 1, 5.0) == 50.0
 
 
 def test_calculate_total_time_floor_at_single_work_unit() -> None:
     """Time cannot be less than time_per_work (single unit floor)."""
     # 1 work, 10 replicas → 1/10 * 5.0 = 0.5, floored to 5.0
-    result = _calculate_total_time(1.0, 10, 5.0)
-    assert result == 5.0
+    assert _calculate_total_time(1.0, 10, 5.0) == 5.0
 
 
 def test_calculate_total_time_many_replicas() -> None:
     """Many replicas reduce time proportionally."""
-    result = _calculate_total_time(20.0, 4, 2.0)
     # 20/4 * 2.0 = 10.0; 10.0 > time_per_work(2.0) → 10.0
-    assert result == 10.0
+    assert _calculate_total_time(20.0, 4, 2.0) == 10.0
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +147,14 @@ def test_calculate_total_time_many_replicas() -> None:
 # ---------------------------------------------------------------------------
 
 def test_assert_pixel_config() -> None:
-    """assert_pixel_config should pass for the default workflow."""
+    """assert_pixel_config passes for valid config and raises for invalid."""
     assert_pixel_config(DEFAULT_WORKFLOW_CONFIG)
+
+    # Patching MEDIUM > HIGH violates the ordering constraint → AssertionError.
+    with patch.dict("sim_types.RESOLUTION_PIXELS",
+                    {QualityLevel.MEDIUM: 1000, QualityLevel.HIGH: 500}):
+        with pytest.raises(AssertionError):
+            assert_pixel_config(DEFAULT_WORKFLOW_CONFIG)
 
 
 # ---------------------------------------------------------------------------
