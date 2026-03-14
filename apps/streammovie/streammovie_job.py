@@ -16,6 +16,8 @@ from streamwise_job import StreamWiseJob
 
 from lmm_service_manager import LMMServiceManager
 
+from movie_prompts import SYSTEM_PROMPT
+
 
 class StreamMovieJob(StreamWiseJob):
     """Job class for StreamMovie movie generation."""
@@ -41,6 +43,17 @@ class StreamMovieJob(StreamWiseJob):
         movie_description = job_config.get("movie_description", None)
         await self.gen_movie(movie_description)
 
+    @staticmethod
+    def build_movie_messages(movie_description: str) -> list:
+        """
+        Build LLM messages for movie planning using the system prompt.
+        Returns messages suitable for gen_text to generate a movie structure.
+        """
+        return [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Create a movie: {movie_description}"},
+        ]
+
     async def gen_movie(
         self,
         movie_description: str
@@ -49,10 +62,12 @@ class StreamMovieJob(StreamWiseJob):
         Generate a movie based on the provided description.
         """
         async with self.job_status_handler():
-            # TODO Implementation of movie generation goes here
-            # Get the output from the LLM
+            # TODO: call gen_text with build_movie_messages to generate movie structure
+            # movie_structure = await self.gen.gen_text(
+            #     self.build_movie_messages(movie_description), task_id="movie_plan"
+            # )
             # Generate images for each scene
-            img_prompt = f"Movie scene: {movie_description}"  # TODO
+            img_prompt = f"Movie scene: {movie_description}"
             image = await self.gen.gen_image(
                 prompt=img_prompt,
                 task_id="main_image",
@@ -60,7 +75,7 @@ class StreamMovieJob(StreamWiseJob):
             )
             # Generate video from images
             # video_frames =
-            video_prompt = f"Create a movie scene based on: {movie_description}"  # TODO
+            video_prompt = f"Create a movie scene based on: {movie_description}"
             await self.gen.gen_video(
                 img=image,
                 prompt=video_prompt,
@@ -68,7 +83,7 @@ class StreamMovieJob(StreamWiseJob):
                 deadline=self.get_submission_time(),
             )
             # Generate audio narration
-            audio_prompt = f"Create an audio narration based on: {movie_description}"  # TODO
+            audio_prompt = f"Create an audio narration based on: {movie_description}"
             # audio =
             await self.gen.gen_audio(
                 text=audio_prompt,
