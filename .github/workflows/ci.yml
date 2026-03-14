@@ -415,6 +415,7 @@ jobs:
 
     - name: Free disk space
       run: |
+        df -h
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         docker system prune -af
         df -h
