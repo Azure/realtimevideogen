@@ -177,7 +177,7 @@ class FantasyTalking(USPGeneration):
             audio_in_dim=768,
             audio_proj_dim=2048
         ).to(self.device)
-        if not self.fantasytalking:
+        if self.fantasytalking is None:
             raise ValueError("Fantasy Talking model not initialized")
         self.fantasytalking.load_audio_processor(
             f"{BASE_MODELS_FOLDER}/fantasytalking_model.ckpt",
@@ -421,7 +421,7 @@ class FantasyTalking(USPGeneration):
                 self.FPS,
                 num_frames
             )
-            if not self.fantasytalking:
+            if self.fantasytalking is None:
                 raise ValueError("Fantasy Talking model not initialized")
             audio_proj_fea = self.fantasytalking.get_proj_fea(audio_wav2vec_fea)
             pos_idx_ranges = self.fantasytalking.split_audio_sequence(

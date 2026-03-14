@@ -13,6 +13,11 @@ IMAGE_NAME="streamwise"
 
 PUSH_IMAGE=true
 
+PLATFORM="linux/amd64"  # "linux/arm64"
+if [[ "$(uname -m)" == "aarch64" ]]; then
+  PLATFORM="linux/arm64"
+fi
+
 # TODO: Replace this with a call to the generic setup_image.sh script in wrappers
 # bash ../wrappers/setup_image.sh "$IMAGE_NAME" "$@"
 
@@ -47,6 +52,7 @@ ensure_acr_login "$DOCKER_REPO"
 # Build
 docker buildx build \
   --build-arg DOCKER_REPO="${DOCKER_REPO}" \
+  --platform "$PLATFORM" \
   -t "${IMAGE_NAME}:${TAG}" \
   ./docker_files/
 

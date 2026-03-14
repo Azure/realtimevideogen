@@ -1,21 +1,27 @@
 ninja
 packaging
 
+# torch==2.7.1
+# torchvision==0.22.1
+# xformers==0.0.31
+
 torch==2.8.0
-torchvision==0.22.1
-xformers==0.0.31
-xfuser==0.4.3.post3
+torchvision==0.23.0
+xformers==0.0.32.post2
+
+# torch==2.9.0
+# torchvision==0.24.0
+# xformers==0.0.33
+
+# torch==2.10.0
+# torchvision==0.25.0
+# xformers==0.0.35
+
+xfuser==0.4.5
 diffusers==0.37.0
-transformers==4.56.2
+transformers==4.48.3
 
-# flash-attn==2.7.4.post1 # requires --no-build-isolation
-
-#torch==2.8.0
-#torchvision==0.23.0
-#xformers==0.0.32.post2
-#flash-attn==2.8.2
-#xfuser==0.4.4
-#diffusers>=0.35.1
+# flash-attn==2.8.3 # requires --no-build-isolation
 
 huggingface_hub
 torchaudio

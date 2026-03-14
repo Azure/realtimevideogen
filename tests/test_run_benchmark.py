@@ -29,6 +29,8 @@ with patch.dict(sys.modules, {
     'xfuser.core': MagicMock(),
     'xfuser.core.distributed': MagicMock(),
     'xfuser.model_executor': MagicMock(),
+    'xfuser.model_executor.models': MagicMock(),
+    'xfuser.model_executor.models.transformers.transformer_flux': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
     'diffusers': MagicMock(),

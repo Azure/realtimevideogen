@@ -2,7 +2,7 @@ pillow
 torch
 xfuser
 diffusers
-transformers>=4.38.2
+transformers
 timm>=0.9.16
 accelerate
 sentencepiece

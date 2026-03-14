@@ -29,16 +29,16 @@ def main() -> None:
     width = 720
 
     input_images = [
-        Image.open("/mnt/inigog/generated_image_20250415T165700.png"),
-        Image.open("/mnt/inigog/generated_image_20250415T165936.png"),
-        Image.open("/mnt/inigog/generated_image_20250416T162934.png"),
-        Image.open("/mnt/inigog/generated_image_flux_20250416T190517.png"),
-        Image.open("/mnt/inigog/generated_image_hidream_20250416T171929.png"),
-        Image.open("/mnt/inigog/generated_image_hidream_20250416T172445.png"),
-        Image.open("/mnt/inigog/generated_image_hidream_20250416T190419.png"),
-        Image.open("/mnt/inigog/generated_image_hidream_20250416T174426.png"),
-        Image.open("/mnt/inigog/person1_generated_image_hidream_20250416T171929.png"),
-        Image.open("/mnt/inigog/person0_generated_image_hidream_20250416T171929.png"),
+        Image.open("generated_image_20250415T165700.png"),
+        Image.open("generated_image_20250415T165936.png"),
+        Image.open("generated_image_20250416T162934.png"),
+        Image.open("generated_image_flux_20250416T190517.png"),
+        Image.open("generated_image_hidream_20250416T171929.png"),
+        Image.open("generated_image_hidream_20250416T172445.png"),
+        Image.open("generated_image_hidream_20250416T190419.png"),
+        Image.open("generated_image_hidream_20250416T174426.png"),
+        Image.open("person1_generated_image_hidream_20250416T171929.png"),
+        Image.open("person0_generated_image_hidream_20250416T171929.png"),
     ]
     input_images = [
         input_image.convert("RGB").resize((width, height), Image.LANCZOS)
@@ -60,7 +60,7 @@ def main() -> None:
 
     # Warm-up run (loading models fully, etc)
     video = video_gen.generate(
-        img=Image.open("/mnt/inigog/warmup_image.png").convert("RGB"),
+        img=Image.open("warmup_image.png").convert("RGB"),
         prompt="Warmup prompt",
         neg_prompt="Warmup prompt",
         num_frames=1 + 4,

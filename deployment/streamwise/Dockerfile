@@ -5,6 +5,7 @@ FROM ${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
 
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
+ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
@@ -27,7 +28,14 @@ RUN apt-get update && \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"; \
+    else \
+        echo "Unsupported architecture: $TARGETARCH" && exit 1; \
+    fi && \
+    wget $MINICONDA_URL -O miniconda.sh && \
     bash miniconda.sh -b -p $CONDA_DIR && \
     rm miniconda.sh && \
     conda clean -afy
@@ -36,7 +44,8 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
     conda create -y -n streamwise python=3.12 && \
     conda install -n streamwise pip -y && \
     conda run -n streamwise pip install --upgrade pip && \
-    conda run -n streamwise pip install torch==2.7.1 ninja packaging && \
+    conda run -n streamwise pip install torch==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128 && \
+    conda run -n streamwise pip install ninja packaging && \
     conda run -n streamwise pip cache purge
 
 WORKDIR /streamwise

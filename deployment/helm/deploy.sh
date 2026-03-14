@@ -4,15 +4,15 @@
 source ../set_properties.sh
 
 # Setup namespace
-if ! kubectl get namespace $K8S_NAMESPACE &> /dev/null; then
-    kubectl create namespace $K8S_NAMESPACE
+if ! kubectl get namespace "$K8S_NAMESPACE" &> /dev/null; then
+    kubectl create namespace "$K8S_NAMESPACE"
 else
     echo "Namespace $K8S_NAMESPACE already exists"
 fi
 
 # Setup storage
-kubectl apply -f local-pv.yaml -n $K8S_NAMESPACE
-kubectl apply -f local-pvc.yaml -n $K8S_NAMESPACE
+kubectl apply -f local-pv.yaml -n "$K8S_NAMESPACE"
+kubectl apply -f local-pvc.yaml -n "$K8S_NAMESPACE"
 
 # Azure Container Registry
 if ! az account show &> /dev/null; then
@@ -28,10 +28,10 @@ az acr credential show --name "$ACR_NAME"
 ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" | jq -r .passwords[0].value)
 export ACR_PASSWORD
 
-if kubectl get secret acr-secret -n $K8S_NAMESPACE &> /dev/null; then
-    kubectl delete secret acr-secret -n $K8S_NAMESPACE
+if kubectl get secret acr-secret -n "$K8S_NAMESPACE" &> /dev/null; then
+    kubectl delete secret acr-secret -n "$K8S_NAMESPACE"
 fi
-kubectl create secret docker-registry acr-secret -n $K8S_NAMESPACE \
+kubectl create secret docker-registry acr-secret -n "$K8S_NAMESPACE" \
   --docker-server="$ACR_URL" \
   --docker-username="$ACR_USERNAME" \
   --docker-password="$ACR_PASSWORD" \
@@ -41,10 +41,10 @@ kubectl create secret docker-registry acr-secret -n $K8S_NAMESPACE \
 if [ -z "$HF_TOKEN" ]; then
     read -r -p "Enter your Hugging Face token: " HF_TOKEN
 fi
-if kubectl get secret hf-token -n $K8S_NAMESPACE &> /dev/null; then
-    kubectl delete secret hf-token -n $K8S_NAMESPACE
+if kubectl get secret hf-token -n "$K8S_NAMESPACE" &> /dev/null; then
+    kubectl delete secret hf-token -n "$K8S_NAMESPACE"
 fi
-kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token="$HF_TOKEN"
+kubectl create secret generic hf-token -n "$K8S_NAMESPACE" --from-literal=token="$HF_TOKEN"
 
 # Deploy Helm chart
 #helm install gpu-services . --namespace $K8S_NAMESPACE --create-namespace

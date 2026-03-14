@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
-bash ../run_img.sh \
+BASE_DIR="../.."
+bash "$BASE_DIR/run_img.sh" \
     --path flux \
     "$@"
