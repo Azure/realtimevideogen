@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Argument parsing
 usage() {
-  echo "Usage: $0 <IMAGE_NAME> [--hf_token] [--push] [--folders folder1,folder2,...] [--platform linux/amd64|linux/arm64]"
+  echo "Usage: $0 <IMAGE_NAME> [--hf_token] [--push] [--context-only] [--folders folder1,folder2,...] [--platform linux/amd64|linux/arm64]"
   exit 1
 }
 
@@ -22,6 +22,7 @@ WRAPPER_SUBFOLDERS=()
 PARENT_MODEL=""
 USE_HF_TOKEN=false
 PUSH_IMAGE=false
+CONTEXT_ONLY=false
 
 PLATFORM="linux/amd64"  # "linux/arm64"
 if [[ "$(uname -m)" == "aarch64" ]]; then
@@ -39,6 +40,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --push)
       PUSH_IMAGE=true
+      shift
+      ;;
+    --context-only)
+      CONTEXT_ONLY=true
       shift
       ;;
     --folders)
@@ -69,8 +74,10 @@ DEPLOYMENT_DIR=$MAIN_DIR/deployment
 WRAPPERS_DIR=$MAIN_DIR/wrapper
 WRAPPER_DIR=$WRAPPERS_DIR/$IMAGE_NAME
 
-# shellcheck disable=SC1090,SC1091 
-source "$DEPLOYMENT_DIR/set_properties.sh"
+if [[ "$CONTEXT_ONLY" == false ]]; then
+  # shellcheck disable=SC1090,SC1091
+  source "$DEPLOYMENT_DIR/set_properties.sh"
+fi
 
 TAG=$(jq -r --arg name "$IMAGE_NAME" '.[$name].dockerImage.tag' "$MAIN_DIR/services.json")
 
@@ -94,8 +101,13 @@ cp -R "$WRAPPERS_DIR"/templates ./docker_files/
 cp "$WRAPPERS_DIR"/*.bash ./docker_files/
 cp "$WRAPPERS_DIR"/*.py ./docker_files/
 
-cp "$WRAPPER_DIR"/*.py ./docker_files/
-cp "$WRAPPER_DIR"/requirements.txt ./docker_files/
+# Copy wrapper-specific files if they exist (not all images have their own Python files)
+if compgen -G "$WRAPPER_DIR/*.py" > /dev/null 2>&1; then
+  cp "$WRAPPER_DIR"/*.py ./docker_files/
+fi
+if [[ -f "$WRAPPER_DIR/requirements.txt" ]]; then
+  cp "$WRAPPER_DIR"/requirements.txt ./docker_files/
+fi
 
 # Copy wrapper subfolders to docker_files
 for subfolder in "${WRAPPER_SUBFOLDERS[@]}"; do
@@ -112,6 +124,11 @@ done
 
 # Construct docker build command with optional token
 BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
+
+if [[ "$CONTEXT_ONLY" == true ]]; then
+  echo "Context prepared in ./docker_files/ (--context-only, skipping build)"
+  exit 0
+fi
 
 BUILD_ARGS=(
   docker buildx build

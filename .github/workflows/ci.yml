@@ -416,23 +416,79 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build docker context
+    - name: Prepare base image context
+      working-directory: deployment/wrappers/base
+      run: |
+        bash setup_image.sh --context-only
+        # Use a minimal base_requirements.txt for CI with the HTTP server runtime deps
+        cat > docker_files/base_requirements.txt << 'EOF'
+        quart
+        hypercorn
+        aiofiles
+        colorlog
+        nvidia-ml-py3
+        imageio
+        imageio-ffmpeg
+        numpy
+        pillow
+        EOF
+
+    - name: Build base image
+      working-directory: deployment/wrappers/base
+      run: |
+        docker build \
+          --build-arg BASE_IMAGE=ubuntu:24.04 \
+          --build-arg TARGETARCH=amd64 \
+          --build-arg TORCH_PACKAGE=torch \
+          --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu \
+          -t local/base:v1.0.0 .
+
+    - name: Prepare imageresize context
+      working-directory: deployment/wrappers/imageresize
+      run: bash setup_image.sh --context-only
+
+    - name: Build imageresize image
       working-directory: deployment/wrappers/imageresize
       run: |
-        mkdir -p docker_files
-        # Copy wrapper infrastructure (run_httpserver, wrapper_model, image_utils, etc.)
-        cp ../../../*.py docker_files/
-        # Copy all wrapper module files (wrapper_model.py, run_httpserver.py, etc.)
-        cp ../../../wrapper/*.py docker_files/
-        # Copy imageresize-specific files (wrapper_imageresize.py, test_resize.py)
-        cp ../../../wrapper/imageresize/*.py docker_files/
+        docker build \
+          --build-arg DOCKER_REPO=local \
+          --build-arg BASE_TAG=v1.0.0 \
+          -t imageresize:ci .
 
-    - name: Build imageresize CI image
-      working-directory: deployment/wrappers/imageresize
-      run: docker build -f Dockerfile.ci -t imageresize:ci .
+    - name: Start imageresize service
+      run: docker run -d -p 8080:8080 --name imageresize_ci imageresize:ci
 
-    - name: Test imageresize resize
-      run: docker run --rm imageresize:ci
+    - name: Wait for imageresize to be ready
+      run: |
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8080/health > /dev/null; then
+            echo "Service is ready"
+            break
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
+
+    - name: Test imageresize endpoint with curl
+      run: |
+        pip install pillow -q
+        IMG_BASE64=$(python3 -c "
+        from PIL import Image
+        import io, base64
+        img = Image.new('RGB', (100, 100), color='red')
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        print(base64.b64encode(buf.getvalue()).decode())
+        ")
+        curl -sf -X POST http://localhost:8080/imageresize \
+          -H "Content-Type: application/json" \
+          -d "{\"img\": \"$IMG_BASE64\", \"width\": 200, \"height\": 200}" \
+          -o /dev/null
+        echo "PASS: imageresize endpoint responded successfully"
+
+    - name: Stop imageresize container
+      if: always()
+      run: docker stop imageresize_ci || true
 
   stats:
     name: Stats
