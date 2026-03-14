@@ -33,7 +33,7 @@ async def main() -> None:
     assert result.size == (200, 200), f"Expected (200, 200), got {result.size}"
     print(f"PASS: image resized from (100, 100) to {result.size}")
 
-    video = [Image.new('RGB', (50, 25)), Image.new('RGB', (50, 25))]
+    video = [Image.new('RGB', (50, 25), color='blue'), Image.new('RGB', (50, 25), color='blue')]
     frames = await model.generate(image=None, video=video, width=100, height=50)
     assert frames is not None, "Frames should not be None"
     assert len(frames) == 2, f"Expected 2 frames, got {len(frames)}"

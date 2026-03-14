@@ -420,8 +420,11 @@ jobs:
       working-directory: deployment/wrappers/imageresize
       run: |
         mkdir -p docker_files
+        # Copy wrapper infrastructure (run_httpserver, wrapper_model, image_utils, etc.)
         cp ../../../*.py docker_files/
+        # Copy all wrapper module files (wrapper_model.py, run_httpserver.py, etc.)
         cp ../../../wrapper/*.py docker_files/
+        # Copy imageresize-specific files (wrapper_imageresize.py, test_resize.py)
         cp ../../../wrapper/imageresize/*.py docker_files/
 
     - name: Build imageresize CI image
