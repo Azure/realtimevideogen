@@ -743,9 +743,20 @@ Image names and tags are defined centrally in [`services.json`](../services.json
 
 ### Prerequisites
 
+Key variables set by `set_properties.sh`:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ACR_NAME` | Short ACR registry name | `myregistry` |
+| `ACR_URL` | Full ACR login server URL | `myregistry-abc.azurecr.io` |
+| `DOCKER_REPO` | Docker image prefix (set to `$ACR_URL`) | `myregistry-abc.azurecr.io` |
+| `HF_TOKEN` | Hugging Face token for gated models | `hf_...` |
+
+`DOCKER_REPO` is always the same as `ACR_URL`. All built images are tagged `$DOCKER_REPO/<name>:<tag>` so they can be pushed directly to ACR.
+
 ```bash
 cd deployment
-source set_properties.sh       # loads ACR_NAME, ACR_URL, DOCKER_REPO, HF_TOKEN, etc.
+source set_properties.sh       # loads the variables above
 az acr login --name $ACR_NAME  # authenticate to ACR
 ```
 

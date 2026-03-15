@@ -21,7 +21,9 @@ build_image() {
     if [ -f setup_image.sh ]; then
       echo "Build $IMAGE from $TARGET_DIR..."
       LOG_FILE=$(mktemp /tmp/build_"$IMAGE"_XXXXXX.log)
-      if ! bash setup_image.sh > "$LOG_FILE" 2>&1; then
+      if bash setup_image.sh > "$LOG_FILE" 2>&1; then
+        echo "✅ Built $IMAGE"
+      else
         echo "❌ Cannot build $IMAGE — build log:"
         cat "$LOG_FILE"
       fi
@@ -47,7 +49,7 @@ for IMAGE in "${IMAGES[@]}"; do
     fi
   done
   if [ "$built" = false ]; then
-    echo "⚠️  No setup_image.sh found for $IMAGE (skipping build)"
+    echo "⚠️ No setup_image.sh found for $IMAGE (skipping build)"
   fi
 done
 
@@ -61,12 +63,12 @@ for IMAGE in "${IMAGES[@]}"; do
         | tail -n 1)
   if [[ -n "$TAG" ]]; then
     echo "Push $ACR_URL/$IMAGE:$TAG..."
-    docker push "$ACR_URL/$IMAGE:$TAG" > /dev/null 2>&1
-    STATUS=$?
-    if [ $STATUS -ne 0 ]; then
+    if docker push "$ACR_URL/$IMAGE:$TAG" > /dev/null 2>&1; then
+      echo "✅ Pushed $ACR_URL/$IMAGE:$TAG"
+    else
       echo "❌ Cannot push $ACR_URL/$IMAGE:$TAG"
     fi
   else
-    echo "No valid tag found for $IMAGE"
+    echo "⚠️ No valid tag found for $IMAGE (skipping push)"
   fi
 done
