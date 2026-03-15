@@ -28,10 +28,9 @@ sys.path.append("../..")  # noqa: E402
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
 from streamwise_job import OutputMode
+from streamwise_job import MAX_LOG_TEXT
 
 from lmm_service_manager import LMMServiceManager
-
-from client import ServiceError
 
 from gen_video_chunked import GenVideoChunked
 
@@ -50,14 +49,6 @@ from media_utils import concatenate_videos
 
 from video import MAX_FT_DURATION_SECS
 from video import FANTASYTALKING_FPS
-
-from k8s_utils import NoActiveContainerError
-from k8s_utils import NoRunnableContainerError
-from k8s_utils import ServiceNotFoundError
-
-
-MAX_LOG_TEXT = 100
-SCENE_DEADLINE_INCREMENT_SECONDS = 5.0  # Seconds added per scene for deadline estimation
 
 
 class StreamLectureJob(StreamWiseJob):
@@ -186,15 +177,6 @@ class StreamLectureJob(StreamWiseJob):
 
         self.logger.info(f"[{scene_id}] Scene saved to '{video_audio_path}'.")
         return video_audio_path
-
-    def _handle_scene_exception(self, scene_id: int, ex: Exception) -> None:
-        """Handle exceptions during scene generation."""
-        if isinstance(ex, ServiceError):
-            self.logger.error(f"[{scene_id}] Service error: {ex}")
-        elif isinstance(ex, (NoRunnableContainerError, NoActiveContainerError, ServiceNotFoundError)):
-            self.logger.error(f"[{scene_id}] {ex}")
-        else:
-            self.logger.error(f"[{scene_id}] Error ({type(ex).__name__}): {ex}")
 
     async def gen_lecture(
         self,
@@ -327,11 +309,3 @@ class StreamLectureJob(StreamWiseJob):
 
             self.logger.info(
                 f"Generated lecture video with {bytes_to_human(len(video_binary))} at '{video_path}'.")
-
-    def get_scene_deadline(
-        self,
-        scene_index: int,
-    ) -> float:
-        """Get the deadline for a given scene."""
-        base_deadline = self.get_submission_time()
-        return base_deadline + (scene_index * SCENE_DEADLINE_INCREMENT_SECONDS)

@@ -70,6 +70,15 @@ class StreamEditJob(StreamWiseJob):
         assert video_base64 is not None
         await self.gen_edit(video_base64)
 
+    async def _save_video_as_output(self, video_path: str) -> None:
+        """Copy a video file to the job output path."""
+        out_path = f"{self.job_path}/{self.job_id}.mp4"
+        video_binary = await read_file_bytes(video_path)
+        async with aiofiles.open(out_path, "wb") as file:
+            await file.write(video_binary)
+        self.logger.info(
+            f"Video ({bytes_to_human(len(video_binary))}) saved to '{out_path}'.")
+
     async def gen_edit(
         self,
         video_base64: str,
@@ -110,12 +119,7 @@ class StreamEditJob(StreamWiseJob):
             # If no scenes detected, fall back to returning the original video unchanged
             if not self.scenes:
                 self.logger.warning("No scenes detected. Saving original video as output.")
-                out_path = f"{self.job_path}/{self.job_id}.mp4"
-                original_video_binary = await read_file_bytes(video_path)
-                async with aiofiles.open(out_path, "wb") as file:
-                    await file.write(original_video_binary)
-                self.logger.info(
-                    f"Original video ({bytes_to_human(len(original_video_binary))}) saved to '{out_path}'.")
+                await self._save_video_as_output(video_path)
                 return
 
             # Extract full audio from input video for re-use across scenes
@@ -142,12 +146,7 @@ class StreamEditJob(StreamWiseJob):
             if not valid_paths:
                 # No scenes could be edited – fall back to the original video
                 self.logger.warning("No edited scenes produced. Saving original video as output.")
-                out_path = f"{self.job_path}/{self.job_id}.mp4"
-                original_video_binary = await read_file_bytes(video_path)
-                async with aiofiles.open(out_path, "wb") as file:
-                    await file.write(original_video_binary)
-                self.logger.info(
-                    f"Original video ({bytes_to_human(len(original_video_binary))}) saved to '{out_path}'.")
+                await self._save_video_as_output(video_path)
                 return
 
             self.logger.info(f"Combining {len(valid_paths)} edited scenes into final video...")

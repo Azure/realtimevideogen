@@ -59,6 +59,8 @@ from k8s_utils import ServiceNotFoundError
 
 
 STATUS_EXPIRE_TIME_SECONDS = 10 * 60  # 10 minutes
+MAX_LOG_TEXT = 100  # Max text length to log
+SCENE_DEADLINE_INCREMENT_SECS = 5.0  # Seconds added per scene for deadline estimation
 
 
 ExceptionHandler = Callable[[Exception], None]
@@ -375,3 +377,23 @@ class StreamWiseJob:
             except (ValueError, IndexError) as e:
                 self.logger.error(f"Error parsing status file: {e}")
                 return JobStatus.UNKNOWN
+
+    def _handle_scene_exception(self, scene_id: int, ex: Exception) -> None:
+        """
+        Handle exceptions during scene generation.
+        Covers ServiceError, container errors (NoRunnableContainerError,
+        NoActiveContainerError, ServiceNotFoundError), and any other exception.
+        """
+        if isinstance(ex, ServiceError):
+            self.logger.error(f"[{scene_id}] Service error: {ex}")
+        elif isinstance(ex, (NoRunnableContainerError, NoActiveContainerError, ServiceNotFoundError)):
+            self.logger.error(f"[{scene_id}] {ex}")
+        else:
+            self.logger.error(f"[{scene_id}] Error ({type(ex).__name__}): {ex}")
+
+    def get_scene_deadline(
+        self,
+        scene_index: int,
+    ) -> float:
+        """Get the deadline for a given scene."""
+        return self.get_submission_time() + (scene_index * SCENE_DEADLINE_INCREMENT_SECS)
