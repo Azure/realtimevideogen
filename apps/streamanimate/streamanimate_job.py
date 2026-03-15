@@ -45,7 +45,7 @@ from video import FANTASYTALKING_FPS
 def _append_base_prompt(user_text: str, base_prompt: str) -> str:
     """Combine an optional user text prefix with a base prompt string."""
     if user_text:
-        return f"{user_text}. {base_prompt}"
+        return f"{user_text.rstrip('.!?,;')}. {base_prompt}"
     return base_prompt
 
 

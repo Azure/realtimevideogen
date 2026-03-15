@@ -146,28 +146,16 @@
         }
 
         function estimateGenerationTime() {
-            const video_duration = parseInt(document.getElementById("video_duration_seconds").value);
-            const outputMode = document.getElementById("output_mode").value;
-
-            let estimatedTime = 15; // Default minimum time 15 seconds
-            if (outputMode === "audio_only") {
-                // Audio only: 45 seconds for 60 seconds
-                estimatedTime = 45.0 * (video_duration / 60.0);
-            } else {
-                // Video+Audio: 2200 seconds for 60 seconds
-                estimatedTime = 2200.0 * (video_duration / 60.0);
-            }
-            estimatedTime = Math.max(estimatedTime, 15); // Minimum 15 seconds
-            estimatedTime = Math.round(estimatedTime);
+            // StreamEdit: estimate based on a default 30-second clip at ~2200s/60s rate
+            const estimatedTime = Math.round(2200.0 * (30.0 / 60.0));
             return formatStringTime(estimatedTime);
-        };
+        }
 
         function updateGenerationTime() {
             document.getElementById("generation_time_estimate").textContent = "~" + estimateGenerationTime();
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById("output_mode").addEventListener("change", updateGenerationTime);
             updateGenerationTime();
         });
 
