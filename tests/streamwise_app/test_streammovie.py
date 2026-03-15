@@ -77,3 +77,17 @@ async def test_submit_job(test_app: Quart) -> None:
     assert response_json["status"] == "error"
     assert "error" in response_json
     assert "Error generating image" in response_json["error"]
+
+
+def test_build_movie_messages() -> None:
+    """Test that build_movie_messages includes SYSTEM_PROMPT and user description."""
+    with patch.dict(sys.modules, mock_modules):
+        with temp_sys_path("apps", "apps/streammovie"):
+            from apps.streammovie.streammovie_job import StreamMovieJob
+
+    messages = StreamMovieJob.build_movie_messages("a sci-fi thriller")
+    assert len(messages) == 2
+    assert messages[0]["role"] == "system"
+    assert "filmmaker" in messages[0]["content"]
+    assert messages[1]["role"] == "user"
+    assert "sci-fi thriller" in messages[1]["content"]

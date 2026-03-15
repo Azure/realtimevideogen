@@ -33,6 +33,8 @@ from media_utils import chunk_video_binary
 from file_utils import read_file_bytes
 from media_utils import get_video_frames
 
+from edit_prompts import EDIT_PROMPT
+
 
 class StreamEditJob(StreamWiseJob):
     """A job to generate an edited video."""
@@ -144,11 +146,10 @@ class StreamEditJob(StreamWiseJob):
         scene_video_frames = await get_video_frames(scene_binary)
 
         # TODO create method for editing
-        # TODO get edit prompt
         scene_edit_binary = await self.gen.gen_video_audio_from_video(
             video=scene_video_frames,
             audio_base64="TODO",
-            prompt="blah",
+            prompt=EDIT_PROMPT,
             task_id=f"{scene.scene_id:03d}",
             deadline=self.get_submission_time() + scene.start_sec,
         )

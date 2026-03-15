@@ -92,3 +92,10 @@ async def test_submit_job(test_app: Quart) -> None:
     response_json = await response.get_json()
     assert response_json["status"] == "success"
     assert "job_id" in response_json
+
+
+def test_edit_prompt() -> None:
+    """Test that EDIT_PROMPT is imported and non-empty."""
+    from apps.streamedit.edit_prompts import EDIT_PROMPT
+    assert EDIT_PROMPT
+    assert "video editor" in EDIT_PROMPT.lower() or "edit" in EDIT_PROMPT.lower()
