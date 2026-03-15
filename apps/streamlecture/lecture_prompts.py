@@ -24,3 +24,11 @@ VIDEO_NEG_PROMPT = """
 camera movement, shaky cam, zoom, pan, tilt, flashy lights, jitter, dolly shot, handheld,
 color shift, lighting flicker, exposure change, hue variation
 """.strip()
+
+# Transcript generation style for the lecture
+LECTURE_STYLE_PROMPT = "A clear and engaging academic lecture delivered by a single professor."
+LECTURE_CUSTOM_PROMPT = (
+    "Generate a lecture transcript for a single professor explaining "
+    "the content of this document. The professor should cover all key topics, "
+    "provide clear explanations, and use an educational tone."
+)
