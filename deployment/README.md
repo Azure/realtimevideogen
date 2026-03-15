@@ -729,26 +729,31 @@ For a complete end-to-end AKS deployment workflow with all steps from prerequisi
 
 ## Building and Pushing Docker Images
 
-All model wrappers (in [`wrappers/`](wrappers/)) and applications (in [`apps/`](apps/)) follow the same Docker image build pattern. Each component directory contains:
+Every component — the shared base image, model wrappers (in [`wrappers/`](wrappers/)), the StreamWise cluster manager (in [`streamwise/`](streamwise/)), and applications (in [`apps/`](apps/)) — follows the same build pattern. Each directory contains:
 
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Container image definition |
-| `setup_image.sh` | Build script (calls the shared [`wrappers/setup_image.sh`](wrappers/setup_image.sh)) |
+| `setup_image.sh` | Build script |
 | `requirements.txt` | Python dependencies (if applicable) |
 
 Image names and tags are defined centrally in [`services.json`](../services.json).
 
+> **Build order:** the `base` image must be built before any wrapper or app image, because all other images inherit from it.
+
 ### Prerequisites
 
 ```bash
-source set_properties.sh       # loads ACR_NAME, ACR_URL, HF_TOKEN, etc.
+cd deployment
+source set_properties.sh       # loads ACR_NAME, ACR_URL, DOCKER_REPO, HF_TOKEN, etc.
 az acr login --name $ACR_NAME  # authenticate to ACR
 ```
 
+> **CI / agent environments:** if `DOCKER_REPO` is already set in the environment, `set_properties.sh` and the ACR login step are skipped automatically by the individual `setup_image.sh` scripts. Set `DOCKER_REPO=<acr-url>` before calling any build script to enable headless builds.
+
 ### Build All Images at Once
 
-The [`build_docker.sh`](build_docker.sh) script reads every service from `services.json`, builds each image via its `setup_image.sh`, and pushes them all to ACR:
+[`build_docker.sh`](build_docker.sh) reads every service from `services.json`, builds the base image first, then every wrapper and app, and finally pushes everything to ACR:
 
 ```bash
 cd deployment
@@ -756,29 +761,51 @@ source set_properties.sh
 bash build_docker.sh
 ```
 
-### Build a Single Wrapper Image
+### Build the Base Image
 
-Navigate to the wrapper directory and run its `setup_image.sh`:
+All other images depend on the base image. Build it first when setting up a new environment or after updating [`deployment/base/Dockerfile`](base/Dockerfile):
 
 ```bash
-cd deployment/wrappers/wan
+cd deployment/base
 bash setup_image.sh            # build only
 bash setup_image.sh --push     # build and push to ACR
 ```
 
-Some wrappers (e.g., `flux`, `gemma`, `llama32`) require a Hugging Face token for gated model access. These wrappers pass `--hf_token` automatically — just make sure `HF_TOKEN` is set in `set_properties.sh`.
-
-### Build a Single App Image
+### Build a Single Wrapper Image
 
 ```bash
-cd deployment/apps/streamwise
+cd deployment/wrappers/<wrapper-name>
 bash setup_image.sh            # build only
 bash setup_image.sh --push     # build and push to ACR
+```
+
+Wrappers that require a Hugging Face token for gated model access (e.g., `flux`, `gemma`, `llama32`) pass `--hf_token` automatically — just make sure `HF_TOKEN` is set in `set_properties.sh`.
+
+Available flags for wrapper builds:
+
+| Flag | Description |
+|------|-------------|
+| `--push` | Push the image to ACR after building |
+| `--hf_token` | Include `HF_TOKEN` as a Docker build secret (for gated models) |
+| `--platform <arch>` | Target platform, e.g. `linux/amd64` (default) or `linux/arm64` |
+| `--folders <f1,f2>` | Copy additional subdirectories into the build context |
+| `--parent <name>` | Include files from a parent wrapper directory |
+
+### Build a Single App or StreamWise Image
+
+```bash
+cd deployment/apps/<app-name>   # e.g. deployment/apps/streamcast
+bash setup_image.sh            # build only
+bash setup_image.sh --push     # build and push to ACR
+
+# StreamWise cluster manager
+cd deployment/streamwise
+bash setup_image.sh --push
 ```
 
 ### Push an Image Manually
 
-If you built an image without `--push`, you can push it separately:
+If you built an image without `--push`, push it separately:
 
 ```bash
 source set_properties.sh
@@ -793,7 +820,4 @@ az acr repository list --name $ACR_NAME -o table
 az acr repository show-tags --name $ACR_NAME --repository <image-name> -o table
 ```
 
-For more details, see:
-- [Wrappers build documentation](wrappers/README.md)
-- [Apps build documentation](apps/README.md)
-- [ACR setup and usage](acr/README.md)
+For ACR creation and configuration, see [ACR Documentation](acr/README.md).
