@@ -183,11 +183,12 @@ async def test_submit_job_no_description(test_app: Quart) -> None:
     assert response_json is not None
     assert response_json["status"] == "error"
     assert "error" in response_json
-    assert "Error generating image" in response_json["error"]
+    assert "movie_description" in response_json["error"]
 
 # ---------------------------------------------------------------------------
 # StreamMovieJob unit tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_shot_deadline() -> None:
@@ -281,10 +282,6 @@ async def test_gen_shot_no_dialogue() -> None:
     assert shot_path is not None
     assert shot_path.endswith(".mp4")
     assert await aiofiles.os.path.exists(shot_path)
-
-    # Image for the shot should also have been saved
-    image_path = f"{job.job_path}/shot_000.jpg"
-    assert await aiofiles.os.path.exists(image_path)
 
     await job.close()
 
@@ -414,10 +411,6 @@ async def test_gen_movie_script_saved() -> None:
 
 def test_build_movie_messages() -> None:
     """Test that build_movie_messages includes SYSTEM_PROMPT and user description."""
-    with patch.dict(sys.modules, mock_modules):
-        with temp_sys_path("apps", "apps/streammovie"):
-            from apps.streammovie.streammovie_job import StreamMovieJob
-
     messages = StreamMovieJob.build_movie_messages("a sci-fi thriller")
     assert len(messages) == 2
     assert messages[0]["role"] == "system"

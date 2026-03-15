@@ -22,8 +22,6 @@ from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
 from streamwise_job import OutputMode
 
-from movie_prompts import SYSTEM_PROMPT
-
 from lmm_service_manager import LMMServiceManager
 
 from console_utils import bytes_to_human
@@ -285,10 +283,6 @@ class StreamMovieJob(StreamWiseJob):
             task_id=f"shot_{shot_idx:03d}_img",
             deadline=deadline,
         )
-
-        image_path = f"{self.job_path}/shot_{shot_idx:03d}.jpg"
-        await asyncio.to_thread(image.save, image_path, format="JPEG")
-        self.logger.info(f"[{shot_idx}] Image saved to '{image_path}'.")
 
         output_mode = self.get_config_output_mode()
         video_binary: Optional[bytes] = None
