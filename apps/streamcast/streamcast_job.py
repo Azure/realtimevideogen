@@ -25,12 +25,11 @@ sys.path.append("../..")  # noqa: E402
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
 from streamwise_job import OutputMode
+from streamwise_job import MAX_LOG_TEXT
 
 from resolutions import RESOLUTIONS
 
 from lmm_service_manager import LMMServiceManager
-
-from client import ServiceError
 
 from podcast_prompts import IMG_PROMPT_BASE
 from podcast_prompts import IMG_PROMPT
@@ -72,11 +71,7 @@ from console_utils import bytes_to_human
 
 from tts_utils import strip_audio_file_silence
 
-from k8s_utils import NoActiveContainerError
-from k8s_utils import NoRunnableContainerError
 
-
-MAX_LOG_TEXT = 100  # Max text length to log
 MAX_IMG_LINE_CHARS = 50  # Max characters per line in the output image/video
 
 
@@ -419,15 +414,6 @@ class StreamCastJob(StreamWiseJob):
 
         return video_binary
 
-    def _handle_scene_exception(self, scene_id: int, ex: Exception) -> None:
-        """Handle exceptions during scene generation."""
-        if isinstance(ex, ServiceError):
-            self.logger.error(f"[{scene_id}] Service error: {ex}")
-        elif isinstance(ex, (NoRunnableContainerError, NoActiveContainerError)):
-            self.logger.error(f"[{scene_id}] {ex}")
-        else:
-            self.logger.error(f"[{scene_id}] Error ({type(ex).__name__}): {ex}")
-
     async def gen_images(
         self,
         img_prompt: str,
@@ -678,15 +664,3 @@ class StreamCastJob(StreamWiseJob):
                 f"{video_fps} FPS, "
                 f"{bytes_to_human(len(video_binary))}, and "
                 f"'{video_path}'")
-
-    def get_scene_deadline(
-        self,
-        scene_index: int
-    ) -> float:
-        """
-        Get the deadline for a given scene.
-        """
-        base_deadline = self.get_submission_time()
-        SECONDS_PER_SCENE = 5.0  # TODO do better and extract actual scene durations
-        scene_deadline = base_deadline + (scene_index * SECONDS_PER_SCENE)
-        return scene_deadline
