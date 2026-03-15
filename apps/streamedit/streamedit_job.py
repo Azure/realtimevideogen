@@ -2,6 +2,7 @@
 StreamEdit job to generate an edited video.
 """
 import sys
+import json
 import aiofiles
 import aiofiles.os
 
@@ -9,6 +10,9 @@ from typing import override
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
+
+from dataclasses import asdict
 
 from scenedetect import open_video
 from scenedetect import SceneManager
@@ -29,10 +33,15 @@ from scene import SceneSegment
 from console_utils import bytes_to_human
 
 from file_utils import save_base64_as_binary
-from media_utils import chunk_video_binary
 from file_utils import read_file_bytes
+from file_utils import read_file_base64
+from media_utils import chunk_video_binary
+from media_utils import chunk_audio_base64
 from media_utils import get_video_frames
+from media_utils import extract_audio_from_video
+from media_utils import concatenate_videos
 
+from edit_prompts import build_edit_prompt
 from edit_prompts import EDIT_PROMPT
 
 
@@ -50,6 +59,7 @@ class StreamEditJob(StreamWiseJob):
             job_id,
             service_manager,
             config)
+        self.scenes: List[SceneSegment] = []  # Populated by detect_scenes() during gen_edit()
 
     @override
     async def generate(
@@ -81,18 +91,81 @@ class StreamEditJob(StreamWiseJob):
 
             await self.save_status(JobStatus.RUNNING)
 
-            # Detect scenes
+            # Detect scenes first (this validates the video and may take time)
             self.scenes = await self.detect_scenes(video_path)
             self.logger.info(f"Detected {len(self.scenes)} scenes.")
 
+            # Write scenes debug file
+            scenes_path = f"{self.job_path}/scenes.json"
+            async with aiofiles.open(scenes_path, "w") as scene_file:
+                scenes_dict_list = [asdict(scene) for scene in self.scenes]
+                await scene_file.write(json.dumps(scenes_dict_list, indent=2))
+
             await self.save_status(JobStatus.RUNNING)
 
-            # Edit the video
+            # Build edit prompt from user instructions
+            edit_instructions = self.get_config_str("edit_instructions")
+            edit_prompt = build_edit_prompt(edit_instructions)
+
+            # If no scenes detected, fall back to returning the original video unchanged
+            if not self.scenes:
+                self.logger.warning("No scenes detected. Saving original video as output.")
+                out_path = f"{self.job_path}/{self.job_id}.mp4"
+                original_video_binary = await read_file_bytes(video_path)
+                async with aiofiles.open(out_path, "wb") as file:
+                    await file.write(original_video_binary)
+                self.logger.info(
+                    f"Original video ({bytes_to_human(len(original_video_binary))}) saved to '{out_path}'.")
+                return
+
+            # Extract full audio from input video for re-use across scenes
+            audio_path = f"{self.job_path}/audio.wav"
+            audio_path = await extract_audio_from_video(video_path, audio_path)
+            audio_base64 = await read_file_base64(audio_path)
+            self.logger.info(f"Extracted audio with {bytes_to_human(len(audio_base64))}.")
+
+            # Edit each scene
+            scene_video_paths: List[Optional[str]] = []
             for scene in self.scenes:
-                await self.gen_edit_scene(scene)
+                try:
+                    scene_path = await self.gen_edit_scene(scene, audio_base64, edit_prompt)
+                    scene_video_paths.append(scene_path)
+                    self.logger.info(f"[{scene.scene_id}] Edited scene saved to '{scene_path}'.")
+                except Exception as ex:
+                    self.logger.error(f"[{scene.scene_id}] Error editing scene: {ex}")
+                    scene_video_paths.append(None)
+
+            await self.save_status(JobStatus.RUNNING)
 
             # Combine the edited scenes into a final video
-            # TODO
+            valid_paths = [p for p in scene_video_paths if p]
+            if not valid_paths:
+                # No scenes could be edited – fall back to the original video
+                self.logger.warning("No edited scenes produced. Saving original video as output.")
+                out_path = f"{self.job_path}/{self.job_id}.mp4"
+                original_video_binary = await read_file_bytes(video_path)
+                async with aiofiles.open(out_path, "wb") as file:
+                    await file.write(original_video_binary)
+                self.logger.info(
+                    f"Original video ({bytes_to_human(len(original_video_binary))}) saved to '{out_path}'.")
+                return
+
+            self.logger.info(f"Combining {len(valid_paths)} edited scenes into final video...")
+            scene_binaries: List[bytes] = []
+            for path in valid_paths:
+                scene_binary = await read_file_bytes(path)
+                scene_binaries.append(scene_binary)
+
+            video_binary = await concatenate_videos(scene_binaries)
+            if not video_binary:
+                raise ValueError("Cannot concatenate edited scenes into final video.")
+
+            out_path = f"{self.job_path}/{self.job_id}.mp4"
+            async with aiofiles.open(out_path, "wb") as file:
+                await file.write(video_binary)
+
+            self.logger.info(
+                f"Generated edited video with {bytes_to_human(len(video_binary))} at '{out_path}'.")
 
     async def detect_scenes(
         self,
@@ -131,9 +204,12 @@ class StreamEditJob(StreamWiseJob):
     async def gen_edit_scene(
         self,
         scene: SceneSegment,
-    ) -> bytes:
+        audio_base64: str,
+        edit_prompt: str = EDIT_PROMPT,
+    ) -> str:
         """
-        Generate edited version of a scene.
+        Generate edited version of a scene and save it to disk.
+        Returns the path to the saved file.
         """
         input_video_path = f"{self.job_path}/video.mp4"
         input_video_binary = await read_file_bytes(input_video_path)
@@ -145,12 +221,22 @@ class StreamEditJob(StreamWiseJob):
         )
         scene_video_frames = await get_video_frames(scene_binary)
 
-        # TODO create method for editing
+        # Chunk audio for this scene's time range
+        scene_audio_base64 = chunk_audio_base64(
+            audio_base64=audio_base64,
+            start_seconds=scene.start_sec,
+            end_seconds=scene.end_sec,
+        )
+
         scene_edit_binary = await self.gen.gen_video_audio_from_video(
             video=scene_video_frames,
-            audio_base64="TODO",
-            prompt=EDIT_PROMPT,
+            audio_base64=scene_audio_base64,
+            prompt=edit_prompt,
             task_id=f"{scene.scene_id:03d}",
             deadline=self.get_submission_time() + scene.start_sec,
         )
-        return scene_edit_binary
+
+        scene_path = f"{self.job_path}/{scene.scene_id:03d}_edit.mp4"
+        async with aiofiles.open(scene_path, "wb") as file:
+            await file.write(scene_edit_binary)
+        return scene_path
