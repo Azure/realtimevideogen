@@ -5,13 +5,15 @@
 DEPLOYMENT_DIR=.
 # shellcheck disable=SC1090,SC1091
 source "$DEPLOYMENT_DIR/set_properties.sh"
+# shellcheck source=deployment/setup_lib.sh
+source "$DEPLOYMENT_DIR/setup_lib.sh"
 
 # curl -s -H "Metadata:true" "http://169.254.169.254/metadata/identity/info?api-version=2021-02-01" | jq .
 # az login --identity
 # az login
 # az account set --subscription $AZ_SUBSCRIPTION_ID
 # az acr list -o table
-az acr login --name "$ACR_NAME"
+ensure_acr_login "$ACR_NAME"
 
 # IMAGES=($(jq -r 'keys[]' ../services.json))
 mapfile -t IMAGES < <(jq -r 'keys[]' ../services.json)
@@ -37,7 +39,7 @@ for IMAGE in "${IMAGES[@]}"; do
 done
 
 # Push the images
-az acr login --name "$ACR_NAME"
+ensure_acr_login "$ACR_NAME"
 
 for IMAGE in "${IMAGES[@]}"; do
   TAG=$(docker image ls "$ACR_URL/$IMAGE" --format "{{.Tag}}" \

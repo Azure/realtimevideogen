@@ -5,8 +5,10 @@
 # shellcheck disable=SC1091
 DEPLOYMENT_DIR=../
 source "$DEPLOYMENT_DIR/set_properties.sh"
+# shellcheck source=deployment/setup_lib.sh
+source "$DEPLOYMENT_DIR/setup_lib.sh"
 
-az acr login --name "$ACR_NAME"
+ensure_acr_login "$ACR_NAME"
 
 for IMAGE in stream*; do
   (
