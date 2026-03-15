@@ -23,10 +23,11 @@ from scenedetect.detectors import ContentDetector
 from scenedetect.stats_manager import StatsManager
 
 from short_prompts import DESCRIPTION_PROMPT
-from short_prompts import HIGHLIGT_PROMPT
+from short_prompts import HIGHLIGHT_PROMPT
 
 # Local relative imports
 sys.path.append("..")  # noqa: E402
+sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
@@ -102,7 +103,7 @@ class StreamShortJob(StreamWiseJob):
         """
         async with self.job_status_handler():
             if not video_base64:
-                self.logger.info("Video is required.")
+                self.logger.error("Video is required.")
                 await self.save_status(JobStatus.FAILED)
                 raise ValueError("Missing 'video_base64' in request")
             self.logger.info(f"Generating short for video with {bytes_to_human(len(video_base64))}.")
@@ -389,7 +390,7 @@ class StreamShortJob(StreamWiseJob):
         max_tokens: int = 256,
     ) -> List[int]:
         """Select the scenes for highlight short."""
-        prompt = HIGHLIGT_PROMPT.format(
+        prompt = HIGHLIGHT_PROMPT.format(
             total_length=total_length,
             max_scenes=max_scenes,
         )

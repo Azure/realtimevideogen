@@ -34,6 +34,7 @@ from persona_prompts import VIDEO_NEG_PROMPT
 
 # Local relative imports
 sys.path.append("..")  # noqa: E402
+sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus

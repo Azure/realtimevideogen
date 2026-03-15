@@ -47,5 +47,5 @@ if __name__ == "__main__":
             "streamwise.log",
             "streamdub.log"
         ],
-        app_name="streamdub",
+        app_name="StreamDub",
     )

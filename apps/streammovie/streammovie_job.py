@@ -17,6 +17,7 @@ from movie_prompts import SYSTEM_PROMPT
 
 # Local relative imports
 sys.path.append("..")  # noqa: E402
+sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
@@ -90,7 +91,7 @@ class StreamMovieJob(StreamWiseJob):
         """
         async with self.job_status_handler():
             if not movie_description:
-                self.logger.info("Movie description is required.")
+                self.logger.error("Movie description is required.")
                 await self.save_status(JobStatus.FAILED)
                 raise ValueError("Missing 'movie_description' in request")
 

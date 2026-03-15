@@ -60,10 +60,10 @@ class StreamLectureJob(StreamWiseJob):
         """
         async with self.job_status_handler():
             if not pdf_base64:
-                self.logger.info("Document is required.")
+                self.logger.error("Document is required.")
                 await self.save_status(JobStatus.FAILED)
                 raise ValueError("Missing 'pdf_base64' in request")
-            self.logger.info(f"Generating podcast transcript for document with {bytes_to_human(len(pdf_base64))}.")
+            self.logger.info(f"Generating lecture video for document with {bytes_to_human(len(pdf_base64))}.")
 
             self.logger.info(f"Document base64 with {bytes_to_human(len(pdf_base64))}.")
             pdf_path = f"{self.job_path}/document.pdf"

@@ -1,5 +1,5 @@
 """
-StreamAnimate job to generate an animated video.
+StreamChat job to generate a video chat response.
 """
 import asyncio
 import json
@@ -38,7 +38,7 @@ from console_utils import bytes_to_human
 
 
 class StreamChatJob(StreamWiseJob):
-    """A job to generate an animated video."""
+    """A job to generate a video chat response."""
 
     def __init__(
         self,

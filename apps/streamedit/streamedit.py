@@ -12,6 +12,7 @@ from typing import Any
 from streamedit_job import StreamEditJob
 
 # Local relative imports
+sys.path.append("..")  # noqa: E402
 sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob
