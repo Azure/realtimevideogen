@@ -10,11 +10,10 @@ import pytest
 import aiofiles
 
 from http import HTTPStatus
-from typing import AsyncGenerator, Dict, Any
 
-import PIL.Image as _PIL
-_PIL.preinit()  # register JPEG/PNG/GIF before mock context strips PIL from sys.modules
-del _PIL
+from typing import AsyncGenerator
+from typing import Dict
+from typing import Any
 
 from quart import Quart
 
@@ -72,6 +71,7 @@ MOCK_SHOT_0 = {
     "dialogue": None,
     "technical_specs": {"duration_seconds": 4},
 }
+
 MOCK_SHOT_1 = {
     "type": "shot_description",
     "shot_id": "S002",
@@ -181,7 +181,9 @@ async def test_submit_job_no_description(test_app: Quart) -> None:
     assert response.status_code == HTTPStatus.BAD_REQUEST
     response_json = await response.get_json()
     assert response_json is not None
-
+    assert response_json["status"] == "error"
+    assert "error" in response_json
+    assert "Error generating image" in response_json["error"]
 
 # ---------------------------------------------------------------------------
 # StreamMovieJob unit tests
@@ -412,6 +414,10 @@ async def test_gen_movie_script_saved() -> None:
 
 def test_build_movie_messages() -> None:
     """Test that build_movie_messages includes SYSTEM_PROMPT and user description."""
+    with patch.dict(sys.modules, mock_modules):
+        with temp_sys_path("apps", "apps/streammovie"):
+            from apps.streammovie.streammovie_job import StreamMovieJob
+
     messages = StreamMovieJob.build_movie_messages("a sci-fi thriller")
     assert len(messages) == 2
     assert messages[0]["role"] == "system"

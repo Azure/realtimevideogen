@@ -100,3 +100,45 @@ async def test_hunyuanframepackf1() -> None:
             output_type="video_frames")
 
     del model
+
+
+@pytest.mark.asyncio
+async def test_hunyuanframepackf1_assert_args() -> None:
+    """_assert_args raises for image sizes not divisible by vae_stride."""
+    model = HunyuanFramepackF1Generation()
+    model.init()
+    assert model.vae_stride == (4, 8, 8)
+
+    # Valid size: both height and width divisible by 8
+    model._assert_args(height=512, width=768)
+
+    # Height not divisible by 8
+    with pytest.raises(ValueError, match="Height"):
+        model._assert_args(height=513, width=768)
+
+    # Width not divisible by 8
+    with pytest.raises(ValueError, match="Width"):
+        model._assert_args(height=512, width=769)
+
+    del model
+
+
+@pytest.mark.asyncio
+async def test_hunyuanframepackf1_generate_proceeds_past_text_encoding() -> None:
+    """generate() proceeds past _encode_text when it is patched to return mock values."""
+    model = HunyuanFramepackF1Generation()
+    model.init()
+
+    img = Image.new("RGB", (768, 512))
+    six_mocks = tuple(MagicMock() for _ in range(6))
+
+    with patch.object(model, "_encode_text", return_value=six_mocks):
+        with pytest.raises(ValueError):
+            await model.generate(
+                img=img,
+                prompt="test prompt",
+                height=512,
+                width=768,
+            )
+
+    del model

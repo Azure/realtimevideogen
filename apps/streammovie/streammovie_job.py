@@ -22,6 +22,8 @@ from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
 from streamwise_job import OutputMode
 
+from movie_prompts import SYSTEM_PROMPT
+
 from lmm_service_manager import LMMServiceManager
 
 from console_utils import bytes_to_human
