@@ -216,8 +216,6 @@ def get_container_port(container_name: str) -> int:
     """Get the default container port for a given container name, with special cases for certain containers."""
     if container_name in VLLM_SERVICES:
         return 8000
-    if container_name in ("whisper"):
-        return 9000
     if container_name == "streamwise":
         return 18181
     if container_name in STREAMWISE_APPS:
