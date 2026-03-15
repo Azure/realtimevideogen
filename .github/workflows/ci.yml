@@ -61,8 +61,10 @@ jobs:
     - name: Run shell lint
       if: always()
       run: |
-        shellcheck -x -f gcc $(git ls-files '*.sh') $(git ls-files '*.bash') > shellcheck-results.txt 2>&1 || true
+        shellcheck -x -f gcc $(git ls-files '*.sh') $(git ls-files '*.bash') > shellcheck-results.txt 2>&1
+        SC_EXIT=$?
         cat shellcheck-results.txt
+        exit $SC_EXIT
 
     - name: Shellcheck reviewdog
       if: always()
