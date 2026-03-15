@@ -3,7 +3,7 @@
 # Generate the Docker images.
 
 DEPLOYMENT_DIR=.
-# shellcheck disable=SC1090,SC1091
+# shellcheck source=deployment/set_properties.sh.template
 source "$DEPLOYMENT_DIR/set_properties.sh"
 # shellcheck source=deployment/setup_lib.sh
 source "$DEPLOYMENT_DIR/setup_lib.sh"

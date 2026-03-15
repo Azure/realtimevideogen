@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# shellcheck disable=SC1091
+# shellcheck source=deployment/set_properties.sh.template
 source ../set_properties.sh
 # shellcheck source=deployment/setup_lib.sh
 source ../setup_lib.sh

@@ -2,8 +2,8 @@
 
 # Generate the Docker images for the StreamWise applications.
 
-# shellcheck disable=SC1091
 DEPLOYMENT_DIR=../
+# shellcheck source=deployment/set_properties.sh.template
 source "$DEPLOYMENT_DIR/set_properties.sh"
 # shellcheck source=deployment/setup_lib.sh
 source "$DEPLOYMENT_DIR/setup_lib.sh"
