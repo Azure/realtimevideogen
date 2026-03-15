@@ -64,6 +64,17 @@ class StreamMovieJob(StreamWiseJob):
         movie_description = job_config.get("movie_description", None)
         await self.gen_movie(movie_description)
 
+    @staticmethod
+    def build_movie_messages(movie_description: str) -> list:
+        """
+        Build LLM messages for movie planning using the system prompt.
+        Returns messages suitable for gen_text to generate a movie structure.
+        """
+        return [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Create a movie: {movie_description}"},
+        ]
+
     async def gen_movie(
         self,
         movie_description: str

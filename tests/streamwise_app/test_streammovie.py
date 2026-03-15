@@ -408,3 +408,13 @@ async def test_gen_movie_script_saved() -> None:
     assert "shot_description" in content
 
     await job.close()
+
+
+def test_build_movie_messages() -> None:
+    """Test that build_movie_messages includes SYSTEM_PROMPT and user description."""
+    messages = StreamMovieJob.build_movie_messages("a sci-fi thriller")
+    assert len(messages) == 2
+    assert messages[0]["role"] == "system"
+    assert "filmmaker" in messages[0]["content"]
+    assert messages[1]["role"] == "user"
+    assert "sci-fi thriller" in messages[1]["content"]
