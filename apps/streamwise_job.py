@@ -378,7 +378,11 @@ class StreamWiseJob:
                 self.logger.error(f"Error parsing status file: {e}")
                 return JobStatus.UNKNOWN
 
-    def _handle_scene_exception(self, scene_id: int, ex: Exception) -> None:
+    def _handle_scene_exception(
+        self,
+        scene_id: int,
+        ex: Exception,
+    ) -> None:
         """
         Handle exceptions during scene generation.
         Covers ServiceError, container errors (NoRunnableContainerError,

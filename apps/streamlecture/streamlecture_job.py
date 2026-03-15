@@ -307,5 +307,4 @@ class StreamLectureJob(StreamWiseJob):
             async with aiofiles.open(video_path, "wb") as vfile:
                 await vfile.write(video_binary)
 
-            self.logger.info(
-                f"Generated lecture video with {bytes_to_human(len(video_binary))} at '{video_path}'.")
+            self.logger.info(f"Generated lecture video with {bytes_to_human(len(video_binary))} at '{video_path}'.")

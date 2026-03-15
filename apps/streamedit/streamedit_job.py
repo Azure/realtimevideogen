@@ -76,8 +76,7 @@ class StreamEditJob(StreamWiseJob):
         video_binary = await read_file_bytes(video_path)
         async with aiofiles.open(out_path, "wb") as file:
             await file.write(video_binary)
-        self.logger.info(
-            f"Video ({bytes_to_human(len(video_binary))}) saved to '{out_path}'.")
+        self.logger.info(f"Video ({bytes_to_human(len(video_binary))}) saved to '{out_path}'.")
 
     async def gen_edit(
         self,
@@ -163,8 +162,7 @@ class StreamEditJob(StreamWiseJob):
             async with aiofiles.open(out_path, "wb") as file:
                 await file.write(video_binary)
 
-            self.logger.info(
-                f"Generated edited video with {bytes_to_human(len(video_binary))} at '{out_path}'.")
+            self.logger.info(f"Generated edited video with {bytes_to_human(len(video_binary))} at '{out_path}'.")
 
     async def detect_scenes(
         self,
