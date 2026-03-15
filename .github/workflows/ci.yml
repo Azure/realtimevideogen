@@ -34,7 +34,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install flake8 j2lint
+        pip install flake8 j2lint yamllint
 
     - name: Install shellcheck
       run: |
@@ -85,6 +85,28 @@ jobs:
         j2lint apps/streamlecture/templates/ --extensions html || true
         j2lint apps/streamanimate/templates/ --extensions html || true
 
+    - name: Run YAML lint
+      if: always()
+      run: |
+        yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') \
+          > yamllint-results.txt 2>&1 || true
+        cat yamllint-results.txt
+
+    - name: Run JSON lint
+      if: always()
+      run: |
+        EXIT=0
+        for f in $(git ls-files '*.json'); do
+          if ! python -m json.tool "$f" > /dev/null; then
+            echo "INVALID: $f" >> jsonlint-results.txt
+            EXIT=1
+          fi
+        done
+        if [ "$EXIT" -eq 0 ]; then
+          echo "All JSON files are valid." > jsonlint-results.txt
+        fi
+        cat jsonlint-results.txt
+
     - name: Lint summary
       if: always()
       run: |
@@ -108,6 +130,25 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
         else
           echo "**shellcheck:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        if [ -s yamllint-results.txt ] && grep -q '\[error\]' yamllint-results.txt; then
+          YL_COUNT=$(grep -c '\[error\]' yamllint-results.txt || true)
+          echo "**yamllint:** ${YL_COUNT} error(s)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          head -20 yamllint-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "**yamllint:** No errors found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        if grep -q 'INVALID' jsonlint-results.txt 2>/dev/null; then
+          echo "**jsonlint:** Invalid JSON files found" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat jsonlint-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "**jsonlint:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
         fi
 
   test:

@@ -321,7 +321,7 @@ write_files:
 
         for NODE_IP in "${NODE_IPS[@]}"; do
           NODE_NAME=$(ssh $SSH_OPTS "$NODE_IP" hostname | tr '[:upper:]' '[:lower:]')
-          
+
           if printf '%s\n' "${ACTIVE_NODES[@]}" | grep -qx "$NODE_NAME"; then
             echo "Node $NODE_NAME already ready, skipping..."
             continue

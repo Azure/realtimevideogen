@@ -49,6 +49,7 @@ jobs:
   - script: |
       python -m pip install --upgrade pip setuptools wheel
       pip install -r requirements_dev.txt
+      pip install yamllint
       pip cache purge
     displayName: 'Install dependencies'
 
@@ -248,6 +249,28 @@ jobs:
       j2lint apps/streamlecture/templates/ --extensions html || true
       j2lint apps/streamanimate/templates/ --extensions html || true
     displayName: 'HTML/Jinja lint'
+    condition: always()
+
+  - script: |
+      yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') \
+        > yamllint-results.txt 2>&1 || true
+      cat yamllint-results.txt
+    displayName: 'Run YAML lint'
+    condition: always()
+
+  - script: |
+      EXIT=0
+      for f in $(git ls-files '*.json'); do
+        if ! python -m json.tool "$f" > /dev/null; then
+          echo "INVALID: $f" >> jsonlint-results.txt
+          EXIT=1
+        fi
+      done
+      if [ "$EXIT" -eq 0 ]; then
+        echo "All JSON files are valid." > jsonlint-results.txt
+      fi
+      cat jsonlint-results.txt
+    displayName: 'Run JSON lint'
     condition: always()
 
   - script: |
