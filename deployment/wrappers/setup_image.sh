@@ -127,6 +127,15 @@ BUILD_ARGS=(
   -t "${IMAGE_NAME}:${TAG}"
 )
 
+# Allow callers to inject extra --build-arg (or other flags) without modifying this script.
+# Each element must be a single shell word with no embedded spaces.
+# Example: EXTRA_BUILD_ARGS="--build-arg INSTALL_FLASH_ATTN=0"
+if [[ -n "${EXTRA_BUILD_ARGS:-}" ]]; then
+  # shellcheck disable=SC2206
+  read -r -a extra_args <<< "$EXTRA_BUILD_ARGS"
+  BUILD_ARGS+=("${extra_args[@]}")
+fi
+
 if [[ "$USE_HF_TOKEN" == true ]]; then
   if [[ -z "${HF_TOKEN:-}" ]]; then
     echo "ERROR: --hf_token specified but HF_TOKEN is not set"

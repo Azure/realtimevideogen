@@ -3,7 +3,7 @@ name: Docker
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *'  # Daily at 03:00 UTC
+  - cron: '0 3 * * *'  # Daily at 03:00 UTC
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -83,3 +83,93 @@ jobs:
     - name: Stop imageresize container
       if: always()
       run: docker stop imageresize_ci || true
+
+  docker-kokoro:
+    name: Docker (kokoro)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        docker system prune -af
+        df -h
+
+    - name: Start local Docker registry
+      run: docker run -d -p 5000:5000 --name registry registry:2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: network=host
+
+    - name: Build base image
+      working-directory: deployment/base
+      env:
+        DOCKER_REPO: localhost:5000
+        BASE_IMAGE: ubuntu:24.04
+        TORCH_PACKAGE: torch
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+      run: |
+        bash setup_image.sh
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' ../../services.json)
+        docker push "localhost:5000/base:${BASE_TAG}"
+
+    - name: Build kokoro image
+      working-directory: deployment/wrappers/kokoro
+      env:
+        DOCKER_REPO: localhost:5000
+        EXTRA_BUILD_ARGS: --build-arg INSTALL_FLASH_ATTN=0
+      run: bash setup_image.sh
+
+    - name: Start kokoro service
+      run: |
+        KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
+        docker run -d -p 8080:8080 --name kokoro_ci "kokoro:${KOKORO_TAG}"
+
+    - name: Wait for kokoro to be ready
+      # The HTTP server starts before model init, so we poll for status=ok rather
+      # than a bare HTTP 200. Kokoro-82M (~300 MB) downloads from HuggingFace on
+      # first start; allow up to 5 minutes (30 × 10 s).
+      run: |
+        for attempt in $(seq 1 30); do
+          STATUS=$(curl -sf http://localhost:8080/health 2>/dev/null \
+            | jq -r '.kokoro.status // empty' 2>/dev/null)
+          if [ "$STATUS" = "ok" ]; then
+            echo "✅ Kokoro is ready"
+            exit 0
+          fi
+          echo "Waiting... ($attempt/30) status=${STATUS:-loading}"
+          sleep 10
+        done
+        echo "Kokoro did not become ready in time" >&2
+        docker logs kokoro_ci >&2
+        exit 1
+
+    - name: Generate audio with kokoro (TTS)
+      run: |
+        TS=$(date -u '+%Y-%m-%d %H:%M UTC')
+        curl -sf -X POST http://localhost:8080/kokoro \
+          -H "Content-Type: application/json" \
+          -d "{\"text\": \"Hello world. The current date and time is ${TS}.\"}" \
+          -o test_audio.wav
+        [ -s test_audio.wav ] \
+          || { echo "❌ Audio file is empty or missing" >&2; exit 1; }
+        file test_audio.wav | grep -qi "WAVE" \
+          || { echo "❌ Response is not a WAV file" >&2; xxd test_audio.wav | head >&2; exit 1; }
+        echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
+
+    - name: Upload audio artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kokoro-test-audio
+        path: test_audio.wav
+
+    - name: Stop kokoro container
+      if: always()
+      run: docker stop kokoro_ci || true
