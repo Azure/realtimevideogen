@@ -8,14 +8,8 @@ source "$DEPLOYMENT_DIR/set_properties.sh"
 # shellcheck source=deployment/setup_lib.sh
 source "$DEPLOYMENT_DIR/setup_lib.sh"
 
-# curl -s -H "Metadata:true" "http://169.254.169.254/metadata/identity/info?api-version=2021-02-01" | jq .
-# az login --identity
-# az login
-# az account set --subscription $AZ_SUBSCRIPTION_ID
-# az acr list -o table
 ensure_acr_login "$ACR_NAME"
 
-# IMAGES=($(jq -r 'keys[]' ../services.json))
 mapfile -t IMAGES < <(jq -r 'keys[]' ../services.json)
 
 # Build the wrappers and apps images
