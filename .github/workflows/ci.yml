@@ -100,7 +100,7 @@ jobs:
       run: |
         EXIT=0
         for f in $(git ls-files '*.json'); do
-          if ! python -m json.tool "$f" > /dev/null; then
+          if ! jq empty "$f" > /dev/null 2>&1; then
             echo "INVALID: $f" >> jsonlint-results.txt
             EXIT=1
           fi
@@ -109,6 +109,7 @@ jobs:
           echo "All JSON files are valid." > jsonlint-results.txt
         fi
         cat jsonlint-results.txt
+        exit $EXIT
 
     - name: Lint summary
       if: always()
