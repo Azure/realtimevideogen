@@ -19,7 +19,7 @@ build_image() {
   (
     cd "$TARGET_DIR" || exit
     if [ -f setup_image.sh ]; then
-      echo "Build $IMAGE from $TARGET_DIR..."
+      echo "🔨 Building $IMAGE from $TARGET_DIR..."
       LOG_FILE=$(mktemp /tmp/build_"$IMAGE"_XXXXXX.log)
       if bash setup_image.sh > "$LOG_FILE" 2>&1; then
         echo "✅ Built $IMAGE"
@@ -62,7 +62,7 @@ for IMAGE in "${IMAGES[@]}"; do
         | sort -V \
         | tail -n 1)
   if [[ -n "$TAG" ]]; then
-    echo "Push $ACR_URL/$IMAGE:$TAG..."
+    echo "🔨 Pushing $ACR_URL/$IMAGE:$TAG..."
     if docker push "$ACR_URL/$IMAGE:$TAG" > /dev/null 2>&1; then
       echo "✅ Pushed $ACR_URL/$IMAGE:$TAG"
     else
