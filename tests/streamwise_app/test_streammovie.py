@@ -9,6 +9,8 @@ import json
 import pytest
 import aiofiles
 
+from PIL import Image  # noqa: F401 - import before patch.dict to keep PIL in sys.modules
+
 from http import HTTPStatus
 
 from typing import AsyncGenerator
@@ -282,6 +284,10 @@ async def test_gen_shot_no_dialogue() -> None:
     assert shot_path is not None
     assert shot_path.endswith(".mp4")
     assert await aiofiles.os.path.exists(shot_path)
+
+    # Image for the shot should also have been saved
+    image_path = f"{job.job_path}/shot_000.png"
+    assert await aiofiles.os.path.exists(image_path)
 
     await job.close()
 

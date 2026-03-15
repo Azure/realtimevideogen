@@ -284,6 +284,10 @@ class StreamMovieJob(StreamWiseJob):
             deadline=deadline,
         )
 
+        image_path = f"{self.job_path}/shot_{shot_idx:03d}.png"
+        image.save(image_path)
+        self.logger.info(f"[{shot_idx}] Image saved to '{image_path}'.")
+
         output_mode = self.get_config_output_mode()
         video_binary: Optional[bytes] = None
 
