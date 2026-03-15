@@ -26,6 +26,7 @@ from scenedetect.stats_manager import StatsManager
 
 # Local relative imports
 sys.path.append("..")  # noqa: E402
+sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
@@ -131,7 +132,7 @@ class StreamDubJob(StreamWiseJob):
                 scene_binaries,
                 fast_copy=False)
             if not video_binary:
-                raise ValueError("Cannot concatenate scenes into final podcast video.")
+                raise ValueError("Cannot concatenate scenes into final dubbed video.")
             video_info = get_video_file_info(video_binary)
             video_duration = video_info["video"]["duration_secs"]
             video_fps = video_info["video"]["fps"]

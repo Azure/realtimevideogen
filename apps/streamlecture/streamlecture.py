@@ -12,6 +12,7 @@ from typing import Any
 from streamlecture_job import StreamLectureJob
 
 # Local relative imports
+sys.path.append("..")  # noqa: E402
 sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob

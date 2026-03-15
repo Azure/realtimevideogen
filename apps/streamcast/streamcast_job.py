@@ -513,7 +513,7 @@ class StreamCastJob(StreamWiseJob):
         """Generate a podcast."""
         async with self.job_status_handler():
             if not pdf_base64:
-                self.logger.info("Document is required.")
+                self.logger.error("Document is required.")
                 await self.save_status(JobStatus.FAILED)
                 raise ValueError("Missing 'pdf_base64' in request")
             self.logger.info(f"Generating podcast transcript for document with {bytes_to_human(len(pdf_base64))}.")
@@ -616,7 +616,7 @@ class StreamCastJob(StreamWiseJob):
                 else:
                     self.logger.warning(f"Character '{character_name}' not found in characters. Using default.")
                     character = Character(name=character, gender="Unknown")
-                if character.image is None and output_mode != OutputMode.AUDIO_ONLY.value:
+                if character.image is None and output_mode is not OutputMode.AUDIO_ONLY:
                     self.logger.warning(f"Character '{character_name}' has no image. Using main image as fallback.")
                     character.image = img_main  # Use the main image as a fallback
                 character_position = self.characters.get_position(character_name)

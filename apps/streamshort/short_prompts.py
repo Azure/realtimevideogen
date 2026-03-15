@@ -13,7 +13,7 @@ If I provide multiple frames, describe each one separately in order with the fol
 ...
 """
 
-HIGHLIGT_PROMPT = """
+HIGHLIGHT_PROMPT = """
 You select the most engaging scenes for a short highlight reel.
 Return ONLY a JSON list of scene indexes (integers) in the order they should appear.
 Do not add any preamble or explanation, just output the plain JSON list, for example:

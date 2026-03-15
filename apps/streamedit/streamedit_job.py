@@ -69,7 +69,7 @@ class StreamEditJob(StreamWiseJob):
         """
         async with self.job_status_handler():
             if not video_base64:
-                self.logger.info("Video is required.")
+                self.logger.error("Video is required.")
                 await self.save_status(JobStatus.FAILED)
                 raise ValueError("Missing 'video_base64' in request")
             self.logger.info(f"Generating edit for video with {bytes_to_human(len(video_base64))}.")

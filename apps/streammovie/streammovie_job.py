@@ -17,6 +17,7 @@ from movie_prompts import SYSTEM_PROMPT
 
 # Local relative imports
 sys.path.append("..")  # noqa: E402
+sys.path.append("../..")  # noqa: E402
 
 from streamwise_job import StreamWiseJob
 from streamwise_job import JobStatus
@@ -28,9 +29,12 @@ from console_utils import bytes_to_human
 
 from media_utils import concatenate_videos
 from media_utils import save_video_audio
+from media_utils import save_video_frames
 from media_utils import get_audio_duration
 
 from file_utils import save_base64_as_binary
+
+from video import HUNYUANFRAMEPACK_FPS
 
 
 DEFAULT_SHOT_DURATION_SECS = 4.0
@@ -90,7 +94,7 @@ class StreamMovieJob(StreamWiseJob):
         """
         async with self.job_status_handler():
             if not movie_description:
-                self.logger.info("Movie description is required.")
+                self.logger.error("Movie description is required.")
                 await self.save_status(JobStatus.FAILED)
                 raise ValueError("Missing 'movie_description' in request")
 
@@ -291,8 +295,8 @@ class StreamMovieJob(StreamWiseJob):
         output_mode = self.get_config_output_mode()
         video_binary: Optional[bytes] = None
 
-        if dialogue and dialogue.strip() and output_mode is not OutputMode.AUDIO_ONLY:
-            # Generate audio for the dialogue
+        if dialogue and dialogue.strip():
+            # Generate audio for the dialogue (for all output modes)
             speech_speed = self.get_config_float("speech_speed", DEFAULT_SPEECH_SPEED)
             audio_base64 = await self.gen.gen_audio(
                 text=dialogue.strip(),
@@ -308,7 +312,20 @@ class StreamMovieJob(StreamWiseJob):
                     f"[{shot_idx}] Generated audio with {bytes_to_human(len(audio_base64))} "
                     f"and {audio_duration:.2f} seconds.")
 
-                if output_mode is OutputMode.VIDEO_AUDIO_SYNCED:
+                if output_mode is OutputMode.AUDIO_ONLY:
+                    # Static image + audio: no generative video
+                    num_frames = int(round(audio_duration * HUNYUANFRAMEPACK_FPS))
+                    video_frames = [image] * num_frames
+                    merged_path = f"{self.job_path}/shot_{shot_idx:03d}_merged.mp4"
+                    await save_video_audio(
+                        video_frames,
+                        audio_path,
+                        fps=HUNYUANFRAMEPACK_FPS,
+                        out_video_path=merged_path,
+                    )
+                    async with aiofiles.open(merged_path, "rb") as fh:
+                        video_binary = await fh.read()
+                elif output_mode is OutputMode.VIDEO_AUDIO_SYNCED:
                     # Lip-synced video
                     video_binary = await self.gen.gen_video_audio_from_img(
                         img=image,
@@ -344,18 +361,30 @@ class StreamMovieJob(StreamWiseJob):
                         video_binary = await fh.read()
 
         if video_binary is None:
-            # No dialogue, or audio generation failed: plain video
-            video_binary = await self.gen.gen_video(
-                img=image,
-                prompt=visual_prompt,
-                neg_prompt=neg_prompt,
-                width=self.width,
-                height=self.height,
-                video_seconds=shot_duration,
-                steps=self.get_num_steps(),
-                task_id=f"shot_{shot_idx:03d}_video",
-                deadline=deadline,
-            )
+            if output_mode is OutputMode.AUDIO_ONLY:
+                # No dialogue (or audio generation failed): static image video, no generative model
+                num_frames = int(round(shot_duration * HUNYUANFRAMEPACK_FPS))
+                video_frames_static = [image] * num_frames
+                static_path = f"{self.job_path}/shot_{shot_idx:03d}_static.mp4"
+                await save_video_frames(
+                    video_frames_static,
+                    fps=HUNYUANFRAMEPACK_FPS,
+                    out_video_path=static_path)
+                async with aiofiles.open(static_path, "rb") as fh:
+                    video_binary = await fh.read()
+            else:
+                # No dialogue, or audio generation failed: plain AI-generated video
+                video_binary = await self.gen.gen_video(
+                    img=image,
+                    prompt=visual_prompt,
+                    neg_prompt=neg_prompt,
+                    width=self.width,
+                    height=self.height,
+                    video_seconds=shot_duration,
+                    steps=self.get_num_steps(),
+                    task_id=f"shot_{shot_idx:03d}_video",
+                    deadline=deadline,
+                )
 
         if not video_binary:
             self.logger.error(f"[{shot_idx}] No video binary produced for shot.")

@@ -73,5 +73,5 @@ if __name__ == "__main__":
             "streamwise.log",
             "streamcast.log"
         ],
-        app_name="streamcast",
+        app_name="StreamCast",
     )
