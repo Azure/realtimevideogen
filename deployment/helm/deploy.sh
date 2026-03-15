@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-# shellcheck disable=SC1091
+# shellcheck source=deployment/set_properties.sh.template
 source ../set_properties.sh
+# shellcheck source=deployment/setup_lib.sh
+source ../setup_lib.sh
 
 # Setup namespace
 if ! kubectl get namespace "$K8S_NAMESPACE" &> /dev/null; then
@@ -19,7 +21,7 @@ if ! az account show &> /dev/null; then
     echo "Not logged in"
     az login
 fi
-az acr login --name "$ACR_NAME"
+ensure_acr_login "$ACR_NAME"
 az account set --subscription "$AZ_SUBSCRIPTION_ID"
 az acr list --output table
 az acr update -n "$ACR_NAME" --admin-enabled true
