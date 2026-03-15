@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Submit Movie Generation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>const ansiUp = new AnsiUp();</script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+    </div>
+
+    <div class="container py-4">
+        <h1>🚀 Submit Movie Generation</h1>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form id="job-form">
+
+                    <h4>🎬 Movie</h4>
+                    <div class="mb-3">
+                        <label for="movie_description" class="form-label">Movie Description</label>
+                        <textarea id="movie_description" name="movie_description"
+                                  class="form-control" rows="5"
+                                  placeholder="Describe the movie you want to generate. Be specific about genre, characters, setting, and story arc...">
+                        </textarea>
+                    </div>
+
+                    <h4>🎞️ Structure</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="max_shots" class="form-label">🎥 Max shots</label>
+                            <input type="number" class="form-control" id="max_shots" name="max_shots" value="5" min="1" max="50">
+                            <div class="form-text">Limit the number of shots generated (1–50).</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="max_tokens" class="form-label">🧮 Max tokens</label>
+                            <input type="number" class="form-control" id="max_tokens" name="max_tokens" value="8192" min="1024">
+                        </div>
+                    </div>
+
+                    <h4>📽️ Output</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="output_mode" class="form-label">🎚️ Mode</label>
+                            <select class="form-select" id="output_mode" name="output_mode">
+                                <option value="video_audio_synced">🔉🗣️ Video + Audio (synced)</option>
+                                <option value="video_audio_unsynced">📽️🔉 Video + Audio (unsynced)</option>
+                                <option value="audio_only">🔉 Audio Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="resolution" class="form-label">🖥️ Resolution</label>
+                            <select class="form-select" id="resolution" name="resolution">
+                                <option value="high">⬆️ High (1280x800)</option>
+                                <option value="medium" selected>↗️ Medium (640x400)</option>
+                                <option value="low">⬇️ Low (320x200)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quality" class="form-label">🌟 Quality</label>
+                            <select class="form-select" id="quality" name="quality">
+                                <option value="high">⬆️ High</option>
+                                <option value="medium" selected>↗️ Medium</option>
+                                <option value="low">⬇️ Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checkboxes -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="upscaling" name="upscaling" value="1" checked>
+                                <label for="upscaling" class="form-check-label">
+                                    🖼️⬆️ Upscale
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Generate lower resolution and then upscale.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="speech_speed" class="form-label">🎙️ Speech speed:</label>
+                        <span id="speech_speed_value">1.1</span>x
+                        <input type="range" class="form-range"
+                            id="speech_speed" name="speech_speed"
+                            value="1.1" min="0.5" max="2.0" step="0.1"
+                            oninput="document.getElementById('speech_speed_value').textContent = this.value">
+                    </div>
+
+                    <!-- Estimate + submit -->
+                    <div class="mb-3">
+                        <strong>⏳ Estimated generation time:</strong> <span id="generation_time_estimate">~5 minutes</span>
+                    </div>
+
+                    <div class="text-center">
+                        <button
+                            type="submit"
+                            class="btn btn-success btn-lg"
+                            style="width: 200px;">
+                            🚀 Submit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Output -->
+        <div id="output-card" class="card shadow-sm" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title">Response</h5>
+                <pre id="output" class="bg-dark text-white p-3 rounded" style="height: 300px; overflow: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("job-form").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const movieDescription = document.getElementById("movie_description").value.trim();
+            if (!movieDescription) {
+                alert("Please enter a movie description.");
+                return;
+            }
+
+            const payload = {};
+            payload.movie_description = movieDescription;
+            payload.max_shots = parseInt(document.getElementById("max_shots").value, 10);
+            payload.max_tokens = parseInt(document.getElementById("max_tokens").value, 10);
+            payload.output_mode = document.getElementById("output_mode").value;
+            payload.resolution = document.getElementById("resolution").value;
+            payload.quality = document.getElementById("quality").value;
+            payload.speech_speed = parseFloat(document.getElementById("speech_speed").value);
+            payload.upscaling = document.getElementById("upscaling").checked;
+
+            const output = document.getElementById("output");
+            try {
+                const response = await fetch("/api/job", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const contentType = response.headers.get("Content-Type") || "";
+                if (contentType.includes("application/json")) {
+                    const data = await response.json();
+                    if (data.job_id) {
+                        window.location.href = `/job/${data.job_id}`;
+                    }
+                    output.innerHTML = `<pre class="text-white">${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    const text = await response.text();
+                    output.textContent = `Unexpected content-type: ${contentType}\n\n${text}`;
+                }
+                document.getElementById("output-card").style.display = "block";
+            } catch (err) {
+                output.textContent = "❌ Error: " + err.message;
+                document.getElementById("output-card").style.display = "block";
+            }
+        });
+    </script>
+</body>
+</html>
