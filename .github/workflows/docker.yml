@@ -140,7 +140,7 @@ jobs:
           STATUS=$(curl -sf http://localhost:8080/health 2>/dev/null \
             | jq -r '.kokoro.status // empty' 2>/dev/null)
           if [ "$STATUS" = "ok" ]; then
-            echo "Kokoro is ready"
+            echo "✅ Kokoro is ready"
             exit 0
           fi
           echo "Waiting... ($attempt/30) status=${STATUS:-loading}"
@@ -152,9 +152,10 @@ jobs:
 
     - name: Generate audio with kokoro (TTS)
       run: |
+        TS=$(date -u '+%Y-%m-%d %H:%M UTC')
         curl -sf -X POST http://localhost:8080/kokoro \
           -H "Content-Type: application/json" \
-          -d '{"text": "Hello world"}' \
+          -d "{\"text\": \"Hello world. The current date and time is ${TS}.\"}" \
           -o test_audio.wav
         [ -s test_audio.wav ] \
           || { echo "❌ Audio file is empty or missing" >&2; exit 1; }
