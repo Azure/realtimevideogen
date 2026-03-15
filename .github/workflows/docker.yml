@@ -85,8 +85,9 @@ jobs:
       run: docker stop imageresize_ci || true
 
   docker-kokoro:
-    name: Docker (kokoro)
+    name: Docker (kokoro → whisper E2E)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
     - uses: actions/checkout@v5
@@ -124,6 +125,90 @@ jobs:
         DOCKER_REPO: localhost:5000
         EXTRA_BUILD_ARGS: --build-arg INSTALL_FLASH_ATTN=0
       run: bash setup_image.sh
+
+    - name: Create vllm-openai stub for CI
+      # The real vllm/vllm-openai image is ~15 GB; use a lightweight Python image
+      # as a stand-in so the whisper Dockerfile layers (apt + pip) can be validated.
+      run: |
+        docker pull python:3.12-slim
+        docker tag python:3.12-slim localhost:5000/vllm/vllm-openai:v0.9.1
+        docker push localhost:5000/vllm/vllm-openai:v0.9.1
+
+    - name: Build whisper (vllm-librosa) image
+      working-directory: deployment/wrappers/whisper
+      run: |
+        WHISPER_TAG=$(jq -r '.whisper.dockerImage.tag' ../../../services.json)
+        docker buildx build \
+          --load \
+          --build-arg DOCKER_REPO=localhost:5000 \
+          -t "vllm-librosa:${WHISPER_TAG}" \
+          .
+
+    - name: Start kokoro service
+      run: |
+        KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
+        docker run -d -p 8080:8080 --name kokoro_ci "kokoro:${KOKORO_TAG}"
+
+    - name: Wait for kokoro to be ready
+      # The HTTP server starts before model init, so we poll for status=ok rather
+      # than a bare HTTP 200. Kokoro-82M (~300 MB) downloads from HuggingFace on
+      # first start; allow up to 5 minutes (30 × 10 s).
+      run: |
+        for attempt in $(seq 1 30); do
+          STATUS=$(curl -sf http://localhost:8080/health 2>/dev/null \
+            | jq -r '.kokoro.status // empty' 2>/dev/null)
+          if [ "$STATUS" = "ok" ]; then
+            echo "Kokoro is ready"
+            exit 0
+          fi
+          echo "Waiting... ($attempt/30) status=${STATUS:-loading}"
+          sleep 10
+        done
+        echo "Kokoro did not become ready in time" >&2
+        docker logs kokoro_ci >&2
+        exit 1
+
+    - name: Generate audio with kokoro (TTS)
+      run: |
+        curl -sf -X POST http://localhost:8080/kokoro \
+          -H "Content-Type: application/json" \
+          -d '{"text": "Hello world"}' \
+          -o test_audio.wav
+        [ -s test_audio.wav ] \
+          || { echo "❌ Audio file is empty or missing" >&2; exit 1; }
+        file test_audio.wav | grep -qi "WAVE" \
+          || { echo "❌ Response is not a WAV file" >&2; xxd test_audio.wav | head >&2; exit 1; }
+        echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
+
+    - name: Stop kokoro container
+      if: always()
+      run: docker stop kokoro_ci || true
+
+    - name: Transcribe audio with whisper (ASR)
+      # Run the vllm-librosa container (Python + ffmpeg + librosa + soundfile) and
+      # install faster-whisper inside it to transcribe on CPU using the tiny.en model.
+      # This validates that the container can be used for audio transcription without
+      # requiring a GPU or the full vLLM server.
+      run: |
+        cat > /tmp/transcribe_test.py << 'EOF'
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q', 'faster-whisper'])
+        from faster_whisper import WhisperModel
+        model = WhisperModel('tiny.en', device='cpu', compute_type='int8')
+        segments, _info = model.transcribe('/audio.wav')
+        text = ' '.join(s.text for s in segments).strip()
+        print('Transcript:', text)
+        assert len(text) > 0, 'Empty transcript - ASR produced no output'
+        print('PASS: end-to-end TTS to ASR pipeline succeeded')
+        EOF
+        WHISPER_TAG=$(jq -r '.whisper.dockerImage.tag' services.json)
+        docker run --rm \
+          -v "$(pwd)/test_audio.wav:/audio.wav:ro" \
+          -v "/tmp/transcribe_test.py:/transcribe_test.py:ro" \
+          "vllm-librosa:${WHISPER_TAG}" \
+          python3 /transcribe_test.py
+        echo "✅ PASS: whisper container transcribed kokoro audio"
 
   docker-whisper:
     name: Docker (whisper / vllm-librosa)
@@ -164,3 +249,9 @@ jobs:
           --build-arg DOCKER_REPO=localhost:5000 \
           -t "vllm-librosa:${TAG}" \
           .
+
+    - name: Test whisper image (librosa/soundfile availability)
+      run: |
+        TAG=$(jq -r '.whisper.dockerImage.tag' services.json)
+        docker run --rm "vllm-librosa:${TAG}" \
+          python3 -c "import librosa; import soundfile; print('✅ PASS: librosa and soundfile available in whisper image')"
