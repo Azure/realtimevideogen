@@ -88,9 +88,10 @@ jobs:
     - name: Run YAML lint
       if: always()
       run: |
-        yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') \
-          > yamllint-results.txt 2>&1 || true
+        yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') > yamllint-results.txt 2>&1
+        YAMLLINT_EXIT=$?
         cat yamllint-results.txt
+        exit $YAMLLINT_EXIT
 
     - name: Run JSON lint
       if: always()

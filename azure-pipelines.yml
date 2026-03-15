@@ -252,9 +252,10 @@ jobs:
     condition: always()
 
   - script: |
-      yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') \
-        > yamllint-results.txt 2>&1 || true
+      yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') > yamllint-results.txt 2>&1
+      YAMLLINT_EXIT=$?
       cat yamllint-results.txt
+      exit $YAMLLINT_EXIT
     displayName: 'Run YAML lint'
     condition: always()
 
