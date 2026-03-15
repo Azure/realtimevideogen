@@ -31,7 +31,7 @@ jobs:
       run: docker run -d -p 5000:5000 --name registry registry:2
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
       with:
         driver-opts: network=host
 
@@ -103,7 +103,7 @@ jobs:
       run: docker run -d -p 5000:5000 --name registry registry:2
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
       with:
         driver-opts: network=host
 
@@ -165,7 +165,7 @@ jobs:
 
     - name: Upload audio artifact
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: kokoro-test-audio
         path: test_audio.wav
