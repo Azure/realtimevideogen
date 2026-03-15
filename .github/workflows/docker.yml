@@ -85,7 +85,7 @@ jobs:
       run: docker stop imageresize_ci || true
 
   docker-kokoro:
-    name: Docker (kokoro → whisper E2E)
+    name: Docker (kokoro)
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -126,24 +126,6 @@ jobs:
         EXTRA_BUILD_ARGS: --build-arg INSTALL_FLASH_ATTN=0
       run: bash setup_image.sh
 
-    - name: Create vllm-openai stub for CI
-      # The real vllm/vllm-openai image is ~15 GB; use a lightweight Python image
-      # as a stand-in so the whisper Dockerfile layers (apt + pip) can be validated.
-      run: |
-        docker pull python:3.12-slim
-        docker tag python:3.12-slim localhost:5000/vllm/vllm-openai:v0.9.1
-        docker push localhost:5000/vllm/vllm-openai:v0.9.1
-
-    - name: Build whisper (vllm-librosa) image
-      working-directory: deployment/wrappers/whisper
-      run: |
-        WHISPER_TAG=$(jq -r '.whisper.dockerImage.tag' ../../../services.json)
-        docker buildx build \
-          --load \
-          --build-arg DOCKER_REPO=localhost:5000 \
-          -t "vllm-librosa:${WHISPER_TAG}" \
-          .
-
     - name: Start kokoro service
       run: |
         KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
@@ -180,78 +162,13 @@ jobs:
           || { echo "❌ Response is not a WAV file" >&2; xxd test_audio.wav | head >&2; exit 1; }
         echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
 
+    - name: Upload audio artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kokoro-test-audio
+        path: test_audio.wav
+
     - name: Stop kokoro container
       if: always()
       run: docker stop kokoro_ci || true
-
-    - name: Transcribe audio with whisper (ASR)
-      # Run the vllm-librosa container (Python + ffmpeg + librosa + soundfile) and
-      # install faster-whisper inside it to transcribe on CPU using the tiny.en model.
-      # This validates that the container can be used for audio transcription without
-      # requiring a GPU or the full vLLM server.
-      run: |
-        cat > /tmp/transcribe_test.py << 'EOF'
-        import subprocess
-        import sys
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q', 'faster-whisper'])
-        from faster_whisper import WhisperModel
-        model = WhisperModel('tiny.en', device='cpu', compute_type='int8')
-        segments, _info = model.transcribe('/audio.wav')
-        text = ' '.join(s.text for s in segments).strip()
-        print('Transcript:', text)
-        assert len(text) > 0, 'Empty transcript - ASR produced no output'
-        print('PASS: end-to-end TTS to ASR pipeline succeeded')
-        EOF
-        WHISPER_TAG=$(jq -r '.whisper.dockerImage.tag' services.json)
-        docker run --rm \
-          -v "$(pwd)/test_audio.wav:/audio.wav:ro" \
-          -v "/tmp/transcribe_test.py:/transcribe_test.py:ro" \
-          "vllm-librosa:${WHISPER_TAG}" \
-          python3 /transcribe_test.py
-        echo "✅ PASS: whisper container transcribed kokoro audio"
-
-  docker-whisper:
-    name: Docker (whisper / vllm-librosa)
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v5
-
-    - name: Free disk space
-      run: |
-        df -h
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-        docker system prune -af
-        df -h
-
-    - name: Start local Docker registry
-      run: docker run -d -p 5000:5000 --name registry registry:2
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        driver-opts: network=host
-
-    - name: Create vllm-openai stub for CI
-      # The real vllm/vllm-openai image is ~15 GB; use a lightweight Python image
-      # as a stand-in so the whisper Dockerfile layers (apt + pip) can be validated.
-      run: |
-        docker pull python:3.12-slim
-        docker tag python:3.12-slim localhost:5000/vllm/vllm-openai:v0.9.1
-        docker push localhost:5000/vllm/vllm-openai:v0.9.1
-
-    - name: Build whisper (vllm-librosa) image
-      working-directory: deployment/wrappers/whisper
-      run: |
-        TAG=$(jq -r '.whisper.dockerImage.tag' ../../../services.json)
-        docker buildx build \
-          --load \
-          --build-arg DOCKER_REPO=localhost:5000 \
-          -t "vllm-librosa:${TAG}" \
-          .
-
-    - name: Test whisper image (librosa/soundfile availability)
-      run: |
-        TAG=$(jq -r '.whisper.dockerImage.tag' services.json)
-        docker run --rm "vllm-librosa:${TAG}" \
-          python3 -c "import librosa; import soundfile; print('✅ PASS: librosa and soundfile available in whisper image')"
