@@ -122,7 +122,6 @@ jobs:
       working-directory: deployment/wrappers/kokoro
       env:
         DOCKER_REPO: localhost:5000
-        # flash-attn requires CUDA; skip on the CPU-only CI runner
         EXTRA_BUILD_ARGS: --build-arg INSTALL_FLASH_ATTN=0
       run: bash setup_image.sh
 

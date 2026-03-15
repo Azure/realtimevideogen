@@ -120,7 +120,7 @@ async def get_service_health(
     try:
         timeout = ClientTimeout(total=0.5, connect=0.5)  # Short timeout for faster responses
         session = await http_session_manager.get_global_session()
-        # Gemma service has a different health endpoint
+        # vLLM services (Gemma, Llama, Whisper) use /metrics instead of /health
         if container_name in VLLM_SERVICES:
             # /load
             # /v1/models
@@ -136,15 +136,6 @@ async def get_service_health(
                         "running": is_running,  # It doesn't block
                         "vllm_metrics": vllm_metrics,
                     }
-                return {"status": f"unhealthy ({response.status})"}
-        # Whisper service health check
-        elif container_name == "whisper":
-            logging.info("TODO check whisper health endpoint")
-            # /health
-            # /metrics
-            async with session.get(f"{url}/", timeout=timeout) as response:
-                if response.status == HTTPStatus.OK:
-                    return {"status": "ok"}
                 return {"status": f"unhealthy ({response.status})"}
         # Rest of the services
         else:
