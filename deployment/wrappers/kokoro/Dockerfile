@@ -18,13 +18,6 @@ RUN if [ "${INSTALL_FLASH_ATTN}" = "1" ]; then \
 
 WORKDIR /kokoro
 
-# pyopenjtalk (pulled in by misaki[ja]) must be compiled from source and
-# requires cmake and a C++ toolchain that are not present in the base image.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends cmake build-essential && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY docker_files/requirements.txt .
 RUN conda run -n streamwise pip install -r requirements.txt && \
     conda run -n streamwise pip cache purge
