@@ -109,7 +109,7 @@ async def test_server_help() -> None:
     """Check the HTTP server start."""
     test_args = ["run_http_server.py", "--help"]
     with patch.object(sys, "argv", test_args):
-        with pytest.raises(SystemExit) as exc_info:
+        with raises(SystemExit) as exc_info:
             await main()
         assert exc_info.value.code == 0
 
@@ -151,6 +151,9 @@ async def test_server_imageresize() -> None:
     "fantasytalking",
     "hunyuanframepack",
     "hunyuanframepackf1",
+    "wan",
+    "wan21",
+    "wan22",
 ])
 async def test_server_service_diffusers(model_name: str) -> None:
     """Check the HTTP server start for multiple services.
@@ -159,22 +162,10 @@ async def test_server_service_diffusers(model_name: str) -> None:
     """
     test_args = ["run_http_server.py", f"--{model_name}"]
     with patch.object(sys, "argv", test_args):
-        with pytest.raises(RuntimeError):
-            await main()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("model_name", [
-    "wan", "wan21", "wan22",
-])
-async def test_server_service_wan(model_name: str) -> None:
-    """Check the HTTP server start for multiple services.
-    These services fail with:
-    RuntimeError: Failed to import diffusers.pipelines.pipeline_utils
-    """
-    test_args = ["run_http_server.py", f"--{model_name}"]
-    with patch.object(sys, "argv", test_args):
-        with pytest.raises((ModuleNotFoundError, RuntimeError)):
+        with raises(
+            (ModuleNotFoundError, RuntimeError),
+            match="(diffusers|This module requires CUDA support|Found no NVIDIA driver)"
+        ):
             await main()
 
 
