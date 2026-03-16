@@ -25,6 +25,9 @@ RUN apt-get update && \
         libxrender1 \
         libgl1 \
         ffmpeg \
+        build-essential \
+        cmake \
+        mediainfo \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
