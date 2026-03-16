@@ -15,7 +15,7 @@ For those that do not, we use [USP](https://arxiv.org/abs/2503.06132) from [xDiT
 We have enabled parallelism for four models (e.g., Fantasy Talking, Hunyuan FramePack), each requiring under two hours of work.
 The [xfuser](https://github.com/xdit-project/xDiT) repository provides examples, and this process could be streamlined with LLM-based coding agents.
 
-## Profiling
+## Accuracy
 We use [scikit-learn](https://scikit-learn.org/stable/index.html) to fit linear models.
 Our runtime and cost profiles are over 99.9% accurate.
 

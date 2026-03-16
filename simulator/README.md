@@ -91,7 +91,7 @@ Contains empirically measured latency and power profiles:
 - **`constants.py`**: Workflow configuration parameters (number of scenes, frames per scene, model hyperparameters)
 - **`data_loading.py`**: Utilities to load and parse model (component) profile CSV files
 - **`algorithms_baseline.py`**: Baseline implementations for comparison
-- **`algorithms_power.py`**: Algorithms-variants with energy estimation
+- **`algorithms_power.py`**: Algorithm variants with energy estimation
 
 ## How to Use
 

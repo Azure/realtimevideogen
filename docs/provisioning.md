@@ -1,5 +1,5 @@
 # Provisioning hardware and models
-We frame hardware and model selection for a workload (e.g., a 2-minute medium-quality video podcast) as anoptimization problem.
+We frame hardware and model selection for a workload (e.g., a 2-minute medium-quality video podcast) as an optimization problem.
 After selecting a configuration, the hardware and model provisioners handle setup accordingly.
 
 ## Auto-scaling
@@ -24,9 +24,9 @@ If a solution is unfeasible (e.g., no image generation models), it gets discarde
 This refinement process includes:
 (1) adding or removing hardware resources (including Spot);
 (2) switching GPU types;
-(3) switch model for a task; and
-(3) adjusting the number of model instances; and
-(4) modifying GPU allocation per instance (i.e., model parallelism).
+(3) switching model for a task;
+(4) adjusting the number of model instances; and
+(5) modifying GPU allocation per instance (i.e., model parallelism).
 We also add domain-specific heuristics to guide the evolution.
 If the cost exceeds the budget, we switch to Spot VMs and scale-in VMs.
 If latency is too high, we scale-out and try faster GPUs.

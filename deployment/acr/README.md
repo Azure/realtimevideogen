@@ -90,7 +90,7 @@ sudo kubeadm init \
   --image-repository="$DOCKER_REPO"
 ```
 
-You might have a `401 unauthorize` error. If so, add this to `/etc/containerd/config.toml`:
+You might have a `401 unauthorized` error. If so, add this to `/etc/containerd/config.toml`:
 
 ```toml
 [plugins."io.containerd.grpc.v1.cri".registry.configs."$DOCKER_REPO".auth]
