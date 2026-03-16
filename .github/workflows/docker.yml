@@ -89,8 +89,10 @@ jobs:
           -H "Content-Type: application/json" \
           -d "{\"img\": \"$IMG_BASE64\", \"width\": 200, \"height\": 200}" \
           -o test_image.png
-        [ -s test_image.png ] \
-          || { echo "❌ Image file is empty or missing" >&2; exit 1; }
+        if [ ! -s test_image.png ]; then
+          echo "❌ Image file is empty or missing" >&2
+          exit 1
+        fi
         echo "✅ PASS: imageresize endpoint responded successfully"
         mediainfo test_image.png
 
@@ -140,10 +142,15 @@ jobs:
           -H "Content-Type: application/json" \
           -d "{\"text\": \"Hello world. The current date and time is ${TS}.\"}" \
           -o test_audio.wav
-        [ -s test_audio.wav ] \
-          || { echo "❌ Audio file is empty or missing" >&2; exit 1; }
-        file test_audio.wav | grep -qi "WAVE" \
-          || { echo "❌ Response is not a WAV file" >&2; xxd test_audio.wav | head >&2; exit 1; }
+        if [ ! -s test_audio.wav ]; then
+          echo "❌ Audio file is empty or missing" >&2
+          exit 1
+        fi
+        if ! file test_audio.wav | grep -qi "WAVE"; then
+          echo "❌ Response is not a WAV file" >&2
+          xxd test_audio.wav | head >&2
+          exit 1
+        fi
         echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
         mediainfo test_audio.wav
 
