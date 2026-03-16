@@ -115,11 +115,11 @@ class TestPptxToImages:
     def _make_fitz_doc(self, num_pages: int = 2) -> MagicMock:
         """Create a minimal mock fitz.Document."""
         doc = MagicMock()
-        doc.__len__ = MagicMock(return_value=num_pages)
+        doc.__len__.return_value = num_pages
         rect = MagicMock()
         rect.width = 1280.0
         rect.height = 800.0
-        doc.__getitem__ = MagicMock(return_value=MagicMock(rect=rect))
+        doc.__getitem__.return_value = MagicMock(rect=rect)
 
         pages = []
         for _ in range(num_pages):
