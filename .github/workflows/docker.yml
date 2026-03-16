@@ -148,7 +148,7 @@ jobs:
         fi
         if ! file test_audio.wav | grep -qi "WAVE"; then
           echo "❌ Response is not a WAV file" >&2
-          xxd test_audio.wav | head >&2
+          mediainfo test_audio.wav >&2
           exit 1
         fi
         echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
