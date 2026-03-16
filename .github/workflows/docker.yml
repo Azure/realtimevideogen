@@ -142,6 +142,7 @@ jobs:
         file test_audio.wav | grep -qi "WAVE" \
           || { echo "❌ Response is not a WAV file" >&2; xxd test_audio.wav | head >&2; exit 1; }
         echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
+        mediainfo test_audio.wav
 
     - name: Upload audio artifact
       if: always()
