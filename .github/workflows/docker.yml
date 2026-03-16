@@ -88,8 +88,11 @@ jobs:
         curl -sf -X POST http://localhost:8080/imageresize \
           -H "Content-Type: application/json" \
           -d "{\"img\": \"$IMG_BASE64\", \"width\": 200, \"height\": 200}" \
-          -o /dev/null
+          -o test_image.png
+        [ -s test_image.png ] \
+          || { echo "❌ Image file is empty or missing" >&2; exit 1; }
         echo "✅ PASS: imageresize endpoint responded successfully"
+        mediainfo test_image.png
 
     - name: Clean up imageresize
       run: |
