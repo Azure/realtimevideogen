@@ -12,7 +12,7 @@ RUN git clone https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar.git /hunyua
     conda install -n streamwise pytorch-cuda -c pytorch -c nvidia
 WORKDIR /hunyuanavatar
 
-# Use our patched requirements instead of the ones in the repo for old Python versions
+# Use our patched requirements to work around pins incompatible with the current Python 3.12/base image
 COPY docker_files/requirements.txt .
 RUN conda run -n streamwise pip install -r requirements.txt && \
     conda run -n streamwise pip cache purge
