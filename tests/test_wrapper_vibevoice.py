@@ -3,16 +3,14 @@
 import sys
 import gc
 import pytest
-import logging
+import inspect
+
+import torch
 
 from types import ModuleType
 
 from unittest.mock import patch
 from unittest.mock import MagicMock
-from tests.torch_mock import TorchMock
-from tests.test_utils import temp_sys_path
-
-mock_torch = TorchMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/vibevoice")
@@ -22,12 +20,81 @@ class DummySchedulerMixin:
     pass
 
 
+class _FrozenDict(dict):
+    """Dict-like config that also supports attribute access (mimics diffusers FrozenDict)."""
+    def __getattr__(self, name: str) -> object:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+
 class DummyConfigMixin:
+    """Mimics diffusers ConfigMixin: register_to_config stores __init__ kwargs in self.config."""
     pass
 
 
 class DummySchedulerOutput:
     pass
+
+
+class DummyModelOutput:
+    """Minimal stand-in for transformers.ModelOutput so @dataclass can resolve __mro__."""
+    pass
+
+
+class DummyPretrainedConfig:
+    """Minimal stand-in for transformers.PretrainedConfig."""
+    model_type = ""
+    is_composition = False
+    sub_configs = {}
+
+    def __init__(self, **kwargs: object) -> None:
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+class DummyBaseModelOutputWithPast(DummyModelOutput):
+    pass
+
+
+class DummyPreTrainedModel(torch.nn.Module):
+    """Minimal stand-in for transformers.PreTrainedModel."""
+    config_class = None
+    base_model_prefix = ""
+
+    def __init__(self, config: object = None, *args: object, **kwargs: object) -> None:
+        super().__init__()
+        self.config = config
+
+    def _init_weights(self, module: object) -> None:
+        pass
+
+    def post_init(self) -> None:
+        pass
+
+
+class DummyLlamaRMSNorm(torch.nn.Module):
+    """Minimal stand-in for LlamaRMSNorm."""
+    def __init__(self, hidden_size: int, eps: float = 1e-6) -> None:
+        super().__init__()
+
+    def forward(self, x: object) -> object:
+        return x
+
+
+def passthrough_register_to_config(func):
+    """Mimics @register_to_config: wraps __init__ to store kwargs as self.config."""
+    sig = inspect.signature(func)
+
+    def wrapper(self, *args, **kwargs):
+        bound = sig.bind(self, *args, **kwargs)
+        bound.apply_defaults()
+        cfg = {k: v for k, v in bound.arguments.items() if k != "self"}
+        self.config = _FrozenDict(cfg)
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 diffusers_sched = ModuleType("diffusers.schedulers.scheduling_utils")
@@ -37,19 +104,35 @@ diffusers_sched.KarrasDiffusionSchedulers = MagicMock()
 
 diffusers_conf = ModuleType("diffusers.configuration_utils")
 diffusers_conf.ConfigMixin = DummyConfigMixin
-diffusers_conf.register_to_config = MagicMock()
+diffusers_conf.register_to_config = passthrough_register_to_config
+
+# Build transformers mock modules with real classes where needed for inheritance
+mock_transformers = MagicMock()
+
+mock_modeling_outputs = MagicMock()
+mock_modeling_outputs.ModelOutput = DummyModelOutput
+mock_modeling_outputs.BaseModelOutputWithPast = DummyBaseModelOutputWithPast
+
+mock_modeling_utils = MagicMock()
+mock_modeling_utils.PreTrainedModel = DummyPreTrainedModel
+
+mock_llama_modeling = MagicMock()
+mock_llama_modeling.LlamaRMSNorm = DummyLlamaRMSNorm
+
+mock_transformers_config = ModuleType("transformers.configuration_utils")
+mock_transformers_config.PretrainedConfig = DummyPretrainedConfig
 
 mock_modules = {
     "modeling_vibevoice_inference": MagicMock(),
     # "modeling_vibevoice": MagicMock(),
-    "transformers": MagicMock(),
+    "transformers": mock_transformers,
     "transformers.utils": MagicMock(),
-    "transformers.modeling_utils": MagicMock(),
-    "transformers.modeling_outputs": MagicMock(),
+    "transformers.modeling_utils": mock_modeling_utils,
+    "transformers.modeling_outputs": mock_modeling_outputs,
     "transformers.generation": MagicMock(),
     "transformers.models": MagicMock(),
     "transformers.models.llama": MagicMock(),
-    "transformers.models.llama.modeling_llama": MagicMock(),
+    "transformers.models.llama.modeling_llama": mock_llama_modeling,
     "transformers.models.qwen2": MagicMock(),
     "transformers.models.qwen2.tokenization_qwen2": MagicMock(),
     "transformers.models.qwen2.tokenization_qwen2_fast": MagicMock(),
@@ -57,7 +140,7 @@ mock_modules = {
     "transformers.tokenization_utils_base": MagicMock(),
     "transformers.feature_extraction_utils": MagicMock(),
     "transformers.modeling_flash_attention_utils": MagicMock(),
-    "transformers.configuration_utils": MagicMock(),
+    "transformers.configuration_utils": mock_transformers_config,
     "transformers.activations": MagicMock(),
     "diffusers": MagicMock(),
     "diffusers.schedulers": ModuleType("diffusers.schedulers"),
@@ -66,12 +149,31 @@ mock_modules = {
     "diffusers.utils": MagicMock(),
     "diffusers.utils.torch_utils": MagicMock(),
 }
-mock_modules.update(mock_torch.get_sub_modules())
+
 
 with patch.dict(sys.modules, mock_modules):
     from vibevoice.wrapper_vibevoice import VibeVoiceGeneration
+    from vibevoice.wrapper_vibevoice import VoiceMapper
+
+    from configuration_vibevoice import VibeVoiceConfig
+    from configuration_vibevoice import VibeVoiceSemanticTokenizerConfig
+    from modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
+    from audio_streamer import AudioStreamer
 
     # from modeling_vibevoice import VibeVoicePreTrainedModel
+    from modeling_vibevoice import VibeVoiceCausalLMOutputWithPast
+    from modeling_vibevoice import SpeechConnector
+    from modeling_vibevoice import VibeVoiceGenerationOutput
+    from modeling_vibevoice import VibeVoicePreTrainedModel
+    from modular_vibevoice_diffusion_head import RMSNorm
+    from modular_vibevoice_tokenizer import NormConvTranspose1d
+    from modular_vibevoice_tokenizer import VibeVoiceTokenizerStreamingCache
+    from modular_vibevoice_tokenizer import VibeVoiceSemanticTokenizerModel
+    from schedule.timestep_sampler import UniformSampler, LogitNormalSampler
+    from schedule.dpm_solver import DPMSolverMultistepScheduler
+    from schedule.dpm_solver import rescale_zero_terminal_snr
+    from schedule.dpm_solver import betas_for_alpha_bar
+    from modular_vibevoice_text_tokenizer import VibeVoiceTextTokenizer
 
 
 @pytest.mark.asyncio
@@ -113,78 +215,40 @@ async def test_vibevoice() -> None:
 
 
 def test_vibevoice_libs() -> None:
-    try:
-        from modeling_vibevoice import VibeVoiceCausalLMOutputWithPast
-        assert VibeVoiceCausalLMOutputWithPast is not None
-    except TypeError:
-        logging.warning("Could not import VibeVoiceCausalLMOutputWithPast")
-
-    try:
-        from modeling_vibevoice import VibeVoiceGenerationOutput
-        assert VibeVoiceGenerationOutput is not None
-    except TypeError:
-        logging.warning("Could not import VibeVoiceGenerationOutput")
-
-    try:
-        from modeling_vibevoice import SpeechConnector
-        assert SpeechConnector is not None
-    except TypeError:
-        logging.warning("Could not import SpeechConnector")
-
-    with patch.dict(sys.modules, mock_modules):
-        try:
-            from modeling_vibevoice import VibeVoicePreTrainedModel
-            assert VibeVoicePreTrainedModel is not None
-        except AttributeError:
-            logging.warning("Could not import VibeVoicePreTrainedModel")
-
-    with patch.dict(sys.modules, mock_modules):
-        from modular_vibevoice_diffusion_head import RMSNorm
-        assert RMSNorm is not None
+    assert VibeVoiceCausalLMOutputWithPast is not None
+    assert VibeVoiceGenerationOutput is not None
+    assert SpeechConnector is not None
+    assert VibeVoicePreTrainedModel is not None
+    assert RMSNorm is not None
 
 
 def test_tokenizer() -> None:
-    with patch.dict(sys.modules, mock_modules):
-        from modular_vibevoice_tokenizer import NormConvTranspose1d
-        assert NormConvTranspose1d is not None
-
-        from modular_vibevoice_tokenizer import VibeVoiceTokenizerStreamingCache
-        assert VibeVoiceTokenizerStreamingCache is not None
-
-        from modular_vibevoice_tokenizer import VibeVoiceSemanticTokenizerModel
-
-        tokenizer = VibeVoiceSemanticTokenizerModel(None)
-        assert tokenizer is not None
+    assert NormConvTranspose1d is not None
+    assert VibeVoiceTokenizerStreamingCache is not None
+    tokenizer = VibeVoiceSemanticTokenizerModel(VibeVoiceSemanticTokenizerConfig())
+    assert tokenizer is not None
 
 
-# TODO fix this test with the fast tokenizer dependency
-"""
 def test_text_tokenizer() -> None:
-    from modular_vibevoice_text_tokenizer import VibeVoiceTextTokenizer
-    with pytest.raises(FileNotFoundError):
-        VibeVoiceTextTokenizer(
-            "missing_vocab_file",
-            "missing_merges_file")
-"""
+    tokenizer = VibeVoiceTextTokenizer(
+        vocab_file="missing_vocab_file",
+        merges_file="missing_merges_file")
+    assert tokenizer is not None
 
 
 def test_model_inference() -> None:
     # Configuration
-    from configuration_vibevoice import VibeVoiceConfig
     vibevoice_config = VibeVoiceConfig()
     assert vibevoice_config is not None
 
     # Inference
-    with patch.dict(sys.modules, mock_modules):
-        from modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
-        inference = VibeVoiceForConditionalGenerationInference(vibevoice_config)
-        assert inference is not None
-        assert inference.forward() is not None
-        assert inference.generate() is not None
+    inference = VibeVoiceForConditionalGenerationInference(vibevoice_config)
+    assert inference is not None
+    assert inference.forward() is not None
+    assert inference.generate() is not None
 
 
 def test_audio_streamer() -> None:
-    from audio_streamer import AudioStreamer
     audio_streamer = AudioStreamer(batch_size=8)
     assert audio_streamer is not None
     audio_streamer.put(
@@ -195,9 +259,6 @@ def test_audio_streamer() -> None:
 
 
 def test_voice_mapper() -> None:
-    with patch.dict(sys.modules, mock_modules):
-        from vibevoice.wrapper_vibevoice import VoiceMapper
-
     voice_mapper = VoiceMapper()
     voice_mapper.setup_voice_presets()
 
@@ -216,10 +277,7 @@ def test_voice_mapper() -> None:
 
 @pytest.mark.asyncio
 async def test_vibevoice_get_rest_args_voice() -> None:
-    with patch.dict(sys.modules, mock_modules):
-        from vibevoice.wrapper_vibevoice import VibeVoiceGeneration as _VVG
-
-    model = _VVG()
+    model = VibeVoiceGeneration()
 
     # Custom voice parameter is returned in args
     result = await model.get_rest_args({"text": "Hello world", "voice": "custom_voice"})
@@ -232,57 +290,16 @@ async def test_vibevoice_get_rest_args_voice() -> None:
 
 
 def test_timestep_samplers() -> None:
-    with temp_sys_path("wrapper/vibevoice"):
-        with patch.dict(sys.modules, {'torch': mock_torch}):
-            from schedule.timestep_sampler import UniformSampler, LogitNormalSampler
-
     uniform = UniformSampler(timesteps=100)
-    result_u = uniform.sample(batch_size=4, device=mock_torch.device('cpu'))
+    result_u = uniform.sample(batch_size=4, device=torch.device('cpu'))
     assert result_u is not None
 
     logit = LogitNormalSampler(timesteps=100)
-    result_l = logit.sample(batch_size=4, device=mock_torch.device('cpu'))
+    result_l = logit.sample(batch_size=4, device=torch.device('cpu'))
     assert result_l is not None
 
 
 def test_dpm_solver_scheduler() -> None:
-    """DPMSolverMultistepScheduler can be imported and instantiated with mocked deps."""
-    import numpy as np
-    import torch as real_torch
-
-    # Build minimal diffusers mocks with a proper pass-through register_to_config
-    class DummyDPMSchedulerMixin:
-        pass
-
-    class DummyDPMConfigMixin:
-        pass
-
-    def passthrough_register_to_config(func):
-        return func
-
-    dpm_sched_utils = ModuleType("diffusers.schedulers.scheduling_utils")
-    dpm_sched_utils.SchedulerMixin = DummyDPMSchedulerMixin
-    dpm_sched_utils.SchedulerOutput = MagicMock
-    dpm_sched_utils.KarrasDiffusionSchedulers = MagicMock()
-
-    dpm_conf = ModuleType("diffusers.configuration_utils")
-    dpm_conf.ConfigMixin = DummyDPMConfigMixin
-    dpm_conf.register_to_config = passthrough_register_to_config
-
-    dpm_mocks = {
-        "diffusers.schedulers": ModuleType("diffusers.schedulers"),
-        "diffusers.schedulers.scheduling_utils": dpm_sched_utils,
-        "diffusers.configuration_utils": dpm_conf,
-        "diffusers.utils": MagicMock(),
-        "diffusers.utils.torch_utils": MagicMock(),
-        "numpy": np,
-        "torch": real_torch,
-    }
-
-    with temp_sys_path("wrapper/vibevoice"):
-        with patch.dict(sys.modules, dpm_mocks):
-            from schedule.dpm_solver import DPMSolverMultistepScheduler
-
     scheduler = DPMSolverMultistepScheduler(num_train_timesteps=100)
     assert scheduler is not None
     assert hasattr(scheduler, "betas")
@@ -298,10 +315,6 @@ def test_dpm_solver_scheduler() -> None:
         DPMSolverMultistepScheduler(beta_schedule="unknown_schedule")
 
     # Test betas_for_alpha_bar directly with different alpha_transform_types
-    with temp_sys_path("wrapper/vibevoice"):
-        with patch.dict(sys.modules, dpm_mocks):
-            from schedule.dpm_solver import betas_for_alpha_bar
-
     for alpha_type in ["cosine", "exp", "cauchy", "laplace"]:
         betas = betas_for_alpha_bar(10, alpha_transform_type=alpha_type)
         assert betas is not None
@@ -311,44 +324,6 @@ def test_dpm_solver_scheduler() -> None:
 
 
 def test_dpm_solver_set_timesteps() -> None:
-    """Test DPMSolverMultistepScheduler.set_timesteps, rescale_zero_terminal_snr, add_noise, get_velocity."""
-    import numpy as np
-    import torch as real_torch
-
-    class DummyDPMSchedulerMixin:
-        pass
-
-    class DummyDPMConfigMixin:
-        pass
-
-    def passthrough_register_to_config(func):
-        return func
-
-    dpm_sched_utils = ModuleType("diffusers.schedulers.scheduling_utils")
-    dpm_sched_utils.SchedulerMixin = DummyDPMSchedulerMixin
-    dpm_sched_utils.SchedulerOutput = MagicMock
-    dpm_sched_utils.KarrasDiffusionSchedulers = MagicMock()
-
-    dpm_conf = ModuleType("diffusers.configuration_utils")
-    dpm_conf.ConfigMixin = DummyDPMConfigMixin
-    dpm_conf.register_to_config = passthrough_register_to_config
-
-    dpm_mocks = {
-        "diffusers.schedulers": ModuleType("diffusers.schedulers"),
-        "diffusers.schedulers.scheduling_utils": dpm_sched_utils,
-        "diffusers.configuration_utils": dpm_conf,
-        "diffusers.utils": MagicMock(),
-        "diffusers.utils.torch_utils": MagicMock(),
-        "numpy": np,
-        "torch": real_torch,
-    }
-
-    with temp_sys_path("wrapper/vibevoice"):
-        with patch.dict(sys.modules, dpm_mocks):
-            from schedule.dpm_solver import (
-                DPMSolverMultistepScheduler,
-                rescale_zero_terminal_snr,
-            )
 
     # set_timesteps with different timestep_spacing values
     for spacing in ["linspace", "leading", "trailing"]:
@@ -392,16 +367,16 @@ def test_dpm_solver_set_timesteps() -> None:
     assert s.step_index is None  # before any step
 
     # rescale_zero_terminal_snr
-    betas = real_torch.linspace(0.0001, 0.02, 100)
+    betas = torch.linspace(0.0001, 0.02, 100)
     rescaled = rescale_zero_terminal_snr(betas)
     assert rescaled is not None
     assert rescaled.shape == betas.shape
 
     # add_noise and get_velocity
     s.set_timesteps(10)
-    original = real_torch.randn(2, 4)
-    noise = real_torch.randn(2, 4)
-    timesteps = real_torch.IntTensor([50, 80])
+    original = torch.randn(2, 4)
+    noise = torch.randn(2, 4)
+    timesteps = torch.IntTensor([50, 80])
     noisy = s.add_noise(original, noise, timesteps)
     assert noisy.shape == original.shape
     velocity = s.get_velocity(original, noise, timesteps)
@@ -415,10 +390,7 @@ def test_dpm_solver_set_timesteps() -> None:
 
 def test_vibevoice_model_methods() -> None:
     """Test _assert_model_init, init_parallelism, init_model_parallelism, model_compile."""
-    with patch.dict(sys.modules, mock_modules):
-        from vibevoice.wrapper_vibevoice import VibeVoiceGeneration as _VVG
-
-    model = _VVG()
+    model = VibeVoiceGeneration()
 
     # _assert_model_init raises before model is initialized (status != "ok")
     with pytest.raises(ValueError, match="Model not initialized"):
