@@ -16,9 +16,8 @@ Each subdirectory contains the Docker image building scripts for a specific [mod
 
 For deploying any wrapper:
 
-1. **[Build the Docker image](#building-images)** — run `bash setup_image.sh` in the wrapper's directory
-2. **[Push to Azure Container Registry](#pushing-to-acr)** — use `--push` flag or push manually
-3. **Deploy to Kubernetes**
+1. **Build the Docker image** — see [Building and Pushing Docker Images](../README.md#building-and-pushing-docker-images)
+2. **Deploy to Kubernetes**
    - Use Helm charts from [deployment/helm](../helm/README.md)
    - Or use direct kubectl deployment with pod/service YAML files
 
@@ -41,40 +40,16 @@ All wrappers require:
 
 ## Building Images
 
+For complete build instructions — including the required base image build step, `build_docker.sh` for building all images at once, and individual `setup_image.sh` usage — see [Building and Pushing Docker Images](../README.md#building-and-pushing-docker-images).
+
 Each wrapper directory contains:
-- `Dockerfile` - Container image definition
-- `setup_image.sh` - Thin build script that calls the shared [`setup_image.sh`](setup_image.sh)
-- `requirements.txt` - Python dependencies (if applicable)
+- `Dockerfile` — container image definition
+- `setup_image.sh` — thin build script that delegates to the shared [`setup_image.sh`](setup_image.sh)
+- `requirements.txt` — Python dependencies (if applicable)
 
 Image names and tags are read from [`services.json`](../../services.json).
 
-### Build All Wrapper Images
-
-From the `deployment/` directory, use [`build_docker.sh`](../build_docker.sh) to build **and push** every wrapper and app image:
-
-```bash
-cd deployment
-source set_properties.sh
-bash build_docker.sh
-```
-
-### Build a Single Wrapper Image
-
-Navigate to the wrapper directory and run its `setup_image.sh`:
-
-```bash
-cd deployment/wrappers/<wrapper-name>
-bash setup_image.sh            # build only
-bash setup_image.sh --push     # build and push to ACR
-```
-
-For example, to build and push the Wan video wrapper:
-```bash
-cd deployment/wrappers/wan
-bash setup_image.sh --push
-```
-
-#### setup_image.sh Flags
+### setup_image.sh Flags
 
 | Flag | Description |
 |------|-------------|
@@ -84,30 +59,7 @@ bash setup_image.sh --push
 | `--folders <f1,f2>` | Copy additional subdirectories into the build context |
 | `--parent <name>` | Include files from a parent wrapper directory |
 
-> **Note:** Wrappers that require a Hugging Face token (e.g., `flux`, `gemma`, `llama32`) already pass `--hf_token` in their `setup_image.sh`. Ensure `HF_TOKEN` is set in [`set_properties.sh`](../set_properties.sh).
-
-## Pushing to ACR
-
-If you built without `--push`, you can push manually:
-
-```bash
-source ../set_properties.sh
-az acr login --name $ACR_NAME
-docker push $ACR_URL/<wrapper-name>:<tag>
-```
-
-Check which images are available locally:
-```bash
-docker image ls "$ACR_URL/*" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
-```
-
-Verify the image is in ACR:
-```bash
-az acr repository list --name $ACR_NAME -o table
-az acr repository show-tags --name $ACR_NAME --repository <wrapper-name> -o table
-```
-
-For ACR creation and configuration, see [ACR Documentation](../acr/README.md).
+> **Note:** Wrappers that require a Hugging Face token (e.g. `flux`, `gemma`, `llama32`) already pass `--hf_token` in their `setup_image.sh`. Ensure `HF_TOKEN` is set in [`set_properties.sh`](../set_properties.sh).
 
 ## Deployment
 

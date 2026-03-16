@@ -25,40 +25,21 @@ Before deploying applications:
 ## Deployment
 
 Each application directory contains:
-- `Dockerfile` - Container image definition
-- Build scripts for creating Docker images
+- `Dockerfile` — container image definition
+- `setup_image.sh` — build script
 - Kubernetes deployment manifests (YAML files)
 
 ### General Deployment Steps
 
-1. **Build the application image** (if not using pre-built images):
-   ```bash
-   cd deployment/apps/<application-directory>
-   bash setup_image.sh            # build only
-   bash setup_image.sh --push     # build and push to ACR
-   ```
+1. **Build and push the application image** — see [Building and Pushing Docker Images](../README.md#building-and-pushing-docker-images).
 
-   Or build **all** wrapper and app images at once from the `deployment/` directory:
-   ```bash
-   cd deployment
-   source set_properties.sh
-   bash build_docker.sh
-   ```
-
-2. **Push to ACR** (if built without `--push`):
-   ```bash
-   source ../set_properties.sh
-   az acr login --name $ACR_NAME
-   docker push $ACR_URL/<app-name>:<tag>
-   ```
-
-3. **Deploy to Kubernetes**:
+2. **Deploy to Kubernetes**:
    ```bash
    kubectl apply -f <app-deployment>.yaml -n rtgen
    kubectl apply -f <app-service>.yaml -n rtgen
    ```
 
-4. **Verify deployment**:
+3. **Verify deployment**:
    ```bash
    kubectl get pods -n rtgen
    kubectl get svc -n rtgen
