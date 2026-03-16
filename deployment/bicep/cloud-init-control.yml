@@ -15,37 +15,37 @@ packages:
 - net-tools
 - azure-cli
 write_files:
-  - path: /etc/ssh/sshd_config
-    content: |
+- path: /etc/ssh/sshd_config
+  content: |
         Port 22
         Port 2222
-  - path: /home/azureuser/.ssh/authorized_keys
-    permissions: '0644'
-    append: true
-    content: |
+- path: /home/azureuser/.ssh/authorized_keys
+  permissions: '0644'
+  append: true
+  content: |
          ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5
-  - path: /home/azureuser/.bash_profile
-    append: true
-    content: |
+- path: /home/azureuser/.bash_profile
+  append: true
+  content: |
          source /mnt/azureuser/miniconda3/bin/activate
          git config --global credential.helper store
-  - path: /home/azureuser/.bashrc
-    append: true
-    content: |
+- path: /home/azureuser/.bashrc
+  append: true
+  content: |
          source /mnt/azureuser/miniconda3/bin/activate
          git config --global credential.helper store
-  - path: /home/azureuser/install_conda.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_conda.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p /mnt/azureuser
         wget -O /mnt/azureuser/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
         chmod +x /mnt/azureuser/Miniconda3.sh
         /mnt/azureuser/Miniconda3.sh -b -p /mnt/azureuser/miniconda3
         chown -R azureuser:azureuser /mnt/azureuser/miniconda3
-  - path: /home/azureuser/install_docker.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_docker.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p /etc/apt/keyrings/
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -64,9 +64,9 @@ write_files:
         done
         systemctl restart docker
         chmod 777 /var/run/docker.sock
-  - path: /home/azureuser/install_k8s.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_k8s.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p /etc/apt/keyrings/
         curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -86,18 +86,18 @@ write_files:
         systemctl enable --now kubelet
         containerd config default | tee /etc/containerd/config.toml > /dev/null
         systemctl restart containerd
-  - path: /home/azureuser/start_k8s_master.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/start_k8s_master.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         kubeadm reset -f
         IP=`ip -o -4 addr show eth0 | awk '{print $4}' | cut -d/ -f1`
         kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=$IP
         # kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=$IP --image-repository abc-xyz.azurecr.io
         kubeadm token create --print-join-command
-  - path: /home/azureuser/setup_kubectl.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_kubectl.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p $HOME/.kube
         rm -Rf $HOME/.kube/config
@@ -107,9 +107,9 @@ write_files:
         rm -Rf /home/azureuser/.kube/config
         cp -i /etc/kubernetes/admin.conf /home/azureuser/.kube/config
         chown azureuser:azureuser /home/azureuser/.kube/config
-  - path: /home/azureuser/setup_k8s_net.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_net.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         modprobe br_netfilter
         sysctl net.bridge.bridge-nf-call-iptables=1
@@ -117,9 +117,9 @@ write_files:
         sysctl --system
         kubectl delete -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
         kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-  - path: /home/azureuser/setup_helm.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_helm.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
         echo "Installing Helm..."
@@ -129,9 +129,9 @@ write_files:
           apt-get update
           apt-get install -y helm
         done
-  - path: /home/azureuser/setup_k8s_metrics.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_metrics.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
         kubectl -n kube-system patch deployment metrics-server --type=json -p='[
@@ -151,8 +151,8 @@ write_files:
             "value": "metrics-server"
           }
         ]'
-  - path: /home/azureuser/dashboard-admin.yaml
-    content: |
+- path: /home/azureuser/dashboard-admin.yaml
+  content: |
         apiVersion: v1
         kind: ServiceAccount
         metadata:
@@ -171,9 +171,9 @@ write_files:
         - kind: ServiceAccount
           name: admin-user
           namespace: kubernetes-dashboard
-  - path: /home/azureuser/setup_k8s_dashboard.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_dashboard.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         kubectl delete namespace kubernetes-dashboard
         helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
@@ -181,9 +181,9 @@ write_files:
         # Allow running the dashboard on the control plane node
         kubectl taint nodes --all node-role.kubernetes.io/control-plane- --overwrite
         kubectl apply -f /home/azureuser/dashboard-admin.yaml
-  - path: /home/azureuser/setup_k8s_nvidia.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_nvidia.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         helm repo add nvidia https://nvidia.github.io/k8s-device-plugin
         helm repo add nfd https://kubernetes-sigs.github.io/node-feature-discovery/charts
@@ -205,18 +205,18 @@ write_files:
         # helm install gpu-feature-discovery nvidia/gpu-feature-discovery \
         #  --namespace gpu-feature-discovery \
         #  --create-namespace
-  - path: /home/azureuser/setup_k8s_prometheus.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_prometheus.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm install prometheus-community/kube-prometheus-stack --create-namespace --namespace prometheus \
         --generate-name \
         --set prometheus.service.type=NodePort \
         --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
-  - path: /home/azureuser/save_k8s_join.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/save_k8s_join.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/env bash
         # Get key vault name
         METADATA_OAUTH_URL="http://169.254.169.254/metadata/instance?api-version=2021-02-01&format=json"
@@ -238,15 +238,15 @@ write_files:
         SECRET_VALUE=`kubeadm token create --print-join-command`
         SECRET_URL="https://${VAULT_NAME}.vault.azure.net/secrets/${SECRET_NAME}?api-version=${API_VERSION}"
         curl -s -X PUT $SECRET_URL -H "Authorization: Bearer ${KV_TOKEN}" -H "Content-Type: application/json" -d "{\"value\": \"${SECRET_VALUE}\"}" | jq .
-  - path: /home/azureuser/start_dashboard_proxy.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/start_dashboard_proxy.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/env bash
         kubectl -n kubernetes-dashboard create token admin-user
         kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
-  - path: /home/azureuser/remove_k8s_node.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/remove_k8s_node.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/env bash
         NODE_NAME=$1
         if [[ -z "$NODE_NAME" ]]; then
@@ -260,9 +260,9 @@ write_files:
           echo "Deleting pod $name in namespace $ns"
           kubectl delete pod "$name" -n "$ns" --grace-period=0 --force
         done
-  - path: /home/azureuser/get_vms.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/get_vms.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/env bash
         META_URL="http://169.254.169.254/metadata/instance/compute/resourceGroupName?api-version=2021-02-01&format=text"
         RESOURCE_GROUP_NAME=$(curl -s -H Metadata:true $META_URL)
@@ -285,9 +285,9 @@ write_files:
               printf "  %s (%s): %s\n", instanceId, hostname, ip
             }'
         done
-  - path: /home/azureuser/join_k8s_nodes.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/join_k8s_nodes.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/env bash
         METADATA_BASE="http://169.254.169.254/metadata/instance/compute"
         HEADERS="-H Metadata:true"
@@ -334,14 +334,14 @@ write_files:
           kubectl label node "$NODE_NAME" azure/region="$REGION" --overwrite
         done
 runcmd:
-  - chown -R azureuser:azureuser /home/azureuser/
-  - bash /home/azureuser/install_conda.sh
-  - bash /home/azureuser/install_docker.sh
-  - bash /home/azureuser/install_k8s.sh
-  - bash /home/azureuser/start_k8s_master.sh
-  - bash /home/azureuser/setup_kubectl.sh
-  - bash /home/azureuser/setup_k8s_net.sh
-  - bash /home/azureuser/setup_helm.sh
-  - bash /home/azureuser/setup_k8s_metrics.sh
-  - bash /home/azureuser/setup_k8s_dashboard.sh
-  - bash /home/azureuser/setup_k8s_nvidia.sh
+- chown -R azureuser:azureuser /home/azureuser/
+- bash /home/azureuser/install_conda.sh
+- bash /home/azureuser/install_docker.sh
+- bash /home/azureuser/install_k8s.sh
+- bash /home/azureuser/start_k8s_master.sh
+- bash /home/azureuser/setup_kubectl.sh
+- bash /home/azureuser/setup_k8s_net.sh
+- bash /home/azureuser/setup_helm.sh
+- bash /home/azureuser/setup_k8s_metrics.sh
+- bash /home/azureuser/setup_k8s_dashboard.sh
+- bash /home/azureuser/setup_k8s_nvidia.sh

@@ -28,18 +28,18 @@ packages:
 - perftest
 - net-tools
 write_files:
-  - path: /etc/ssh/sshd_config
-    content: |
+- path: /etc/ssh/sshd_config
+  content: |
          Port 22
          Port 2222
-  - path: /home/azureuser/.ssh/authorized_keys
-    permissions: '0644'
-    append: true
-    content: |
+- path: /home/azureuser/.ssh/authorized_keys
+  permissions: '0644'
+  append: true
+  content: |
          ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5
-  - path: /home/azureuser/.bash_profile
-    append: true
-    content: |
+- path: /home/azureuser/.bash_profile
+  append: true
+  content: |
          source /mnt/azureuser/miniconda3/bin/activate
          export PATH="/mnt/azureuser/miniconda3/bin:$HOME/.local/bin:$PATH"
          export NCCL_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7
@@ -54,9 +54,9 @@ write_files:
          export NCCL_PLUGIN_DISABLE=1
          export TORCH_CUDA_ARCH_LIST="8.0 9.0" # A100 H100
          export NCCL_IB_GID_INDEX=0
-  - path: /home/azureuser/.bashrc
-    append: true
-    content: |
+- path: /home/azureuser/.bashrc
+  append: true
+  content: |
          source /mnt/azureuser/miniconda3/bin/activate
          export PATH="/mnt/azureuser/miniconda3/bin:$HOME/.local/bin:$PATH"
          export NCCL_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7
@@ -71,35 +71,35 @@ write_files:
          export NCCL_PLUGIN_DISABLE=1
          export TORCH_CUDA_ARCH_LIST="8.0 9.0" # A100 H100
          export NCCL_IB_GID_INDEX=0
-  - path: /home/azureuser/install_azhpc_clean.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_azhpc_clean.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         cd /mnt/azureuser
         git clone https://github.com/sherrychaojie/azhpc-images.git
         cd /mnt/azureuser/azhpc-images/ubuntu/ubuntu-20.x/ubuntu-20.04-hpc/
         time bash ./install.sh
-  - path: /home/azureuser/install_conda.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_conda.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p /mnt/azureuser
         wget -O /mnt/azureuser/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
         chmod +x /mnt/azureuser/Miniconda3.sh
         /mnt/azureuser/Miniconda3.sh -b -p /mnt/azureuser/miniconda3
         chown -R azureuser:azureuser /mnt/azureuser/miniconda3
-  - path: /home/azureuser/install_cleanup.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_cleanup.sh
+  permissions: '0755'
+  content: |
          #!/usr/bin/bash
          # ESM
          mkdir -p ~/relocated_apt
          mv /etc/apt/apt.conf.d/20apt-esm-hook.conf ~/relocated_apt/.
          apt-get -y remove libpathplan4 graphviz libcgraph6 libcdt5 libgvpr2 libgvc6 liblab-gamut1
          apt-get -y autoremove
-  - path: /home/azureuser/setup_disks.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_disks.sh
+  permissions: '0755'
+  content: |
          #!/usr/bin/bash
          apt-get -y install mdadm parted
          if [ ! -b /dev/md0 ]; then
@@ -125,8 +125,8 @@ write_files:
             mount /dev/sdc1 /mnt/sdc1/
             chown -R azureuser:azureuser /mnt/sdc1
          fi
-  - path: /home/azureuser/limits.conf
-    content: |
+- path: /home/azureuser/limits.conf
+  content: |
           # /etc/security/limits.conf
           *               hard    memlock         unlimited
           *               soft    memlock         unlimited
@@ -134,9 +134,9 @@ write_files:
           *               soft    nofile          unlimited
           *               hard    stack           unlimited
           *               soft    stack           unlimited
-  - path: /home/azureuser/install_docker.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_docker.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p /etc/apt/keyrings/
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
@@ -183,9 +183,9 @@ write_files:
           ln -s /mnt/docker /var/lib/docker
           systemctl start docker
         fi
-  - path: /home/azureuser/install_k8s.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/install_k8s.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         mkdir -p /etc/apt/keyrings/
         curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -216,9 +216,9 @@ write_files:
           systemctl start containerd
         fi
         chmod 777 /run/containerd/containerd.sock
-  - path: /home/azureuser/join_k8s.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/join_k8s.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/env bash
         # Get key vault name
         METADATA_OAUTH_URL="http://169.254.169.254/metadata/instance?api-version=2021-02-01&format=json"
@@ -247,9 +247,9 @@ write_files:
         fi
         echo "Joining K8s cluster with command: $JOIN_CMD"
         $JOIN_CMD
-  - path: /home/azureuser/setup_k8s_net.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_net.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         modprobe br_netfilter
         sysctl net.bridge.bridge-nf-call-iptables=1
@@ -259,9 +259,9 @@ write_files:
         ARCH="amd64"
         mkdir -p /opt/cni/bin
         curl -L "https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-${ARCH}-${VERSION}.tgz" | tar -xz -C /opt/cni/bin
-  - path: /home/azureuser/setup_k8s_region.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/setup_k8s_region.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         # ssh $NODE_IP mkdir -p .kube
         # scp ~/.kube/config azureuser@$NODE_IP:~/.kube/config
@@ -271,9 +271,9 @@ write_files:
         NODE_NAME=$(hostname)
         NODE_NAME=${NODE_NAME,,}
         kubectl label node "$NODE_NAME" azure/region="$REGION"
-  - path: /home/azureuser/reset_k8s_node.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/reset_k8s_node.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         systemctl stop kubelet
         systemctl stop containerd
@@ -301,9 +301,9 @@ write_files:
         systemctl start kubelet
         echo "trigger: kubeadm join XXX"
         bash /home/azureuser/join_k8s.sh
-  - path: /home/azureuser/check_installation.sh
-    permissions: '0755'
-    content: |
+- path: /home/azureuser/check_installation.sh
+  permissions: '0755'
+  content: |
         #!/usr/bin/bash
         if [ ! -f /usr/bin/nvidia-smi ]; then
           echo "NVIDIA driver not installed!"
@@ -328,22 +328,22 @@ write_files:
         if ! lsmod | grep -q "nvidia_peermem"; then echo "nvidia_peermem not found"; fi
         if ! lsmod | grep -q "ib_umad"; then echo "ib_umad not found"; fi
 runcmd:
-  - mkdir -p /mnt/azureuser/huggingface
-  - chown -R azureuser:azureuser /home/azureuser/
-  - chown -R azureuser:azureuser /mnt/azureuser/
-  - bash /home/azureuser/setup_disks.sh
-  - bash /home/azureuser/install_conda.sh
-  - bash /home/azureuser/install_azhpc_clean.sh
-  - systemctl unmask unattended-upgrades.service
-  - systemctl enable unattended-upgrades.service
-  - bash /home/azureuser/install_cleanup.sh
-  - chown -R azureuser:azureuser /mnt/azureuser
-  - cp /etc/security/limits.conf /etc/security/limits.conf.bak
-  - cp /home/azureuser/limits.conf /etc/security/limits.conf
-  - systemctl daemon-reexec
-  - bash /home/azureuser/install_docker.sh
-  - bash /home/azureuser/install_k8s.sh
-  - bash /home/azureuser/setup_k8s_net.sh
-  - bash /home/azureuser/join_k8s.sh
-  - bash /home/azureuser/setup_k8s_region.sh
-  - bash /home/azureuser/check_installation.sh
+- mkdir -p /mnt/azureuser/huggingface
+- chown -R azureuser:azureuser /home/azureuser/
+- chown -R azureuser:azureuser /mnt/azureuser/
+- bash /home/azureuser/setup_disks.sh
+- bash /home/azureuser/install_conda.sh
+- bash /home/azureuser/install_azhpc_clean.sh
+- systemctl unmask unattended-upgrades.service
+- systemctl enable unattended-upgrades.service
+- bash /home/azureuser/install_cleanup.sh
+- chown -R azureuser:azureuser /mnt/azureuser
+- cp /etc/security/limits.conf /etc/security/limits.conf.bak
+- cp /home/azureuser/limits.conf /etc/security/limits.conf
+- systemctl daemon-reexec
+- bash /home/azureuser/install_docker.sh
+- bash /home/azureuser/install_k8s.sh
+- bash /home/azureuser/setup_k8s_net.sh
+- bash /home/azureuser/join_k8s.sh
+- bash /home/azureuser/setup_k8s_region.sh
+- bash /home/azureuser/check_installation.sh
