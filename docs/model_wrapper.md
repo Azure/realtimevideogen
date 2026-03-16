@@ -4,7 +4,7 @@ We wrap models publicly available on [Hugging Face](https://huggingface.co/model
 ## Libraries
 We leverage the following:
 * [Diffusers](https://github.com/huggingface/diffusers) to provide a simple and unified interface.
-* [xDiT](https://github.com/xdit-project/xDiT) for paralellization of the models.
+* [xDiT](https://github.com/xdit-project/xDiT) for parallelization of the models.
 * [vLLM](https://github.com/vllm-project/vllm) for the OpenAI interface.
 
 ## Models
@@ -15,7 +15,7 @@ We leverage the following:
 | [FLUX](https://github.com/black-forest-labs/flux) | 🔤➔🖼️ Text to Image |
 | [FLUX Upscaler](https://huggingface.co/jasperai/Flux.1-dev-Controlnet-Upscaler) | 🖼️➔🖼️ Image to Image |
 | [FLUX Krea](https://github.com/krea-ai/flux-krea) | 🔤➔🖼️ Text to Image |
-| [FLUX Kontext](https://github.com/black-forest-labs/flux) | 🖼️➔🖼️ Image to image |
+| [FLUX Kontext](https://github.com/black-forest-labs/flux) | 🖼️➔🖼️ Image to Image |
 | [4KAgent](https://github.com/taco-group/4KAgent) | 🖼️➔🖼️ Image to Image |
 | [HiDream I1](https://github.com/HiDream-ai/HiDream-I1) | 🔤➔🖼️ Text to Image |
 | [Qwen Image](https://huggingface.co/Qwen/Qwen-Image) | 🔤➔🖼️ Text to Image |
@@ -36,7 +36,7 @@ We leverage the following:
 | [YOLO](https://github.com/ultralytics/ultralytics) | 🖼️➔🖼️ Image to Image |
 | [Image Resize](https://pillow.readthedocs.io/en/stable/reference/Image.html) | 🖼️➔🖼️ Image to Image |
 | [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) | 🖼️➔🖼️ Image to Image |
-| [LTX-Video](https://hhttps://github.com/Lightricks/LTX-Video) | 🔤🖼️➔🎥 Text+Image to Video |
+| [LTX-Video](https://github.com/Lightricks/LTX-Video) | 🔤🖼️➔🎥 Text+Image to Video |
 | [LongCat-Video](https://github.com/meituan-longcat/LongCat-Video) | 🔤🖼️➔🎥 Text+Image to Video |
 | [Gemma 3](https://github.com/google-deepmind/gemma) | 🤖 LLM |
 | [Llama 3.2](https://github.com/meta-llama/llama-models/) | 🤖 LLM |

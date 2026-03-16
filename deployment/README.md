@@ -222,10 +222,6 @@ Setup `kubectl` to access the cluster:
 ```bash
 mkdir -p $HOME/.kube
 rm -Rf $HOME/.kube/config
-Setup `kubectl` to access the cluster:
-```bash
-mkdir -p $HOME/.kube
-rm -Rf $HOME/.kube/config
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
 ```
