@@ -102,7 +102,10 @@ jobs:
     - name: Free disk space
       run: |
         df -h
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust
+        sudo apt-get clean
         docker system prune -af
         df -h
 
@@ -125,6 +128,11 @@ jobs:
         bash setup_image.sh
         BASE_TAG=$(jq -r '.base.dockerImage.tag' ../../services.json)
         docker push "localhost:5000/base:${BASE_TAG}"
+
+    - name: Prune Docker build cache
+      run: |
+        docker buildx prune -af
+        df -h
 
     - name: Build kokoro image
       working-directory: deployment/wrappers/kokoro
