@@ -136,9 +136,8 @@ def test_unsupported_solver_raises() -> None:
     # Patch the allocator's policy.solver to an unsupported sentinel value so
     # that _build_allocator falls through all known solver branches.
     bad_solver = object()
-    with _patch.object(type(allocator.policy), 'solver',
-                       new_callable=lambda: property(lambda self: bad_solver)):
-        with pytest.raises((ValueError, AttributeError, TypeError)):
+    with _patch.object(allocator.policy, 'solver', new=bad_solver, create=True):
+        with pytest.raises(ValueError):
             allocator._build_allocator()
 
 
