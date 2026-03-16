@@ -8,15 +8,14 @@ ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
 
 # Get Hunyuan-Avatar repo and install dependencies
-RUN git clone https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar.git && \
-    cd HunyuanVideo-Avatar && \
-    mkdir -p /hunyuanavatar && \
-    cp -r hymm_sp /hunyuanavatar/hymm_sp && \
-    conda install -n streamwise pytorch-cuda -c pytorch -c nvidia && \
-    conda run -n streamwise pip install -r requirements.txt && \
-    # conda run -n streamwise pip install git+https://github.com/Dao-AILab/flash-attention.git@v2.7.1 && \
-    conda run -n streamwise pip cache purge
+RUN git clone https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar.git /hunyuanavatar && \
+    conda install -n streamwise pytorch-cuda -c pytorch -c nvidia
 WORKDIR /hunyuanavatar
+
+# Use our patched requirements instead of the ones in the repo for old Python versions
+COPY docker_files/requirements.txt .
+RUN conda run -n streamwise pip install -r requirements.txt && \
+    conda run -n streamwise pip cache purge
 
 # Download models for Hunyuan-Avatar
 RUN mkdir -p /hunyuanavatar/weights && \
