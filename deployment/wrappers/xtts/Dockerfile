@@ -7,9 +7,9 @@ FROM ${DOCKER_REPO}/base:${BASE_TAG}
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
 
-RUN git clone https://github.com/coqui-ai/TTS.git xtts && \
-    cd xtts && \
-    conda run -n streamwise pip install -r requirements.txt
+RUN git clone https://github.com/coqui-ai/TTS.git xtts
+# Use our own version instead
+# conda run -n streamwise pip install -r requirements.txt
 
 WORKDIR /xtts
 
