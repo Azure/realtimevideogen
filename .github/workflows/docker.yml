@@ -2,6 +2,13 @@ name: Docker
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+    - 'deployment/base/**'
+    - 'deployment/wrappers/**'
+    - 'wrapper/**'
+    - 'services.json'
+    - '.github/workflows/docker.yml'
   schedule:
   - cron: '0 3 * * *'  # Daily at 03:00 UTC
 
