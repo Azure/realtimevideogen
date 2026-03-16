@@ -9,7 +9,7 @@ ARG DOCKER_REPO
 ARG INSTALL_FLASH_ATTN=1
 ENV DOCKER_REPO=${DOCKER_REPO}
 
-RUN apt-get update && apt-get install -y --no-install-recommends mediainfo && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake mediainfo && rm -rf /var/lib/apt/lists/*
 
 # Install flash attention separately (requires CUDA; skip with INSTALL_FLASH_ATTN=0)
 RUN conda run -n streamwise pip install psutil numpy
