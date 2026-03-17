@@ -32,7 +32,7 @@ class MockGeneration(ModelGeneration):
             width = kwargs.get("width", 128)
             height = kwargs.get("height", 64)
             if kwargs["output_type"] == "pil":
-                return Image.new("RGB", (width, height), color='blue')
+                return Image.new("RGB", (int(width), int(height)), color='blue')
             if kwargs["output_type"] == "jsonl":
                 return '{"mock": "data"}'
             if kwargs["output_type"] == "audio_path":

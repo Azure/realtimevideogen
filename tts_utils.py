@@ -91,6 +91,8 @@ def merge_trailing_chunks(
     """Merge chunks if it is into the previous chunk."""
     if len(chunks) < 2:
         return chunks
+    if data is None:
+        return chunks
     last_start, last_end = chunks[-1]
     last_start_idx = int(last_start * rate)
     last_end_idx = int(last_end * rate)

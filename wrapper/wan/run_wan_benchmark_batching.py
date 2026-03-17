@@ -41,7 +41,7 @@ def main() -> None:
         Image.open("person0_generated_image_hidream_20250416T171929.png"),
     ]
     input_images = [
-        input_image.convert("RGB").resize((width, height), Image.LANCZOS)
+        input_image.convert("RGB").resize((width, height), Image.Resampling.LANCZOS)
         for input_image in input_images
     ]
 

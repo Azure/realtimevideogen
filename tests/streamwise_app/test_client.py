@@ -12,7 +12,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-mock_modules = {
+mock_modules: dict[str, object] = {
     # "torch": mock_torch,
 }
 
@@ -76,12 +76,12 @@ async def test_service_request_worker() -> None:
         future = await worker.submit_request(request)
         assert future is not None
         assert isinstance(future, asyncio.Future)
-        assert request.future.done() is False
+        assert request.future is not None and request.future.done() is False
         assert request.status == "CREATED"
         assert request.exception is None
 
         await worker._http_request(request)
-        assert request.future.done() is True
+        assert request.future is not None and request.future.done() is True
         assert request.status == "FAILED"
         assert request.exception is not None
         assert isinstance(request.exception, ServiceError)

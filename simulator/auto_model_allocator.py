@@ -27,6 +27,8 @@ from model_allocator import ModelAllocator
 class AutoModelAllocator(ModelAllocator):
     """Allocator wrapper that routes to a concrete allocator by solver."""
 
+    policy: Policy
+
     def __init__(
         self,
         workflow: WorkflowConfig,

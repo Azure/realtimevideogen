@@ -145,7 +145,7 @@ def test_unsupported_solver_raises() -> None:
 # Upscaler auto-disable when target_resolution is LOW
 # ---------------------------------------------------------------------------
 
-def test_upscaler_disabled_for_low_resolution(caplog) -> None:
+def test_upscaler_disabled_for_low_resolution(caplog: pytest.LogCaptureFixture) -> None:
     """
     When use_upscaler=True but target_resolution=LOW, allocate() should log a
     warning, disable the upscaler flag, and still return a valid Result.
