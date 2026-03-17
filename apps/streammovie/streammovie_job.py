@@ -39,9 +39,11 @@ from video import HUNYUANFRAMEPACK_FPS
 
 DEFAULT_SHOT_DURATION_SECS = 4.0
 DEFAULT_MAX_TOKENS = 8192
+DEFAULT_MAX_CONTINUATION_TURNS = 10
 DEFAULT_SPEECH_SPEED = 1.1
 MAX_LOG_TEXT = 80
 SHOT_DEADLINE_BUFFER_SECS = 120.0  # Extra buffer per shot on top of its timeline offset
+CONTINUE_PROMPT = "Continue."
 
 
 class StreamMovieJob(StreamWiseJob):
@@ -170,10 +172,13 @@ class StreamMovieJob(StreamWiseJob):
         max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> List[Dict[str, Any]]:
         """
-        Stream a structured movie script from the LLM.
+        Stream a structured movie script from the LLM, with continuation support.
+
+        Sends follow-up "Continue." messages until no new JSONL is produced in a
+        turn or the configured max_continuation_turns limit is reached.
         Returns a list of shot_description dicts.
         """
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
@@ -185,49 +190,74 @@ class StreamMovieJob(StreamWiseJob):
 
         script_path = f"{self.job_path}/movie_script.jsonl"
         shot_descriptions: List[Dict[str, Any]] = []
-        buffer = ""
-        line_count = 0
+        total_line_count = 0
+
+        max_continuation_turns = self.get_config_int(
+            "max_continuation_turns", DEFAULT_MAX_CONTINUATION_TURNS
+        )
 
         async with aiofiles.open(script_path, "w") as script_file:
-            async for chunk in self.gen.gen_text_stream(
-                messages=messages,
-                max_tokens=max_tokens,
-                task_id="movie_script",
-            ):
-                if not chunk:
-                    continue
-                buffer += chunk
-                # Parse complete JSONL lines as they arrive
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    line = line.strip()
-                    if not line:
+            for turn in range(max_continuation_turns):
+                buffer = ""
+                turn_line_count = 0
+                assistant_response_parts: List[str] = []
+
+                async for chunk in self.gen.gen_text_stream(
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    task_id=f"movie_script_{turn}",
+                ):
+                    if not chunk:
                         continue
-                    # Skip markdown code fences
-                    if line.startswith("```"):
-                        continue
-                    await script_file.write(line + "\n")
-                    await script_file.flush()
-                    line_count += 1
-                    parsed = self._try_parse_json(line, line_count)
-                    if parsed is None:
-                        continue
-                    line_type = parsed.get("type", "")
-                    if line_type == "shot_description":
+                    buffer += chunk
+                    assistant_response_parts.append(chunk)
+                    # Parse complete JSONL lines as they arrive
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        line = line.strip()
+                        if not line:
+                            continue
+                        # Skip markdown code fences
+                        if line.startswith("```"):
+                            continue
+                        await script_file.write(line + "\n")
+                        await script_file.flush()
+                        total_line_count += 1
+                        turn_line_count += 1
+                        parsed = self._try_parse_json(line, total_line_count)
+                        if parsed is None:
+                            continue
+                        line_type = parsed.get("type", "")
+                        if line_type == "shot_description":
+                            shot_descriptions.append(parsed)
+                            self.logger.info(
+                                f"Shot {parsed.get('shot_id', total_line_count)}: "
+                                f"{str(parsed.get('visual_prompt', ''))[:MAX_LOG_TEXT]}...")
+
+                # Flush any remaining buffer content
+                remainder = buffer.strip()
+                if remainder and not remainder.startswith("```"):
+                    await script_file.write(remainder + "\n")
+                    parsed = self._try_parse_json(remainder, total_line_count)
+                    if parsed and parsed.get("type") == "shot_description":
                         shot_descriptions.append(parsed)
-                        self.logger.info(
-                            f"Shot {parsed.get('shot_id', line_count)}: "
-                            f"{str(parsed.get('visual_prompt', ''))[:MAX_LOG_TEXT]}...")
 
-            # Flush any remaining buffer content
-            remainder = buffer.strip()
-            if remainder and not remainder.startswith("```"):
-                await script_file.write(remainder + "\n")
-                parsed = self._try_parse_json(remainder, line_count)
-                if parsed and parsed.get("type") == "shot_description":
-                    shot_descriptions.append(parsed)
+                self.logger.info(
+                    f"Script turn {turn + 1}/{max_continuation_turns}: "
+                    f"{turn_line_count} new JSONL lines, {len(shot_descriptions)} shots total.")
 
-        self.logger.info(f"Movie script streamed: {line_count} JSONL lines, {len(shot_descriptions)} shots.")
+                # Stop if the LLM produced no JSONL in this turn — generation is complete
+                if turn_line_count == 0:
+                    break
+
+                # Prepare the next continuation turn
+                if turn < max_continuation_turns - 1:
+                    assistant_response = "".join(assistant_response_parts).strip()
+                    messages.append({"role": "assistant", "content": assistant_response})
+                    messages.append({"role": "user", "content": CONTINUE_PROMPT})
+
+        self.logger.info(
+            f"Movie script complete: {total_line_count} JSONL lines, {len(shot_descriptions)} shots.")
         return shot_descriptions
 
     def _try_parse_json(

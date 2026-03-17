@@ -516,10 +516,12 @@ async def is_rtgen_container(container_name: str) -> bool:
 
 
 async def get_docker_image(
-    container_name: str
+    container_name: str,
+    tag: Optional[str] = None
 ) -> Optional[str]:
     """
     Get the docker image for a container from services.json.
+    If tag is provided, it overrides the tag defined in services.json.
     """
     services_file_name = await get_service_json_filename()
     if services_file_name is None:
@@ -533,7 +535,7 @@ async def get_docker_image(
     docker_image = data_service_json["dockerImage"]
     docker_repo = docker_image.get("repository", os.environ.get("DOCKER_REPO", ""))
     docker_name = docker_image["name"]
-    docker_tag = docker_image["tag"]
+    docker_tag = tag if tag else docker_image["tag"]
     return f"{docker_repo}/{docker_name}:{docker_tag}"
 
 
