@@ -16,6 +16,7 @@ with temp_sys_path("simulator"):
 
     from sim_types import GPUType
     from sim_types import QualityLevel
+    from sim_types import WorkflowConfig
 
     from data_loading import load_latency_data
     from data_loading import load_power_data
@@ -203,7 +204,7 @@ def test_32A_32H_options() -> None:
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS.values())
-def test_workflows(workflow) -> None:
+def test_workflows(workflow: WorkflowConfig) -> None:
     latency_data = load_latency_data("simulator/data/")
     power_data = load_power_data("simulator/data/")
     policy = STREAMWISE_POLICY

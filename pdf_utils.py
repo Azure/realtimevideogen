@@ -46,7 +46,7 @@ def page_to_image(
     ZOOM = 2  # Increase resolution (1 = 72 DPI, 2 = 144 DPI)
     mat = fitz.Matrix(ZOOM, ZOOM)
     pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-    image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    image = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
     return image
 
 

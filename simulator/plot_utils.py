@@ -100,7 +100,7 @@ def plot_x_vs_y(
     idx_list_mixed: list[int] = []
 
     # Data for each GPU type
-    idx_lists_single = {}
+    idx_lists_single: dict[GPUType, list[int]] = {}
     for gpu_idx, gpu_type in enumerate(GPUType):
         idx_lists_single[gpu_type] = []
         for idx, provision in enumerate(provisions):

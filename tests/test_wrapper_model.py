@@ -39,7 +39,7 @@ class MockModelGeneration(ModelGeneration):
         return await self.generate()
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         job_id: Optional[str] = None,
     ) -> Any:
@@ -68,7 +68,7 @@ class MockModelGeneration(ModelGeneration):
 
 def test_abstract_wrapper() -> None:
     with pytest.raises(TypeError):
-        ModelGeneration()  # type: ignore[abstract]
+        ModelGeneration()
 
 
 @pytest.mark.asyncio

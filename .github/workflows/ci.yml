@@ -53,10 +53,32 @@ jobs:
 
     - name: Run Python type checking
       if: always()
-      shell: bash {0}
       run: |
-        mypy --install-types --non-interactive --show-traceback --ignore-missing-imports . || true
-        mypy --ignore-missing-imports . || true
+        mypy --install-types --non-interactive --ignore-missing-imports . \
+          2>&1 | tee mypy-results.txt || true
+        echo "## Mypy Type Checking" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || echo 0)
+        NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || echo 0)
+        echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Errors | ${ERROR_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Notes  | ${NOTE_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "<details><summary>Full mypy output</summary>" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        cat mypy-results.txt >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload mypy results
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: mypy-results
+        path: mypy-results.txt
 
     - name: 'Run tests: Main'
       if: always()

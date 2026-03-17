@@ -29,8 +29,8 @@ class MockGeneration(ModelGeneration):
         try:
             if "output_type" not in kwargs:
                 return None
-            width = kwargs.get("width", 128)
-            height = kwargs.get("height", 64)
+            width = int(kwargs.get("width", 128))
+            height = int(kwargs.get("height", 64))
             if kwargs["output_type"] == "pil":
                 return Image.new("RGB", (width, height), color='blue')
             if kwargs["output_type"] == "jsonl":

@@ -98,7 +98,7 @@ class ServiceRequest(BaseModel):
         if not values.get("payload_json") and not values.get("payload_bytes"):
             raise ValueError("Either payload_json or payload_bytes must be provided.")
         timeout = values.get("timeout")
-        if hasattr(timeout, "total"):  # ClientTimeout object
+        if isinstance(timeout, ClientTimeout):  # ClientTimeout object
             values["timeout"] = timeout.total
         return values
 
@@ -334,7 +334,9 @@ class ServiceRequestWorker:
             elif not next_request.deadline and queued_request.deadline:
                 # Take the one with a deadline over one without
                 next_request = queued_request
-            elif queued_request.deadline < next_request.deadline:
+            elif (queued_request.deadline is not None
+                  and next_request.deadline is not None
+                  and queued_request.deadline < next_request.deadline):
                 # Take requests with earlier deadlines first
                 next_request = queued_request
 
@@ -444,10 +446,11 @@ class ServiceRequestWorker:
                 if response.status == HTTPStatus.OK:
                     response_binary = await response.read()
 
-                    request.future.set_result((
-                        content_type,
-                        response_binary
-                    ))
+                    if request.future is not None:
+                        request.future.set_result((
+                            content_type,
+                            response_binary
+                        ))
                     request.set_status(RequestStatus.COMPLETED)
                     self.logger.info(
                         f"Request {request.request_id} with {bytes_to_human(request.get_payload_len())} "

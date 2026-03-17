@@ -18,7 +18,7 @@ with patch.dict(sys.modules, {
     'cv2': MagicMock(),
     'torch': mock_torch,
 }):
-    from mock.wrapper_mock import MockGeneration
+    from mock.wrapper_mock import MockGeneration  # type: ignore[import-untyped]
 
 
 @pytest.mark.asyncio

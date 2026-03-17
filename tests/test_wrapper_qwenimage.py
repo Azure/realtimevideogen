@@ -75,7 +75,7 @@ async def test_wrapper_qwenimage() -> None:
     assert timestamps is not None
 
     with pytest.raises(ValueError):
-        await model.get_rest_args(None)  # type: ignore[arg-type]
+        await model.get_rest_args(None)
     with pytest.raises(ValueError):
         await model.get_rest_args({})
     await model.get_rest_args({
