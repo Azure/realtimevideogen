@@ -6,7 +6,11 @@ on:
     paths:
     - 'deployment/base/**'
     - 'deployment/wrappers/**'
+    - 'deployment/apps/**'
+    - 'deployment/streamwise/**'
     - 'wrapper/**'
+    - 'apps/**'
+    - 'streamwise/**'
     - 'services.json'
     - '.github/workflows/docker.yml'
   schedule:
@@ -164,3 +168,106 @@ jobs:
     - name: Stop kokoro container
       if: always()
       run: docker stop kokoro_ci || true
+
+    - name: Clean up kokoro
+      run: |
+        KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
+        docker rmi "kokoro:${KOKORO_TAG}" || true
+        docker buildx prune -af
+        df -h
+
+    - name: Build streamcast image
+      working-directory: deployment/apps/streamcast
+      env:
+        DOCKER_REPO: localhost:5000
+      run: bash setup_image.sh
+
+    - name: Start streamcast service
+      run: |
+        TAG=$(jq -r '.streamcast.dockerImage.tag' services.json)
+        docker run -d -p 18080:18080 --name streamcast_ci "streamcast:${TAG}"
+
+    - name: Wait for streamcast to be ready
+      run: |
+        for i in $(seq 1 30); do
+          STATUS=$(curl -sf http://localhost:18080/health 2>/dev/null \
+            | jq -r '.status // empty' 2>/dev/null)
+          if [ "$STATUS" = "ok" ]; then
+            echo "✅ StreamCast is ready"
+            exit 0
+          fi
+          echo "Waiting... ($i/30) status=${STATUS:-loading}"
+          sleep 2
+        done
+        echo "StreamCast did not become ready in time" >&2
+        docker logs streamcast_ci >&2
+        exit 1
+
+    - name: Download streamcast pages
+      run: |
+        mkdir -p streamcast_pages
+        curl -sf http://localhost:18080/ -o streamcast_pages/index.html
+        curl -sf http://localhost:18080/job -o streamcast_pages/submit_job.html
+        echo "✅ Downloaded StreamCast pages"
+
+    - name: Upload streamcast pages artifact
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: streamcast-pages
+        path: streamcast_pages/
+
+    - name: Stop streamcast container
+      if: always()
+      run: docker stop streamcast_ci || true
+
+    - name: Clean up streamcast
+      run: |
+        TAG=$(jq -r '.streamcast.dockerImage.tag' services.json)
+        docker rmi "streamcast:${TAG}" || true
+        docker buildx prune -af
+        df -h
+
+    - name: Build streamwise image
+      working-directory: deployment/streamwise
+      env:
+        DOCKER_REPO: localhost:5000
+      run: bash setup_image.sh
+
+    - name: Start streamwise service
+      run: |
+        TAG=$(jq -r '.streamwise.dockerImage.tag' services.json)
+        docker run -d -p 18181:18181 --name streamwise_ci "streamwise:${TAG}"
+
+    - name: Wait for streamwise to be ready
+      run: |
+        for i in $(seq 1 30); do
+          STATUS=$(curl -sf http://localhost:18181/health 2>/dev/null \
+            | jq -r '.status // empty' 2>/dev/null)
+          if [ "$STATUS" = "ok" ]; then
+            echo "✅ StreamWise is ready"
+            exit 0
+          fi
+          echo "Waiting... ($i/30) status=${STATUS:-loading}"
+          sleep 2
+        done
+        echo "StreamWise did not become ready in time" >&2
+        docker logs streamwise_ci >&2
+        exit 1
+
+    - name: Download streamwise pages
+      run: |
+        mkdir -p streamwise_pages
+        curl -sf http://localhost:18181/ -o streamwise_pages/index.html
+        echo "✅ Downloaded StreamWise pages"
+
+    - name: Upload streamwise pages artifact
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: streamwise-pages
+        path: streamwise_pages/
+
+    - name: Stop streamwise container
+      if: always()
+      run: docker stop streamwise_ci || true
