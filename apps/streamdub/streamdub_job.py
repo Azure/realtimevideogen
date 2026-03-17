@@ -115,10 +115,14 @@ class StreamDubJob(StreamWiseJob):
             await self.chunk_audio_into_scenes()
 
             # Persist scene metadata so the UI can display scenes with original audio
+            self.logger.info("Scenes:")
+            for idx, scene in enumerate(self.scenes):
+                self.logger.info(f"  Scene {idx}: {scene}")
             scenes_path = f"{self.job_path}/scenes.json"
             async with aiofiles.open(scenes_path, "w") as scene_file:
                 scenes_dict_list = [asdict(scene) for scene in self.scenes]
-                await scene_file.write(json.dumps(scenes_dict_list, indent=2))
+                scenes_json = json.dumps(scenes_dict_list, indent=2)
+                await scene_file.write(scenes_json)
 
             scene_binaries = []
             for scene in self.scenes:
@@ -138,7 +142,8 @@ class StreamDubJob(StreamWiseJob):
             # Update scenes.json so the UI reflects the dubbed audio paths
             async with aiofiles.open(scenes_path, "w") as scene_file:
                 scenes_dict_list = [asdict(scene) for scene in self.scenes]
-                await scene_file.write(json.dumps(scenes_dict_list, indent=2))
+                scenes_json = json.dumps(scenes_dict_list, indent=2)
+                await scene_file.write(scenes_json)
 
             # Concatenate scenes
             video_binary = await concatenate_videos(
@@ -147,7 +152,7 @@ class StreamDubJob(StreamWiseJob):
             if not video_binary:
                 raise ValueError("Cannot concatenate scenes into final dubbed video.")
             video_info = get_video_file_info(video_binary)
-            video_duration = video_info["video"]["duration_secs"]
+            video_duration = video_info["video"]["duration_seconds"]
             video_fps = video_info["video"]["fps"]
 
             video_path = f"{self.job_path}/{self.job_id}.mp4"
