@@ -103,12 +103,6 @@ class StreamEditJob(StreamWiseJob):
             self.scenes = await self.detect_scenes(video_path)
             self.logger.info(f"Detected {len(self.scenes)} scenes.")
 
-            # Write scenes debug file
-            scenes_path = f"{self.job_path}/scenes.json"
-            async with aiofiles.open(scenes_path, "w") as scene_file:
-                scenes_dict_list = [asdict(scene) for scene in self.scenes]
-                await scene_file.write(json.dumps(scenes_dict_list, indent=2))
-
             await self.save_status(JobStatus.RUNNING)
 
             # Build edit prompt from user instructions
@@ -121,17 +115,22 @@ class StreamEditJob(StreamWiseJob):
                 await self._save_video_as_output(video_path)
                 return
 
-            # Extract full audio from input video for re-use across scenes
-            audio_path = f"{self.job_path}/audio.wav"
-            audio_path = await extract_audio_from_video(video_path, audio_path)
-            audio_base64 = await read_file_base64(audio_path)
-            self.logger.info(f"Extracted audio with {bytes_to_human(len(audio_base64))}.")
+            # Chunk audio into per-scene files
+            await self.chunk_audio_into_scenes()
+
+            # Write scenes debug file (audio_path is now populated)
+            scenes_path = f"{self.job_path}/scenes.json"
+            async with aiofiles.open(scenes_path, "w") as scene_file:
+                scenes_dict_list = [asdict(scene) for scene in self.scenes]
+                await scene_file.write(json.dumps(scenes_dict_list, indent=2))
+
+            await self.save_status(JobStatus.RUNNING)
 
             # Edit each scene
             scene_video_paths: List[Optional[str]] = []
             for scene in self.scenes:
                 try:
-                    scene_path = await self.gen_edit_scene(scene, audio_base64, edit_prompt)
+                    scene_path = await self.gen_edit_scene(scene, edit_prompt)
                     scene_video_paths.append(scene_path)
                     self.logger.info(f"[{scene.scene_id}] Edited scene saved to '{scene_path}'.")
                 except Exception as ex:
@@ -198,10 +197,37 @@ class StreamEditJob(StreamWiseJob):
             scenes.append(scene)
         return scenes
 
+    async def chunk_audio_into_scenes(self) -> List[str]:
+        """
+        Chunk the audio of the video into per-scene WAV files.
+        Sets scene.audio_path on each SceneSegment to the relative filename
+        (e.g. scene_000.wav) and saves the file to the job directory.
+        Returns a list of base64-encoded audio chunks, one per scene.
+        """
+        chunks = []
+        try:
+            video_path = f"{self.job_path}/video.mp4"
+            audio_path = f"{self.job_path}/audio.wav"
+            audio_path = await extract_audio_from_video(video_path, audio_path)
+            audio_base64 = await read_file_base64(audio_path)
+            self.logger.info(f"Extracted audio with {bytes_to_human(len(audio_base64))}.")
+
+            for scene in self.scenes:
+                scene_audio_base64 = chunk_audio_base64(
+                    audio_base64=audio_base64,
+                    start_seconds=scene.start_sec,
+                    end_seconds=scene.end_sec)
+                scene_audio_path = f"{self.job_path}/scene_{scene.scene_id:03d}.wav"
+                await save_base64_as_binary(scene_audio_path, scene_audio_base64)
+                scene.audio_path = f"scene_{scene.scene_id:03d}.wav"
+                chunks.append(scene_audio_base64)
+        except Exception as ex:
+            self.logger.error(f"Error during audio chunking: {ex} [{type(ex)}]")
+        return chunks
+
     async def gen_edit_scene(
         self,
         scene: SceneSegment,
-        audio_base64: str,
         edit_prompt: str = EDIT_PROMPT,
     ) -> str:
         """
@@ -218,12 +244,8 @@ class StreamEditJob(StreamWiseJob):
         )
         scene_video_frames = await get_video_frames(scene_binary)
 
-        # Chunk audio for this scene's time range
-        scene_audio_base64 = chunk_audio_base64(
-            audio_base64=audio_base64,
-            start_seconds=scene.start_sec,
-            end_seconds=scene.end_sec,
-        )
+        scene_audio_path = f"{self.job_path}/{scene.audio_path}"
+        scene_audio_base64 = await read_file_base64(scene_audio_path)
 
         scene_edit_binary = await self.gen.gen_video_audio_from_video(
             video=scene_video_frames,
@@ -233,7 +255,7 @@ class StreamEditJob(StreamWiseJob):
             deadline=self.get_submission_time() + scene.start_sec,
         )
 
-        scene_path = f"{self.job_path}/{scene.scene_id:03d}_edit.mp4"
+        scene_path = f"{self.job_path}/scene_{scene.scene_id:03d}_edit.mp4"
         async with aiofiles.open(scene_path, "wb") as file:
             await file.write(scene_edit_binary)
         return scene_path
