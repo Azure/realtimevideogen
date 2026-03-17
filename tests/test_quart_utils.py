@@ -91,25 +91,35 @@ def test_format_gpu_model() -> None:
     assert format_gpu_model("Tesla V100-PCIE-16GB") == "V100 16GB"
     assert format_gpu_model("Tesla-V100-SXM2-32GB") == "V100 32GB"
     assert format_gpu_model("Tesla V100-SXM2-32GB") == "V100 32GB"
-    # Azure VM SKU names — ND series
+    # Azure VM SKU names — ND series (ND_A100_v4)
     assert format_gpu_model("Standard_ND96ams_A100_v4") == "A100 80GB"
+    assert format_gpu_model("Standard_ND96amsr_A100_v4") == "A100 80GB"
+    # Azure VM SKU names — ND series (ND_H100_v5)
     assert format_gpu_model("Standard_ND96isrf_H100_v5") == "H100"
     assert format_gpu_model("Standard_ND96isr_H100_v5") == "H100"
+    # Azure VM SKU names — ND series (ND_MI300X_v5)
     assert format_gpu_model("Standard_ND96isr_MI300X_v5") == "MI300X"
-    # Azure VM SKU names — NC series
+    # Azure VM SKU names — ND series (ND_H200_v5)
+    assert format_gpu_model("Standard_ND96isr_H200_v5") == "H200"
+    # Azure VM SKU names — ND series (ND_GB200_v6 / ND_GB300_v6)
+    assert format_gpu_model("Standard_ND128isr_GB300_v6") == "GB300"
+    # Azure VM SKU names — NC series (NC_A100_v4)
     assert format_gpu_model("Standard_NC96ads_A100_v4") == "A100 80GB"
+    # Azure VM SKU names — NC series (NCasT4_v3)
     assert format_gpu_model("Standard_NC4as_T4_v3") == "T4"
     assert format_gpu_model("Standard_NC8as_T4_v3") == "T4"
     assert format_gpu_model("Standard_NC64as_T4_v3") == "T4"
-    # Azure VM SKU names — NV series
+    # Azure VM SKU names — NC series (NCads_H100_v5)
+    assert format_gpu_model("Standard_NC40ads_H100_v5") == "H100"
+    # Azure VM SKU names — NV series (NVads_A10_v5)
+    assert format_gpu_model("Standard_NV18ads_A10_v5") == "A10"
     assert format_gpu_model("Standard_NV36ads_A10_v5") == "A10"
-    # GB200 and GB300
+    assert format_gpu_model("Standard_NV72ads_A10_v5") == "A10"
+    # GB200 and GB300 raw strings
     assert format_gpu_model("NVIDIA GB200") == "GB200"
     assert format_gpu_model("NVIDIA-GB200") == "GB200"
     assert format_gpu_model("NVIDIA GB300") == "GB300"
     assert format_gpu_model("NVIDIA-GB300") == "GB300"
-    assert format_gpu_model("Standard_ND96ads_GB200_v6") == "GB200"
-    assert format_gpu_model("Standard_ND96ads_GB300_v6") == "GB300"
     # Azure VM SKU — unknown GPU identifier falls back to the GPU part (uppercased)
     assert format_gpu_model("Standard_NC6s_UnknownGPU_v3") == "UNKNOWNGPU"
     # Edge cases
