@@ -43,8 +43,8 @@ class VoiceMapper:
         voices_dir = os.path.join(os.path.dirname(__file__), "voices")
         if not os.path.exists(voices_dir):
             logging.warning(f"Voices directory not found at {voices_dir}")
-            self.voice_presets = {}
-            self.available_voices = {}
+            self.voice_presets: dict[str, str] = {}
+            self.available_voices: dict[str, str] = {}
             return
 
         wav_files = [
@@ -193,7 +193,7 @@ class VibeVoiceGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         text: str,
         voice: str = "woman_000",
@@ -233,6 +233,8 @@ class VibeVoiceGeneration(ModelGeneration):
             gen_timer.end("processor")
 
             gen_timer.start("vibevoice")
+            if self.vibevoice is None:
+                raise RuntimeError("VibeVoice model not loaded")
             outputs = await asyncio.to_thread(
                 self.vibevoice.generate,
                 **inputs,

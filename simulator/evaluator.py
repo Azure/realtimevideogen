@@ -160,9 +160,9 @@ def evaluate_energy(
     Calculate total energy (power * time * replicas for each model).
     Need to run after evaluate_times since energy calculation depends on time.
     """
-    for model_allocations in models.values():
-        for model_allocations in model_allocations.values():
-            for model_allocation in model_allocations:
+    for gpu_type_allocs in models.values():
+        for model_allocation_list in gpu_type_allocs.values():
+            for model_allocation in model_allocation_list:
                 model_allocation.calculate_energy(
                     workflow,
                     power_data,
@@ -178,9 +178,9 @@ def evaluate_cost(
     Calculate total cost based on GPU hours used.
     Need to run after evaluate_times since cost calculation depends on time.
     """
-    for model_allocations in models.values():
-        for model_allocations in model_allocations.values():
-            for model in model_allocations:
+    for gpu_type_allocs in models.values():
+        for model_allocation_list in gpu_type_allocs.values():
+            for model in model_allocation_list:
                 model.calculate_cost(policy, total_time_s)
 
 

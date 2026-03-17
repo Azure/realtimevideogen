@@ -33,62 +33,67 @@
         {% if service_name not in streamwise_apps %}
             <h2 class="mb-4">🫛 Single service</h1>
             <form id="add-wrapper-form" method="post" action="/api/pod">
-                <div class="mb-3">
-                    <label for="wrapper_container_name" class="form-label">Pod Name</label>
-                    <select class="form-select" id="wrapper_container_name" name="container_name" required>
-                        <optgroup label="📄 Text generation">
-                            <option value="gemma">Gemma 3</option>
-                            <option value="llama32">Llama 3.2</option>
-                            <option value="podcasttranscript">Podcast Transcript</option>
-                            <option value="slidetranscript">Slide Transcript</option>
-                            <option value="whisper">Whisper</option>
-                        </optgroup>
-                        <optgroup label="🖼️ Image generation">
-                            <option value="flux">FLUX-dev</option>
-                            <option value="fluxkrea">FLUX Krea</option>
-                            <option value="hidream">HiDream I1</option>
-                            <option value="qwenimage">Qwen Image</option>
-                            <option value="januspro">Janus Pro</option>
-                            <option value="llamagen">LlamaGen</option>
-                            <option value="hunyuanimage">Hunyuan Image 3</option>
-                        </optgroup>
-                        <optgroup label="🖼️ Image editing">
-                            <option value="yolo">YOLO</option>
-                            <option value="fluxupscaler">FLUX Upscaler</option>
-                            <option value="fluxkontext">FLUX Kontext</option>
-                            <option value="bagel">Bagel</option>
-                            <option value="qwenimageedit">Qwen Image Edit</option>
-                            <option value="imageresize">Image Resize</option>
-                            <option value="realesrgan">Real-ESRGAN</option>
-                        </optgroup>
-                        <optgroup label="🎬 Video generation">
-                            <option value="hunyuanframepack">Hunyuan FramePack</option>
-                            <option value="hunyuanframepackf1">Hunyuan FramePack F1</option>
-                            <option value="hunyuanframepackvae">Hunyuan FramePack VAE</option>
-                            <option value="wan">Wan 2.1</option>
-                            <option value="wan22">Wan 2.2 🚧</option>
-                            <option value="ltx">LTX-Video 🚧</option>
-                            <option value="longcatvideo">LongCat-Video 🚧</option>
-                        </optgroup>
-                        <optgroup label="🗣️ Lip sync">
-                            <option value="hunyuanavatar">Hunyuan Avatar</option>
-                            <option value="fantasytalking">Fantasy Talking</option>
-                        </optgroup>
-                        <optgroup label="🔉 Audio generation">
-                            <option value="kokoro">Kokoro</option>
-                            <option value="dia">Dia 🚧</option>
-                            <option value="xtts">XTTS 🚧</option>
-                            <option value="thinksound">ThinkSound 🚧</option>
-                            <option value="vibevoice">VibeVoice 🚧</option>
-                        </optgroup>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="wrapper_tag" class="form-label">🏷️ Image Tag <span class="text-muted fw-normal">(optional)</span></label>
-                    <input type="text" class="form-control" id="wrapper_tag" name="tag"
-                        placeholder="Leave blank to use the default tag from services.json">
-                    <div class="form-text">Override the Docker image tag (e.g. <code>v0.4.0</code>). Leave empty to use the default.</div>
+                <div class="mb-3 row g-2 align-items-end">
+                    <div class="col-8">
+                        <label for="wrapper_container_name" class="form-label">Container</label>
+                        <select class="form-select" id="wrapper_container_name" name="container_name" required>
+                            <optgroup label="📄 Text generation">
+                                <option value="gemma">Gemma 3</option>
+                                <option value="llama32">Llama 3.2</option>
+                                <option value="podcasttranscript">Podcast Transcript</option>
+                                <option value="slidetranscript">Slide Transcript</option>
+                                <option value="whisper">Whisper</option>
+                            </optgroup>
+                            <optgroup label="🖼️ Image generation">
+                                <option value="flux">FLUX-dev</option>
+                                <option value="fluxkrea">FLUX Krea</option>
+                                <option value="hidream">HiDream I1</option>
+                                <option value="qwenimage">Qwen Image</option>
+                                <option value="januspro">Janus Pro</option>
+                                <option value="llamagen">LlamaGen</option>
+                                <option value="hunyuanimage">Hunyuan Image 3</option>
+                            </optgroup>
+                            <optgroup label="🖼️ Image editing">
+                                <option value="yolo">YOLO</option>
+                                <option value="fluxupscaler">FLUX Upscaler</option>
+                                <option value="fluxkontext">FLUX Kontext</option>
+                                <option value="bagel">Bagel</option>
+                                <option value="qwenimageedit">Qwen Image Edit</option>
+                                <option value="imageresize">Image Resize</option>
+                                <option value="realesrgan">Real-ESRGAN</option>
+                            </optgroup>
+                            <optgroup label="🎬 Video generation">
+                                <option value="hunyuanframepack">Hunyuan FramePack</option>
+                                <option value="hunyuanframepackf1">Hunyuan FramePack F1</option>
+                                <option value="hunyuanframepackvae">Hunyuan FramePack VAE</option>
+                                <option value="wan">Wan 2.1</option>
+                                <option value="wan22">Wan 2.2 🚧</option>
+                                <option value="ltx">LTX-Video 🚧</option>
+                                <option value="longcatvideo">LongCat-Video 🚧</option>
+                            </optgroup>
+                            <optgroup label="🗣️ Lip sync">
+                                <option value="hunyuanavatar">Hunyuan Avatar</option>
+                                <option value="fantasytalking">Fantasy Talking</option>
+                            </optgroup>
+                            <optgroup label="🔉 Audio generation">
+                                <option value="kokoro">Kokoro</option>
+                                <option value="dia">Dia 🚧</option>
+                                <option value="xtts">XTTS 🚧</option>
+                                <option value="thinksound">ThinkSound 🚧</option>
+                                <option value="vibevoice">VibeVoice 🚧</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label for="wrapper_tag" class="form-label">
+                            🏷️ Tag
+                            <span tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top"
+                                title="Optional. Override the Docker image tag (e.g. v0.4.0). Leave empty to use the default from services.json."
+                                style="cursor:pointer;">ℹ️</span>
+                        </label>
+                        <input type="text" class="form-control" id="wrapper_tag" name="tag"
+                            placeholder="default">
+                    </div>
                 </div>
 
                 <!-- Load Balancer / Public IP Section -->
@@ -588,6 +593,15 @@
                     });
                 });
             }
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq"
+            crossorigin="anonymous"></script>
+        <script>
+            // Initialise Bootstrap tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+                new bootstrap.Tooltip(el);
+            });
         </script>
     </div>
 </body>

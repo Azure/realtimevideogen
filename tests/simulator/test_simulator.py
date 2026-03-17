@@ -392,7 +392,7 @@ def test_scheduler_wrong() -> None:
     power_data = load_power_data("simulator/data/")
 
     policy = replace(STREAMWISE_POLICY)
-    policy.objective = "wrong"  # type: ignore
+    policy.objective = "wrong"
 
     allocator = GreedyAllocator(
         workflow=DEFAULT_WORKFLOW_CONFIG,

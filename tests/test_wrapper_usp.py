@@ -45,7 +45,7 @@ class MockUSPGeneration(USPGeneration):
         return await self.generate()
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         job_id: Optional[str] = None,
     ) -> Any:

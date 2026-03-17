@@ -73,7 +73,7 @@ class USPGeneration(ModelGeneration):
         self.base_seed = seed
 
         if dist.is_initialized():
-            global_base_seed = [self.base_seed] if self.rank == 0 else [None]
+            global_base_seed: list[int | None] = [self.base_seed] if self.rank == 0 else [None]
             dist.broadcast_object_list(global_base_seed, src=0)
             self.base_seed = global_base_seed[0]
         logging.info(f"[{self.rank}] Using base seed: {self.base_seed}")

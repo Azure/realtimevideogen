@@ -460,9 +460,13 @@ async def file_stream(
 @route("/job/", methods=["GET"])
 async def submit_job() -> str:
     """Render the job submission form."""
-    svcs = await get_services(
-        namespace=NAMESPACE,
-        k8s_cluster=k8s_cluster)
+    svcs = []
+    try:
+        svcs = await get_services(
+            namespace=NAMESPACE,
+            k8s_cluster=k8s_cluster)
+    except Exception as ex:
+        logging.exception("Error fetching services for /job/: %s", ex)
     return await render_template(
         "submit_job.html",
         svcs=svcs)
@@ -474,9 +478,14 @@ async def submit_job_container(
     container_port: int
 ) -> str:
     """Render the job submission form for a specific container."""
-    svcs = await get_services(
-        namespace=NAMESPACE,
-        k8s_cluster=k8s_cluster)
+    svcs = []
+    try:
+        svcs = await get_services(
+            namespace=NAMESPACE,
+            k8s_cluster=k8s_cluster)
+    except Exception as ex:
+        logging.exception("Error fetching services for /job/%s/%s: %s",
+                          container_ip, container_port, ex)
     return await render_template(
         "submit_job.html",
         svcs=svcs,

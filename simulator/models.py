@@ -179,7 +179,7 @@ class FluxModelAllocation(ModelAllocation):
         workflow: WorkflowConfig,
         latency_data: LatencyData,
         work_pct: float = 1.0,
-    ):
+    ) -> float:
         if self.get_num_gpus() == 0:
             self.time = 0.0
             return self.time
@@ -348,7 +348,7 @@ class HFVAEModelAllocation(ModelAllocation):
     ) -> float:
         if not policy.is_disaggregated(Model.HF):
             assert self.get_num_gpus() == 0
-            assert self.time == 0.0
+            self.time = 0.0
             return self.time
         if self.get_num_gpus() == 0:
             self.time = 0.0
@@ -372,7 +372,7 @@ class HFVAEModelAllocation(ModelAllocation):
     ) -> float:
         if not policy.is_disaggregated(Model.HF):
             assert self.get_num_gpus() == 0
-            assert self.time_first == 0.0
+            self.time_first = 0.0
             return self.time_first
         if self.get_num_gpus() == 0:
             self.time_first = 0.0
@@ -533,7 +533,7 @@ class FTVAEModelAllocation(ModelAllocation):
     ) -> float:
         if not policy.is_disaggregated(Model.FT):
             assert self.get_num_gpus() == 0
-            assert self.time == 0.0
+            self.time = 0.0
             return self.time
         if self.get_num_gpus() == 0:
             self.time = 0.0
@@ -557,7 +557,7 @@ class FTVAEModelAllocation(ModelAllocation):
     ) -> float:
         if not policy.is_disaggregated(Model.FT):
             assert self.get_num_gpus() == 0
-            assert self.time_first == 0.0
+            self.time_first = 0.0
             return self.time_first
         if self.get_num_gpus() == 0:
             self.time_first = 0.0
