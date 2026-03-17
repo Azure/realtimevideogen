@@ -277,10 +277,11 @@
 
             // Scenes
             const scenesUrl = "/file_stream/{{ job_id }}/scenes.json";
+            let scenesInterval = null;
             async function fetchScenes() {
                 try {
                     const res = await fetch(scenesUrl + "?t=" + Date.now());
-                    if (res.status === 404) return;  // Not found
+                    if (res.status === 404) return;  // Not ready yet — interval will retry
                     if (!res.ok) throw new Error(res.statusText);
 
                     const scenes = await res.json();
@@ -329,17 +330,15 @@
                             audioWrapper.style.height = "30px";
 
                             const audioPlayer = document.createElement("audio");
+                            audioPlayer.id = `audio-player-${sceneId}`;
                             audioPlayer.controls = true;
                             audioPlayer.className = "mt-1";
                             audioPlayer.style.width = "320px";
                             audioPlayer.style.height = "30px";
-                            audioPlayer.innerHTML = `
-                                <source id="src-audio-${sceneId}" type="audio/wav">
-                                Your browser does not support the audio element.
-                            `;
+                            audioPlayer.innerHTML = `Your browser does not support the audio element.`;
                             if (scene.audio_path) {
-                                const audioPath = scene.audio_path;
-                                audioPlayer.src = `/file_stream/{{ job_id }}/${audioPath}`;
+                                audioPlayer.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
+                                audioPlayer.dataset.audioPath = scene.audio_path;
                             }
                             audioWrapper.appendChild(audioPlayer);
                             mediaColumn.appendChild(audioWrapper);
@@ -357,12 +356,19 @@
                                 sceneText.appendChild(p);
                             }
                             if (scene.transcript) {
-                                const transcriptHeader = document.createElement("p");
                                 const transcriptPara = document.createElement("p");
                                 transcriptPara.innerHTML = `<strong>Transcript:</strong>` + scene.transcript;
                                 sceneText.appendChild(transcriptPara);
                             }
                             sceneRow.appendChild(sceneText);
+                        } else if (scene.audio_path) {
+                            // Update audio source when dubbed audio becomes available
+                            const audioPlayer = document.getElementById(`audio-player-${sceneId}`);
+                            if (audioPlayer && audioPlayer.dataset.audioPath !== scene.audio_path) {
+                                audioPlayer.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
+                                audioPlayer.dataset.audioPath = scene.audio_path;
+                                audioPlayer.load();
+                            }
                         }
                     }
                 } catch (err) {
@@ -370,7 +376,7 @@
                 }
             }
             fetchScenes();
-            // fetchScenesInterval = setInterval(fetchScenes, 1000);
+            scenesInterval = setInterval(fetchScenes, 2000);
 
             // Frames
             const numFrames = 10;  // TODO
@@ -467,6 +473,7 @@
                 if (status) updateStatusBadge(status);
                 if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
                     clearInterval(logInterval);
+                    clearInterval(scenesInterval);
                 }
             }
             refreshLogLoop();

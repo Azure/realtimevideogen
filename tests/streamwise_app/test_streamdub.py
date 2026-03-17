@@ -3,6 +3,7 @@
 Unit tests for StreamDub.
 """
 
+import json
 import os
 import sys
 import pytest
@@ -13,6 +14,7 @@ from quart import Quart
 
 from unittest.mock import patch
 from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 
 # Add current path
 sys.path.append(os.getcwd())
@@ -162,3 +164,54 @@ async def test_streamdub_job_gen_dub_no_scenes() -> None:
     # "AAAA" is valid base64; scenedetect mocks return empty scene list
     with pytest.raises(ValueError, match="No scenes detected"):
         await job.gen_dub(video_base64="AAAA")
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_writes_scenes_json() -> None:
+    """gen_dub must write scenes.json after chunking audio so the UI can display scenes."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job_id = "test_scenes_json"
+    job = _StreamDubJob(job_id=job_id, service_manager=service_manager)
+
+    # Build two fake scenes (audio_path not yet set — chunk_audio_into_scenes sets it)
+    fake_scenes = [
+        SceneSegment(scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0),
+        SceneSegment(scene_id=1, start_frame=30, end_frame=60, start_sec=1.0, end_sec=2.0),
+    ]
+
+    # Patch detect_scenes and chunk_audio_into_scenes so we control the scene list
+    async def fake_detect_scenes(**kwargs: object) -> list:
+        return fake_scenes
+
+    async def fake_chunk_audio(**kwargs: object) -> list:
+        # Simulate chunking setting audio_path on each scene (mirrors real behaviour)
+        for scene in fake_scenes:
+            scene.audio_path = f"scene_{scene.scene_id:03d}.wav"
+        return []
+
+    with patch.object(job, "detect_scenes", side_effect=fake_detect_scenes), \
+         patch.object(job, "chunk_audio_into_scenes", side_effect=fake_chunk_audio), \
+         patch.object(job, "gen_dub_scene", side_effect=ValueError("stop")):
+        try:
+            await job.gen_dub(video_base64="AAAA")
+        except (ValueError, Exception):
+            pass  # We only care that scenes.json was written before gen_dub_scene is called
+
+    scenes_json_path = os.path.join(job.job_path, "scenes.json")
+    assert os.path.exists(scenes_json_path), "scenes.json must be written after chunk_audio_into_scenes"
+    with open(scenes_json_path) as f:
+        data = json.load(f)
+    assert len(data) == 2
+    assert data[0]["scene_id"] == 0
+    assert data[0]["audio_path"] == "scene_000.wav"
+    assert data[1]["scene_id"] == 1
+    assert data[1]["audio_path"] == "scene_001.wav"
+
+    await job.close()
