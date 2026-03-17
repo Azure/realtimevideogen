@@ -165,6 +165,8 @@ _AZURE_VM_SKU_RE = re.compile(r'^Standard_(?:NC|ND|NV)\d+[a-zA-Z]*_([A-Za-z0-9]+
 
 _AZURE_VM_GPU_MAP: Dict[str, str] = {
     "A100": "A100 80GB",
+    "GB200": "GB200",
+    "GB300": "GB300",
     "H100": "H100",
     "H200": "H200",
     "MI300X": "MI300X",
@@ -177,6 +179,8 @@ _AZURE_VM_GPU_MAP: Dict[str, str] = {
 _GPU_MODEL_PATTERNS: List[Tuple[str, str]] = [
     (r'\bA100\b.*\b40\s*GB\b', "A100 40GB"),
     (r'\bA100\b', "A100 80GB"),
+    (r'\bGB300\b', "GB300"),
+    (r'\bGB200\b', "GB200"),
     (r'\bH100\b.*\bNVL\b', "H100 NVL"),
     (r'\bNVL\b.*\bH100\b', "H100 NVL"),
     (r'\bH100\b', "H100"),
