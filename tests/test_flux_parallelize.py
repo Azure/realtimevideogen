@@ -33,11 +33,11 @@ with patch.dict(sys.modules, {
 
 class DummyTransformer:
     def __init__(self) -> None:
-        self.transformer_blocks = []
-        self.single_transformer_blocks = []
-        self.forward = MagicMock(return_value=(mock_torch.randn(2, 4, 8), "extra"))
+        self.transformer_blocks: list[MagicMock] = []
+        self.single_transformer_blocks: list[MagicMock] = []
+        self._forward_mock = MagicMock(return_value=(mock_torch.randn(2, 4, 8), "extra"))
 
-    def forward(self, *args, **kwargs) -> Tuple:
+    def forward(self, *args: object, **kwargs: object) -> Tuple:
         return (mock_torch.randn(2, 4), "extra")
 
 
@@ -96,7 +96,7 @@ def test_parallelize_transformer() -> None:
                 txt_ids=txt_ids,
                 timestep=timestep)
 
-            transformer.forward.assert_called()
+            transformer._forward_mock.assert_called()
             assert isinstance(result, tuple)
             assert result[0].shape == (1, 4, 8)
             assert result[1] == "extra"

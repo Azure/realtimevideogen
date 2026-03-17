@@ -36,7 +36,7 @@ class XTTSGeneration(ModelGeneration):
             self.rank = 0
             self.local_rank = 0
             self.world_size = 1
-            self.device_id = self.local_rank
+            self.device_id: Union[int, str] = self.local_rank
             self.device = torch.device(f"cuda:{self.device_id}")
             torch.cuda.set_device(self.local_rank)
         else:
@@ -98,7 +98,7 @@ class XTTSGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         text: str,
         job_id: Optional[str] = None,
@@ -113,6 +113,8 @@ class XTTSGeneration(ModelGeneration):
             # Clean up text
             text = text.replace("*", "")
 
+            if self.xtts is None:
+                raise RuntimeError("Model not loaded")
             outputs = self.xtts.synthesize(
                 text,
                 self.xtts_config,

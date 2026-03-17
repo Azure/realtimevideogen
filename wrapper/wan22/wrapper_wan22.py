@@ -11,6 +11,7 @@ import types
 from typing import Union
 from typing import List
 from typing import Optional
+from typing import Any
 
 from PIL import Image
 
@@ -41,6 +42,8 @@ from xfuser.core.distributed import get_sequence_parallel_world_size
 
 class Wan22VideoGeneration(WanVideoGeneration):
     """Handle video generation using the Wan 2.2 model."""
+
+    interrupted: bool
 
     def __init__(
         self,
@@ -174,7 +177,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
         return self.model_low_noise
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -185,7 +188,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
         sampling_steps: int = 50,
         job_id: Optional[str] = None,
         output_type: str = "tensor"
-    ) -> Union[List[Image.Image], str, bytes, torch.Tensor]:
+    ) -> Union[List[Image.Image], str, bytes, torch.Tensor, None]:
         """
         Generate a video from an image and a prompt.
         """
@@ -200,7 +203,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
 
         try:
             # Convert image to normalized tensor
-            img_resized = img.resize((width, height), Image.LANCZOS)
+            img_resized = img.resize((width, height), Image.Resampling.LANCZOS)
             img_tensor_norm = TF.to_tensor(img_resized).sub_(0.5).div_(0.5).to(self.device)
             # img is PIL.Image.Image image mode=RGB size=640x480 at 0x7FA09029B1D0
             # img_tensor_norm: [3, 480, 640] [RGB, height, width]
@@ -275,7 +278,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
             gen_timer.end("vae_encoder")
 
             @contextmanager
-            def noop_no_sync():
+            def noop_no_sync() -> Any:
                 yield
 
             no_sync_high = getattr(self.model_high_noise, "no_sync", noop_no_sync)
@@ -311,9 +314,9 @@ class Wan22VideoGeneration(WanVideoGeneration):
 
                     # TODO test batching
                     latent_model_input = [latent.to(self.device)]
-                    timestep = [t]
+                    timestep_list = [t]
 
-                    timestep = torch.stack(timestep).to(self.device)
+                    timestep = torch.stack(timestep_list).to(self.device)
 
                     # Choose the mask depending on the previous video and stage
                     y = y_1_frame  # We use the mask starting from the image

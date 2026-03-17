@@ -239,7 +239,7 @@ class HelixAllocator(ModelAllocator):
             active_gpus = {
                 gt: min(count, model_budget.get(gt, count))
                 for gt, count in remaining_gpus.items()
-                if count > 0 and model_budget.get(gt, count) > 0
+                if count > 0 and (gt not in model_budget or model_budget[gt] > 0)
             }
 
             if verbose:

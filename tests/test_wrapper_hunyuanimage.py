@@ -52,7 +52,7 @@ async def test_wrapper_hunyuanimage() -> None:
     assert health is not None
 
     with pytest.raises(ValueError, match="Missing JSON body"):
-        await model.get_rest_args(None)  # type: ignore[arg-type]
+        await model.get_rest_args(None)
     with pytest.raises(ValueError, match="Missing 'prompt' parameter"):
         await model.get_rest_args({})
 
