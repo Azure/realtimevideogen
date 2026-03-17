@@ -84,6 +84,13 @@
                     </select>
                 </div>
 
+                <div class="mb-3">
+                    <label for="wrapper_tag" class="form-label">🏷️ Image Tag <span class="text-muted fw-normal">(optional)</span></label>
+                    <input type="text" class="form-control" id="wrapper_tag" name="tag"
+                        placeholder="Leave blank to use the default tag from services.json">
+                    <div class="form-text">Override the Docker image tag (e.g. <code>v0.4.0</code>). Leave empty to use the default.</div>
+                </div>
+
                 <!-- Load Balancer / Public IP Section -->
                 <fieldset class="border rounded-3 p-3 mb-4">
                     <legend class="float-none w-auto px-2 fw-semibold">

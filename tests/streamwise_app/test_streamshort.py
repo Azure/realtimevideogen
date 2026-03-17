@@ -5,6 +5,7 @@ Unit tests for StreamShort.
 
 import os
 import sys
+import json
 import pytest
 import aiofiles
 
@@ -221,6 +222,39 @@ async def test_save_highlight_short() -> None:
         await job.save_highlight_short([])
 
     await job.close()
+
+
+@pytest.mark.asyncio
+async def test_save_selected_scenes() -> None:
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(
+        return_value="http://mock_service_url:1234"
+    )
+    job_id = "test_save_selected_scenes"
+    job = StreamShortJob(job_id, service_manager)
+    try:
+        chosen = [0, 2, 4]
+        await job.save_selected_scenes(chosen)
+
+        selected_path = f"{job.job_path}/selected_scenes.json"
+        async with aiofiles.open(selected_path) as f:
+            data = json.loads(await f.read())
+        assert data == chosen
+
+        # Overwrite with a new selection
+        chosen2 = [1, 3]
+        await job.save_selected_scenes(chosen2)
+        async with aiofiles.open(selected_path) as f:
+            data2 = json.loads(await f.read())
+        assert data2 == chosen2
+
+        # Empty selection is also valid
+        await job.save_selected_scenes([])
+        async with aiofiles.open(selected_path) as f:
+            data3 = json.loads(await f.read())
+        assert data3 == []
+    finally:
+        await job.close()
 
 
 @pytest.mark.asyncio
