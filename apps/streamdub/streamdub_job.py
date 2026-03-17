@@ -258,21 +258,21 @@ class StreamDubJob(StreamWiseJob):
             await file.write(scene.transcript)
 
         # Translate transcription
-        scene.transcript = await self.translate_scene(
+        scene.translation = await self.translate_scene(
             scene,
             output_lang_code=lang_code)
 
-        self.logger.info(f"[{scene_id}] Translation: {scene.transcript[0:80]}...")
+        self.logger.info(f"[{scene_id}] Translation: {scene.translation[0:80]}...")
         transcript_path = f"{self.job_path}/scene_{scene_id:03d}_translation.txt"
         async with aiofiles.open(transcript_path, "w") as file:
-            await file.write(scene.transcript)
+            await file.write(scene.translation)
 
         await self.save_status(JobStatus.RUNNING)
 
         # Generate dubbed audio
         deadline = self.get_submission_time() + scene.start_sec
         audio_base64 = await self.gen.gen_audio(
-            text=scene.transcript,
+            text=scene.translation,
             voice="af_heart",  # TODO select voice based on language
             speed=1.1,  # TODO select voice based on language
             lang_code=lang_code,
