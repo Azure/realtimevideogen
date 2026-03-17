@@ -38,6 +38,7 @@ from service_manager import get_service_timestamps
 
 sys.path.append("..")
 from console_utils import setup_logging
+from streamwise_apps import STREAMWISE_APPS
 
 from quart_utils import QuartReturn
 from quart_utils import json_pretty_filter
@@ -203,10 +204,15 @@ async def index() -> QuartReturn:
         if lb:
             svc["load_balancer"] = await get_lb_pod(pod_name)
 
+    app_svcs = [svc for svc in svcs if svc.get("container_name") in STREAMWISE_APPS]
+    wrapper_svcs = [svc for svc in svcs if svc.get("container_name") not in STREAMWISE_APPS]
+
     return await render_template(
         "index.html",
         k8s_cluster=k8s_cluster if k8s_cluster else "default",
         svcs=svcs,
+        app_svcs=app_svcs,
+        wrapper_svcs=wrapper_svcs,
         nodes=nodes,
         pods=pods,
         lbs=lbs)

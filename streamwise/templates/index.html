@@ -17,13 +17,17 @@
 
     <style>
         #rtgen-table th,
-        #rtgen-table td {
+        #rtgen-table td,
+        #apps-table th,
+        #apps-table td {
             white-space: nowrap;
             text-overflow: ellipsis;
             overflow: hidden;
         }
         #rtgen-table th:nth-child(2),  /* Class */
-        #rtgen-table td:nth-child(2) {
+        #rtgen-table td:nth-child(2),
+        #apps-table th:nth-child(2),
+        #apps-table td:nth-child(2) {
             max-width: 200px;
         }
 
@@ -76,9 +80,184 @@
             {{ k8s_cluster }}
         {% endif %}
 
+        {% macro svc_table(table_svcs, table_id) %}
+        <table id="{{ table_id }}" class="table table-bordered table-hover table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th title="Namespace" aria-label="Namespace">📂</th>
+                    <th>Name</th>
+                    <th>Class</th>
+                    <th>Node</th>
+                    <th>📍 Address</th>
+                    <th title="Pod Status" aria-label="Pod Status">🫛</th>
+                    <th title="Service Status" aria-label="Service Status">🌐</th>
+                    <th title="Running" aria-label="Running">⚙️</th>
+                    <th title="Data type" aria-label="Data type">Data</th>
+                    <th>CPU</th>
+                    <th>Memory</th>
+                    <th>GPU</th>
+                    <th title="#Workers" aria-label="#Workers">Workers</th>
+                    <th title="Generations" aria-label="Generations">Gens</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for svc in table_svcs %}
+                    <tr>
+                        <td>{{ svc.namespace }}</td>
+                        <td>
+                            <a href="{{ url_for('service_info', service_name=svc.container_name) }}"
+                                class="text-decoration-none"
+                                title="{{ svc.container_name }} at {{ svc.pod_name }}"
+                                aria-label="{{ svc.pod_name }} {{ svc.container_name }}">
+                            {{ svc.container_name | get_friendly_container_name | safe }}
+                            </a>
+                        </td>
+                        <td>{{ svc.container_name | get_class_emoji | safe }}</td>
+                        <td>
+                            {% if svc.node_name %}
+                                <a href="{{ url_for('node_info', node_name=svc.node_name) }}" class="text-decoration-none">
+                                    {{ svc.node_name }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        <td>
+                            {% if svc.load_balancer and svc.load_balancer.external_url %}
+                                <a href="{{ svc.load_balancer.external_url }}" target="_blank">
+                                    {{ svc.load_balancer.external_url | format_url | safe }}
+                                </a> 
+                                <span class="text-muted">⧉</span>
+                            {% elif svc.node_name and svc.url and svc.url != "N/A" %}
+                                <a href="{{ url_for('container_info', service_name=svc.container_name, container_ip=svc.pod_ip) }}">
+                                    {{ svc.url | format_url | safe }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if svc.pod_status == 'Running' %}
+                                <span class="text-success" aria-label="Running" title="Running">✅</span>
+                            {% elif svc.pod_status == 'ContainerCreating' %}
+                                <span class="text-info" aria-label="Creating" title="Creating">🛠️</span>
+                            {% elif svc.pod_status == 'Pending' %}
+                                <span class="text-warning" aria-label="Pending" title="Pending">⏳</span>
+                            {% elif svc.pod_status == 'Failed' %}
+                                <span class="text-danger" aria-label="Failed" title="Failed">❌</span>
+                            {% elif svc.pod_status == 'Terminated' %}
+                                <span class="text-danger" aria-label="Terminated" title="Terminated">🛑</span>
+                            {% elif svc.pod_status == 'CrashLoopBackOff' %}
+                                <span class="text-danger" aria-label="Crash Loop Back Off" title="Crash Loop Back Off">💥</span>
+                            {% elif svc.pod_status == 'InvalidImageName' %}
+                                <span class="text-danger" aria-label="Invalid Image Name" title="Invalid Image Name">🐳⚠️</span>
+                            {% elif svc.pod_status == 'ImagePullBackOff' %}
+                                <span class="text-danger" aria-label="Image Pull Back Off" title="Image Pull Back Off">🐳⚠️</span>
+                            {% elif svc.pod_status == 'ErrImagePull' %}
+                                <span class="text-danger" aria-label="Image Pull Error" title="Image Pull Error">🐳❌</span>
+                            {% elif svc.pod_status == 'CreateContainerConfigError' %}
+                                <span class="text-danger" aria-label="Create Container Config Error" title="Create Container Config Error">❌</span>
+                            {% elif svc.pod_status == 'UnexpectedAdmissionError' %}
+                                <span class="text-danger" aria-label="Unexpected Admission Error" title="Unexpected Admission Error">❗</span>
+                            {% else %}
+                                <span aria-label="{{ svc.pod_status }}" title="{{ svc.pod_status }}">{{ svc.pod_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if not svc.health %}
+                                <span class="text-muted">-</span>
+                            {% elif svc.health.status == 'initializing parallelism' %}
+                                <span class="text-info" aria-label="Initializing parallelism" title="Initializing parallelism">⏳</span>
+                            {% elif svc.health.status == 'loading model' %}
+                                <span class="text-info" aria-label="Loading model" title="Loading model">⏳</span>
+                            {% elif svc.health.status == 'parallelizing model' %}
+                                <span class="text-info" aria-label="Parallelizing model" title="Parallelizing model">⏳</span>
+                            {% elif svc.health.status == 'compiling model' %}
+                                <span class="text-info" aria-label="Compiling model" title="Compiling model">⏳</span>
+                            {% elif svc.health.status == 'failed' %}
+                                <span class="text-danger" aria-label="Failed" title="Failed">❌</span>
+                            {% elif svc.health.status == 'Unhealthy (500)' %}
+                                <span class="text-warning" aria-label="Unhealthy" title="Unhealthy">❤️‍🩹</span>
+                            {% elif svc.health.status == 'ok' %}
+                                <span class="text-success" aria-label="Running" title="Running">✅</span>
+                            {% elif svc.health.status == 'timeout' %}
+                                <span class="text-warning" aria-label="Timeout" title="Timeout">🚫</span>
+                            {% else %}
+                                <span class="text-danger" aria-label="{{ svc.health.status }}" title="{{ svc.health.status }}">❌ {{ svc.health.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if not svc.health %}
+                                <span class="text-muted">-</span>
+                            {% elif svc.health.status != 'ok' %}
+                                <span class="text-danger" aria-label="Service not available" title="Service not available">❌</span>
+                            {% elif svc.health.running %}
+                                <span class="text-info" aria-label="Busy" title="Busy">⚙️</span>
+                            {% else %}
+                                <span class="text-success" aria-label="Ready" title="Ready">🟢</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if svc.health and svc.health.dtype %}
+                                {% if svc.health.dtype.startswith('torch.') %}
+                                    {{ svc.health.dtype[6:] }}
+                                {% else %}
+                                    {{ svc.health.dtype }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {{ svc.cpu }}
+                        </td>
+                        <td class="text-end">
+                            {{ svc.memory | format_bytes | safe }}
+                        </td>
+                        <td class="text-end">
+                            {% if svc.gpu == 0 %}
+                                <span class="text-muted">-</span>
+                            {% else %}
+                                {{ svc.gpu }}
+                                {% if svc.health and svc.health.gpu %}
+                                    &times;{{ svc.health.gpu | format_gpu_model | safe }}
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if svc.health and svc.health.world_size and svc.health.world_size > 0 %}
+                                {{ svc.health.world_size }}
+                                {% if svc.health.ulysses_size and svc.health.ulysses_size > 0 and svc.health.ring_size and svc.health.ring_size > 0 %}
+                                    ({{ svc.health.ulysses_size }}&times;{{ svc.health.ring_size }})
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if svc.health and svc.health.gen_timer %}
+                                {% if svc.health.gen_timer | length > 0 %}
+                                    <span class="text-success">{{ svc.health.gen_timer | length }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endmacro %}
+
+        <h2 class="mt-5 mb-3">🎯 Applications</h2>
+        {% if app_svcs %}
+            {{ svc_table(app_svcs, 'apps-table') }}
+        {% else %}
+            <p class="text-muted">No applications running.</p>
+        {% endif %}
+
         <h2 class="mt-5 mb-3">🌐 LMM generation services</h2>
         <div class="text-begin mb-3">
-            {% if svcs %}
+            {% if wrapper_svcs %}
                 <a
                     class="btn btn-outline-primary"
                     href="{{ url_for('services_timelines') }}"
@@ -93,178 +272,15 @@
                 title="Add Service"
                 aria-label="Add Service">
                 ➕
-                {% if not svcs or svcs | length == 0 %}
+                {% if not wrapper_svcs or wrapper_svcs | length == 0 %}
                     Add Service
                 {% endif %}
             </a>
         </div>
-
-        {% if svcs  %}
-            <table id="rtgen-table" class="table table-bordered table-hover table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th title="Namespace" aria-label="Namespace">📂</th>
-                        <th>Name</th>
-                        <th>Class</th>
-                        <th>Node</th>
-                        <th>📍 Address</th>
-                        <th title="Pod Status" aria-label="Pod Status">🫛</th>
-                        <th title="Service Status" aria-label="Service Status">🌐</th>
-                        <th title="Running" aria-label="Running">⚙️</th>
-                        <th title="Data type" aria-label="Data type">Data</th>
-                        <th>CPU</th>
-                        <th>Memory</th>
-                        <th>GPU</th>
-                        <th title="#Workers" aria-label="#Workers">Workers</th>
-                        <th title="Generations" aria-label="Generations">Gens</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for svc in svcs %}
-                        <tr>
-                            <td>{{ svc.namespace }}</td>
-                            <td>
-                                <a href="{{ url_for('service_info', service_name=svc.container_name) }}"
-                                    class="text-decoration-none"
-                                    title="{{ svc.container_name }} at {{ svc.pod_name }}"
-                                    aria-label="{{ svc.pod_name }} {{ svc.container_name }}">
-                                {{ svc.container_name | get_friendly_container_name | safe }}
-                                </a>
-                            </td>
-                            <td>{{ svc.container_name | get_class_emoji | safe }}</td>
-                            <td>
-                                {% if svc.node_name %}
-                                    <a href="{{ url_for('node_info', node_name=svc.node_name) }}" class="text-decoration-none">
-                                        {{ svc.node_name }}
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            <td>
-                                {% if svc.load_balancer and svc.load_balancer.external_url %}
-                                    <a href="{{ svc.load_balancer.external_url }}" target="_blank">
-                                        {{ svc.load_balancer.external_url | format_url | safe }}
-                                    </a> 
-                                    <span class="text-muted">⧉</span>
-                                {% elif svc.node_name and svc.url and svc.url != "N/A" %}
-                                    <a href="{{ url_for('container_info', service_name=svc.container_name, container_ip=svc.pod_ip) }}">
-                                        {{ svc.url | format_url | safe }}
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if svc.pod_status == 'Running' %}
-                                    <span class="text-success" aria-label="Running" title="Running">✅</span>
-                                {% elif svc.pod_status == 'ContainerCreating' %}
-                                    <span class="text-info" aria-label="Creating" title="Creating">🛠️</span>
-                                {% elif svc.pod_status == 'Pending' %}
-                                    <span class="text-warning" aria-label="Pending" title="Pending">⏳</span>
-                                {% elif svc.pod_status == 'Failed' %}
-                                    <span class="text-danger" aria-label="Failed" title="Failed">❌</span>
-                                {% elif svc.pod_status == 'Terminated' %}
-                                    <span class="text-danger" aria-label="Terminated" title="Terminated">🛑</span>
-                                {% elif svc.pod_status == 'CrashLoopBackOff' %}
-                                    <span class="text-danger" aria-label="Crash Loop Back Off" title="Crash Loop Back Off">💥</span>
-                                {% elif svc.pod_status == 'InvalidImageName' %}
-                                    <span class="text-danger" aria-label="Invalid Image Name" title="Invalid Image Name">🐳⚠️</span>
-                                {% elif svc.pod_status == 'ImagePullBackOff' %}
-                                    <span class="text-danger" aria-label="Image Pull Back Off" title="Image Pull Back Off">🐳⚠️</span>
-                                {% elif svc.pod_status == 'ErrImagePull' %}
-                                    <span class="text-danger" aria-label="Image Pull Error" title="Image Pull Error">🐳❌</span>
-                                {% elif svc.pod_status == 'CreateContainerConfigError' %}
-                                    <span class="text-danger" aria-label="Create Container Config Error" title="Create Container Config Error">❌</span>
-                                {% elif svc.pod_status == 'UnexpectedAdmissionError' %}
-                                    <span class="text-danger" aria-label="Unexpected Admission Error" title="Unexpected Admission Error">❗</span>
-                                {% else %}
-                                    <span aria-label="{{ svc.pod_status }}" title="{{ svc.pod_status }}">{{ svc.pod_status }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if not svc.health %}
-                                    <span class="text-muted">-</span>
-                                {% elif svc.health.status == 'initializing parallelism' %}
-                                    <span class="text-info" aria-label="Initializing parallelism" title="Initializing parallelism">⏳</span>
-                                {% elif svc.health.status == 'loading model' %}
-                                    <span class="text-info" aria-label="Loading model" title="Loading model">⏳</span>
-                                {% elif svc.health.status == 'parallelizing model' %}
-                                    <span class="text-info" aria-label="Parallelizing model" title="Parallelizing model">⏳</span>
-                                {% elif svc.health.status == 'compiling model' %}
-                                    <span class="text-info" aria-label="Compiling model" title="Compiling model">⏳</span>
-                                {% elif svc.health.status == 'failed' %}
-                                    <span class="text-success" aria-label="Failed" title="Failed">❌</span>
-                                {% elif svc.health.status == 'Unhealthy (500)' %}
-                                    <span class="text-success" aria-label="Unhealthy" title="Unhealthy">❤️‍🩹</span>
-                                {% elif svc.health.status == 'ok' %}
-                                    <span class="text-success" aria-label="Running" title="Running">✅</span>
-                                {% elif svc.health.status == 'timeout' %}
-                                    <span class="text-success" aria-label="Timeout" title="Timeout">🚫</span>
-                                {% else %}
-                                    <span class="text-danger" aria-label="{{ svc.health.status }}" title="{{ svc.health.status }}">❌ {{ svc.health.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if not svc.health %}
-                                    <span class="text-muted">-</span>
-                                {% elif svc.health.status != 'ok' %}
-                                    <span class="text-danger" aria-label="Service not available" title="Service not available">❌</span>
-                                {% elif svc.health.running %}
-                                    <span class="text-info" aria-label="Busy" title="Busy">⚙️</span>
-                                {% else %}
-                                    <span class="text-success" aria-label="Ready" title="Ready">🟢</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if svc.health and svc.health.dtype %}
-                                    {% if svc.health.dtype.startswith('torch.') %}
-                                        {{ svc.health.dtype[6:] }}
-                                    {% else %}
-                                        {{ svc.health.dtype }}
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                {{ svc.cpu }}
-                            </td>
-                            <td class="text-end">
-                                {{ svc.memory | format_bytes | safe }}
-                            </td>
-                            <td class="text-end">
-                                {% if svc.gpu == 0 %}
-                                    <span class="text-muted">-</span>
-                                {% else %}
-                                    {{ svc.gpu }}
-                                    {% if svc.health and svc.health.gpu %}
-                                        &times;{{ svc.health.gpu | format_gpu_model | safe }}
-                                    {% endif %}
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                {% if svc.health and svc.health.world_size and svc.health.world_size > 0 %}
-                                    {{ svc.health.world_size }}
-                                    {% if svc.health.ulysses_size and svc.health.ulysses_size > 0 and svc.health.ring_size and svc.health.ring_size > 0 %}
-                                        ({{ svc.health.ulysses_size }}&times;{{ svc.health.ring_size }})
-                                    {% endif %}
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                {% if svc.health and svc.health.gen_timer %}
-                                    {% if svc.health.gen_timer | length > 0 %}
-                                        <span class="text-success">{{ svc.health.gen_timer | length }}</span>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% if wrapper_svcs %}
+            {{ svc_table(wrapper_svcs, 'rtgen-table') }}
+        {% else %}
+            <p class="text-muted">No generation services running.</p>
         {% endif %}
 
         {% if lbs %}
@@ -481,6 +497,11 @@
 
     <script>
         $(document).ready(function () {
+            $('#apps-table').DataTable({
+                paging: true,
+                pageLength: 25,
+                order: [[1, 'asc'], [0, 'asc'], [4, 'asc']]
+            });
             $('#rtgen-table').DataTable({
                 paging: true,
                 pageLength: 25,  // optional: show 25 rows per page
