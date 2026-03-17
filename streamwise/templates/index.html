@@ -249,13 +249,25 @@
         {% endmacro %}
 
         <h2 class="mt-5 mb-3">🎯 Applications</h2>
+        <div class="text-begin mb-3">
+            <a
+                class="btn btn-outline-success"
+                href="{{ url_for('add_pod', service_name='streamcast') }}"
+                title="Add Application"
+                aria-label="Add Application">
+                ➕
+                {% if not app_svcs or app_svcs | length == 0 %}
+                    Add Application
+                {% endif %}
+            </a>
+        </div>
         {% if app_svcs %}
             {{ svc_table(app_svcs, 'apps-table') }}
         {% else %}
             <p class="text-muted">No applications running.</p>
         {% endif %}
 
-        <h2 class="mt-5 mb-3">🌐 LMM generation services</h2>
+        <h2 class="mt-5 mb-3">🌐 Wrappers</h2>
         <div class="text-begin mb-3">
             {% if wrapper_svcs %}
                 <a
@@ -269,18 +281,18 @@
             <a
                 class="btn btn-outline-success"
                 href="{{ url_for('add_pod', service_name='yolo') }}"
-                title="Add Service"
-                aria-label="Add Service">
+                title="Add Wrapper"
+                aria-label="Add Wrapper">
                 ➕
                 {% if not wrapper_svcs or wrapper_svcs | length == 0 %}
-                    Add Service
+                    Add Wrapper
                 {% endif %}
             </a>
         </div>
         {% if wrapper_svcs %}
             {{ svc_table(wrapper_svcs, 'rtgen-table') }}
         {% else %}
-            <p class="text-muted">No generation services running.</p>
+            <p class="text-muted">No wrappers running.</p>
         {% endif %}
 
         {% if lbs %}
