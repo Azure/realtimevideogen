@@ -36,6 +36,7 @@ from quart import jsonify
 from quart import render_template
 from quart import send_file
 from quart import send_from_directory
+from quart import Response
 
 from jinja2 import ChoiceLoader
 from jinja2 import FileSystemLoader
@@ -555,8 +556,19 @@ class StreamWiseApp(ABC):
 
         @route("/api/job/<job_id>/<json_file_name>", methods=["GET"])
         async def api_get_job_json_file(job_id: str, json_file_name: str) -> QuartReturn:
-            """Get a JSON file from the job directory."""
+            """Get a JSON or JSONL file from the job directory."""
             job_dir = f"{self.tmp_dir}/{job_id}"
+            if json_file_name.endswith(".jsonl"):
+                # JSONL files are served as raw newline-delimited text without appending .json
+                request_file = f"{job_dir}/{json_file_name}"
+                if not await aiofiles.os.path.exists(request_file):
+                    return {
+                        "status": "error",
+                        "error": f"Job {job_id} file {json_file_name} not found"
+                    }
+                async with aiofiles.open(request_file, "r") as file:
+                    content = await file.read()
+                return Response(content, mimetype="application/x-ndjson")
             request_file = f"{job_dir}/{json_file_name}.json"
             if not await aiofiles.os.path.exists(request_file):
                 return {
