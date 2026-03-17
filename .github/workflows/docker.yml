@@ -121,23 +121,11 @@ jobs:
         docker run -d -p 8080:8080 --name kokoro_ci "kokoro:${KOKORO_TAG}"
 
     - name: Wait for Kokoro to be ready
-      # The HTTP server starts before model init, so we poll for status=ok rather
-      # than a bare HTTP 200. Kokoro-82M (~300 MB) downloads from HuggingFace on
-      # first start; allow up to 5 minutes (30 × 10 s).
+      # Kokoro-82M (~300 MB) downloads from HuggingFace on first start;
+      # allow up to 5 minutes (30 × 10 s).
       run: |
-        for attempt in $(seq 1 30); do
-          STATUS=$(curl -sf http://localhost:8080/health 2>/dev/null \
-            | jq -r '.kokoro.status // empty' 2>/dev/null)
-          if [ "$STATUS" = "ok" ]; then
-            echo "✅ Kokoro is ready"
-            exit 0
-          fi
-          echo "Waiting... ($attempt/30) status=${STATUS:-loading}"
-          sleep 10
-        done
-        echo "❌ Kokoro did not become ready in time" >&2
-        docker logs kokoro_ci >&2
-        exit 1
+        source .github/scripts/ci_utils.sh
+        wait_for_service "Kokoro" "http://localhost:8080/health" "kokoro_ci" 30 10 ".kokoro.status"
 
     - name: Generate audio with Kokoro (TTS)
       run: |
@@ -189,30 +177,14 @@ jobs:
 
     - name: Wait for StreamCast to be ready
       run: |
-        for i in $(seq 1 30); do
-          STATUS=$(curl -sf http://localhost:18080/health 2>/dev/null \
-            | jq -r '.status // empty' 2>/dev/null)
-          if [ "$STATUS" = "ok" ]; then
-            echo "✅ StreamCast is ready"
-            exit 0
-          fi
-          echo "Waiting... ($i/30) status=${STATUS:-loading}"
-          sleep 2
-        done
-        echo "❌ StreamCast did not become ready in time" >&2
-        docker logs streamcast_ci >&2
-        exit 1
+        source .github/scripts/ci_utils.sh
+        wait_for_service "StreamCast" "http://localhost:18080/health" "streamcast_ci"
 
     - name: Download StreamCast pages
       run: |
-        mkdir -p streamcast_pages/static
-        curl -sf http://localhost:18080/ -o streamcast_pages/index.html \
-          || { echo "❌ Failed to download StreamCast index.html" >&2; exit 1; }
-        curl -sf http://localhost:18080/job -o streamcast_pages/submit_job.html \
-          || { echo "❌ Failed to download StreamCast submit_job.html" >&2; exit 1; }
-        curl -sf http://localhost:18080/static/style.css -o streamcast_pages/static/style.css \
-          || { echo "❌ Failed to download StreamCast style.css" >&2; exit 1; }
-        echo "✅ Downloaded StreamCast pages"
+        source .github/scripts/ci_utils.sh
+        download_pages "StreamCast" "http://localhost:18080" "streamcast_pages" \
+          "/:index.html" "/job:submit_job.html" "/static/style.css:static/style.css"
 
     - name: Upload StreamCast pages artifact
       if: always()
@@ -245,32 +217,14 @@ jobs:
 
     - name: Wait for StreamWise to be ready
       run: |
-        for i in $(seq 1 30); do
-          STATUS=$(curl -sf http://localhost:18181/health 2>/dev/null \
-            | jq -r '.status // empty' 2>/dev/null)
-          if [ "$STATUS" = "ok" ]; then
-            echo "✅ StreamWise is ready"
-            exit 0
-          fi
-          echo "Waiting... ($i/30) status=${STATUS:-loading}"
-          sleep 2
-        done
-        echo "❌ StreamWise did not become ready in time" >&2
-        docker logs streamwise_ci >&2
-        exit 1
+        source .github/scripts/ci_utils.sh
+        wait_for_service "StreamWise" "http://localhost:18181/health" "streamwise_ci"
 
     - name: Download StreamWise pages
       run: |
-        mkdir -p streamwise_pages/static
-        curl -sf http://localhost:18181/ -o streamwise_pages/index.html \
-          || { echo "❌ Failed to download StreamWise index.html" >&2; exit 1; }
-        curl -sf http://localhost:18181/job/ -o streamwise_pages/submit_job.html \
-          || { echo "❌ Failed to download StreamWise submit_job.html" >&2; exit 1; }
-        curl -sf http://localhost:18181/pod -o streamwise_pages/add_pod.html \
-          || { echo "❌ Failed to download StreamWise add_pod.html" >&2; exit 1; }
-        curl -sf http://localhost:18181/static/style.css -o streamwise_pages/static/style.css \
-          || { echo "❌ Failed to download StreamWise style.css" >&2; exit 1; }
-        echo "✅ Downloaded StreamWise pages"
+        source .github/scripts/ci_utils.sh
+        download_pages "StreamWise" "http://localhost:18181" "streamwise_pages" \
+          "/:index.html" "/job/:submit_job.html" "/pod:add_pod.html" "/static/style.css:static/style.css"
 
     - name: Upload StreamWise pages artifact
       if: always()
