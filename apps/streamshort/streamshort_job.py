@@ -169,6 +169,9 @@ class StreamShortJob(StreamWiseJob):
             if not chosen_scenes:
                 raise RuntimeError("Failed to choose scenes for highlight short")
 
+            # Save selected scene IDs so the WebUI can highlight them
+            await self.save_selected_scenes(chosen_scenes)
+
             # Generate some video using diffusion
             # TODO
 
@@ -439,6 +442,20 @@ class StreamShortJob(StreamWiseJob):
         except Exception as ex:
             self.logger.error(f"Error parsing {response_message_strip}: {ex}")
         return response_json
+
+    async def save_selected_scenes(
+        self,
+        chosen_scenes: List[int],
+    ) -> None:
+        """Persist the chosen scene IDs to selected_scenes.json for the WebUI.
+
+        Args:
+            chosen_scenes: Zero-based indices into self.scenes that were
+                           selected by choose_scenes_for_highlight().
+        """
+        selected_scenes_path = f"{self.job_path}/selected_scenes.json"
+        async with aiofiles.open(selected_scenes_path, "w") as sel_file:
+            await sel_file.write(json.dumps(chosen_scenes, indent=2))
 
     async def save_highlight_short(
         self,

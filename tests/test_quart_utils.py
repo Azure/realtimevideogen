@@ -259,6 +259,22 @@ async def test_get_docker_image() -> None:
     assert docker_image is None
 
 
+@pytest.mark.asyncio
+async def test_get_docker_image_custom_tag() -> None:
+    docker_image = await get_docker_image("flux", tag="custom-tag")
+    assert docker_image is not None
+    assert docker_image.endswith(":custom-tag")
+    assert "/flux:custom-tag" in docker_image
+
+    docker_image = await get_docker_image("flux", tag="v9.9.9")
+    assert docker_image is not None
+    assert docker_image.endswith(":v9.9.9")
+
+    # Custom tag on nonexistent container should still return None
+    docker_image = await get_docker_image("nonexistent", tag="custom-tag")
+    assert docker_image is None
+
+
 def test_parse_request_id() -> None:
     assert parse_request_id("20250904T010335296_006_001_fantasytalking") == {
         'job_id': '20250904T010335296',
