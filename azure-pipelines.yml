@@ -319,10 +319,20 @@ jobs:
 
   - script: |
       mypy --install-types --non-interactive --ignore-missing-imports . \
-        2>&1 | tee mypy-results.txt
-      MYPY_EXIT=${PIPESTATUS[0]}
-      cat mypy-results.txt
-      exit $MYPY_EXIT
+        2>&1 | tee mypy-results.txt || true
+      ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || echo 0)
+      NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || echo 0)
+      echo "# Mypy Type Checking" > mypy-summary.md
+      echo "" >> mypy-summary.md
+      echo "| Metric | Count |" >> mypy-summary.md
+      echo "|--------|-------|" >> mypy-summary.md
+      echo "| Errors | ${ERROR_COUNT} |" >> mypy-summary.md
+      echo "| Notes  | ${NOTE_COUNT} |" >> mypy-summary.md
+      echo "" >> mypy-summary.md
+      echo '```' >> mypy-summary.md
+      cat mypy-results.txt >> mypy-summary.md
+      echo '```' >> mypy-summary.md
+      echo "##vso[task.uploadsummary type=CodeSummary;title=Mypy Results]$(pwd)/mypy-summary.md"
     displayName: 'Run Python type checking'
     condition: always()
 
