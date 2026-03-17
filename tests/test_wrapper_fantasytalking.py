@@ -59,7 +59,7 @@ async def test_fantasytalking_e2e() -> None:
     assert timestamps is not None
 
     with pytest.raises(ValueError, match="Missing JSON body"):
-        await model.get_rest_args(None)  # type: ignore[arg-type]
+        await model.get_rest_args(None)
 
     with pytest.raises(ValueError, match="Missing 'audio' parameter"):
         await model.get_rest_args({})

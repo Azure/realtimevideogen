@@ -509,7 +509,7 @@ def test_workflow_short() -> None:
 
 
 @pytest.mark.parametrize("workflow_name", WORKFLOWS.keys())
-def test_workflows(workflow_name) -> None:
+def test_workflows(workflow_name: str) -> None:
     latency_data = load_latency_data("simulator/data/")
     power_data = load_power_data("simulator/data/")
 

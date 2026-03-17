@@ -178,6 +178,8 @@ class LMMServiceManager:
         num_gpus = 0
         if not url:
             return status, is_busy, gpu_model, num_gpus
+        if self.session is None:
+            return status, is_busy, gpu_model, num_gpus
         try:
             timeout = STATUS_TIMEOUT
             health_url = f"{url}/health"
@@ -274,10 +276,12 @@ class LMMServiceManager:
             raise ServiceNotFoundError(service_name)
         service = self.services[service_name]
         best_containers = service.get_best_containers(exclude_busy=exclude_busy)
-        return [c.get_url() for c in best_containers]
+        if best_containers is None:
+            return []
+        return [url for c in best_containers if (url := c.get_url()) is not None]
 
     def get_num_services(self) -> int:
         return len(self.services)
 
     def items(self) -> List[Tuple[str, K8sService]]:
-        return self.services.items()
+        return list(self.services.items())

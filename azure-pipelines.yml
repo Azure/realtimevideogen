@@ -318,9 +318,30 @@ jobs:
     condition: always()
 
   - script: |
-      mypy --install-types --non-interactive --show-traceback --ignore-missing-imports .
-      mypy --ignore-missing-imports . || true
+      mypy --install-types --non-interactive --ignore-missing-imports . \
+        2>&1 | tee mypy-results.txt || true
+      ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || echo 0)
+      NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || echo 0)
+      echo "# Mypy Type Checking" > mypy-summary.md
+      echo "" >> mypy-summary.md
+      echo "| Metric | Count |" >> mypy-summary.md
+      echo "|--------|-------|" >> mypy-summary.md
+      echo "| Errors | ${ERROR_COUNT} |" >> mypy-summary.md
+      echo "| Notes  | ${NOTE_COUNT} |" >> mypy-summary.md
+      echo "" >> mypy-summary.md
+      echo '```' >> mypy-summary.md
+      cat mypy-results.txt >> mypy-summary.md
+      echo '```' >> mypy-summary.md
+      echo "##vso[task.uploadsummary type=CodeSummary;title=Mypy Results]$(pwd)/mypy-summary.md"
     displayName: 'Run Python type checking'
+    condition: always()
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: 'mypy-results.txt'
+      artifactName: 'mypy'
+      publishLocation: 'Container'
+    displayName: 'Publish mypy results'
     condition: always()
 
 - job: stats

@@ -732,7 +732,7 @@ class MILPAllocator(ModelAllocator):
         gpu_types: list[GPUType],
         model_names: list[Model],
         instance_ids: list[int],
-    ):
+    ) -> dict[GPUType, int]:
         if not self._is_valid_result(m):
             return {}
         return {

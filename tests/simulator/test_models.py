@@ -19,6 +19,7 @@ from tests.test_utils import temp_sys_path
 with temp_sys_path("simulator"):
     from sim_types import GPUType
     from sim_types import Model
+    from sim_types import ModelAllocation
     from sim_types import QualityLevel
     from sim_types import LatencyData
     from sim_types import PowerData
@@ -65,7 +66,7 @@ def _make_power_data() -> PowerData:
 
 def test_get_model_allocation_returns_correct_types() -> None:
     """Factory returns the right ModelAllocation subclass for each Model."""
-    expected: list[tuple[Model, type]] = [
+    expected: list[tuple[Model, type[ModelAllocation]]] = [
         (Model.GEMMA, GemmaModelAllocation),
         (Model.FLUX, FluxModelAllocation),
         (Model.HF, HFModelAllocation),

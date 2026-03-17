@@ -7,6 +7,7 @@ import logging
 import sys
 import pytest
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.append("wrapper")
@@ -131,7 +132,7 @@ class TestPptxToImages:
         doc.load_page = MagicMock(side_effect=pages)
         return doc
 
-    def test_raises_on_libreoffice_failure(self, tmp_path) -> None:
+    def test_raises_on_libreoffice_failure(self, tmp_path: Path) -> None:
         """RuntimeError is raised when LibreOffice returns non-zero exit code."""
         pptx_path = str(tmp_path / "slides.pptx")
         with patch("ppt_utils.subprocess.run",
@@ -139,7 +140,7 @@ class TestPptxToImages:
             with pytest.raises(RuntimeError, match="Failed to generate images from PPTX"):
                 pptx_to_images(pptx_path, str(tmp_path))
 
-    def test_raises_when_pdf_not_found(self, tmp_path) -> None:
+    def test_raises_when_pdf_not_found(self, tmp_path: Path) -> None:
         """FileNotFoundError is raised when the expected PDF is not produced."""
         pptx_path = str(tmp_path / "slides.pptx")
         # LibreOffice succeeds but the PDF does not exist on disk.
@@ -148,7 +149,7 @@ class TestPptxToImages:
             with pytest.raises(FileNotFoundError, match="Expected PDF file not found"):
                 pptx_to_images(pptx_path, str(tmp_path))
 
-    def test_returns_image_paths_for_each_page(self, tmp_path) -> None:
+    def test_returns_image_paths_for_each_page(self, tmp_path: Path) -> None:
         """Returns one image path per PDF page."""
         num_pages = 3
         pptx_path = str(tmp_path / "slides.pptx")
@@ -168,7 +169,7 @@ class TestPptxToImages:
         for i, path in enumerate(image_paths, start=1):
             assert path.endswith(f"slide_{i:03d}.png")
 
-    def test_libreoffice_command_uses_correct_args(self, tmp_path) -> None:
+    def test_libreoffice_command_uses_correct_args(self, tmp_path: Path) -> None:
         """The LibreOffice command includes --headless, --convert-to pdf, and the file path."""
         pptx_path = str(tmp_path / "slides.pptx")
 
@@ -188,7 +189,7 @@ class TestPptxToImages:
         assert "pdf" in cmd
         assert pptx_path in cmd
 
-    def test_logger_receives_stdout_and_stderr(self, tmp_path) -> None:
+    def test_logger_receives_stdout_and_stderr(self, tmp_path: Path) -> None:
         """When a logger is passed, LibreOffice stdout and stderr are forwarded."""
         pptx_path = str(tmp_path / "slides.pptx")
         mock_logger = MagicMock(spec=logging.Logger)
@@ -204,7 +205,7 @@ class TestPptxToImages:
         mock_logger.debug.assert_called()
         mock_logger.warning.assert_called()
 
-    def test_custom_width_and_height_applied(self, tmp_path) -> None:
+    def test_custom_width_and_height_applied(self, tmp_path: Path) -> None:
         """Custom width/height are used to build the fitz.Matrix scale factors."""
         num_pages = 1
         pptx_path = str(tmp_path / "deck.pptx")
@@ -226,7 +227,7 @@ class TestPptxToImages:
         assert args[0] == pytest.approx(640 / 1280.0)
         assert args[1] == pytest.approx(400 / 800.0)
 
-    def test_no_width_height_uses_dpi(self, tmp_path) -> None:
+    def test_no_width_height_uses_dpi(self, tmp_path: Path) -> None:
         """When width=None and height=None, a DPI-based fitz.Matrix is used."""
         num_pages = 1
         pptx_path = str(tmp_path / "deck.pptx")

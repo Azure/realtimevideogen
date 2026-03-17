@@ -41,6 +41,7 @@ class WanVideoGeneration(USPGeneration):
 
     FPS = 16
     NUM_HEADS = 40
+    interrupted: bool
 
     def __init__(
         self,
@@ -221,7 +222,7 @@ class WanVideoGeneration(USPGeneration):
             sampling_steps=2)
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -291,7 +292,7 @@ class WanVideoGeneration(USPGeneration):
         gen_timer: GenTimer,
         video_tensor: torch.Tensor,  # C, T, H, W
         output_type: str = "tensor",  # "tensor", "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes, None]:
+    ) -> Union[List[Image.Image], str, bytes, torch.Tensor, None]:
         gen_timer.start("output")
         try:
             if output_type == "tensor":

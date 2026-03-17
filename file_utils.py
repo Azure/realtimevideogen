@@ -1,4 +1,5 @@
 import aiofiles
+import aiofiles.os
 import base64
 
 

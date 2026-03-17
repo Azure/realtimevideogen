@@ -22,7 +22,7 @@ def as_tuple(x: Any) -> Tuple:
 
 
 def parse_args(
-    namespace: Optional[str] = None
+    namespace: Optional[argparse.Namespace] = None
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Hunyuan Multimodal training/inference script")
     parser = add_extra_args(parser)

@@ -170,6 +170,10 @@ if __name__ == "__main__":
                 response = requests.post(url, json=payload, headers=HEADERS_JSON)
 
                 server_req_info = get_server_request_info(container_ip, container_port)
+                if server_req_info is None:
+                    line_csv = f"{num_run},{test_steps},{test_w},{test_h},-1,-1"
+                    log_and_print(output_csv, line_csv)
+                    continue
                 server_req_info_csv = server_req_info.to_csv_str()
 
                 if response.ok and "image/png" in response.headers["Content-Type"]:
