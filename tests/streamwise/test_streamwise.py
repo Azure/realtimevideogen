@@ -59,6 +59,8 @@ async def test_index() -> None:
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
     assert "StreamWise Cluster Manager" in response_text
+    assert "Applications" in response_text
+    assert "LMM generation services" in response_text
 
 
 @pytest.mark.asyncio
@@ -70,6 +72,8 @@ async def test_index_incluster() -> None:
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
     assert "StreamWise Cluster Manager" in response_text
+    assert "Applications" in response_text
+    assert "LMM generation services" in response_text
 
 
 @pytest.mark.asyncio
