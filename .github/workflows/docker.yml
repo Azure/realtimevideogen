@@ -62,31 +62,31 @@ jobs:
         BASE_TAG=$(jq -r '.base.dockerImage.tag' ../../services.json)
         docker push "localhost:5000/base:${BASE_TAG}"
 
-    - name: Build imageresize image
+    - name: Build Image Resize image
       working-directory: deployment/wrappers/imageresize
       env:
         DOCKER_REPO: localhost:5000
       run: bash setup_image.sh
 
-    - name: Start imageresize service
+    - name: Start Image Resize service
       run: |
         TAG=$(jq -r '.imageresize.dockerImage.tag' services.json)
         docker run -d -p 8080:8080 --name imageresize_ci "imageresize:${TAG}"
 
-    - name: Wait for imageresize to be ready
+    - name: Wait for Image Resize to be ready
       run: |
         for i in $(seq 1 30); do
           if curl -sf http://localhost:8080/health > /dev/null; then
-            echo "Service is ready"
+            echo "✅ Image Resize is ready"
             exit 0
           fi
           echo "Waiting... ($i/30)"
           sleep 2
         done
-        echo "Service did not become ready in time" >&2
+        echo "❌ Image Resize did not become ready in time" >&2
         exit 1
 
-    - name: Test imageresize endpoint with curl
+    - name: Test Image Resize endpoint with curl
       run: |
         IMG_BASE64=$(base64 -w0 benchmark/samples/sample_256x192.png)
         curl -sf -X POST http://localhost:8080/imageresize \
@@ -97,10 +97,10 @@ jobs:
           echo "❌ Image file is empty or missing" >&2
           exit 1
         fi
-        echo "✅ PASS: imageresize endpoint responded successfully"
+        echo "✅ PASS: Image Resize endpoint responded successfully"
         mediainfo test_image.png
 
-    - name: Clean up imageresize
+    - name: Clean up Image Resize
       run: |
         docker stop imageresize_ci || true
         TAG=$(jq -r '.imageresize.dockerImage.tag' services.json)
@@ -108,19 +108,19 @@ jobs:
         docker buildx prune -af
         df -h
 
-    - name: Build kokoro image
+    - name: Build Kokoro image
       working-directory: deployment/wrappers/kokoro
       env:
         DOCKER_REPO: localhost:5000
         EXTRA_BUILD_ARGS: --build-arg INSTALL_FLASH_ATTN=0
       run: bash setup_image.sh
 
-    - name: Start kokoro service
+    - name: Start Kokoro service
       run: |
         KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
         docker run -d -p 8080:8080 --name kokoro_ci "kokoro:${KOKORO_TAG}"
 
-    - name: Wait for kokoro to be ready
+    - name: Wait for Kokoro to be ready
       # The HTTP server starts before model init, so we poll for status=ok rather
       # than a bare HTTP 200. Kokoro-82M (~300 MB) downloads from HuggingFace on
       # first start; allow up to 5 minutes (30 × 10 s).
@@ -135,11 +135,11 @@ jobs:
           echo "Waiting... ($attempt/30) status=${STATUS:-loading}"
           sleep 10
         done
-        echo "Kokoro did not become ready in time" >&2
+        echo "❌ Kokoro did not become ready in time" >&2
         docker logs kokoro_ci >&2
         exit 1
 
-    - name: Generate audio with kokoro (TTS)
+    - name: Generate audio with Kokoro (TTS)
       run: |
         TS=$(date -u '+%Y-%m-%d %H:%M UTC')
         curl -sf -X POST http://localhost:8080/kokoro \
@@ -155,7 +155,7 @@ jobs:
           mediainfo test_audio.wav >&2
           exit 1
         fi
-        echo "✅ PASS: kokoro generated $(wc -c < test_audio.wav) bytes of audio"
+        echo "✅ PASS: Kokoro generated $(wc -c < test_audio.wav) bytes of audio"
         mediainfo test_audio.wav
 
     - name: Upload audio artifact
@@ -165,29 +165,29 @@ jobs:
         name: kokoro-test-audio
         path: test_audio.wav
 
-    - name: Stop kokoro container
+    - name: Stop Kokoro container
       if: always()
       run: docker stop kokoro_ci || true
 
-    - name: Clean up kokoro
+    - name: Clean up Kokoro
       run: |
         KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
         docker rmi "kokoro:${KOKORO_TAG}" || true
         docker buildx prune -af
         df -h
 
-    - name: Build streamcast image
+    - name: Build StreamCast image
       working-directory: deployment/apps/streamcast
       env:
         DOCKER_REPO: localhost:5000
       run: bash setup_image.sh
 
-    - name: Start streamcast service
+    - name: Start StreamCast service
       run: |
         TAG=$(jq -r '.streamcast.dockerImage.tag' services.json)
         docker run -d -p 18080:18080 --name streamcast_ci "streamcast:${TAG}"
 
-    - name: Wait for streamcast to be ready
+    - name: Wait for StreamCast to be ready
       run: |
         for i in $(seq 1 30); do
           STATUS=$(curl -sf http://localhost:18080/health 2>/dev/null \
@@ -199,47 +199,51 @@ jobs:
           echo "Waiting... ($i/30) status=${STATUS:-loading}"
           sleep 2
         done
-        echo "StreamCast did not become ready in time" >&2
+        echo "❌ StreamCast did not become ready in time" >&2
         docker logs streamcast_ci >&2
         exit 1
 
-    - name: Download streamcast pages
+    - name: Download StreamCast pages
       run: |
-        mkdir -p streamcast_pages
-        curl -sf http://localhost:18080/ -o streamcast_pages/index.html
-        curl -sf http://localhost:18080/job -o streamcast_pages/submit_job.html
+        mkdir -p streamcast_pages/static
+        curl -sf http://localhost:18080/ -o streamcast_pages/index.html \
+          || { echo "❌ Failed to download StreamCast index.html" >&2; exit 1; }
+        curl -sf http://localhost:18080/job -o streamcast_pages/submit_job.html \
+          || { echo "❌ Failed to download StreamCast submit_job.html" >&2; exit 1; }
+        curl -sf http://localhost:18080/static/style.css -o streamcast_pages/static/style.css \
+          || { echo "❌ Failed to download StreamCast style.css" >&2; exit 1; }
         echo "✅ Downloaded StreamCast pages"
 
-    - name: Upload streamcast pages artifact
+    - name: Upload StreamCast pages artifact
       if: always()
       uses: actions/upload-artifact@v6
       with:
         name: streamcast-pages
         path: streamcast_pages/
 
-    - name: Stop streamcast container
+    - name: Stop StreamCast container
       if: always()
       run: docker stop streamcast_ci || true
 
-    - name: Clean up streamcast
+    - name: Clean up StreamCast
       run: |
         TAG=$(jq -r '.streamcast.dockerImage.tag' services.json)
         docker rmi "streamcast:${TAG}" || true
         docker buildx prune -af
         df -h
 
-    - name: Build streamwise image
+    - name: Build StreamWise image
       working-directory: deployment/streamwise
       env:
         DOCKER_REPO: localhost:5000
       run: bash setup_image.sh
 
-    - name: Start streamwise service
+    - name: Start StreamWise service
       run: |
         TAG=$(jq -r '.streamwise.dockerImage.tag' services.json)
         docker run -d -p 18181:18181 --name streamwise_ci "streamwise:${TAG}"
 
-    - name: Wait for streamwise to be ready
+    - name: Wait for StreamWise to be ready
       run: |
         for i in $(seq 1 30); do
           STATUS=$(curl -sf http://localhost:18181/health 2>/dev/null \
@@ -251,23 +255,30 @@ jobs:
           echo "Waiting... ($i/30) status=${STATUS:-loading}"
           sleep 2
         done
-        echo "StreamWise did not become ready in time" >&2
+        echo "❌ StreamWise did not become ready in time" >&2
         docker logs streamwise_ci >&2
         exit 1
 
-    - name: Download streamwise pages
+    - name: Download StreamWise pages
       run: |
-        mkdir -p streamwise_pages
-        curl -sf http://localhost:18181/ -o streamwise_pages/index.html
+        mkdir -p streamwise_pages/static
+        curl -sf http://localhost:18181/ -o streamwise_pages/index.html \
+          || { echo "❌ Failed to download StreamWise index.html" >&2; exit 1; }
+        curl -sf http://localhost:18181/job/ -o streamwise_pages/submit_job.html \
+          || { echo "❌ Failed to download StreamWise submit_job.html" >&2; exit 1; }
+        curl -sf http://localhost:18181/pod -o streamwise_pages/add_pod.html \
+          || { echo "❌ Failed to download StreamWise add_pod.html" >&2; exit 1; }
+        curl -sf http://localhost:18181/static/style.css -o streamwise_pages/static/style.css \
+          || { echo "❌ Failed to download StreamWise style.css" >&2; exit 1; }
         echo "✅ Downloaded StreamWise pages"
 
-    - name: Upload streamwise pages artifact
+    - name: Upload StreamWise pages artifact
       if: always()
       uses: actions/upload-artifact@v6
       with:
         name: streamwise-pages
         path: streamwise_pages/
 
-    - name: Stop streamwise container
+    - name: Stop StreamWise container
       if: always()
       run: docker stop streamwise_ci || true
