@@ -146,6 +146,42 @@ async def test_api_add_pod() -> None:
 
 
 @pytest.mark.asyncio
+async def test_api_add_pod_custom_tag() -> None:
+    app = streamwise.app
+    client = app.test_client()
+
+    # Custom tag should be reflected in the image_url
+    form_data = {
+        "container_name": "flux",
+        "tag": "v9.9.9",
+    }
+    response = await client.post(
+        "/api/pod",
+        data=urllib.parse.urlencode(form_data),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert response_json["container_name"] == "flux"
+    assert response_json["image_url"].endswith(":v9.9.9")
+
+    # Invalid container name should return 400 even with a tag
+    form_data_invalid = {
+        "container_name": "nonexistent-service",
+        "tag": "v1.0.0",
+    }
+    response = await client.post(
+        "/api/pod",
+        data=urllib.parse.urlencode(form_data_invalid),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    response_json = await response.get_json()
+    assert "error" in response_json
+    assert "nonexistent-service" in response_json["error"]
+
+
+@pytest.mark.asyncio
 async def test_remove_pod() -> None:
     app = streamwise.app
     client = app.test_client()

@@ -239,6 +239,7 @@ async def add_pod(
     ephemeral_storage_gib: int = 16,
     gpu: int = 0,
     gpu_type: Optional[str] = None,
+    tag: Optional[str] = None,
     lb_rg: Optional[str] = None,
     lb_ip: Optional[str] = None,
     lb_port: Optional[int] = None,
@@ -273,7 +274,7 @@ async def add_pod(
         resource_request["nvidia.com/gpu"] = gpu
         resource_limit["nvidia.com/gpu"] = gpu
 
-    image_url = await get_docker_image(container_name)
+    image_url = await get_docker_image(container_name, tag=tag)
     if image_url is None:
         return jsonify({"error": f"Invalid container '{container_name}'"}), HTTPStatus.BAD_REQUEST
 
