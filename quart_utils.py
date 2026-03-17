@@ -199,6 +199,9 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
 
     Handles Azure VM SKU names (e.g. Standard_ND96ams_A100_v4) and raw GPU
     model strings reported by nvidia-smi (e.g. NVIDIA A100-SXM4-80GB).
+
+    Azure GPU VM sizes reference:
+    https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nd-family
     """
     if not gpu_model or gpu_model == "N/A":
         return gpu_model
