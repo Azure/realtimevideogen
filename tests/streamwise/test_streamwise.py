@@ -60,7 +60,7 @@ async def test_index() -> None:
     response_text = await response.get_data(as_text=True)
     assert "StreamWise Cluster Manager" in response_text
     assert "Applications" in response_text
-    assert "LMM generation services" in response_text
+    assert "LMM Generation Services" in response_text
 
 
 @pytest.mark.asyncio
@@ -73,7 +73,7 @@ async def test_index_incluster() -> None:
     response_text = await response.get_data(as_text=True)
     assert "StreamWise Cluster Manager" in response_text
     assert "Applications" in response_text
-    assert "LMM generation services" in response_text
+    assert "LMM Generation Services" in response_text
 
 
 @pytest.mark.asyncio

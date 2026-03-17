@@ -249,13 +249,25 @@
         {% endmacro %}
 
         <h2 class="mt-5 mb-3">🎯 Applications</h2>
+        <div class="text-begin mb-3">
+            <a
+                class="btn btn-outline-success"
+                href="{{ url_for('add_pod', service_name='streamcast') }}"
+                title="Add Application"
+                aria-label="Add Application">
+                ➕
+                {% if not app_svcs or app_svcs | length == 0 %}
+                    Add Application
+                {% endif %}
+            </a>
+        </div>
         {% if app_svcs %}
             {{ svc_table(app_svcs, 'apps-table') }}
         {% else %}
             <p class="text-muted">No applications running.</p>
         {% endif %}
 
-        <h2 class="mt-5 mb-3">🌐 LMM generation services</h2>
+        <h2 class="mt-5 mb-3">🌐 LMM Generation Services</h2>
         <div class="text-begin mb-3">
             {% if wrapper_svcs %}
                 <a
