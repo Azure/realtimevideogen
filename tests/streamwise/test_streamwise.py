@@ -124,6 +124,16 @@ async def test_service_info_fantasytalking() -> None:
 
 
 @pytest.mark.asyncio
+async def test_service_info_has_submit_job_button() -> None:
+    client = _get_client()
+    response = await client.get("/service/test")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert 'href="/job/"' in response_text
+    assert 'title="Submit Job"' in response_text
+
+
+@pytest.mark.asyncio
 async def test_container_info() -> None:
     app = sw.app
     client = app.test_client()

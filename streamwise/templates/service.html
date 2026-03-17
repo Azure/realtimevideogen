@@ -25,6 +25,7 @@
 <body>
     <div class="fixed-nav-buttons">
         <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+        <a class="btn btn-outline-info" href="{{ url_for('submit_job') }}" title="Submit Job" aria-label="Submit Job">🎯</a>
         <a class="btn btn-outline-info" href="{{ url_for('nodes_info') }}" title="Nodes" aria-label="Nodes">🖧</a>
         <a class="btn btn-outline-primary" href="{{ url_for('service_info', service_name=svc.container_name) }}" title="Refresh" aria-label="Refresh">🔄</a>
     </div>
