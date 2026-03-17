@@ -25,7 +25,8 @@
 
 <body>
     <div class="fixed-nav-buttons">
-        <a class="btn btn-outline-primary" href="/" title="Home">🏠</a>
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+        <a class="btn btn-outline-info" href="{{ url_for('submit_job') }}" title="Submit Job" aria-label="Submit Job">🎯</a>
         {% if nodes | length == 1 %}
             <a class="btn btn-outline-primary" href="{{ url_for('node_info', node_name=nodes[0].node_name) }}" title="Refresh">🔄</a>
         {% else %}

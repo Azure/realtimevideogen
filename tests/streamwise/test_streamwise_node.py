@@ -7,6 +7,7 @@ import sys
 import pytest
 
 from unittest.mock import patch
+from unittest.mock import AsyncMock
 
 from http import HTTPStatus
 
@@ -20,6 +21,9 @@ mock_modules.update(mock_k8s.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
         from streamwise import streamwise
+        # node_manager is imported by streamwise.py at module level;
+        # access it via the module attribute so we get the exact same object
+        node_manager = streamwise.node_manager
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -66,3 +70,34 @@ async def test_node_info() -> None:
     assert response.status_code == HTTPStatus.NOT_FOUND
     response_json = await response.get_json()
     assert response_json == {"error": "Node 'testnode' not found"}
+
+
+_MOCK_NODE = {
+    "node_name": "testnode",
+    "region": "eastus",
+    "resource_group": "rg-test",
+    "addresses": [{"type": "InternalIP", "address": "10.0.0.1"}],
+    "is_ready": True,
+    "capacity_resources": {"cpu": 4.0, "memory": 8589934592, "storage": 107374182400, "gpu": "N/A"},
+    "allocatable_resources": {"cpu": 4.0, "memory": 8589934592, "storage": 107374182400, "gpu": "N/A"},
+    "architecture": "amd64",
+    "kernel_version": "5.15.0",
+    "os_image": "Ubuntu 22.04",
+    "creation_timestamp": "2024-01-01T00:00:00Z",
+    "labels": {},
+    "images": None,
+    "gpu_model": "N/A",
+}
+
+
+@pytest.mark.asyncio
+async def test_nodes_has_submit_job_button() -> None:
+    app = streamwise.app
+    client = app.test_client()
+    with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[_MOCK_NODE])):
+        with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
+            response = await client.get("/nodes")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert 'href="/job/"' in response_text
+    assert 'title="Submit Job"' in response_text
