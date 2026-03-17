@@ -161,6 +161,8 @@ def format_url(url: Optional[str]) -> Optional[str]:
     return url
 
 
+_AZURE_VM_SKU_RE = re.compile(r'^Standard_(?:NC|ND|NV)\d+[a-zA-Z]*_([A-Za-z0-9]+)_v\d+$', re.IGNORECASE)
+
 _AZURE_VM_GPU_MAP: Dict[str, str] = {
     "A100": "A100 80GB",
     "H100": "H100",
@@ -168,6 +170,24 @@ _AZURE_VM_GPU_MAP: Dict[str, str] = {
     "MI300X": "MI300X",
     "T4": "T4",
 }
+
+# Ordered list of (pattern, display_name) for raw GPU model strings.
+# Patterns are matched against the model string with hyphens replaced by spaces.
+# More specific patterns (e.g. "A100 40GB") must appear before broader ones ("A100 80GB").
+_GPU_MODEL_PATTERNS: List[Tuple[str, str]] = [
+    (r'\bA100\b.*\b40\s*GB\b', "A100 40GB"),
+    (r'\bA100\b', "A100 80GB"),
+    (r'\bH100\b.*\bNVL\b', "H100 NVL"),
+    (r'\bNVL\b.*\bH100\b', "H100 NVL"),
+    (r'\bH100\b', "H100"),
+    (r'\bH200\b', "H200"),
+    (r'\bV100\b.*\b(16\s*GB|PCIE)\b', "V100 16GB"),
+    (r'\b(16\s*GB|PCIE)\b.*\bV100\b', "V100 16GB"),
+    (r'\bV100\b.*\b(32\s*GB|SXM)\b', "V100 32GB"),
+    (r'\b(32\s*GB|SXM)\b.*\bV100\b', "V100 32GB"),
+    (r'\bV100\b', "V100"),
+    (r'\bT4\b', "T4"),
+]
 
 
 def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
@@ -184,7 +204,7 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
 
     # Azure VM SKU: Standard_<series><size>_<GPU>_v<version>
     # e.g. Standard_NC96ads_A100_v4, Standard_ND96ams_A100_v4, Standard_ND96isrf_H100_v5
-    azure_match = re.match(r'^Standard_(?:NC|ND|NV)\d+[a-zA-Z]*_([A-Za-z0-9]+)_v\d+$', gpu_model, re.IGNORECASE)
+    azure_match = _AZURE_VM_SKU_RE.match(gpu_model)
     if azure_match:
         gpu_part = azure_match.group(1).upper()
         return _AZURE_VM_GPU_MAP.get(gpu_part, gpu_part)
@@ -192,33 +212,9 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
     # Normalize hyphens to spaces for pattern matching
     normalized = gpu_model.replace("-", " ")
 
-    # A100 variants
-    if re.search(r'\bA100\b', normalized, re.IGNORECASE):
-        if re.search(r'\b40\s*GB\b', normalized, re.IGNORECASE):
-            return "A100 40GB"
-        return "A100 80GB"
-
-    # H100 variants (check NVL before plain H100)
-    if re.search(r'\bH100\b', normalized, re.IGNORECASE):
-        if re.search(r'\bNVL\b', normalized, re.IGNORECASE):
-            return "H100 NVL"
-        return "H100"
-
-    # H200
-    if re.search(r'\bH200\b', normalized, re.IGNORECASE):
-        return "H200"
-
-    # V100 variants
-    if re.search(r'\bV100\b', normalized, re.IGNORECASE):
-        if re.search(r'\b(16\s*GB|PCIE)\b', normalized, re.IGNORECASE):
-            return "V100 16GB"
-        if re.search(r'\b(32\s*GB|SXM)\b', normalized, re.IGNORECASE):
-            return "V100 32GB"
-        return "V100"
-
-    # T4
-    if re.search(r'\bT4\b', normalized, re.IGNORECASE):
-        return "T4"
+    for pattern, display_name in _GPU_MODEL_PATTERNS:
+        if re.search(pattern, normalized, re.IGNORECASE):
+            return display_name
 
     return gpu_model
 
