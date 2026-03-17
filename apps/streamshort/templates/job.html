@@ -184,6 +184,12 @@
                 <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
             </div>
 
+            <div class="col-12 mb-3" id="selected-scenes-section" style="display: none;">
+                <h2 class="mt-5 mb-3">✂️ Selected for Short</h2>
+                <p id="selected-scenes-info">No scenes selected yet.</p>
+                <div id="selected-scenes-content" class="p-3 rounded" style="background-color: #d1e7dd; font-family: monospace;"></div>
+            </div>
+
             <div class="col-12 mb-3" id="frames-section" style="display: none;">
                 <h2 class="mt-5 mb-3">🖼️ Frames</h2>
                 <div id="frames-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
@@ -196,11 +202,15 @@
             const videoContent = document.getElementById("video-content");
             const scenesContent = document.getElementById("scenes-content");
             const framesContent = document.getElementById("frames-content");
+            const selectedScenesContent = document.getElementById("selected-scenes-content");
 
             const waitingSection = document.getElementById("waiting-section");
             const videoSection = document.getElementById("video-section");
             const scenesSection = document.getElementById("scenes-section");
             const framesSection = document.getElementById("frames-section");
+            const selectedScenesSection = document.getElementById("selected-scenes-section");
+
+            let selectedSceneIds = new Set();
 
             function updateStatusBadge(status) {
                 const statusBadge = document.getElementById("status-badge");
@@ -290,10 +300,9 @@
                     if (numScenes > 0) {
                         waitingSection.style.display = "none";
                         scenesSection.style.display = "block";
-
-                        const scenesInfo = document.getElementById("scenes-info");
-                        scenesInfo.textContent = `Number of scenes: ${numScenes}.`;
                     }
+
+                    updateScenesInfo(numScenes);
 
                     for (const scene of scenes) {
                         const sceneId = scene.scene_id;
@@ -302,7 +311,7 @@
                         if (!sceneRow) {
                             sceneRow = document.createElement("div");
                             sceneRow.id = sceneRowId;
-                            sceneRow.className = "mb-4 d-flex gap-3 align-items-start";
+                            sceneRow.className = "mb-4 d-flex gap-3 align-items-start p-2 rounded";
                             scenesContent.appendChild(sceneRow);
 
                             // Wrapper for media (left)
@@ -347,7 +356,7 @@
                             // Text (right)
                             const sceneText = document.createElement("div");
                             const color = "text-primary";
-                            sceneText.innerHTML = `<span class="${color}"><strong>Scene ${sceneId} (${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} seconds)</strong></span>`;
+                            sceneText.innerHTML = `<span id="scene-title-${sceneId}" class="${color}"><strong>Scene ${sceneId} (${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} seconds)</strong></span>`;
                             if (scene.descriptions && scene.descriptions.length > 0) {
                                 sceneText.innerHTML += `<p><strong>${scene.descriptions.length} frame descriptions:</strong><p>`;
                             }
@@ -363,6 +372,11 @@
                                 sceneText.appendChild(transcriptPara);
                             }
                             sceneRow.appendChild(sceneText);
+
+                            // Apply selection highlight if already known
+                            if (selectedSceneIds.has(sceneId)) {
+                                applySelectedStyle(sceneRow, sceneId);
+                            }
                         }
                     }
                 } catch (err) {
@@ -371,6 +385,76 @@
             }
             fetchScenes();
             // fetchScenesInterval = setInterval(fetchScenes, 1000);
+
+            // Helper: apply visual highlight to a scene row that was selected for the short
+            function applySelectedStyle(sceneRow, sceneId) {
+                if (sceneRow.classList.contains("selected-scene")) return;
+                sceneRow.classList.add("selected-scene", "border", "border-success", "border-2");
+                const titleSpan = document.getElementById(`scene-title-${sceneId}`);
+                if (titleSpan && !titleSpan.querySelector(".selected-badge")) {
+                    const badge = document.createElement("span");
+                    badge.className = "selected-badge badge bg-success ms-2";
+                    badge.textContent = "✂️ In Short";
+                    titleSpan.appendChild(badge);
+                }
+                // Mirror scene card into the "Selected for Short" box
+                const selectedBoxId = `selected-scene-ref-${sceneId}`;
+                if (!document.getElementById(selectedBoxId)) {
+                    const refCard = document.createElement("div");
+                    refCard.id = selectedBoxId;
+                    refCard.className = "mb-2 p-2 bg-white rounded border border-success";
+                    const img = document.getElementById(`scene-img-${sceneId}`);
+                    const titleEl = document.getElementById(`scene-title-${sceneId}`);
+                    const imgSrc = img ? img.src : "";
+                    const titleText = titleEl ? titleEl.innerText : `Scene ${sceneId}`;
+                    refCard.innerHTML = imgSrc
+                        ? `<div class="d-flex gap-3 align-items-start">
+                               <img src="${imgSrc}" width="160" class="img-fluid rounded shadow-sm">
+                               <span class="text-success fw-bold">${titleText}</span>
+                           </div>`
+                        : `<span class="text-success fw-bold">${titleText}</span>`;
+                    selectedScenesContent.appendChild(refCard);
+                }
+            }
+
+            // Selected scenes
+            const selectedScenesUrl = "/file_stream/{{ job_id }}/selected_scenes.json";
+            async function fetchSelectedScenes() {
+                try {
+                    const res = await fetch(selectedScenesUrl + "?t=" + Date.now());
+                    if (res.status === 404) return;  // Not yet available
+                    if (!res.ok) return;
+                    const selectedIds = await res.json();
+                    if (!Array.isArray(selectedIds) || selectedIds.length === 0) return;
+                    selectedSceneIds = new Set(selectedIds);
+
+                    selectedScenesSection.style.display = "block";
+                    document.getElementById("selected-scenes-info").textContent =
+                        `${selectedSceneIds.size} scene(s) selected for the short.`;
+
+                    // Apply highlights to any already-rendered scene rows
+                    for (const sceneId of selectedSceneIds) {
+                        const sceneRow = document.getElementById(`scene-${sceneId}`);
+                        if (sceneRow) applySelectedStyle(sceneRow, sceneId);
+                    }
+
+                    updateScenesInfo();
+                } catch (err) {
+                    console.log("Cannot load selected scenes:", err.message);
+                }
+            }
+            fetchSelectedScenes();
+
+            function updateScenesInfo(totalScenes) {
+                const scenesInfo = document.getElementById("scenes-info");
+                const count = totalScenes !== undefined ? totalScenes : scenesContent.children.length;
+                if (selectedSceneIds.size > 0) {
+                    scenesInfo.textContent =
+                        `${count} scene(s) detected. ${selectedSceneIds.size} selected for the short (highlighted in green).`;
+                } else {
+                    scenesInfo.textContent = `${count} scene(s) detected.`;
+                }
+            }
 
             // Frames
             const numFrames = 10;  // TODO
@@ -467,6 +551,7 @@
                 if (status) updateStatusBadge(status);
                 if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
                     clearInterval(logInterval);
+                    await fetchSelectedScenes();
                 }
             }
             refreshLogLoop();
