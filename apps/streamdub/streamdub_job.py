@@ -9,6 +9,7 @@ import aiofiles
 
 from dataclasses import asdict
 
+from typing import override
 from typing import Dict
 from typing import Any
 from typing import List
@@ -70,7 +71,9 @@ class StreamDubJob(StreamWiseJob):
             config)
 
         self.service_manager = service_manager
+        self.scenes: List[SceneSegment] = []
 
+    @override
     async def generate(
         self,
         job_config: Dict[str, Any],
