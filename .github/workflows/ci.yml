@@ -53,10 +53,17 @@ jobs:
 
     - name: Run Python type checking
       if: always()
-      shell: bash {0}
       run: |
-        mypy --install-types --non-interactive --show-traceback --ignore-missing-imports . || true
-        mypy --ignore-missing-imports . || true
+        mypy --install-types --non-interactive --ignore-missing-imports . \
+          2>&1 | tee mypy-results.txt
+        exit ${PIPESTATUS[0]}
+
+    - name: Upload mypy results
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: mypy-results
+        path: mypy-results.txt
 
     - name: 'Run tests: Main'
       if: always()
