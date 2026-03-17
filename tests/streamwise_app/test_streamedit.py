@@ -140,11 +140,53 @@ async def test_streamedit_job_detect_scenes_missing_file() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streamedit_job_gen_edit_scene_saves_audio() -> None:
-    """gen_edit_scene saves per-scene audio WAV file and sets scene.audio_path."""
+async def test_streamedit_job_chunk_audio_into_scenes() -> None:
+    """chunk_audio_into_scenes saves scene_{id:03d}.wav and sets scene.audio_path."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         job = StreamEditJob(
-            job_id="test_scene_audio",
+            job_id="test_chunk_audio",
+            service_manager=MagicMock(),
+        )
+        job.job_path = tmp_dir
+
+        # Create a fake input video file
+        video_path = f"{tmp_dir}/video.mp4"
+        with open(video_path, "wb") as f:
+            f.write(b"fake_video_data")
+
+        fake_audio_base64 = base64.b64encode(b"dummy_audio").decode()
+
+        job.scenes = [
+            SceneSegment(scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0),
+            SceneSegment(scene_id=1, start_frame=30, end_frame=60, start_sec=1.0, end_sec=2.0),
+        ]
+
+        with patch.object(_sei_module, "extract_audio_from_video", new_callable=AsyncMock,
+                          return_value=f"{tmp_dir}/audio.wav"), \
+             patch.object(_sei_module, "read_file_base64", new_callable=AsyncMock,
+                          return_value=fake_audio_base64), \
+             patch.object(_sei_module, "chunk_audio_base64", return_value=fake_audio_base64):
+
+            chunks = await job.chunk_audio_into_scenes()
+
+        # Both scenes should have audio_path set with consistent naming
+        assert job.scenes[0].audio_path == "scene_000.wav"
+        assert job.scenes[1].audio_path == "scene_001.wav"
+
+        # Per-scene WAV files must exist on disk
+        assert os.path.exists(f"{tmp_dir}/scene_000.wav")
+        assert os.path.exists(f"{tmp_dir}/scene_001.wav")
+
+        # Two audio chunks returned
+        assert len(chunks) == 2
+
+
+@pytest.mark.asyncio
+async def test_streamedit_job_gen_edit_scene_saves_video() -> None:
+    """gen_edit_scene reads audio from scene.audio_path and saves the edited video."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        job = StreamEditJob(
+            job_id="test_scene_edit",
             service_manager=MagicMock(),
         )
         job.job_path = tmp_dir
@@ -154,32 +196,31 @@ async def test_streamedit_job_gen_edit_scene_saves_audio() -> None:
         with open(video_path, "wb") as f:
             f.write(b"fake_video_data")
 
+        # Pre-create the per-scene audio file (as chunk_audio_into_scenes would)
+        fake_audio_base64 = base64.b64encode(b"dummy_audio").decode()
+        with open(f"{tmp_dir}/scene_002.wav", "wb") as f:
+            f.write(b"dummy_audio")
+
         scene = SceneSegment(
             scene_id=2,
             start_frame=60,
             end_frame=120,
             start_sec=2.0,
             end_sec=4.0,
+            audio_path="scene_002.wav",
         )
-
-        # Return valid base64-encoded bytes from chunk_audio_base64
-        fake_audio_base64 = base64.b64encode(b"dummy_audio").decode()
 
         with patch.object(_sei_module, "chunk_video_binary", return_value=b"scene_vid"), \
              patch.object(_sei_module, "get_video_frames", new_callable=AsyncMock, return_value=[]), \
-             patch.object(_sei_module, "chunk_audio_base64", return_value=fake_audio_base64), \
-             patch.object(job.gen, "gen_video_audio_from_video", new_callable=AsyncMock, return_value=b"edited_video"):
+             patch.object(_sei_module, "read_file_base64", new_callable=AsyncMock,
+                          return_value=fake_audio_base64), \
+             patch.object(job.gen, "gen_video_audio_from_video", new_callable=AsyncMock,
+                          return_value=b"edited_video"):
 
-            result_path = await job.gen_edit_scene(scene, "full_audio_b64")
+            result_path = await job.gen_edit_scene(scene)
 
-        # scene.audio_path must be set to the relative per-scene filename
-        assert scene.audio_path == "002_audio.wav"
-
-        # The per-scene audio file must exist on disk
-        assert os.path.exists(f"{tmp_dir}/002_audio.wav")
-
-        # The edited scene file must also be saved
-        assert os.path.exists(f"{tmp_dir}/002_edit.mp4")
+        # The edited scene file must be saved with consistent naming
+        assert os.path.exists(f"{tmp_dir}/scene_002_edit.mp4")
 
         # The returned path must point to the edited scene file
-        assert result_path == f"{tmp_dir}/002_edit.mp4"
+        assert result_path == f"{tmp_dir}/scene_002_edit.mp4"
