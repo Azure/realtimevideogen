@@ -3,8 +3,10 @@
 Unit tests for StreamEdit.
 """
 
+import base64
 import os
 import sys
+import tempfile
 import pytest
 
 from http import HTTPStatus
@@ -14,6 +16,7 @@ from PIL import Image
 from quart import Quart
 
 from unittest.mock import patch
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
 # Add current path
@@ -32,6 +35,20 @@ mock_modules.update(mock_torch.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("apps", "apps/streamedit"):
         from apps.streamedit.streamedit import StreamEditApp
+
+scene_mocks_base = {
+    'scenedetect': MagicMock(),
+    'scenedetect.detectors': MagicMock(),
+    'scenedetect.stats_manager': MagicMock(),
+}
+
+with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+    with temp_sys_path("apps", "apps/streamedit"):
+        from apps.streamedit.streamedit_job import StreamEditJob
+        import apps.streamedit.streamedit_job as _sei_module  # keep reference for patch.object
+
+with temp_sys_path("apps"):
+    from scene import SceneSegment
 
 
 streamedit_app = StreamEditApp()
@@ -98,3 +115,71 @@ def test_edit_prompt() -> None:
     from apps.streamedit.edit_prompts import EDIT_PROMPT
     assert EDIT_PROMPT
     assert "video editor" in EDIT_PROMPT.lower() or "edit" in EDIT_PROMPT.lower()
+
+
+@pytest.mark.asyncio
+async def test_streamedit_job_no_video() -> None:
+    """StreamEditJob.gen_edit with missing video raises ValueError."""
+    job = StreamEditJob(
+        job_id="test_no_video",
+        service_manager=MagicMock(),
+    )
+    with pytest.raises(ValueError, match="Missing 'video_base64'"):
+        await job.gen_edit(video_base64=None)
+
+
+@pytest.mark.asyncio
+async def test_streamedit_job_detect_scenes_missing_file() -> None:
+    """StreamEditJob.detect_scenes raises FileNotFoundError when video file is absent."""
+    job = StreamEditJob(
+        job_id="test_detect_no_file",
+        service_manager=MagicMock(),
+    )
+    with pytest.raises(FileNotFoundError):
+        await job.detect_scenes("/nonexistent/path/video.mp4")
+
+
+@pytest.mark.asyncio
+async def test_streamedit_job_gen_edit_scene_saves_audio() -> None:
+    """gen_edit_scene saves per-scene audio WAV file and sets scene.audio_path."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        job = StreamEditJob(
+            job_id="test_scene_audio",
+            service_manager=MagicMock(),
+        )
+        job.job_path = tmp_dir
+
+        # Create a fake input video file so read_file_bytes can read it
+        video_path = f"{tmp_dir}/video.mp4"
+        with open(video_path, "wb") as f:
+            f.write(b"fake_video_data")
+
+        scene = SceneSegment(
+            scene_id=2,
+            start_frame=60,
+            end_frame=120,
+            start_sec=2.0,
+            end_sec=4.0,
+        )
+
+        # Return valid base64-encoded bytes from chunk_audio_base64
+        fake_audio_base64 = base64.b64encode(b"dummy_audio").decode()
+
+        with patch.object(_sei_module, "chunk_video_binary", return_value=b"scene_vid"), \
+             patch.object(_sei_module, "get_video_frames", new_callable=AsyncMock, return_value=[]), \
+             patch.object(_sei_module, "chunk_audio_base64", return_value=fake_audio_base64), \
+             patch.object(job.gen, "gen_video_audio_from_video", new_callable=AsyncMock, return_value=b"edited_video"):
+
+            result_path = await job.gen_edit_scene(scene, "full_audio_b64")
+
+        # scene.audio_path must be set to the relative per-scene filename
+        assert scene.audio_path == "002_audio.wav"
+
+        # The per-scene audio file must exist on disk
+        assert os.path.exists(f"{tmp_dir}/002_audio.wav")
+
+        # The edited scene file must also be saved
+        assert os.path.exists(f"{tmp_dir}/002_edit.mp4")
+
+        # The returned path must point to the edited scene file
+        assert result_path == f"{tmp_dir}/002_edit.mp4"

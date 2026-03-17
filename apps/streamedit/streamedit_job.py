@@ -140,6 +140,11 @@ class StreamEditJob(StreamWiseJob):
 
             await self.save_status(JobStatus.RUNNING)
 
+            # Update scenes.json now that per-scene audio_path values have been set
+            async with aiofiles.open(scenes_path, "w") as scene_file:
+                scenes_dict_list = [asdict(scene) for scene in self.scenes]
+                await scene_file.write(json.dumps(scenes_dict_list, indent=2))
+
             # Combine the edited scenes into a final video
             valid_paths = [p for p in scene_video_paths if p]
             if not valid_paths:
@@ -218,12 +223,16 @@ class StreamEditJob(StreamWiseJob):
         )
         scene_video_frames = await get_video_frames(scene_binary)
 
-        # Chunk audio for this scene's time range
+        # Chunk audio for this scene's time range and save it for the UI
         scene_audio_base64 = chunk_audio_base64(
             audio_base64=audio_base64,
             start_seconds=scene.start_sec,
             end_seconds=scene.end_sec,
         )
+        scene_audio_file = f"{scene.scene_id:03d}_audio.wav"
+        scene_audio_path = f"{self.job_path}/{scene_audio_file}"
+        await save_base64_as_binary(scene_audio_path, scene_audio_base64)
+        scene.audio_path = scene_audio_file
 
         scene_edit_binary = await self.gen.gen_video_audio_from_video(
             video=scene_video_frames,
