@@ -2,6 +2,7 @@ import os
 import torch
 
 from PIL import Image
+from PIL.Image import Resampling
 
 from wrapper_wan21 import Wan21VideoGeneration
 
@@ -41,7 +42,7 @@ def main() -> None:
         Image.open("person0_generated_image_hidream_20250416T171929.png"),
     ]
     input_images = [
-        input_image.convert("RGB").resize((width, height), Image.Resampling.LANCZOS)
+        input_image.convert("RGB").resize((width, height), Resampling.LANCZOS)
         for input_image in input_images
     ]
 
