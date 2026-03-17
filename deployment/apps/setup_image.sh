@@ -76,6 +76,7 @@ BASE_TAG=$(jq -r '.base.dockerImage.tag' "$MAIN_DIR/services.json")
 
 # Build
 docker buildx build \
+  --load \
   --build-arg DOCKER_REPO="${DOCKER_REPO}" \
   --build-arg APP_NAME="${IMAGE_NAME}" \
   --build-arg BASE_TAG="${BASE_TAG}" \
