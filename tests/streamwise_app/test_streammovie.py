@@ -98,13 +98,21 @@ def _make_mock_script_chunks():
 class LMMGeneratorMovieMock(LMMGeneratorMock):
     """LMMGeneratorMock that also handles gen_text_stream for movie script generation."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._gen_text_stream_calls = 0
+
     async def gen_text_stream(
         self,
         *args,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
-        for chunk in _make_mock_script_chunks():
-            yield chunk
+        # Only yield script content on the first call; subsequent calls return nothing,
+        # simulating an LLM that has finished generating after the continuation prompt.
+        if self._gen_text_stream_calls == 0:
+            for chunk in _make_mock_script_chunks():
+                yield chunk
+        self._gen_text_stream_calls += 1
 
     async def gen_text(
         self,
@@ -423,3 +431,59 @@ def test_build_movie_messages() -> None:
     assert "filmmaker" in messages[0]["content"]
     assert messages[1]["role"] == "user"
     assert "sci-fi thriller" in messages[1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_api_get_movie_script_jsonl(test_app: Quart) -> None:
+    """GET /api/job/{job_id}/movie_script.jsonl returns the raw JSONL content as text."""
+    job = _make_job("test_api_jsonl")
+    await job._stream_movie_script("A noir detective story.")
+
+    client = test_app.test_client()
+    response = await client.get(f"/api/job/{job.job_id}/movie_script.jsonl")
+    assert response.status_code == HTTPStatus.OK
+    content = await response.get_data(as_text=True)
+    assert "shot_description" in content
+    assert "movie_metadata" in content
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_api_get_movie_script_jsonl_not_found(test_app: Quart) -> None:
+    """GET /api/job/{job_id}/movie_script.jsonl returns error JSON when file is missing."""
+    client = test_app.test_client()
+    response = await client.get("/api/job/nonexistent_job/movie_script.jsonl")
+    assert response.status_code == HTTPStatus.OK
+    data = await response.get_json()
+    assert data is not None
+    assert data["status"] == "error"
+    assert "not found" in data["error"]
+
+
+@pytest.mark.asyncio
+async def test_stream_movie_script_continuation() -> None:
+    """_stream_movie_script stops after first turn when continuation yields nothing."""
+    job = _make_job("test_continuation")
+
+    shots = await job._stream_movie_script("A western adventure.")
+
+    # First call yields 2 shots; second call (continuation) yields nothing → stops
+    assert len(shots) == 2
+    assert job.gen._gen_text_stream_calls == 2
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_stream_movie_script_respects_max_continuation_turns() -> None:
+    """max_continuation_turns=1 disables all continuation and only runs a single turn."""
+    job = _make_job("test_max_turns_1", config={"max_continuation_turns": 1})
+
+    shots = await job._stream_movie_script("A one-turn film.")
+
+    assert len(shots) == 2
+    # With max_continuation_turns=1, only the initial turn runs (no continuation)
+    assert job.gen._gen_text_stream_calls == 1
+
+    await job.close()
