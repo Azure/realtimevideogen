@@ -74,6 +74,7 @@ def test_format_url() -> None:
 
 
 def test_format_gpu_model() -> None:
+    # Raw NVIDIA GPU model strings
     assert format_gpu_model("NVIDIA A100-SXM4-80GB") == "A100 80GB"
     assert format_gpu_model("NVIDIA-A100-SXM4-80GB") == "A100 80GB"
     assert format_gpu_model("NVIDIA-A100-80GB-PCIe") == "A100 80GB"
@@ -90,6 +91,21 @@ def test_format_gpu_model() -> None:
     assert format_gpu_model("Tesla V100-PCIE-16GB") == "V100 16GB"
     assert format_gpu_model("Tesla-V100-SXM2-32GB") == "V100 32GB"
     assert format_gpu_model("Tesla V100-SXM2-32GB") == "V100 32GB"
+    # Azure VM SKU names — ND series
+    assert format_gpu_model("Standard_ND96ams_A100_v4") == "A100 80GB"
+    assert format_gpu_model("Standard_ND96isrf_H100_v5") == "H100"
+    assert format_gpu_model("Standard_ND96isr_H100_v5") == "H100"
+    assert format_gpu_model("Standard_ND96isr_MI300X_v5") == "MI300X"
+    # Azure VM SKU names — NC series
+    assert format_gpu_model("Standard_NC96ads_A100_v4") == "A100 80GB"
+    assert format_gpu_model("Standard_NC4as_T4_v3") == "T4"
+    assert format_gpu_model("Standard_NC8as_T4_v3") == "T4"
+    assert format_gpu_model("Standard_NC64as_T4_v3") == "T4"
+    # Azure VM SKU names — NV series
+    assert format_gpu_model("Standard_NV36ads_A10_v5") == "A10"
+    # Azure VM SKU — unknown GPU identifier falls back to the GPU part (uppercased)
+    assert format_gpu_model("Standard_NC6s_UnknownGPU_v3") == "UNKNOWNGPU"
+    # Edge cases
     assert format_gpu_model("Some Other GPU") == "Some Other GPU"
     assert format_gpu_model("") == ""
     assert format_gpu_model(None) is None

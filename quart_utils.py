@@ -161,33 +161,65 @@ def format_url(url: Optional[str]) -> Optional[str]:
     return url
 
 
+_AZURE_VM_GPU_MAP: Dict[str, str] = {
+    "A100": "A100 80GB",
+    "H100": "H100",
+    "H200": "H200",
+    "MI300X": "MI300X",
+    "T4": "T4",
+}
+
+
 def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
-    """Format GPU model names to be more user-friendly."""
+    """Format GPU model names to be more user-friendly.
+
+    Handles Azure VM SKU names (e.g. Standard_ND96ams_A100_v4) and raw GPU
+    model strings reported by nvidia-smi (e.g. NVIDIA A100-SXM4-80GB).
+    """
     if not gpu_model or gpu_model == "N/A":
         return gpu_model
     if not isinstance(gpu_model, str):
         return gpu_model
     gpu_model = gpu_model.strip()
-    if gpu_model == "NVIDIA A100-SXM4-80GB" or gpu_model == "NVIDIA-A100-SXM4-80GB":
+
+    # Azure VM SKU: Standard_<series><size>_<GPU>_v<version>
+    # e.g. Standard_NC96ads_A100_v4, Standard_ND96ams_A100_v4, Standard_ND96isrf_H100_v5
+    azure_match = re.match(r'^Standard_(?:NC|ND|NV)\d+[a-zA-Z]*_([A-Za-z0-9]+)_v\d+$', gpu_model, re.IGNORECASE)
+    if azure_match:
+        gpu_part = azure_match.group(1).upper()
+        return _AZURE_VM_GPU_MAP.get(gpu_part, gpu_part)
+
+    # Normalize hyphens to spaces for pattern matching
+    normalized = gpu_model.replace("-", " ")
+
+    # A100 variants
+    if re.search(r'\bA100\b', normalized, re.IGNORECASE):
+        if re.search(r'\b40\s*GB\b', normalized, re.IGNORECASE):
+            return "A100 40GB"
         return "A100 80GB"
-    if gpu_model == "NVIDIA-A100-80GB-PCIe" or gpu_model == "NVIDIA A100 80GB PCIe":
-        return "A100 80GB"
-    if gpu_model == "Standard_NC96ads_A100_v4":
-        return "A100 80GB"
-    if gpu_model == "Standard_ND96isrf_H100_v5":
+
+    # H100 variants (check NVL before plain H100)
+    if re.search(r'\bH100\b', normalized, re.IGNORECASE):
+        if re.search(r'\bNVL\b', normalized, re.IGNORECASE):
+            return "H100 NVL"
         return "H100"
-    if gpu_model == "NVIDIA-H200" or gpu_model == "NVIDIA H200":
+
+    # H200
+    if re.search(r'\bH200\b', normalized, re.IGNORECASE):
         return "H200"
-    if gpu_model == "NVIDIA-H100" or gpu_model == "NVIDIA H100":
-        return "H100"
-    if gpu_model == "NVIDIA-H100-NVL" or gpu_model == "NVIDIA H100 NVL":
-        return "H100 NVL"
-    if gpu_model == "NVIDIA-H100-80GB-HBM3" or gpu_model == "NVIDIA H100 80GB HBM3":
-        return "H100"
-    if gpu_model == "Tesla-V100-PCIE-16GB" or gpu_model == "Tesla V100-PCIE-16GB":
-        return "V100 16GB"
-    if gpu_model == "Tesla-V100-SXM2-32GB" or gpu_model == "Tesla V100-SXM2-32GB":
-        return "V100 32GB"
+
+    # V100 variants
+    if re.search(r'\bV100\b', normalized, re.IGNORECASE):
+        if re.search(r'\b(16\s*GB|PCIE)\b', normalized, re.IGNORECASE):
+            return "V100 16GB"
+        if re.search(r'\b(32\s*GB|SXM)\b', normalized, re.IGNORECASE):
+            return "V100 32GB"
+        return "V100"
+
+    # T4
+    if re.search(r'\bT4\b', normalized, re.IGNORECASE):
+        return "T4"
+
     return gpu_model
 
 
