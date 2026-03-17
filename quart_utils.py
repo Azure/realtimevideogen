@@ -161,33 +161,68 @@ def format_url(url: Optional[str]) -> Optional[str]:
     return url
 
 
+_AZURE_VM_SKU_RE = re.compile(r'^Standard_(?:NC|ND|NV)\d+[a-zA-Z]*_([A-Za-z0-9]+)_v\d+$', re.IGNORECASE)
+
+_AZURE_VM_GPU_MAP: Dict[str, str] = {
+    "A100": "A100 80GB",
+    "GB200": "GB200",
+    "GB300": "GB300",
+    "H100": "H100",
+    "H200": "H200",
+    "MI300X": "MI300X",
+    "T4": "T4",
+}
+
+# Ordered list of (pattern, display_name) for raw GPU model strings.
+# Patterns are matched against the model string with hyphens replaced by spaces.
+# More specific patterns (e.g. "A100 40GB") must appear before broader ones ("A100 80GB").
+_GPU_MODEL_PATTERNS: List[Tuple[str, str]] = [
+    (r'\bA100\b.*\b40\s*GB\b', "A100 40GB"),
+    (r'\bA100\b', "A100 80GB"),
+    (r'\bGB300\b', "GB300"),
+    (r'\bGB200\b', "GB200"),
+    (r'\bH100\b.*\bNVL\b', "H100 NVL"),
+    (r'\bNVL\b.*\bH100\b', "H100 NVL"),
+    (r'\bH100\b', "H100"),
+    (r'\bH200\b', "H200"),
+    (r'\bV100\b.*\b(16\s*GB|PCIE)\b', "V100 16GB"),
+    (r'\b(16\s*GB|PCIE)\b.*\bV100\b', "V100 16GB"),
+    (r'\bV100\b.*\b(32\s*GB|SXM)\b', "V100 32GB"),
+    (r'\b(32\s*GB|SXM)\b.*\bV100\b', "V100 32GB"),
+    (r'\bV100\b', "V100"),
+    (r'\bT4\b', "T4"),
+]
+
+
 def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
-    """Format GPU model names to be more user-friendly."""
+    """Format GPU model names to be more user-friendly.
+
+    Handles Azure VM SKU names (e.g. Standard_ND96ams_A100_v4) and raw GPU
+    model strings reported by nvidia-smi (e.g. NVIDIA A100-SXM4-80GB).
+
+    Azure GPU VM sizes reference:
+    https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nd-family
+    """
     if not gpu_model or gpu_model == "N/A":
         return gpu_model
     if not isinstance(gpu_model, str):
         return gpu_model
     gpu_model = gpu_model.strip()
-    if gpu_model == "NVIDIA A100-SXM4-80GB" or gpu_model == "NVIDIA-A100-SXM4-80GB":
-        return "A100 80GB"
-    if gpu_model == "NVIDIA-A100-80GB-PCIe" or gpu_model == "NVIDIA A100 80GB PCIe":
-        return "A100 80GB"
-    if gpu_model == "Standard_NC96ads_A100_v4":
-        return "A100 80GB"
-    if gpu_model == "Standard_ND96isrf_H100_v5":
-        return "H100"
-    if gpu_model == "NVIDIA-H200" or gpu_model == "NVIDIA H200":
-        return "H200"
-    if gpu_model == "NVIDIA-H100" or gpu_model == "NVIDIA H100":
-        return "H100"
-    if gpu_model == "NVIDIA-H100-NVL" or gpu_model == "NVIDIA H100 NVL":
-        return "H100 NVL"
-    if gpu_model == "NVIDIA-H100-80GB-HBM3" or gpu_model == "NVIDIA H100 80GB HBM3":
-        return "H100"
-    if gpu_model == "Tesla-V100-PCIE-16GB" or gpu_model == "Tesla V100-PCIE-16GB":
-        return "V100 16GB"
-    if gpu_model == "Tesla-V100-SXM2-32GB" or gpu_model == "Tesla V100-SXM2-32GB":
-        return "V100 32GB"
+
+    # Azure VM SKU: Standard_<series><size>_<GPU>_v<version>
+    # e.g. Standard_NC96ads_A100_v4, Standard_ND96ams_A100_v4, Standard_ND96isrf_H100_v5
+    azure_match = _AZURE_VM_SKU_RE.match(gpu_model)
+    if azure_match:
+        gpu_part = azure_match.group(1).upper()
+        return _AZURE_VM_GPU_MAP.get(gpu_part, gpu_part)
+
+    # Normalize hyphens to spaces for pattern matching
+    normalized = gpu_model.replace("-", " ")
+
+    for pattern, display_name in _GPU_MODEL_PATTERNS:
+        if re.search(pattern, normalized, re.IGNORECASE):
+            return display_name
+
     return gpu_model
 
 
