@@ -193,6 +193,24 @@ class VibeVoiceGeneration(ModelGeneration):
         logging.info("Warmup for VibeVoice generation.")
         await self.generate(text="Warmup")
 
+    def _decode_voice_sample_to_tmp_file(self, voice_sample: str) -> str:
+        """Decode a base64-encoded WAV voice sample to a temporary file.
+
+        The caller is responsible for deleting the file when done.
+
+        Args:
+            voice_sample: Base64-encoded WAV audio.
+
+        Returns:
+            Path to the temporary WAV file.
+        """
+        audio_bytes = base64.b64decode(voice_sample)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_f:
+            tmp_f.write(audio_bytes)
+            tmp_path = tmp_f.name
+        logging.info("Decoded voice_sample to temporary file: %s (%d bytes).", tmp_path, len(audio_bytes))
+        return tmp_path
+
     @override
     @inference_mode()
     async def generate(
@@ -229,12 +247,9 @@ class VibeVoiceGeneration(ModelGeneration):
             if voice_sample is not None:
                 # Decode the base64 reference audio and write it to a temp file so that
                 # the processor can load it as a voice sample for cloning.
-                audio_bytes = base64.b64decode(voice_sample)
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_f:
-                    tmp_f.write(audio_bytes)
-                    _tmp_voice_path = tmp_f.name
+                _tmp_voice_path = self._decode_voice_sample_to_tmp_file(voice_sample)
                 voice_path = _tmp_voice_path
-                logging.info("Using cloned voice from provided voice_sample (%d bytes).", len(audio_bytes))
+                logging.info("Using cloned voice from provided voice_sample.")
             else:
                 voice_path = self.voice_mapper.get_voice_path(voice)
                 logging.info("Using voice: %s -> %s", voice, voice_path)

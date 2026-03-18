@@ -289,6 +289,47 @@ async def test_vibevoice_get_rest_args_voice() -> None:
     assert result_default["args"]["voice"] == "af_heart"
 
 
+@pytest.mark.asyncio
+async def test_vibevoice_get_rest_args_voice_sample() -> None:
+    """get_rest_args forwards voice_sample when present and omits it when absent."""
+    import base64
+    model = VibeVoiceGeneration()
+
+    dummy_audio = base64.b64encode(b"RIFF....WAVEfmt ").decode()
+
+    # voice_sample present -> included in args
+    result = await model.get_rest_args({
+        "text": "Hello world",
+        "voice_sample": dummy_audio,
+    })
+    assert result["args"].get("voice_sample") == dummy_audio
+
+    # voice_sample absent -> not included in args
+    result_no_sample = await model.get_rest_args({"text": "Hello world"})
+    assert "voice_sample" not in result_no_sample["args"]
+
+
+def test_decode_voice_sample_to_tmp_file() -> None:
+    """_decode_voice_sample_to_tmp_file writes the decoded bytes to a temp WAV file."""
+    import base64
+    import os
+    model = VibeVoiceGeneration()
+
+    audio_content = b"RIFF\x24\x00\x00\x00WAVEfmt "
+    voice_sample_b64 = base64.b64encode(audio_content).decode()
+
+    tmp_path = model._decode_voice_sample_to_tmp_file(voice_sample_b64)
+    try:
+        assert os.path.exists(tmp_path), "Temp file must be created"
+        assert tmp_path.endswith(".wav"), "Temp file must have .wav extension"
+        with open(tmp_path, "rb") as f:
+            written = f.read()
+        assert written == audio_content, "Written bytes must match original audio content"
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
 def test_timestep_samplers() -> None:
     uniform = UniformSampler(timesteps=100)
     result_u = uniform.sample(batch_size=4, device=torch.device('cpu'))

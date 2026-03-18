@@ -277,19 +277,27 @@ class StreamDubJob(StreamWiseJob):
         try:
             voice_sample = await read_file_base64(original_audio_path)
             self.logger.info(
-                "[%s] Using original scene audio for voice cloning (%s).",
-                scene_id, bytes_to_human(len(voice_sample)))
+                f"[{scene_id}] Using original scene audio for voice cloning "
+                f"({bytes_to_human(len(voice_sample))}).")
         except Exception as ex:
             self.logger.warning(
-                "[%s] Could not read original scene audio for voice cloning: %s. "
-                "Falling back to default voice.", scene_id, ex)
-        audio_base64 = await self.gen.gen_audio(
-            text=scene.transcript,
-            voice_sample=voice_sample,
-            lang_code=lang_code,
-            task_id=f"{scene_id:03d}",
-            deadline=deadline,
-        )
+                f"[{scene_id}] Could not read original scene audio for voice cloning: {ex}. "
+                "Falling back to default voice.")
+        if voice_sample is not None:
+            audio_base64 = await self.gen.gen_clone_audio(
+                text=scene.transcript,
+                voice_sample=voice_sample,
+                lang_code=lang_code,
+                task_id=f"{scene_id:03d}",
+                deadline=deadline,
+            )
+        else:
+            audio_base64 = await self.gen.gen_audio(
+                text=scene.transcript,
+                lang_code=lang_code,
+                task_id=f"{scene_id:03d}",
+                deadline=deadline,
+            )
         scene.audio_path = f"scene_{scene_id:03d}_dubbed.wav"
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         await save_base64_as_binary(scene_audio_path, audio_base64)
