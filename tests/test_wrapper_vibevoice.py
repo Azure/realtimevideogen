@@ -330,6 +330,26 @@ def test_decode_voice_sample_to_tmp_file() -> None:
             os.unlink(tmp_path)
 
 
+def test_cleanup_tmp_voice_file() -> None:
+    """_cleanup_tmp_voice_file removes the file and handles None / missing paths gracefully."""
+    import os
+    import tempfile
+    model = VibeVoiceGeneration()
+
+    # None input is a no-op (must not raise)
+    model._cleanup_tmp_voice_file(None)
+
+    # Existing file is deleted
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        tmp_path = f.name
+    assert os.path.exists(tmp_path)
+    model._cleanup_tmp_voice_file(tmp_path)
+    assert not os.path.exists(tmp_path), "File must be deleted by _cleanup_tmp_voice_file"
+
+    # Already-deleted path must not raise
+    model._cleanup_tmp_voice_file(tmp_path)
+
+
 def test_timestep_samplers() -> None:
     uniform = UniformSampler(timesteps=100)
     result_u = uniform.sample(batch_size=4, device=torch.device('cpu'))

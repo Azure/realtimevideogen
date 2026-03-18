@@ -211,6 +211,20 @@ class VibeVoiceGeneration(ModelGeneration):
         logging.info("Decoded voice_sample to temporary file: %s (%d bytes).", tmp_path, len(audio_bytes))
         return tmp_path
 
+    def _cleanup_tmp_voice_file(self, tmp_path: Optional[str]) -> None:
+        """Remove a temporary voice file created by _decode_voice_sample_to_tmp_file.
+
+        Silently ignores errors so that cleanup never raises inside a finally block.
+
+        Args:
+            tmp_path: Path returned by _decode_voice_sample_to_tmp_file, or None (no-op).
+        """
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
     @override
     @inference_mode()
     async def generate(
@@ -253,8 +267,7 @@ class VibeVoiceGeneration(ModelGeneration):
             else:
                 voice_path = self.voice_mapper.get_voice_path(voice)
                 logging.info("Using voice: %s -> %s", voice, voice_path)
-            voice_samples = []
-            voice_samples.append(voice_path)
+            voice_samples = [voice_path]
 
             # https://github.com/microsoft/VibeVoice/blob/main/demo/inference_from_file.py
             if not self.processor:
@@ -282,7 +295,6 @@ class VibeVoiceGeneration(ModelGeneration):
                 max_new_tokens=None,
                 cfg_scale=cfg_scale,
                 tokenizer=self.processor.tokenizer,
-                # generation_config={'do_sample': False, 'temperature': 0.95, 'top_p': 0.95, 'top_k': 0},
                 generation_config={'do_sample': False},
                 verbose=True,
             )
@@ -290,11 +302,6 @@ class VibeVoiceGeneration(ModelGeneration):
             if job_id is not None:
                 output_path = f"/tmp/file_{job_id}.wav"
             if outputs.speech_outputs and outputs.speech_outputs[0] is not None:
-                # Assuming 24kHz sample rate (common for speech synthesis)
-                # sample_rate = 24000
-                # audio_samples = outputs.speech_outputs[0].shape[-1] if len(outputs.speech_outputs[0].shape) > 0
-                # else len(outputs.speech_outputs[0])
-                # audio_duration = audio_samples / sample_rate
                 speech_output = outputs.speech_outputs[0]
                 await asyncio.to_thread(
                     self.processor.save_audio,
@@ -307,11 +314,7 @@ class VibeVoiceGeneration(ModelGeneration):
         finally:
             self.running = False
             gen_timer.end("total")
-            if _tmp_voice_path is not None:
-                try:
-                    os.unlink(_tmp_voice_path)
-                except OSError:
-                    pass
+            self._cleanup_tmp_voice_file(_tmp_voice_path)
 
     async def get_rest_args(
         self,
