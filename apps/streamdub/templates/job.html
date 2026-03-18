@@ -392,22 +392,34 @@
                             translationDiv.appendChild(translationText);
                             textCol.appendChild(translationDiv);
                         } else {
-                            // Update transcript when available
-                            if (scene.transcript) {
-                                const transcriptText = document.getElementById(`transcript-text-${sceneId}`);
-                                if (transcriptText && transcriptText.dataset.value !== scene.transcript) {
-                                    transcriptText.dataset.value = scene.transcript;
-                                    transcriptText.textContent = scene.transcript;
-                                }
+                            const padId = String(sceneId).padStart(3, '0');
+
+                            // Update transcript: from scenes.json or fall back to the .txt file
+                            const transcriptText = document.getElementById(`transcript-text-${sceneId}`);
+                            if (!scene.transcript && transcriptText && !transcriptText.dataset.value) {
+                                try {
+                                    const r = await fetch(`/file_stream/{{ job_id }}/scene_${padId}.txt?t=` + Date.now());
+                                    if (r.ok) { const t = (await r.text()).trim(); if (t) scene.transcript = t; }
+                                } catch (_) {}
                             }
-                            // Update translation when available
-                            if (scene.translation) {
-                                const translationText = document.getElementById(`translation-text-${sceneId}`);
-                                if (translationText && translationText.dataset.value !== scene.translation) {
-                                    translationText.dataset.value = scene.translation;
-                                    translationText.textContent = scene.translation;
-                                }
+                            if (scene.transcript && transcriptText && transcriptText.dataset.value !== scene.transcript) {
+                                transcriptText.dataset.value = scene.transcript;
+                                transcriptText.textContent = scene.transcript;
                             }
+
+                            // Update translation: from scenes.json or fall back to the _translation.txt file
+                            const translationText = document.getElementById(`translation-text-${sceneId}`);
+                            if (!scene.translation && translationText && !translationText.dataset.value) {
+                                try {
+                                    const r = await fetch(`/file_stream/{{ job_id }}/scene_${padId}_translation.txt?t=` + Date.now());
+                                    if (r.ok) { const t = (await r.text()).trim(); if (t) scene.translation = t; }
+                                } catch (_) {}
+                            }
+                            if (scene.translation && translationText && translationText.dataset.value !== scene.translation) {
+                                translationText.dataset.value = scene.translation;
+                                translationText.textContent = scene.translation;
+                            }
+
                             // Show dubbed audio when available
                             if (scene.audio_path && scene.audio_path.endsWith("_dubbed.wav")) {
                                 const dubbedAudio = document.getElementById(`audio-dubbed-${sceneId}`);
