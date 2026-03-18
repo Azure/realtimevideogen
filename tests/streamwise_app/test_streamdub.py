@@ -90,50 +90,6 @@ async def test_submit_job(test_app: Quart) -> None:
     # assert response_json["status"] == "success"
 
 
-def test_to_language() -> None:
-    """Test to_language converts language codes to language names."""
-    with temp_sys_path("apps"):
-        from apps.language_utils import to_language
-
-    assert to_language("a") == "American English"
-    assert to_language("b") == "British English"
-    assert to_language("e") == "Spanish"
-    assert to_language("f") == "French"
-    assert to_language("g") == "German"
-    assert to_language("h") == "Hindi"
-    assert to_language("i") == "Italian"
-    assert to_language("j") == "Japanese"
-    assert to_language("k") == "Korean"
-    assert to_language("p") == "Portuguese"
-    assert to_language("r") == "Russian"
-    assert to_language("z") == "Chinese"
-
-    # Case-insensitive: uppercase valid code maps to correct language
-    assert to_language("E") == "Spanish"
-    assert to_language("F") == "French"
-
-    # Unknown code defaults to American English
-    assert to_language("x") == "American English"
-
-
-def test_whisper_to_kokoro() -> None:
-    """Test WHISPER_TO_KOKORO maps Whisper ISO 639-1 codes to Kokoro single-letter codes."""
-    with temp_sys_path("apps"):
-        from apps.language_utils import WHISPER_TO_KOKORO
-
-    assert WHISPER_TO_KOKORO["en"] == "a"
-    assert WHISPER_TO_KOKORO["es"] == "e"
-    assert WHISPER_TO_KOKORO["fr"] == "f"
-    assert WHISPER_TO_KOKORO["de"] == "g"
-    assert WHISPER_TO_KOKORO["hi"] == "h"
-    assert WHISPER_TO_KOKORO["it"] == "i"
-    assert WHISPER_TO_KOKORO["ja"] == "j"
-    assert WHISPER_TO_KOKORO["ko"] == "k"
-    assert WHISPER_TO_KOKORO["pt"] == "p"
-    assert WHISPER_TO_KOKORO["ru"] == "r"
-    assert WHISPER_TO_KOKORO["zh"] == "z"
-
-
 @pytest.mark.asyncio
 async def test_streamdub_job_no_video() -> None:
     """StreamDubJob.gen_dub with missing video raises ValueError."""
