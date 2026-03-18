@@ -52,6 +52,8 @@ from character import Characters
 from console_utils import bytes_to_human
 
 from media_utils import get_video_file_info
+from media_utils import get_font_size
+from media_utils import add_text_to_frame
 
 from k8s_utils import NoActiveContainerError
 from k8s_utils import NoRunnableContainerError
@@ -401,3 +403,28 @@ class StreamWiseJob:
     ) -> float:
         """Get the deadline for a given scene."""
         return self.get_submission_time() + (scene_index * SCENE_DEADLINE_INCREMENT_SECS)
+
+    def _overlay_subtitles_on_frames(
+        self,
+        video_frames: List[Any],
+        text: str,
+        width: int,
+        height: int,
+    ) -> List[Any]:
+        """Overlay subtitle text onto every video frame at the bottom-center.
+
+        Args:
+            video_frames: List of video frames to annotate.
+            text: Subtitle text to render on each frame.
+            width: Frame width in pixels (used for font-size selection).
+            height: Frame height in pixels (used for font-size selection).
+
+        Returns:
+            A new list of frames with the subtitle burned in.
+        """
+        font_size = get_font_size(width, height)
+        font_size = font_size * 2 // 3  # Smaller font for subtitles
+        return [
+            add_text_to_frame(frame, text=text, font_size=font_size, position="bottom-center")
+            for frame in video_frames
+        ]

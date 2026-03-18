@@ -300,12 +300,7 @@ class StreamCastJob(StreamWiseJob):
             video_file_info = get_video_file_info(scene_video_binary)
             video_info = video_file_info["video"]
             width, height = video_info["width"], video_info["height"]
-            font_size = get_font_size(width, height)
-            font_size = font_size * 2 // 3  # Smaller font for subtitles
-            video_frames = [
-                add_text_to_frame(frame, text=frame_text, font_size=font_size, position="bottom-center")
-                for frame in video_frames
-            ]
+            video_frames = self._overlay_subtitles_on_frames(video_frames, frame_text, width, height)
 
         # Add audio back to the video
         video_audio_path = f"{self.job_path}/{scene_id:03d}.mp4"

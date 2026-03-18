@@ -208,7 +208,7 @@ class VibeVoiceGeneration(ModelGeneration):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_f:
             tmp_f.write(audio_bytes)
             tmp_path = tmp_f.name
-        logging.info("Decoded voice_sample to temporary file: %s (%d bytes).", tmp_path, len(audio_bytes))
+        logging.info(f"Decoded voice_sample to temporary file: {tmp_path} ({len(audio_bytes)} bytes).")
         return tmp_path
 
     def _cleanup_tmp_voice_file(self, tmp_path: Optional[str]) -> None:
@@ -222,8 +222,8 @@ class VibeVoiceGeneration(ModelGeneration):
         if tmp_path is not None:
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as e:
+                logging.warning(f"Could not remove temporary voice file {tmp_path}: {e}")
 
     @override
     @inference_mode()
@@ -266,7 +266,7 @@ class VibeVoiceGeneration(ModelGeneration):
                 logging.info("Using cloned voice from provided voice_sample.")
             else:
                 voice_path = self.voice_mapper.get_voice_path(voice)
-                logging.info("Using voice: %s -> %s", voice, voice_path)
+                logging.info(f"Using voice: {voice} -> {voice_path}")
             voice_samples = [voice_path]
 
             # https://github.com/microsoft/VibeVoice/blob/main/demo/inference_from_file.py

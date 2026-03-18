@@ -53,8 +53,6 @@ from media_utils import get_audio_duration
 from media_utils import extract_audio_from_video
 from media_utils import get_video_frames
 from media_utils import chunk_audio_base64
-from media_utils import add_text_to_frame
-from media_utils import get_font_size
 from media_utils import save_video_audio
 
 
@@ -368,12 +366,7 @@ class StreamDubJob(StreamWiseJob):
         video_fps = video_info["video"]["fps"]
         width = video_info["video"]["width"]
         height = video_info["video"]["height"]
-        font_size = get_font_size(width, height)
-        font_size = font_size * 2 // 3  # Smaller font for subtitles
-        video_frames = [
-            add_text_to_frame(frame, text=scene.translation, font_size=font_size, position="bottom-center")
-            for frame in video_frames
-        ]
+        video_frames = self._overlay_subtitles_on_frames(video_frames, scene.translation, width, height)
 
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         subtitled_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed_subtitled.mp4"
