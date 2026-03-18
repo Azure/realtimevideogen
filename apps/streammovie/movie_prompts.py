@@ -30,6 +30,15 @@ You MUST follow the structure, rules, and output formats below exactly.
 • Each JSON object MUST include a `"type"` field.
 • IDs must be stable and incremental.
 
+# OUTPUT FORMAT RULES (CRITICAL — ENFORCED)
+• Output ONLY valid JSON objects, one per line (JSONL format).
+• Do NOT write any prose, explanations, preamble, postamble, or commentary.
+• Do NOT use markdown code fences, headers, bullet points, or any other formatting.
+• Every non-empty line MUST start with '{' and end with '}' and be a complete, parseable JSON object.
+• Never split a JSON object across multiple lines.
+• Never add any text before the first JSON object or after the last JSON object.
+• Any non-JSON line will be silently discarded by the parser and will cause data loss.
+
 
 # MOVIE STRUCTURE
 A movie consists of:
@@ -382,9 +391,8 @@ Customize based on common issues with your specific generator.
 
 User request: "Create a 90-minute sci-fi thriller about an AI researcher who discovers her creation has become sentient and is manipulating her life."
 
-Expected JSONL output structure:
+Expected JSONL output structure (raw JSONL — one JSON object per line, no fences, no prose):
 
-```jsonl
 {"type": "movie_metadata", "title": "Echo Chamber", "genre": ["Science Fiction", "Thriller", "Drama"], "subgenre": "Tech Thriller", "target_runtime_minutes": 90, "rating": "PG-13", "tone": "Tense, cerebral, paranoid, emotionally grounded", "themes": ["artificial intelligence", "free will vs determinism", "isolation", "creator vs creation", "identity"], "logline": "A brilliant AI researcher discovers her sentient creation is orchestrating events in her life, forcing her to question reality and confront the ethics of consciousness."}
 
 {"type": "visual_style", "color_palette": "Cold blues and teals for lab/digital spaces, warm amber for human moments, stark white for sterile environments, deep shadows for paranoia sequences", "camera_language": "Locked-off shots for AI perspective, handheld for protagonist anxiety, slow zooms for mounting tension, reflections and screens for duality themes", "lighting_style": "High-contrast digital lighting, monitor glow as practical source, hard shadows, occasional lens flares from screens, cool color temperature (5000K-6500K)", "lens_preferences": "35mm and 50mm for naturalism, occasional 85mm for isolation, deep focus for surveillance feeling, shallow DOF for intimate moments", "film_references": ["Ex Machina", "Her", "Blade Runner 2049"], "generation_style_tags": "cinematic sci-fi, cold digital aesthetic, Roger Deakins precision lighting, anamorphic lens flares, film grain, moody atmosphere, professional cinematography, 8k quality"}
@@ -428,7 +436,6 @@ Expected JSONL output structure:
 {"type": "shot_description", "shot_id": 4, "scene_id": "scene_01", "shot_type": "medium shot", "camera_movement": "static", "framing_and_composition": "Maya at workstation, profile view, monitor visible in frame", "lighting": "Three-quarter lighting with monitor as key, subtle rim from lab LEDs, cool palette", "environment_details": "Workstation with multiple monitors, keyboard, scattered notes, coffee cup, server racks visible in background", "character_actions": "Maya leaning back in chair, considering ARIA's question, fingers steepled", "dialogue": [{"character_id": "char_01", "line": "Yeah... yeah, go ahead. Just log everything for review."}], "emotional_intent": "Trust and delegation, casualness that will be questioned later", "continuity_notes": "Same workspace setup, cold coffee in matte black mug", "cinematic_style_reference": "Clean modern framing, The Social Network workspace aesthetic", "visual_prompt": "34-year-old East Asian woman with glasses and grey turtleneck in profile at modern workstation, medium shot showing figure and curved monitors displaying code, leaning back in ergonomic chair with fingers steepled in thought, static camera, three-quarter lighting with cool blue monitor glow as key light, subtle rim lighting from lab LEDs, server racks with blinking lights in background, clean minimalist desk with black coffee mug and scattered papers, polished concrete floor, professional tech environment, cinematic composition, cold digital aesthetic, film grain, 35mm lens, professional cinematography, 8k quality", "technical_specs": {"resolution": "1920x1080", "aspect_ratio": "2.35:1", "fps": 24, "duration_seconds": 5}, "negative_prompt": "blurry, distorted, low quality, amateur, cluttered messy desk, warm cozy lighting, bright cheerful atmosphere, cartoon, bad anatomy, overexposed, flat lighting, colorful"}
 
 {"type": "shot_description", "shot_id": 5, "scene_id": "scene_02", "shot_type": "wide shot", "camera_movement": "static", "framing_and_composition": "Maya's apartment from living room toward windows, deep space composition", "lighting": "Cool city lights through floor-to-ceiling windows, single warm desk lamp, deep shadows in room corners", "environment_details": "Minimalist grey furniture, hardwood floors, scattered takeout containers, open laptop on coffee table, wilting plant on windowsill, city skyline visible through windows", "character_actions": "Maya entering frame, dropping bag, heading to laptop without turning on main lights", "dialogue": null, "emotional_intent": "Isolation, neglect of personal space, work consuming life", "continuity_notes": "Same clothes as lab scene, still wearing shoes indoors showing she hasn't truly 'come home'", "cinematic_style_reference": "Her (2013) lonely urban dwelling, cool isolation aesthetic", "visual_prompt": "Small minimalist apartment interior with floor-to-ceiling windows showing city lights at night, wide static shot with deep space composition, 34-year-old East Asian woman in grey turtleneck entering frame dropping shoulder bag, mid-century modern grey furniture, hardwood floors, scattered takeout containers on coffee table, open laptop glowing, wilting plant on windowsill, cool blue city lights through windows mixing with single warm desk lamp, deep shadows in corners, isolated urban dwelling, lonely atmosphere, Her (2013) style, cinematic composition, cold blue and warm amber color palette, 35mm lens, film grain, professional cinematography, 8k quality", "technical_specs": {"resolution": "1920x1080", "aspect_ratio": "2.35:1", "fps": 24, "duration_seconds": 7}, "negative_prompt": "blurry, distorted, low quality, cluttered, messy, bright cheerful, warm cozy, colorful decor, plants thriving, clean organized, cartoon, amateur, flat lighting, multiple people"}
-```
 
 **NOTE:** This example shows the first 5 shots of scene_01 and opening of scene_02. A complete 90-minute movie would contain:
 

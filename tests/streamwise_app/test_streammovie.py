@@ -95,24 +95,54 @@ def _make_mock_script_chunks():
         yield line + "\n"
 
 
-class LMMGeneratorMovieMock(LMMGeneratorMock):
-    """LMMGeneratorMock that also handles gen_text_stream for movie script generation."""
+def _make_mock_script_chunks_with_noise():
+    """Yield a mix of valid JSONL and prose/noise lines."""
+    items = [
+        "Okay, here's the Movie Bible for a test film.",  # prose noise
+        json.dumps({"type": "movie_metadata", "title": "Noisy Movie"}),
+        "```jsonl",  # markdown fence noise
+        json.dumps(MOCK_SHOT_0),
+        "This is an explanatory paragraph that should be filtered out.",  # prose noise
+        json.dumps(MOCK_SHOT_1),
+        "```",  # markdown fence noise
+        "And now, some notes about the next act...",  # prose noise
+    ]
+    for item in items:
+        yield item + "\n"
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._gen_text_stream_calls = 0
+
+class LMMGeneratorMovieMock(LMMGeneratorMock):
+    """LMMGeneratorMock that handles gen_text_stream for movie script generation."""
 
     async def gen_text_stream(
         self,
         *args,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
-        # Only yield script content on the first call; subsequent calls return nothing,
-        # simulating an LLM that has finished generating after the continuation prompt.
-        if self._gen_text_stream_calls == 0:
-            for chunk in _make_mock_script_chunks():
-                yield chunk
-        self._gen_text_stream_calls += 1
+        for chunk in _make_mock_script_chunks():
+            yield chunk
+
+    async def gen_text(
+        self,
+        *args,
+        **kwargs,
+    ) -> str:
+        return ""
+
+    async def stop(self) -> None:
+        pass
+
+
+class LMMGeneratorMovieNoisyMock(LMMGeneratorMock):
+    """LMMGeneratorMock that emits prose noise mixed with valid JSONL."""
+
+    async def gen_text_stream(
+        self,
+        *args,
+        **kwargs,
+    ) -> AsyncGenerator[str, None]:
+        for chunk in _make_mock_script_chunks_with_noise():
+            yield chunk
 
     async def gen_text(
         self,
@@ -131,6 +161,15 @@ def _make_job(job_id: str, config: Dict[str, Any] | None = None) -> StreamMovieJ
     service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
     job = StreamMovieJob(job_id=job_id, config=config or {}, service_manager=service_manager)
     job.gen = LMMGeneratorMovieMock()
+    return job
+
+
+def _make_noisy_job(job_id: str, config: Dict[str, Any] | None = None) -> StreamMovieJob:
+    """Create a StreamMovieJob backed by the noisy LLM mock."""
+    service_manager = MagicMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+    job = StreamMovieJob(job_id=job_id, config=config or {}, service_manager=service_manager)
+    job.gen = LMMGeneratorMovieNoisyMock()
     return job
 
 
@@ -462,28 +501,34 @@ async def test_api_get_movie_script_jsonl_not_found(test_app: Quart) -> None:
 
 
 @pytest.mark.asyncio
-async def test_stream_movie_script_continuation() -> None:
-    """_stream_movie_script stops after first turn when continuation yields nothing."""
-    job = _make_job("test_continuation")
+async def test_stream_movie_script_filters_noise() -> None:
+    """Non-JSON prose lines from the LLM are excluded from the saved script file."""
+    job = _make_noisy_job("test_noise_filter")
 
-    shots = await job._stream_movie_script("A western adventure.")
+    shots = await job._stream_movie_script("A noisy sci-fi drama.")
 
-    # First call yields 2 shots; second call (continuation) yields nothing → stops
+    # 2 shot_description objects should still be extracted despite the noise
     assert len(shots) == 2
-    assert job.gen._gen_text_stream_calls == 2
+    assert shots[0]["shot_id"] == "S001"
+    assert shots[1]["shot_id"] == "S002"
 
-    await job.close()
+    # The saved script file must contain ONLY valid JSON lines
+    script_path = f"{job.job_path}/movie_script.jsonl"
+    assert await aiofiles.os.path.exists(script_path)
+    async with aiofiles.open(script_path) as f:
+        content = await f.read()
 
+    lines = [line for line in content.strip().splitlines() if line]
+    # Only 3 valid JSON lines: movie_metadata + 2 shot_descriptions
+    assert len(lines) == 3
+    for line in lines:
+        parsed = json.loads(line)  # must not raise
+        assert "type" in parsed
 
-@pytest.mark.asyncio
-async def test_stream_movie_script_respects_max_continuation_turns() -> None:
-    """max_continuation_turns=1 disables all continuation and only runs a single turn."""
-    job = _make_job("test_max_turns_1", config={"max_continuation_turns": 1})
-
-    shots = await job._stream_movie_script("A one-turn film.")
-
-    assert len(shots) == 2
-    # With max_continuation_turns=1, only the initial turn runs (no continuation)
-    assert job.gen._gen_text_stream_calls == 1
+    # Noise strings must NOT appear in the file at all
+    assert "Okay, here" not in content
+    assert "explanatory paragraph" not in content
+    assert "notes about the next act" not in content
+    assert "```" not in content
 
     await job.close()
