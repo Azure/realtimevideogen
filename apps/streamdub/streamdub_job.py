@@ -16,18 +16,14 @@ from typing import List
 from typing import Optional
 
 from dub_prompts import DUB_PROMPT
-from dub_prompts import SPEAKER_GENDER_PROMPT
 from dub_prompts import VIDEO_DUB_PROMPT
 from dub_prompts import VIDEO_DUB_NEG_PROMPT
 
 from video import MAX_FT_DURATION_SECS
 from video import FANTASYTALKING_FPS
 
-from character import KOKORO_VOICES
-
-# Default voice gender used when speaker gender cannot be detected
-DEFAULT_VOICE_GENDER = "female"
-DEFAULT_VOICE = KOKORO_VOICES[DEFAULT_VOICE_GENDER][0]
+# Default TTS voice; TODO: replace with VibeVoice speaker voice cloning
+DEFAULT_TTS_VOICE = "af_heart"
 
 from scenedetect import open_video
 from scenedetect import SceneManager
@@ -276,17 +272,12 @@ class StreamDubJob(StreamWiseJob):
 
         await self.save_status(JobStatus.RUNNING)
 
-        # Detect speaker gender to select an appropriate voice
-        speaker_gender = await self.detect_speaker_gender(scene)
-        self.logger.info(f"[{scene_id}] Detected speaker gender: {speaker_gender}")
-        gender_voices = KOKORO_VOICES.get(speaker_gender, [])
-        voice = gender_voices[0] if gender_voices else DEFAULT_VOICE
-
         # Generate dubbed audio
+        # TODO: use VibeVoice to clone the speaker's voice from the original audio
         deadline = self.get_submission_time() + scene.start_sec
         audio_base64 = await self.gen.gen_audio(
             text=scene.translation,
-            voice=voice,
+            voice=DEFAULT_TTS_VOICE,
             speed=1.1,
             lang_code=lang_code,
             task_id=f"{scene_id:03d}",
@@ -352,35 +343,6 @@ class StreamDubJob(StreamWiseJob):
             return ""
         audio_transcript = audio_transcript.strip()
         return audio_transcript
-
-    async def detect_speaker_gender(
-        self,
-        scene: SceneSegment,
-    ) -> str:
-        """
-        Detect the gender of the main speaker using the scene transcript.
-        Returns "male" or "female" (defaults to DEFAULT_VOICE_GENDER on any failure).
-        Note: this is a binary classification used solely for voice matching.
-        """
-        text = scene.transcript
-        if not text or not text.strip():
-            return DEFAULT_VOICE_GENDER
-
-        messages = [
-            {"role": "system", "content": SPEAKER_GENDER_PROMPT},
-            {"role": "user", "content": text}
-        ]
-        try:
-            result = await self.gen.gen_text(
-                messages,
-                task_id=f"gender{scene.scene_id:03d}",
-            )
-            gender = result.strip().lower()
-            if gender in KOKORO_VOICES:
-                return gender
-        except Exception as ex:
-            self.logger.warning(f"[{scene.scene_id}] Gender detection failed: {ex}")
-        return DEFAULT_VOICE_GENDER
 
     async def translate_scene(
         self,
