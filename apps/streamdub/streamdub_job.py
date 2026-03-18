@@ -335,12 +335,13 @@ class StreamDubJob(StreamWiseJob):
             return ""
 
         audio_path = f"{self.job_path}/{scene.audio_path}"
-        audio_transcript = await self.gen.gen_audio_transcript(
+        audio_transcript, language_code = await self.gen.gen_audio_transcript(
             audio_path,
             task_id=f"{scene.scene_id:03d}",
         )
         if not audio_transcript:
             return ""
+        scene.language = language_code
         audio_transcript = audio_transcript.strip()
         return audio_transcript
 

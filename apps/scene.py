@@ -32,6 +32,7 @@ class SceneSegment:
 
     audio_path: Optional[str] = None
     transcript: Optional[str] = None
+    language: Optional[str] = None
     translation: Optional[str] = None
 
     def add_image_path(
