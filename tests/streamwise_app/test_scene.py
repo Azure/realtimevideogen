@@ -68,6 +68,7 @@ def test_user_json_serialization() -> None:
         "end_frame": 200,
         "end_sec": 150.33,
         "frame_image_paths": [],
+        "language": None,
         "scene_id": 2,
         "start_frame": 100,
         "start_sec": 100.0,
