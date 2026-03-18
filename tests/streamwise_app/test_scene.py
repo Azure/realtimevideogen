@@ -71,5 +71,6 @@ def test_user_json_serialization() -> None:
         "scene_id": 2,
         "start_frame": 100,
         "start_sec": 100.0,
-        "transcript": None
+        "transcript": None,
+        "translation": None,
     }
