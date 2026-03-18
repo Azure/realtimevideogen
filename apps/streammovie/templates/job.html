@@ -178,15 +178,28 @@
                 </div>
             </div>
 
-            <div class="col-12 mb-3" id="script-section" style="display: none;">
-                <h2 class="mt-5 mb-3">📜 Script</h2>
-                <div id="script-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+            <div class="col-12 mb-3" id="metadata-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🎬 Movie Details</h2>
+                <div id="metadata-content" class="card shadow-sm">
+                    <div class="card-body" id="metadata-body"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="characters-section" style="display: none;">
+                <h2 class="mt-5 mb-3">👤 Characters</h2>
+                <div id="characters-content" class="p-3 rounded" style="background-color: #e9ecef;"></div>
             </div>
 
             <div class="col-12 mb-3" id="shots-section" style="display: none;">
                 <h2 class="mt-5 mb-3">🎥 Shots</h2>
                 <div id="shots-content" class="row g-3"></div>
             </div>
+        </div>
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
         </div>
 
         {% if files %}
@@ -331,117 +344,277 @@
 
     <script>
         const JOB_ID = "{{ job_id }}";
-        const POLL_INTERVAL_MS = 5000;
         const TERMINAL_STATUSES = new Set(["COMPLETED", "FAILED", "EXPIRED", "CANCELLED"]);
 
         const errorBox = document.getElementById("error-box");
         const waitingSection = document.getElementById("waiting-section");
         const videoSection = document.getElementById("video-section");
         const videoContent = document.getElementById("video-content");
-        const scriptSection = document.getElementById("script-section");
-        const scriptContent = document.getElementById("script-content");
+        const metadataSection = document.getElementById("metadata-section");
+        const metadataBody = document.getElementById("metadata-body");
+        const charactersSection = document.getElementById("characters-section");
+        const charactersContent = document.getElementById("characters-content");
         const shotsSection = document.getElementById("shots-section");
         const shotsContent = document.getElementById("shots-content");
 
-        let videoLoaded = false;
-        let scriptLoaded = false;
+        // Track what has already been rendered to avoid duplicates
+        let renderedShotCount = 0;
+        let metadataRendered = false;
+        const renderedCharIds = new Set();
 
-        async function pollStatus() {
+        // HTML-escape helper to prevent XSS when inserting dynamic content
+        function escHtml(str) {
+            if (!str) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function updateStatusBadge(status) {
+            const badgeEl = document.getElementById("status-badge");
+            if (!badgeEl) return;
+            let badgeHtml = "";
+            if (status === "COMPLETED")   badgeHtml = '<span class="badge bg-success">✅ Completed</span>';
+            else if (status === "RUNNING") badgeHtml = '<span class="badge bg-warning text-dark">⚙️ Running</span>';
+            else if (status === "STARTED") badgeHtml = '<span class="badge bg-warning text-dark">⌛ Started</span>';
+            else if (status === "FAILED")  badgeHtml = '<span class="badge bg-danger">❌ Failed</span>';
+            else if (status === "EXPIRED") badgeHtml = '<span class="badge bg-danger">💀 Expired</span>';
+            else badgeHtml = `<span class="badge bg-secondary">⁉️ ${status}</span>`;
+            badgeEl.innerHTML = badgeHtml;
+        }
+
+        async function getJobStatus() {
             try {
-                const resp = await fetch(`/api/job/${JOB_ID}/status`);
-                if (!resp.ok) {
-                    errorBox.style.display = "block";
-                    errorBox.textContent = `Error fetching status: HTTP ${resp.status}`;
-                    return;
-                }
-                const data = await resp.json();
-                const status = data.status || "UNKNOWN";
-
-                // Update status badge
-                const badgeEl = document.getElementById("status-badge");
-                if (badgeEl) {
-                    let badgeHtml = "";
-                    if (status === "COMPLETED") badgeHtml = '<span class="badge bg-success">✅ Completed</span>';
-                    else if (status === "RUNNING") badgeHtml = '<span class="badge bg-warning text-dark">⚙️ Running</span>';
-                    else if (status === "STARTED") badgeHtml = '<span class="badge bg-warning text-dark">⌛ Started</span>';
-                    else if (status === "FAILED") badgeHtml = '<span class="badge bg-danger">❌ Failed</span>';
-                    else if (status === "EXPIRED") badgeHtml = '<span class="badge bg-danger">💀 Expired</span>';
-                    else badgeHtml = `<span class="badge bg-secondary">⁉️ ${status}</span>`;
-                    badgeEl.innerHTML = badgeHtml;
-                }
-
-                if (status === "COMPLETED" || status === "RUNNING") {
-                    waitingSection.style.display = "none";
-
-                    // Try to load the final movie video
-                    if (!videoLoaded && status === "COMPLETED") {
-                        const videoUrl = `/file_stream/${JOB_ID}/${JOB_ID}.mp4`;
-                        videoSection.style.display = "block";
-                        videoContent.innerHTML = `
-                            <video controls class="w-100" style="max-width: 960px;">
-                                <source src="${videoUrl}" type="video/mp4">
-                                Your browser does not support the video element.
-                            </video>`;
-                        videoLoaded = true;
-                    }
-
-                    // Try to load script preview
-                    if (!scriptLoaded) {
-                        try {
-                            const scriptResp = await fetch(`/api/job/${JOB_ID}/movie_script.jsonl`);
-                            if (scriptResp.ok) {
-                                const scriptText = await scriptResp.text();
-                                if (scriptText) {
-                                    scriptSection.style.display = "block";
-                                    scriptContent.textContent = scriptText.slice(0, 4096);
-
-                                    // Parse shots and show thumbnails
-                                    const lines = scriptText.split("\n").filter(Boolean);
-                                    const shots = [];
-                                    for (const line of lines) {
-                                        try {
-                                            const obj = JSON.parse(line);
-                                            if (obj.type === "shot_description") shots.push(obj);
-                                        } catch (_) {}
-                                    }
-                                    if (shots.length > 0) {
-                                        shotsSection.style.display = "block";
-                                        shotsContent.innerHTML = "";
-                                        shots.forEach((shot, idx) => {
-                                            const imgUrl = `/file_stream/${JOB_ID}/shot_${String(idx).padStart(3, "0")}.png`;
-                                            const vidUrl = `/file_stream/${JOB_ID}/shot_${String(idx).padStart(3, "0")}.mp4`;
-                                            const card = document.createElement("div");
-                                            card.className = "col-md-4 mb-3";
-                                            card.innerHTML = `
-                                                <div class="card shadow-sm h-100">
-                                                    <img src="${imgUrl}" class="card-img-top" alt="Shot ${idx}" onerror="this.style.display='none'">
-                                                    <div class="card-body">
-                                                        <h6 class="card-title">Shot ${idx + 1}</h6>
-                                                        <p class="card-text small text-muted">${(shot.visual_prompt || "").slice(0, 120)}...</p>
-                                                        ${shot.dialogue ? `<p class="card-text small"><strong>Dialogue:</strong> ${shot.dialogue.slice(0, 100)}</p>` : ""}
-                                                        <a href="${vidUrl}" class="btn btn-sm btn-outline-primary" target="_blank">🎬 View</a>
-                                                    </div>
-                                                </div>`;
-                                            shotsContent.appendChild(card);
-                                        });
-                                    }
-                                    scriptLoaded = true;
-                                }
-                            }
-                        } catch (_) {}
-                    }
-                }
-
-                if (!TERMINAL_STATUSES.has(status)) {
-                    setTimeout(pollStatus, POLL_INTERVAL_MS);
-                }
+                const res = await fetch(`/api/job/${JOB_ID}/status?t=` + Date.now());
+                if (!res.ok) throw new Error(res.statusText);
+                const data = await res.json();
+                return data.status;
             } catch (err) {
                 errorBox.style.display = "block";
-                errorBox.textContent = "Error polling status: " + err.message;
-                setTimeout(pollStatus, POLL_INTERVAL_MS * 2);
+                errorBox.textContent = "Cannot get job status: " + err.message;
+                return null;
             }
         }
 
+        // ── Final movie video ──────────────────────────────────────────────
+        const videoUrl = `/file_stream/${JOB_ID}/${JOB_ID}.mp4`;
+        async function fetchVideo() {
+            try {
+                const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" });
+                if (!res.ok) throw new Error(res.statusText);
+                if (!videoContent.querySelector("video")) {
+                    videoContent.innerHTML = `
+                        <video controls class="w-100 rounded shadow-sm" style="max-width: 960px;">
+                            <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                            Your browser does not support the video element.
+                        </video>
+                        <div class="d-flex gap-2 mt-2">
+                            <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">🖼️ View</a>
+                            <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>💾 Download</a>
+                        </div>`;
+                    videoSection.style.display = "block";
+                }
+            } catch (_) {
+                setTimeout(fetchVideo, 2000);
+            }
+        }
+        fetchVideo();
+
+        // ── Script (JSONL) parsing ─────────────────────────────────────────
+        async function fetchScript() {
+            try {
+                const res = await fetch(`/api/job/${JOB_ID}/movie_script.jsonl?t=` + Date.now());
+                if (!res.ok) throw new Error(res.statusText);
+                const text = await res.text();
+                if (!text) return;
+
+                const lines = text.split("\n")
+                    .filter(line => line.trim())
+                    .map(line => { try { return JSON.parse(line); } catch (_) { return null; } })
+                    .filter(obj => obj !== null);
+
+                // Categorise
+                let movieMeta = null;
+                const characters = [];
+                const shots = [];
+                for (const item of lines) {
+                    if (item.type === "movie_metadata") movieMeta = item;
+                    else if (item.type === "character") characters.push(item);
+                    else if (item.type === "shot_description") shots.push(item);
+                }
+
+                waitingSection.style.display = "none";
+
+                // ── Movie metadata ────────────────────────────────────────
+                if (movieMeta && !metadataRendered) {
+                    metadataRendered = true;
+                    metadataSection.style.display = "block";
+                    const genres = Array.isArray(movieMeta.genre)
+                        ? movieMeta.genre.map(g => escHtml(g)).join(", ")
+                        : escHtml(movieMeta.genre || "");
+                    metadataBody.innerHTML = `
+                        <h5 class="card-title mb-1">🎬 ${escHtml(movieMeta.title || "")}</h5>
+                        ${genres ? `<p class="mb-1 text-muted small">${genres}</p>` : ""}
+                        ${movieMeta.logline ? `<p class="mb-0 fst-italic">${escHtml(movieMeta.logline)}</p>` : ""}`;
+                }
+
+                // ── Characters ────────────────────────────────────────────
+                characters.forEach(c => {
+                    const cid = c.character_id || c.name;
+                    if (renderedCharIds.has(cid)) return;
+                    renderedCharIds.add(cid);
+                    charactersSection.style.display = "block";
+
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "mb-3 d-flex align-items-start";
+                    wrapper.id = `char-${cid}`;
+
+                    // Character image placeholder (not generated by the job, but keep slot)
+                    const imgWrapper = document.createElement("div");
+                    imgWrapper.className = "me-3 flex-shrink-0";
+                    imgWrapper.style.width = "48px";
+                    imgWrapper.style.height = "48px";
+                    imgWrapper.style.display = "flex";
+                    imgWrapper.style.alignItems = "center";
+                    imgWrapper.style.justifyContent = "center";
+                    imgWrapper.style.background = "#dee2e6";
+                    imgWrapper.style.borderRadius = "50%";
+                    imgWrapper.style.fontSize = "1.5rem";
+                    imgWrapper.textContent = "👤";
+
+                    const textDiv = document.createElement("div");
+                    const charName = escHtml(c.name || cid);
+                    const charDesc = c.visual_prompt_template
+                        ? escHtml(c.visual_prompt_template.slice(0, 200)) + (c.visual_prompt_template.length > 200 ? "…" : "")
+                        : "";
+                    textDiv.innerHTML = `
+                        <strong>${charName}</strong>
+                        ${charDesc ? `<p class="mb-0 small text-muted">${charDesc}</p>` : ""}`;
+
+                    wrapper.appendChild(imgWrapper);
+                    wrapper.appendChild(textDiv);
+                    charactersContent.appendChild(wrapper);
+                });
+
+                // ── Shots (incremental) ───────────────────────────────────
+                if (shots.length > renderedShotCount) {
+                    shotsSection.style.display = "block";
+                    for (let idx = renderedShotCount; idx < shots.length; idx++) {
+                        const shot = shots[idx];
+                        const pad = String(idx).padStart(3, "0");
+                        const imgUrl  = `/file_stream/${JOB_ID}/shot_${pad}.png`;
+                        const vidUrl  = `/file_stream/${JOB_ID}/shot_${pad}.mp4`;
+                        const audUrl  = `/file_stream/${JOB_ID}/shot_${pad}.wav`;
+
+                        const col = document.createElement("div");
+                        col.className = "col-md-4 mb-3";
+                        col.id = `shot-col-${idx}`;
+
+                        const hasDial = shot.dialogue && shot.dialogue.trim();
+                        const shotLabel = shot.shot_type
+                            ? escHtml(shot.shot_type) + (shot.camera_movement ? " · " + escHtml(shot.camera_movement) : "")
+                            : `Shot ${idx + 1}`;
+                        const actionText = shot.character_actions
+                            ? `<p class="card-text small text-muted mb-1"><em>${escHtml(shot.character_actions.slice(0, 120))}${shot.character_actions.length > 120 ? "…" : ""}</em></p>`
+                            : "";
+                        const dialogueText = hasDial
+                            ? `<p class="card-text small mb-1">💬 <em>${escHtml(shot.dialogue.slice(0, 140))}${shot.dialogue.length > 140 ? "…" : ""}</em></p>`
+                            : "";
+
+                        col.innerHTML = `
+                            <div class="card shadow-sm h-100">
+                                <div class="shot-img-wrapper position-relative" style="min-height:80px; background:#dee2e6;">
+                                    <img id="img-${idx}" src="${imgUrl}" class="card-img-top"
+                                         alt="Shot ${idx + 1}" style="object-fit:cover; max-height:180px;"
+                                         onerror="this.style.display='none'">
+                                </div>
+                                <div class="card-body py-2">
+                                    <h6 class="card-title mb-1">#${idx + 1} <span class="text-muted fw-normal small">${shotLabel}</span></h6>
+                                    ${actionText}
+                                    ${dialogueText}
+                                    ${hasDial ? `<audio id="aud-${idx}" controls class="w-100 mb-1" style="height:32px;" preload="none">
+                                        <source id="audsrc-${idx}" src="" type="audio/wav">
+                                    </audio>` : ""}
+                                    <div class="d-flex gap-1 mt-1">
+                                        <a href="${vidUrl}" class="btn btn-sm btn-outline-primary flex-fill" target="_blank">🎬 Video</a>
+                                        <a href="${imgUrl}" class="btn btn-sm btn-outline-secondary flex-fill" target="_blank">🖼️ Image</a>
+                                    </div>
+                                </div>
+                            </div>`;
+                        shotsContent.appendChild(col);
+
+                        // Lazily load audio when it becomes available
+                        if (hasDial) {
+                            (function(audioIdx, audioSrc) {
+                                let audioLoaded = false;
+                                function tryLoadAudio() {
+                                    if (audioLoaded) return;
+                                    fetch(audioSrc + "?t=" + Date.now(), { method: "HEAD" })
+                                        .then(res => {
+                                            if (res.ok) {
+                                                audioLoaded = true;
+                                                const srcEl = document.getElementById(`audsrc-${audioIdx}`);
+                                                if (srcEl) {
+                                                    srcEl.setAttribute("src", audioSrc);
+                                                    const audioEl = document.getElementById(`aud-${audioIdx}`);
+                                                    if (audioEl) audioEl.load();
+                                                }
+                                            } else {
+                                                setTimeout(tryLoadAudio, 3000);
+                                            }
+                                        })
+                                        .catch(() => setTimeout(tryLoadAudio, 3000));
+                                }
+                                tryLoadAudio();
+                            })(idx, audUrl);
+                        }
+                    }
+                    renderedShotCount = shots.length;
+                }
+            } catch (err) {
+                // Script file may not exist yet — silently retry
+            }
+        }
+
+        // ── Logs ──────────────────────────────────────────────────────────
+        const logBox = document.getElementById("log-box");
+        const logUrl = `/file_stream/${JOB_ID}/job_${JOB_ID}.log`;
+        async function fetchLogs() {
+            try {
+                const res = await fetch(logUrl + "?t=" + Date.now());
+                if (!res.ok) throw new Error(res.statusText);
+                const text = await res.text();
+                logBox.innerHTML = ansiUp.ansi_to_html(text);
+                logBox.scrollTop = logBox.scrollHeight;
+            } catch (err) {
+                logBox.textContent = "Cannot load log: " + err.message;
+            }
+        }
+
+        // ── Main polling loop ─────────────────────────────────────────────
+        let pollInterval = null;
+        async function refreshLoop() {
+            await fetchScript();
+            await fetchLogs();
+            const status = await getJobStatus();
+            if (status) {
+                updateStatusBadge(status);
+                if (TERMINAL_STATUSES.has(status)) {
+                    clearInterval(pollInterval);
+                    // One final script fetch to capture any last shots
+                    await fetchScript();
+                    await fetchLogs();
+                }
+            }
+        }
+
+        refreshLoop();
+        pollInterval = setInterval(refreshLoop, 1000);
+
+        // ── DataTables init ───────────────────────────────────────────────
         document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll(".local-time").forEach(span => {
                 const ts = span.dataset.timestamp;
@@ -450,21 +623,6 @@
                     span.textContent = dt.toLocaleString("sv-SE", { hour12: false });
                 }
             });
-
-            const currentStatus = "{{ status }}";
-            if (!TERMINAL_STATUSES.has(currentStatus)) {
-                setTimeout(pollStatus, POLL_INTERVAL_MS);
-            } else if (currentStatus === "COMPLETED") {
-                waitingSection.style.display = "none";
-                const videoUrl = `/file_stream/${JOB_ID}/${JOB_ID}.mp4`;
-                videoSection.style.display = "block";
-                videoContent.innerHTML = `
-                    <video controls class="w-100" style="max-width: 960px;">
-                        <source src="${videoUrl}" type="video/mp4">
-                        Your browser does not support the video element.
-                    </video>`;
-                videoLoaded = true;
-            }
         });
 
         $(document).ready(function () {
