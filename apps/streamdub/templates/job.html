@@ -317,21 +317,11 @@
                             row.className = "d-flex gap-4 align-items-start";
                             sceneRow.appendChild(row);
 
-                            // Left column – image + audio players
+                            // Left column – audio players
                             const mediaCol = document.createElement("div");
                             mediaCol.className = "d-flex flex-column";
                             mediaCol.style.minWidth = "320px";
                             row.appendChild(mediaCol);
-
-                            // Scene image
-                            if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
-                                const sceneImg = document.createElement("img");
-                                sceneImg.alt = `Scene ${sceneId}`;
-                                sceneImg.width = 320;
-                                sceneImg.className = "img-fluid rounded shadow-sm mb-2";
-                                sceneImg.src = `/file_stream/{{ job_id }}/${scene.frame_image_paths[0]}`;
-                                mediaCol.appendChild(sceneImg);
-                            }
 
                             // Original audio
                             const origLabel = document.createElement("p");
@@ -371,18 +361,6 @@
                             const textCol = document.createElement("div");
                             textCol.className = "flex-fill";
                             row.appendChild(textCol);
-
-                            if (scene.descriptions && scene.descriptions.length > 0) {
-                                const descHeader = document.createElement("p");
-                                descHeader.innerHTML = `<strong>${scene.descriptions.length} frame description(s):</strong>`;
-                                textCol.appendChild(descHeader);
-                                for (const desc of scene.descriptions) {
-                                    const p = document.createElement("p");
-                                    p.className = "small text-muted";
-                                    p.innerText = desc;
-                                    textCol.appendChild(p);
-                                }
-                            }
 
                             // Transcript block
                             const transcriptDiv = document.createElement("div");
