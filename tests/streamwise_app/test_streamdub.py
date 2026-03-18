@@ -270,6 +270,9 @@ async def test_gen_dub_scene_uses_voice_cloning() -> None:
     assert call_kwargs.get("voice_sample") == original_audio_b64, (
         "voice_sample must equal the base64-encoded original scene audio"
     )
+    assert call_kwargs.get("text") == "Hola mundo", (
+        "gen_clone_audio must receive the translated text"
+    )
 
     await job.close()
 
@@ -277,28 +280,6 @@ async def test_gen_dub_scene_uses_voice_cloning() -> None:
 @pytest.mark.asyncio
 async def test_gen_dub_scene_falls_back_when_no_audio() -> None:
     """gen_dub_scene falls back to gen_audio when the original scene audio is missing."""
-def test_scene_segment_has_translation_field() -> None:
-    """SceneSegment must have a 'translation' field separate from 'transcript'."""
-    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
-        with temp_sys_path("apps", "apps/streamdub"):
-            from apps.scene import SceneSegment
-
-    scene = SceneSegment(scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0)
-    scene.transcript = "Hello, how are you?"
-    scene.translation = "Hola, ¿cómo estás?"
-
-    d = asdict(scene)
-    assert d["transcript"] == "Hello, how are you?"
-    assert d["translation"] == "Hola, ¿cómo estás?"
-    # Changing translation must not affect transcript
-    scene.translation = "Bonjour"
-    assert scene.transcript == "Hello, how are you?"
-
-
-@pytest.mark.asyncio
-async def test_gen_dub_scene_stores_translation_separately() -> None:
-    """gen_dub_scene must store original transcript in scene.transcript and
-    the translation in scene.translation (not overwrite transcript)."""
     with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
         with temp_sys_path("apps", "apps/streamdub"):
             from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
@@ -337,6 +318,40 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
     # gen_audio should be called for the fallback path; gen_clone_audio must NOT be called
     gen_audio_mock.assert_called_once()
     gen_clone_audio_mock.assert_not_called()
+
+    await job.close()
+
+
+def test_scene_segment_has_translation_field() -> None:
+    """SceneSegment must have a 'translation' field separate from 'transcript'."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.scene import SceneSegment
+
+    scene = SceneSegment(scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0)
+    scene.transcript = "Hello, how are you?"
+    scene.translation = "Hola, ¿cómo estás?"
+
+    d = asdict(scene)
+    assert d["transcript"] == "Hello, how are you?"
+    assert d["translation"] == "Hola, ¿cómo estás?"
+    # Changing translation must not affect transcript
+    scene.translation = "Bonjour"
+    assert scene.transcript == "Hello, how are you?"
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_stores_translation_separately() -> None:
+    """gen_dub_scene must store original transcript in scene.transcript and
+    the translation in scene.translation (not overwrite transcript)."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
     job = _StreamDubJob(job_id="test_translation_field", service_manager=service_manager)
 
     # Pre-create the job directory so transcript file writes succeed
@@ -348,7 +363,7 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
         audio_path="scene_000.wav",
     )
 
-    # Create a dummy audio file so save_base64_as_binary has a path to write
+    # Create a dummy audio file so voice cloning has a sample to read
     with open(os.path.join(job.job_path, "scene_000.wav"), "wb") as f:
         f.write(b"\x00" * 16)
 
@@ -370,7 +385,7 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
          patch.object(job, "gen_video_lip_synced", side_effect=fake_lip_sync), \
          patch.object(job, "get_submission_time", return_value=0.0):
         job.gen = MagicMock()
-        job.gen.gen_audio = AsyncMock(return_value="AAAA")
+        job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
         result = await job.gen_dub_scene(scene, lang_code="e")
 
@@ -380,12 +395,12 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
     # Translation must be stored in the dedicated field
     assert scene.translation == translated_text, \
         "scene.translation must hold the translated text"
-    # TTS must have been called with the translation text, not the original
-    job.gen.gen_audio.assert_called_once()
-    call_kwargs = job.gen.gen_audio.call_args
+    # gen_clone_audio must have been called with the translation text, not the original
+    job.gen.gen_clone_audio.assert_called_once()
+    call_kwargs = job.gen.gen_clone_audio.call_args
     tts_text = call_kwargs.kwargs["text"]
     assert tts_text == translated_text, \
-        "gen_audio must receive the translation, not the original transcript"
+        "gen_clone_audio must receive the translation, not the original transcript"
     assert result == b"video_bytes"
 
     await job.close()

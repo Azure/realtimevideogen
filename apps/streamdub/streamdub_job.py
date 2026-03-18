@@ -22,9 +22,6 @@ from dub_prompts import VIDEO_DUB_NEG_PROMPT
 from video import MAX_FT_DURATION_SECS
 from video import FANTASYTALKING_FPS
 
-# Default TTS voice; TODO: replace with VibeVoice speaker voice cloning
-DEFAULT_TTS_VOICE = "af_heart"
-
 from scenedetect import open_video
 from scenedetect import SceneManager
 from scenedetect.detectors import ContentDetector
@@ -288,7 +285,7 @@ class StreamDubJob(StreamWiseJob):
                 "Falling back to default voice.")
         if voice_sample is not None:
             audio_base64 = await self.gen.gen_clone_audio(
-                text=scene.transcript,
+                text=scene.translation,
                 voice_sample=voice_sample,
                 lang_code=lang_code,
                 task_id=f"{scene_id:03d}",
@@ -296,22 +293,11 @@ class StreamDubJob(StreamWiseJob):
             )
         else:
             audio_base64 = await self.gen.gen_audio(
-                text=scene.transcript,
+                text=scene.translation,
                 lang_code=lang_code,
                 task_id=f"{scene_id:03d}",
                 deadline=deadline,
             )
-        # Generate dubbed audio
-        # TODO: use VibeVoice to clone the speaker's voice from the original audio
-        deadline = self.get_submission_time() + scene.start_sec
-        audio_base64 = await self.gen.gen_audio(
-            text=scene.translation,
-            voice=DEFAULT_TTS_VOICE,
-            speed=1.1,
-            lang_code=lang_code,
-            task_id=f"{scene_id:03d}",
-            deadline=deadline,
-        )
         scene.audio_path = f"scene_{scene_id:03d}_dubbed.wav"
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         await save_base64_as_binary(scene_audio_path, audio_base64)
