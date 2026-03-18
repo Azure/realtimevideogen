@@ -5,7 +5,16 @@ ARG BASE_TAG=v1.0.0
 FROM ${DOCKER_REPO}/base:${BASE_TAG}
 
 ARG DOCKER_REPO
+# Set to 0 to skip flash-attn installation (e.g. CPU-only CI builds)
+ARG INSTALL_FLASH_ATTN=1
 ENV DOCKER_REPO=${DOCKER_REPO}
+
+# Install flash attention separately (requires CUDA; skip with INSTALL_FLASH_ATTN=0)
+RUN conda run -n streamwise pip install psutil numpy
+RUN if [ "${INSTALL_FLASH_ATTN}" = "1" ]; then \
+      conda run -n streamwise pip install --no-build-isolation flash-attn==2.8.2 && \
+      conda run -n streamwise pip cache purge; \
+    fi
 
 RUN git clone https://github.com/microsoft/VibeVoice.git vibevoice
 WORKDIR /vibevoice
