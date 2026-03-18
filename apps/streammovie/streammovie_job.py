@@ -43,7 +43,7 @@ DEFAULT_MAX_CONTINUATION_TURNS = 10
 DEFAULT_SPEECH_SPEED = 1.1
 MAX_LOG_TEXT = 80
 SHOT_DEADLINE_BUFFER_SECS = 120.0  # Extra buffer per shot on top of its timeline offset
-CONTINUE_PROMPT = "Continue."
+CONTINUE_PROMPT = "Continue. Output only JSONL — one JSON object per line, no prose, no markdown."
 
 
 class StreamMovieJob(StreamWiseJob):
@@ -200,6 +200,7 @@ class StreamMovieJob(StreamWiseJob):
             for turn in range(max_continuation_turns):
                 buffer = ""
                 turn_line_count = 0
+                seen_line_count = 0  # lines seen (including non-JSON), for debug logging only
                 assistant_response_parts: List[str] = []
 
                 async for chunk in self.gen.gen_text_stream(
@@ -217,16 +218,17 @@ class StreamMovieJob(StreamWiseJob):
                         line = line.strip()
                         if not line:
                             continue
+                        seen_line_count += 1
                         # Skip markdown code fences
                         if line.startswith("```"):
+                            continue
+                        parsed = self._try_parse_json(line, seen_line_count)
+                        if parsed is None:
                             continue
                         await script_file.write(line + "\n")
                         await script_file.flush()
                         total_line_count += 1
                         turn_line_count += 1
-                        parsed = self._try_parse_json(line, total_line_count)
-                        if parsed is None:
-                            continue
                         line_type = parsed.get("type", "")
                         if line_type == "shot_description":
                             shot_descriptions.append(parsed)
@@ -237,10 +239,14 @@ class StreamMovieJob(StreamWiseJob):
                 # Flush any remaining buffer content
                 remainder = buffer.strip()
                 if remainder and not remainder.startswith("```"):
-                    await script_file.write(remainder + "\n")
-                    parsed = self._try_parse_json(remainder, total_line_count)
-                    if parsed and parsed.get("type") == "shot_description":
-                        shot_descriptions.append(parsed)
+                    seen_line_count += 1
+                    parsed = self._try_parse_json(remainder, seen_line_count)
+                    if parsed is not None:
+                        await script_file.write(remainder + "\n")
+                        total_line_count += 1
+                        turn_line_count += 1
+                        if parsed.get("type") == "shot_description":
+                            shot_descriptions.append(parsed)
 
                 self.logger.info(
                     f"Script turn {turn + 1}/{max_continuation_turns}: "
