@@ -1018,11 +1018,7 @@ class LMMGenerator:
                     extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
                 )
             transcript = response.text
-            language_code = response.language
-            if not language_code:
-                self.logger.warning(
-                    "Whisper did not return a language code; falling back to input language '%s'.", language)
-                language_code = language
+            language_code = response.language or language
             return transcript, language_code
 
     async def gen_podcast_transcript(
