@@ -303,71 +303,121 @@
                         if (!sceneRow) {
                             sceneRow = document.createElement("div");
                             sceneRow.id = sceneRowId;
-                            sceneRow.className = "mb-4 d-flex gap-3 align-items-start";
+                            sceneRow.className = "mb-4 p-3 border rounded bg-white shadow-sm";
                             scenesContent.appendChild(sceneRow);
 
-                            // Wrapper for media (left)
-                            const mediaColumn = document.createElement("div");
-                            mediaColumn.className = "me-3 d-flex flex-column align-items-start";
-                            sceneRow.appendChild(mediaColumn);
+                            // Header
+                            const header = document.createElement("h6");
+                            header.className = "fw-bold text-primary mb-3";
+                            header.textContent = `Scene ${sceneId}  (${scene.start_sec.toFixed(1)}s – ${scene.end_sec.toFixed(1)}s)`;
+                            sceneRow.appendChild(header);
 
-                            // Image (top-left)
-                            if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
-                                const sceneImg = document.createElement("img");
-                                sceneImg.id = `scene-img-${sceneId}`;
-                                sceneImg.alt = `Scene ${sceneId}`;
-                                sceneImg.width = 320;
-                                sceneImg.className = "img-fluid rounded shadow-sm mb-2";
-                                const imagePath = scene.frame_image_paths[0];
-                                sceneImg.src = `/file_stream/{{ job_id }}/${imagePath}`;
-                                mediaColumn.appendChild(sceneImg);
-                            }
+                            // Two-column layout: media (left) + text (right)
+                            const row = document.createElement("div");
+                            row.className = "d-flex gap-4 align-items-start";
+                            sceneRow.appendChild(row);
 
-                            // Audio (under image)
-                            const audioWrapper = document.createElement("div");
-                            audioWrapper.className = "me-3";
-                            audioWrapper.style.width = "320px";
-                            audioWrapper.style.height = "30px";
+                            // Left column – audio players
+                            const mediaCol = document.createElement("div");
+                            mediaCol.className = "d-flex flex-column";
+                            mediaCol.style.minWidth = "320px";
+                            row.appendChild(mediaCol);
 
-                            const audioPlayer = document.createElement("audio");
-                            audioPlayer.id = `audio-player-${sceneId}`;
-                            audioPlayer.controls = true;
-                            audioPlayer.className = "mt-1";
-                            audioPlayer.style.width = "320px";
-                            audioPlayer.style.height = "30px";
-                            audioPlayer.innerHTML = `Your browser does not support the audio element.`;
-                            if (scene.audio_path) {
-                                audioPlayer.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
-                                audioPlayer.dataset.audioPath = scene.audio_path;
-                            }
-                            audioWrapper.appendChild(audioPlayer);
-                            mediaColumn.appendChild(audioWrapper);
+                            // Original audio
+                            const origLabel = document.createElement("p");
+                            origLabel.className = "mb-1 small fw-semibold";
+                            origLabel.textContent = "🎵 Original audio:";
+                            mediaCol.appendChild(origLabel);
 
-                            // Text (right)
-                            const sceneText = document.createElement("div");
-                            const color = "text-primary";
-                            sceneText.innerHTML = `<span class="${color}"><strong>Scene ${sceneId} (${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} seconds)</strong></span>`;
-                            if (scene.descriptions && scene.descriptions.length > 0) {
-                                sceneText.innerHTML += `<p><strong>${scene.descriptions.length} frame descriptions:</strong><p>`;
-                            }
-                            for (const desc of scene.descriptions) {
-                                const p = document.createElement("p");
-                                p.innerText = desc;
-                                sceneText.appendChild(p);
-                            }
+                            const origAudio = document.createElement("audio");
+                            origAudio.id = `audio-original-${sceneId}`;
+                            origAudio.controls = true;
+                            origAudio.className = "w-100 mb-3";
+                            origAudio.style.maxWidth = "320px";
+                            // Use scene.audio_path when it is the original (not dubbed); fall back to naming convention
+                            const origPath = (scene.audio_path && !scene.audio_path.endsWith("_dubbed.wav"))
+                                ? scene.audio_path
+                                : `scene_${String(sceneId).padStart(3, '0')}.wav`;
+                            origAudio.src = `/file_stream/{{ job_id }}/${origPath}`;
+                            mediaCol.appendChild(origAudio);
+
+                            // Dubbed audio (hidden until available)
+                            const dubbedLabel = document.createElement("p");
+                            dubbedLabel.id = `dubbed-label-${sceneId}`;
+                            dubbedLabel.className = "mb-1 small fw-semibold";
+                            dubbedLabel.textContent = "🗣️ Dubbed audio:";
+                            dubbedLabel.style.display = "none";
+                            mediaCol.appendChild(dubbedLabel);
+
+                            const dubbedAudio = document.createElement("audio");
+                            dubbedAudio.id = `audio-dubbed-${sceneId}`;
+                            dubbedAudio.controls = true;
+                            dubbedAudio.className = "w-100 mb-2";
+                            dubbedAudio.style.maxWidth = "320px";
+                            dubbedAudio.style.display = "none";
+                            mediaCol.appendChild(dubbedAudio);
+
+                            // Right column – transcript + translation
+                            const textCol = document.createElement("div");
+                            textCol.className = "flex-fill";
+                            row.appendChild(textCol);
+
+                            // Transcript block
+                            const transcriptDiv = document.createElement("div");
+                            transcriptDiv.id = `transcript-${sceneId}`;
+                            transcriptDiv.className = "mb-3";
+                            const transcriptLabel = document.createElement("p");
+                            transcriptLabel.className = "mb-1 fw-semibold";
+                            transcriptLabel.textContent = "📝 Transcript:";
+                            transcriptDiv.appendChild(transcriptLabel);
+                            const transcriptText = document.createElement("p");
+                            transcriptText.id = `transcript-text-${sceneId}`;
+                            transcriptText.className = "font-monospace text-dark mb-0";
+                            transcriptText.textContent = scene.transcript || "⏳ Transcribing…";
+                            transcriptDiv.appendChild(transcriptText);
+                            textCol.appendChild(transcriptDiv);
+
+                            // Translation block
+                            const translationDiv = document.createElement("div");
+                            translationDiv.id = `translation-${sceneId}`;
+                            translationDiv.className = "mb-3";
+                            const translationLabel = document.createElement("p");
+                            translationLabel.className = "mb-1 fw-semibold";
+                            translationLabel.textContent = "🌐 Translation:";
+                            translationDiv.appendChild(translationLabel);
+                            const translationText = document.createElement("p");
+                            translationText.id = `translation-text-${sceneId}`;
+                            translationText.className = "font-monospace text-success mb-0";
+                            translationText.textContent = scene.translation || "⏳ Translating…";
+                            translationDiv.appendChild(translationText);
+                            textCol.appendChild(translationDiv);
+                        } else {
+                            // Update transcript when available
                             if (scene.transcript) {
-                                const transcriptPara = document.createElement("p");
-                                transcriptPara.innerHTML = `<strong>Transcript:</strong>` + scene.transcript;
-                                sceneText.appendChild(transcriptPara);
+                                const transcriptText = document.getElementById(`transcript-text-${sceneId}`);
+                                if (transcriptText && transcriptText.dataset.value !== scene.transcript) {
+                                    transcriptText.dataset.value = scene.transcript;
+                                    transcriptText.textContent = scene.transcript;
+                                }
                             }
-                            sceneRow.appendChild(sceneText);
-                        } else if (scene.audio_path) {
-                            // Update audio source when dubbed audio becomes available
-                            const audioPlayer = document.getElementById(`audio-player-${sceneId}`);
-                            if (audioPlayer && audioPlayer.dataset.audioPath !== scene.audio_path) {
-                                audioPlayer.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
-                                audioPlayer.dataset.audioPath = scene.audio_path;
-                                audioPlayer.load();
+                            // Update translation when available
+                            if (scene.translation) {
+                                const translationText = document.getElementById(`translation-text-${sceneId}`);
+                                if (translationText && translationText.dataset.value !== scene.translation) {
+                                    translationText.dataset.value = scene.translation;
+                                    translationText.textContent = scene.translation;
+                                }
+                            }
+                            // Show dubbed audio when available
+                            if (scene.audio_path && scene.audio_path.endsWith("_dubbed.wav")) {
+                                const dubbedAudio = document.getElementById(`audio-dubbed-${sceneId}`);
+                                if (dubbedAudio && dubbedAudio.dataset.audioPath !== scene.audio_path) {
+                                    dubbedAudio.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
+                                    dubbedAudio.dataset.audioPath = scene.audio_path;
+                                    dubbedAudio.style.display = "block";
+                                    dubbedAudio.load();
+                                    document.getElementById(`dubbed-label-${sceneId}`).style.display = "block";
+                                }
                             }
                         }
                     }
