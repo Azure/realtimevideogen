@@ -53,6 +53,9 @@ from media_utils import get_audio_duration
 from media_utils import extract_audio_from_video
 from media_utils import get_video_frames
 from media_utils import chunk_audio_base64
+from media_utils import add_text_to_frame
+from media_utils import get_font_size
+from media_utils import save_video_audio
 
 
 class StreamDubJob(StreamWiseJob):
@@ -267,6 +270,11 @@ class StreamDubJob(StreamWiseJob):
         async with aiofiles.open(transcript_path, "w") as file:
             await file.write(scene.translation)
 
+        if not scene.translation.strip():
+            self.logger.info(
+                f"[{scene_id}] No translation available, using original audio and skipping lip sync.")
+            return await self.get_video_scene(scene)
+
         await self.save_status(JobStatus.RUNNING)
 
         # Generate dubbed audio using the original scene audio as the voice reference
@@ -310,6 +318,11 @@ class StreamDubJob(StreamWiseJob):
                 f"{scene.duration_sec:.3f} > {MAX_FT_DURATION_SECS:.3f} seconds.")
         scene_dubbed_video_binary = await self.gen_video_lip_synced(scene)
 
+        # Add subtitles (on by default)
+        if self.config.get("add_subtitles", True):
+            scene_dubbed_video_binary = await self._add_subtitles_to_video(
+                scene, scene_dubbed_video_binary)
+
         # Save scene video
         scene_dubbed_video_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed.mp4"
         async with aiofiles.open(scene_dubbed_video_path, "wb") as file:
@@ -337,6 +350,41 @@ class StreamDubJob(StreamWiseJob):
             await file.write(scene_video_binary)
 
         return scene_video_binary
+
+    async def _add_subtitles_to_video(
+        self,
+        scene: SceneSegment,
+        video_binary: bytes,
+    ) -> bytes:
+        """
+        Overlay the translated subtitle text onto every frame of the dubbed video.
+        """
+        if not scene.translation:
+            return video_binary
+
+        scene_id = scene.scene_id
+        video_frames = await get_video_frames(video_binary)
+        video_info = get_video_file_info(video_binary)
+        video_fps = video_info["video"]["fps"]
+        width = video_info["video"]["width"]
+        height = video_info["video"]["height"]
+        font_size = get_font_size(width, height)
+        font_size = font_size * 2 // 3  # Smaller font for subtitles
+        video_frames = [
+            add_text_to_frame(frame, text=scene.translation, font_size=font_size, position="bottom-center")
+            for frame in video_frames
+        ]
+
+        scene_audio_path = f"{self.job_path}/{scene.audio_path}"
+        subtitled_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed_subtitled.mp4"
+        subtitled_path = await save_video_audio(
+            video_content=video_frames,
+            audio_path=scene_audio_path,
+            fps=video_fps,
+            out_video_path=subtitled_path,
+        )
+        async with aiofiles.open(subtitled_path, "rb") as subtitle_file:
+            return await subtitle_file.read()
 
     async def transcribe_audio(
         self,

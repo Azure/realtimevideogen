@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import gc
-import pytest
+import base64
 import inspect
+import tempfile
+import pytest
 
 import torch
 
@@ -292,10 +295,11 @@ async def test_vibevoice_get_rest_args_voice() -> None:
 @pytest.mark.asyncio
 async def test_vibevoice_get_rest_args_voice_sample() -> None:
     """get_rest_args forwards voice_sample when present and omits it when absent."""
-    import base64
     model = VibeVoiceGeneration()
 
-    dummy_audio = base64.b64encode(b"RIFF....WAVEfmt ").decode()
+    with open("tests/data/sample.wav", "rb") as f:
+        wav_bytes = f.read()
+    dummy_audio = base64.b64encode(wav_bytes).decode()
 
     # voice_sample present -> included in args
     result = await model.get_rest_args({
@@ -311,11 +315,10 @@ async def test_vibevoice_get_rest_args_voice_sample() -> None:
 
 def test_decode_voice_sample_to_tmp_file() -> None:
     """_decode_voice_sample_to_tmp_file writes the decoded bytes to a temp WAV file."""
-    import base64
-    import os
     model = VibeVoiceGeneration()
 
-    audio_content = b"RIFF\x24\x00\x00\x00WAVEfmt "
+    with open("tests/data/sample.wav", "rb") as f:
+        audio_content = f.read()
     voice_sample_b64 = base64.b64encode(audio_content).decode()
 
     tmp_path = model._decode_voice_sample_to_tmp_file(voice_sample_b64)
@@ -332,8 +335,6 @@ def test_decode_voice_sample_to_tmp_file() -> None:
 
 def test_cleanup_tmp_voice_file() -> None:
     """_cleanup_tmp_voice_file removes the file and handles None / missing paths gracefully."""
-    import os
-    import tempfile
     model = VibeVoiceGeneration()
 
     # None input is a no-op (must not raise)
