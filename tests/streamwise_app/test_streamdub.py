@@ -3,6 +3,7 @@
 Unit tests for StreamDub.
 """
 
+import base64
 import json
 import os
 import sys
@@ -213,5 +214,60 @@ async def test_gen_dub_writes_scenes_json() -> None:
     assert data[0]["audio_path"] == "scene_000.wav"
     assert data[1]["scene_id"] == 1
     assert data[1]["audio_path"] == "scene_001.wav"
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_uses_voice_cloning() -> None:
+    """gen_dub_scene must pass the original scene audio as voice_sample to gen.gen_audio."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job_id = "test_voice_clone"
+    job = _StreamDubJob(job_id=job_id, service_manager=service_manager)
+
+    # Write a dummy original scene audio file that the job should read and forward
+    original_audio_content = b"RIFF....WAVEfmt "  # minimal dummy WAV bytes
+    original_audio_b64 = base64.b64encode(original_audio_content).decode()
+    scene_audio_path = os.path.join(job.job_path, "scene_000.wav")
+    os.makedirs(job.job_path, exist_ok=True)
+    with open(scene_audio_path, "wb") as f:
+        f.write(original_audio_content)
+
+    # Create a scene with transcript already set (skip transcription / translation)
+    fake_scene = SceneSegment(
+        scene_id=0,
+        start_frame=0,
+        end_frame=30,
+        start_sec=0.0,
+        end_sec=1.0,
+    )
+    fake_scene.audio_path = "scene_000.wav"
+    fake_scene.transcript = "Hola mundo"  # pre-translated text
+
+    dubbed_audio_b64 = base64.b64encode(b"dubbed_audio").decode()
+    dubbed_video_binary = b"dubbed_video"
+
+    gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_video_mock = AsyncMock(return_value=dubbed_video_binary)
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello world")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola mundo")), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", gen_video_mock):
+        await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # Verify that gen_audio was called with voice_sample set to the original audio base64
+    gen_audio_mock.assert_called_once()
+    call_kwargs = gen_audio_mock.call_args.kwargs
+    assert call_kwargs.get("voice_sample") == original_audio_b64, (
+        "voice_sample must equal the base64-encoded original scene audio"
+    )
 
     await job.close()

@@ -1216,6 +1216,7 @@ class LMMGenerator:
         self,
         text: str,
         voice: str = "af_heart",  # Default voice
+        voice_sample: Optional[str] = None,
         speed: float = 1.0,
         lang_code: str = "a",  # American English
         task_id: Optional[str] = None,
@@ -1225,15 +1226,24 @@ class LMMGenerator:
         """
         Generate audio from text using the TTS service.
         Returns base64 encoded audio string.
+
+        When *voice_sample* (base64-encoded WAV) is provided the request is routed to the
+        VibeVoice service which supports voice cloning from a reference audio clip.
+        Otherwise the default TTS service (Kokoro) is used with the specified *voice* preset.
         """
-        service_name = get_service_name(TaskClass.TTS)
-        payload_json = {
+        if voice_sample is not None:
+            service_name = "vibevoice"
+        else:
+            service_name = get_service_name(TaskClass.TTS)
+        payload_json: Dict[str, Union[str, float]] = {
             "job_id": f"{self.job_id}_{task_id}",
             "text": text,
             "voice": voice,
             "speed": speed,
             "lang_code": lang_code,
         }
+        if voice_sample is not None:
+            payload_json["voice_sample"] = voice_sample
         request = ServiceRequest(
             request_id=f"{self.job_id}_{task_id}_{service_name}",
             service_name=service_name,

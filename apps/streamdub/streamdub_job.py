@@ -269,12 +269,23 @@ class StreamDubJob(StreamWiseJob):
 
         await self.save_status(JobStatus.RUNNING)
 
-        # Generate dubbed audio
+        # Generate dubbed audio using the original scene audio as the voice reference
+        # so that the speaker's voice identity is preserved in the dubbed output.
         deadline = self.get_submission_time() + scene.start_sec
+        original_audio_path = f"{self.job_path}/scene_{scene_id:03d}.wav"
+        voice_sample: Optional[str] = None
+        try:
+            voice_sample = await read_file_base64(original_audio_path)
+            self.logger.info(
+                "[%s] Using original scene audio for voice cloning (%s).",
+                scene_id, bytes_to_human(len(voice_sample)))
+        except Exception as ex:
+            self.logger.warning(
+                "[%s] Could not read original scene audio for voice cloning: %s. "
+                "Falling back to default voice.", scene_id, ex)
         audio_base64 = await self.gen.gen_audio(
             text=scene.transcript,
-            voice="af_heart",  # TODO select voice based on language
-            speed=1.1,  # TODO select voice based on language
+            voice_sample=voice_sample,
             lang_code=lang_code,
             task_id=f"{scene_id:03d}",
             deadline=deadline,

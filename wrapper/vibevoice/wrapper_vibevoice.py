@@ -2,8 +2,10 @@
 Wrapper for VibeVoice model.
 """
 import os
+import base64
 import logging
 import asyncio
+import tempfile
 
 import torch
 from torch import inference_mode
@@ -197,21 +199,45 @@ class VibeVoiceGeneration(ModelGeneration):
         self,
         text: str,
         voice: str = "woman_000",
+        voice_sample: Optional[str] = None,
         cfg_scale: float = 1.3,
         job_id: Optional[str] = None,
         output_type: str = "audio_path",
     ) -> str:
+        """Generate speech audio from text.
+
+        Args:
+            text: The text to synthesise.
+            voice: Name of a built-in voice preset (used when *voice_sample* is not provided).
+            voice_sample: Base64-encoded WAV audio to clone the voice from.  When supplied
+                the model uses this audio as the reference speaker instead of a preset.
+            cfg_scale: Classifier-free guidance scale.
+            job_id: Optional job identifier used for output file naming.
+            output_type: Output format selector (currently only "audio_path" is supported).
+        """
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
 
         self.running = True
 
+        _tmp_voice_path: Optional[str] = None
         try:
             if not self.voice_mapper:
                 raise ValueError("VoiceMapper not initialized")
-            voice_path = self.voice_mapper.get_voice_path(voice)
-            logging.info(f"Using voice: {voice} -> {voice_path}")
+
+            if voice_sample is not None:
+                # Decode the base64 reference audio and write it to a temp file so that
+                # the processor can load it as a voice sample for cloning.
+                audio_bytes = base64.b64decode(voice_sample)
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_f:
+                    tmp_f.write(audio_bytes)
+                    _tmp_voice_path = tmp_f.name
+                voice_path = _tmp_voice_path
+                logging.info("Using cloned voice from provided voice_sample (%d bytes).", len(audio_bytes))
+            else:
+                voice_path = self.voice_mapper.get_voice_path(voice)
+                logging.info("Using voice: %s -> %s", voice, voice_path)
             voice_samples = []
             voice_samples.append(voice_path)
 
@@ -266,6 +292,11 @@ class VibeVoiceGeneration(ModelGeneration):
         finally:
             self.running = False
             gen_timer.end("total")
+            if _tmp_voice_path is not None:
+                try:
+                    os.unlink(_tmp_voice_path)
+                except OSError:
+                    pass
 
     async def get_rest_args(
         self,
@@ -281,11 +312,15 @@ class VibeVoiceGeneration(ModelGeneration):
         if text is None:
             raise ValueError("Missing 'text' parameter")
         voice = data_json.get("voice", "af_heart")
+        voice_sample = data_json.get("voice_sample", None)
+        args: Dict[str, Any] = {
+            "job_id": job_id,
+            "text": text,
+            "voice": voice,
+        }
+        if voice_sample is not None:
+            args["voice_sample"] = voice_sample
         return {
             "task": self.model_name,
-            "args": {
-                "job_id": job_id,
-                "text": text,
-                "voice": voice
-            }
+            "args": args,
         }
