@@ -297,10 +297,7 @@ class StreamCastJob(StreamWiseJob):
             # TODO it does not support multiple lines yet
             # frame_text = f"{character.name}:\n" + "\n".join(split_text_lines(text, MAX_IMG_LINE_CHARS))
             frame_text = f"{character.name}: {text}"
-            video_file_info = get_video_file_info(scene_video_binary)
-            video_info = video_file_info["video"]
-            width, height = video_info["width"], video_info["height"]
-            video_frames = self._overlay_subtitles_on_frames(video_frames, frame_text, width, height)
+            video_frames = await self._overlay_subtitles_on_frames(scene_video_binary, frame_text)
 
         # Add audio back to the video
         video_audio_path = f"{self.job_path}/{scene_id:03d}.mp4"

@@ -361,12 +361,8 @@ class StreamDubJob(StreamWiseJob):
             return video_binary
 
         scene_id = scene.scene_id
-        video_frames = await get_video_frames(video_binary)
-        video_info = get_video_file_info(video_binary)
-        video_fps = video_info["video"]["fps"]
-        width = video_info["video"]["width"]
-        height = video_info["video"]["height"]
-        video_frames = self._overlay_subtitles_on_frames(video_frames, scene.translation, width, height)
+        video_frames = await self._overlay_subtitles_on_frames(video_binary, scene.translation)
+        video_fps = get_video_file_info(video_binary)["video"]["fps"]
 
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         subtitled_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed_subtitled.mp4"

@@ -52,6 +52,7 @@ from character import Characters
 from console_utils import bytes_to_human
 
 from media_utils import get_video_file_info
+from media_utils import get_video_frames
 from media_utils import get_font_size
 from media_utils import add_text_to_frame
 
@@ -404,24 +405,24 @@ class StreamWiseJob:
         """Get the deadline for a given scene."""
         return self.get_submission_time() + (scene_index * SCENE_DEADLINE_INCREMENT_SECS)
 
-    def _overlay_subtitles_on_frames(
+    async def _overlay_subtitles_on_frames(
         self,
-        video_frames: List[Any],
+        video_binary: bytes,
         text: str,
-        width: int,
-        height: int,
     ) -> List[Any]:
         """Overlay subtitle text onto every video frame at the bottom-center.
 
         Args:
-            video_frames: List of video frames to annotate.
+            video_binary: Raw video bytes from which frames and dimensions are extracted.
             text: Subtitle text to render on each frame.
-            width: Frame width in pixels (used for font-size selection).
-            height: Frame height in pixels (used for font-size selection).
 
         Returns:
             A new list of frames with the subtitle burned in.
         """
+        video_frames = await get_video_frames(video_binary)
+        video_info = get_video_file_info(video_binary)["video"]
+        width = video_info["width"]
+        height = video_info["height"]
         font_size = get_font_size(width, height)
         font_size = font_size * 2 // 3  # Smaller font for subtitles
         return [
