@@ -345,7 +345,6 @@ async def test_gen_dub_scene_updates_scenes_json() -> None:
         job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
         job.gen.gen_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
-        patch.object(job, "get_submission_time", return_value=0.0):
         await job.gen_dub_scene(scene, lang_code="e")
 
     # scenes.json must contain the transcript by the time translation is requested
