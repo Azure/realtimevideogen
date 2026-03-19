@@ -1012,13 +1012,13 @@ class LMMGenerator:
                 response = await whisper_client.audio.transcriptions.create(
                     model=whisper_model,
                     file=file_audio,
-                    response_format="verbose_json",
+                    response_format="json",
                     language=language,
                     # timeout=10.0,
                     extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
                 )
             transcript = response.text
-            language_code = response.language or language
+            language_code = getattr(response, "language", None) or language
             return transcript, language_code
 
     async def gen_podcast_transcript(
