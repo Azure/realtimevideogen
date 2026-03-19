@@ -69,14 +69,17 @@ class StreamMovieJob(StreamWiseJob):
         await self.gen_movie(movie_description)
 
     @staticmethod
-    def build_movie_messages(movie_description: str) -> list:
+    def build_movie_messages(movie_description: str, max_shots: int = -1) -> list:
         """
         Build LLM messages for movie planning using the system prompt.
         Returns messages suitable for gen_text to generate a movie structure.
         """
+        user_content = f"Generate a movie based on the following description:\n\n{movie_description}"
+        if max_shots > 0:
+            user_content += f"\n\nIMPORTANT: Generate EXACTLY {max_shots} shots. No more, no less."
         return [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Create a movie: {movie_description}"},
+            {"role": "user", "content": user_content},
         ]
 
     async def gen_movie(
@@ -102,11 +105,13 @@ class StreamMovieJob(StreamWiseJob):
             self.logger.info(f"Generating movie for description: '{log_desc}...'")
 
             max_tokens = self.get_config_int("max_tokens", DEFAULT_MAX_TOKENS)
+            max_shots = self.get_config_int("max_shots", -1)
 
             # Stream the movie script from the LLM
             shot_descriptions = await self._stream_movie_script(
                 movie_description=movie_description,
                 max_tokens=max_tokens,
+                max_shots=max_shots,
             )
 
             await self.save_status(JobStatus.RUNNING)
@@ -115,8 +120,7 @@ class StreamMovieJob(StreamWiseJob):
             if not shot_descriptions:
                 raise ValueError("No shots generated from the movie script.")
 
-            # Limit number of shots if configured
-            max_shots = self.get_config_int("max_shots", -1)
+            # Limit number of shots if configured (safety cap in case LLM ignores the instruction)
             if max_shots > 0 and len(shot_descriptions) > max_shots:
                 self.logger.info(f"Limiting to {max_shots} shots (out of {len(shot_descriptions)}).")
                 shot_descriptions = shot_descriptions[:max_shots]
@@ -168,6 +172,7 @@ class StreamMovieJob(StreamWiseJob):
         self,
         movie_description: str,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        max_shots: int = -1,
     ) -> List[Dict[str, Any]]:
         """
         Stream a structured movie script from the LLM in a single call.
@@ -175,15 +180,9 @@ class StreamMovieJob(StreamWiseJob):
         Filters out any non-JSON lines (prose, markdown fences, etc.) and
         returns a list of shot_description dicts collected from the stream.
         """
-        messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    f"Generate a movie based on the following description:\n\n{movie_description}"
-                ),
-            },
-        ]
+        messages: List[Dict[str, Any]] = self.build_movie_messages(
+            movie_description, max_shots=max_shots
+        )
 
         script_path = f"{self.job_path}/movie_script.jsonl"
         shot_descriptions: List[Dict[str, Any]] = []
