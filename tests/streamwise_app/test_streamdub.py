@@ -322,6 +322,77 @@ async def test_gen_dub_scene_falls_back_when_no_audio() -> None:
     await job.close()
 
 
+@pytest.mark.asyncio
+async def test_gen_dub_scene_updates_scenes_json() -> None:
+    """gen_dub_scene must update scenes.json with transcript and translation
+    so the UI stops showing '⏳ Transcribing…' / '⏳ Translating…' during processing."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    job = _StreamDubJob(job_id="test_scenes_json_update", service_manager=service_manager)
+    os.makedirs(job.job_path, exist_ok=True)
+
+    scene = SceneSegment(
+        scene_id=2, start_frame=60, end_frame=90,
+        start_sec=2.0, end_sec=3.0,
+        audio_path="scene_002.wav",
+    )
+    job.scenes = [scene]
+
+    # Write initial scenes.json without transcript/translation (mirrors gen_dub behaviour)
+    scenes_path = os.path.join(job.job_path, "scenes.json")
+    with open(scenes_path, "w") as scenes_file:
+        json.dump([asdict(scene)], scenes_file)
+
+    with open(os.path.join(job.job_path, "scene_002.wav"), "wb") as audio_file:
+        audio_file.write(b"\x00" * 16)
+
+    original_transcript = "Hello, how are you?"
+    translated_text = "Hola, ¿cómo estás?"
+
+    # Capture scenes.json state when translate_scene is called — transcript must already be present
+    scenes_json_at_translation_time: list = []
+
+    async def fake_transcribe(s: object) -> str:
+        return original_transcript
+
+    async def fake_translate(s: object, **kwargs: object) -> str:
+        with open(scenes_path) as f:
+            scenes_json_at_translation_time.extend(json.load(f))
+        return translated_text
+
+    async def fake_lip_sync(s: object) -> bytes:
+        return b"video_bytes"
+
+    with patch.object(job, "transcribe_audio", side_effect=fake_transcribe), \
+         patch.object(job, "translate_scene", side_effect=fake_translate), \
+         patch.object(job, "save_status", new=AsyncMock()), \
+         patch.object(job, "gen_video_lip_synced", side_effect=fake_lip_sync), \
+         patch.object(job, "_add_subtitles_to_video", new=AsyncMock(return_value=b"video_bytes")), \
+         patch.object(job, "get_submission_time", return_value=0.0):
+        job.gen = MagicMock()
+        job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
+        job.gen.stop = AsyncMock()
+        await job.gen_dub_scene(scene, lang_code="e")
+
+    # scenes.json must contain the transcript by the time translation is requested
+    assert len(scenes_json_at_translation_time) == 1
+    assert scenes_json_at_translation_time[0]["transcript"] == original_transcript, \
+        "scenes.json must be updated with transcript before translation begins"
+
+    # scenes.json must contain the translation after gen_dub_scene completes
+    with open(scenes_path) as f:
+        final_scenes = json.load(f)
+    assert final_scenes[0]["transcript"] == original_transcript
+    assert final_scenes[0]["translation"] == translated_text, \
+        "scenes.json must be updated with translation after gen_dub_scene completes"
+
+    await job.close()
+
+
 def test_scene_segment_has_translation_field() -> None:
     """SceneSegment must have a 'translation' field separate from 'transcript'."""
     with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):

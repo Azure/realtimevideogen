@@ -85,6 +85,14 @@ class StreamDubJob(StreamWiseJob):
             video_base64,
             output_language)
 
+    async def save_scenes(self) -> None:
+        """Persist current scene metadata (including transcript/translation) to scenes.json."""
+        scenes_path = f"{self.job_path}/scenes.json"
+        async with aiofiles.open(scenes_path, "w") as scene_file:
+            scenes_dict_list = [asdict(scene) for scene in self.scenes]
+            scenes_json = json.dumps(scenes_dict_list, indent=2)
+            await scene_file.write(scenes_json)
+
     async def gen_dub(
         self,
         video_base64: Optional[str] = None,
@@ -122,11 +130,7 @@ class StreamDubJob(StreamWiseJob):
             self.logger.info("Scenes:")
             for idx, scene in enumerate(self.scenes):
                 self.logger.info(f"  Scene {idx}: {scene}")
-            scenes_path = f"{self.job_path}/scenes.json"
-            async with aiofiles.open(scenes_path, "w") as scene_file:
-                scenes_dict_list = [asdict(scene) for scene in self.scenes]
-                scenes_json = json.dumps(scenes_dict_list, indent=2)
-                await scene_file.write(scenes_json)
+            await self.save_scenes()
 
             scene_binaries = []
             for scene in self.scenes:
@@ -144,10 +148,7 @@ class StreamDubJob(StreamWiseJob):
                 raise ValueError("No scenes generated.")
 
             # Update scenes.json so the UI reflects the dubbed audio paths
-            async with aiofiles.open(scenes_path, "w") as scene_file:
-                scenes_dict_list = [asdict(scene) for scene in self.scenes]
-                scenes_json = json.dumps(scenes_dict_list, indent=2)
-                await scene_file.write(scenes_json)
+            await self.save_scenes()
 
             # Concatenate scenes
             video_binary = await concatenate_videos(
@@ -257,6 +258,7 @@ class StreamDubJob(StreamWiseJob):
         transcript_path = f"{self.job_path}/scene_{scene_id:03d}.txt"
         async with aiofiles.open(transcript_path, "w") as file:
             await file.write(scene.transcript)
+        await self.save_scenes()
 
         # Translate transcription
         scene.translation = await self.translate_scene(
@@ -267,6 +269,7 @@ class StreamDubJob(StreamWiseJob):
         transcript_path = f"{self.job_path}/scene_{scene_id:03d}_translation.txt"
         async with aiofiles.open(transcript_path, "w") as file:
             await file.write(scene.translation)
+        await self.save_scenes()
 
         if not scene.translation.strip():
             self.logger.info(

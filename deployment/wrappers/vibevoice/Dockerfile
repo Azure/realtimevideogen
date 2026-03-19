@@ -7,6 +7,11 @@ FROM ${DOCKER_REPO}/base:${BASE_TAG}
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
 
+# Install flash attention separately
+RUN conda run -n streamwise pip install psutil numpy
+RUN conda run -n streamwise pip install --no-build-isolation flash-attn==2.8.2 && \
+    conda run -n streamwise pip cache purge
+
 RUN git clone https://github.com/microsoft/VibeVoice.git vibevoice
 WORKDIR /vibevoice
 
