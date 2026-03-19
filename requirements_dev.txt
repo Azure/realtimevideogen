@@ -41,6 +41,7 @@ PyMuPDF
 # StreamShort
 scenedetect
 openai
+langcodes[data]
 
 # types
 types-requests

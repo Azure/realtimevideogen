@@ -994,10 +994,11 @@ class LMMGenerator:
         language: str = "en",
         api_key: str = "n/a",
         task_id: Optional[str] = None,
-    ) -> str:
+    ) -> Tuple[str, str]:
         """
         Generate a transcript from an audio file.
         This may take noise and music and try to transcribe it; this need to be accounted for.
+        Returns a tuple of (transcript_text, language_code).
         """
         if not os.path.isfile(audio_path):
             raise ValueError(f"Audio path is not a file: {audio_path}")
@@ -1011,13 +1012,14 @@ class LMMGenerator:
                 response = await whisper_client.audio.transcriptions.create(
                     model=whisper_model,
                     file=file_audio,
-                    response_format="json",
+                    response_format="verbose_json",
                     language=language,
                     # timeout=10.0,
                     extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
                 )
             transcript = response.text
-            return transcript
+            language_code = response.language or language
+            return transcript, language_code
 
     async def gen_podcast_transcript(
         self,

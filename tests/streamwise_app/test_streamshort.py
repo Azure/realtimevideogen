@@ -330,9 +330,12 @@ async def test_transcribe_audio() -> None:
         assert transcription == ""
 
         # Mock transcript generation
-        job.gen.gen_audio_transcript = AsyncMock(return_value="This is a test transcription.")
+        job.gen.gen_audio_transcript = AsyncMock(return_value=("This is a test transcription.", "en"))
         transcription = await job.transcribe_audio()
         assert transcription == "This is a test transcription.\nThis is a test transcription.\n"
+        for scene in job.scenes:
+            if scene.audio_path:
+                assert scene.language == "en"
     finally:
         await job.close()
 
