@@ -130,6 +130,15 @@
                                 </label>
                             </div>
                         </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="voice_cloning" name="voice_cloning" value="1" checked>
+                                <label for="voice_cloning" class="form-check-label">
+                                    🎙️ Voice Cloning
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Clone the speaker's voice from the original audio for the dubbed output.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-6">
@@ -266,6 +275,7 @@
             payload.debug_image = document.getElementById("debug_image").checked;
             payload.upscaling = document.getElementById("upscaling").checked;
             payload.add_subtitles = document.getElementById("add_subtitles").checked;
+            payload.voice_cloning = document.getElementById("voice_cloning").checked;
 
             const output = document.getElementById("output");
             try {

@@ -285,23 +285,36 @@ class StreamDubJob(StreamWiseJob):
         deadline = self.get_submission_time() + scene.start_sec
         original_audio_path = f"{self.job_path}/scene_{scene_id:03d}.wav"
         voice_sample: Optional[str] = None
-        try:
-            voice_sample = await read_file_base64(original_audio_path)
-            self.logger.info(
-                f"[{scene_id}] Using original scene audio for voice cloning "
-                f"({bytes_to_human(len(voice_sample))}).")
-        except Exception as ex:
-            self.logger.warning(
-                f"[{scene_id}] Could not read original scene audio for voice cloning: {ex}. "
-                "Falling back to default voice.")
+        if self.config.get("voice_cloning", True):
+            try:
+                voice_sample = await read_file_base64(original_audio_path)
+                self.logger.info(
+                    f"[{scene_id}] Using original scene audio for voice cloning "
+                    f"({bytes_to_human(len(voice_sample))}).")
+            except Exception as ex:
+                self.logger.warning(
+                    f"[{scene_id}] Could not read original scene audio for voice cloning: {ex}. "
+                    "Falling back to default voice.")
+        else:
+            self.logger.info(f"[{scene_id}] Voice cloning disabled; using default voice.")
         if voice_sample is not None:
-            audio_base64 = await self.gen.gen_clone_audio(
-                text=scene.translation,
-                voice_sample=voice_sample,
-                lang_code=lang_code,
-                task_id=f"{scene_id:03d}",
-                deadline=deadline,
-            )
+            try:
+                audio_base64 = await self.gen.gen_clone_audio(
+                    text=scene.translation,
+                    voice_sample=voice_sample,
+                    lang_code=lang_code,
+                    task_id=f"{scene_id:03d}",
+                    deadline=deadline,
+                )
+            except Exception as ex:
+                self.logger.warning(
+                    f"[{scene_id}] Voice cloning failed: {ex}. Falling back to default voice.")
+                audio_base64 = await self.gen.gen_audio(
+                    text=scene.translation,
+                    lang_code=lang_code,
+                    task_id=f"{scene_id:03d}",
+                    deadline=deadline,
+                )
         else:
             audio_base64 = await self.gen.gen_audio(
                 text=scene.translation,
