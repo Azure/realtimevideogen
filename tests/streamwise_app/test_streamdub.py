@@ -91,38 +91,6 @@ async def test_submit_job(test_app: Quart) -> None:
     # assert response_json["status"] == "success"
 
 
-def test_to_language() -> None:
-    """Test to_language converts language codes to language names."""
-    scene_mocks = {
-        'scenedetect': MagicMock(),
-        'scenedetect.detectors': MagicMock(),
-        'scenedetect.stats_manager': MagicMock(),
-    }
-    # Remove cached module to force re-import under mocked scenedetect
-    sys.modules.pop('apps.streamdub.streamdub_job', None)
-    with patch.dict(sys.modules, {**mock_modules, **scene_mocks}):
-        with temp_sys_path("apps", "apps/streamdub"):
-            from apps.streamdub.streamdub_job import to_language
-
-    assert to_language("a") == "American English"
-    assert to_language("b") == "British English"
-    assert to_language("e") == "Spanish"
-    assert to_language("f") == "French"
-    assert to_language("g") == "German"
-    assert to_language("i") == "Italian"
-    assert to_language("j") == "Japanese"
-    assert to_language("k") == "Korean"
-    assert to_language("c") == "Chinese"
-    assert to_language("r") == "Russian"
-
-    # Case-insensitive: uppercase valid code maps to correct language
-    assert to_language("E") == "Spanish"
-    assert to_language("F") == "French"
-
-    # Unknown code defaults to American English
-    assert to_language("z") == "American English"
-
-
 @pytest.mark.asyncio
 async def test_streamdub_job_no_video() -> None:
     """StreamDubJob.gen_dub with missing video raises ValueError."""
@@ -375,7 +343,9 @@ async def test_gen_dub_scene_updates_scenes_json() -> None:
          patch.object(job, "get_submission_time", return_value=0.0):
         job.gen = MagicMock()
         job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
+        job.gen.gen_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
+        patch.object(job, "get_submission_time", return_value=0.0):
         await job.gen_dub_scene(scene, lang_code="e")
 
     # scenes.json must contain the transcript by the time translation is requested

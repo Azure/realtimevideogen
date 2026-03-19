@@ -42,3 +42,4 @@ nvidia-ml-py3
 colorlog
 opencv-python-headless
 matplotlib
+langcodes[data]

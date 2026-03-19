@@ -55,6 +55,8 @@ from media_utils import get_video_frames
 from media_utils import chunk_audio_base64
 from media_utils import save_video_audio
 
+from language_utils import to_language
+
 
 class StreamDubJob(StreamWiseJob):
     """A job to generate a dubbed video."""
@@ -390,12 +392,13 @@ class StreamDubJob(StreamWiseJob):
             return ""
 
         audio_path = f"{self.job_path}/{scene.audio_path}"
-        audio_transcript = await self.gen.gen_audio_transcript(
+        audio_transcript, lang_code = await self.gen.gen_audio_transcript(
             audio_path,
             task_id=f"{scene.scene_id:03d}",
         )
         if not audio_transcript:
             return ""
+        scene.language = lang_code
         audio_transcript = audio_transcript.strip()
         return audio_transcript
 
@@ -512,20 +515,3 @@ class StreamDubJob(StreamWiseJob):
         )
 
         return scene_dubbed_video_binary
-
-
-def to_language(lang_code: str) -> str:
-    """Convert language code to language name."""
-    lang_map = {
-        "a": "American English",
-        "b": "British English",
-        "e": "Spanish",
-        "f": "French",
-        "g": "German",
-        "i": "Italian",
-        "j": "Japanese",
-        "k": "Korean",
-        "c": "Chinese",
-        "r": "Russian",
-    }
-    return lang_map.get(lang_code.lower(), "American English")

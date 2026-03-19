@@ -122,7 +122,7 @@ class StreamChatJob(StreamWiseJob):
         audio_path: str,
     ) -> str:
         msg_id = self._get_msg_id()
-        audio_transcript = await self.gen.gen_audio_transcript(
+        audio_transcript, _ = await self.gen.gen_audio_transcript(
             audio_path,
             task_id=f"chat{msg_id:03d}",
         )

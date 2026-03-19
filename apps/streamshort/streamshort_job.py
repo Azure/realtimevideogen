@@ -521,7 +521,7 @@ class StreamShortJob(StreamWiseJob):
                 if not scene.audio_path:
                     continue
                 audio_path = f"{self.job_path}/{scene.audio_path}"
-                audio_transcript = await self.gen.gen_audio_transcript(
+                audio_transcript, language_code = await self.gen.gen_audio_transcript(
                     audio_path,
                     task_id=f"{scene.scene_id:03d}",
                 )
@@ -529,6 +529,7 @@ class StreamShortJob(StreamWiseJob):
                     continue
                 ret += audio_transcript + "\n"
                 scene.transcript = audio_transcript
+                scene.language = language_code
                 self.logger.info(f"Scene {scene.scene_id} transcript: {audio_transcript[0:80]}...")
                 transcript_path = f"{self.job_path}/scene_{scene.scene_id:03d}.txt"
                 async with aiofiles.open(transcript_path, "w") as file:
