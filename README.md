@@ -8,6 +8,15 @@ For example, [StreamCast](apps/README.md) is a service that generates real-time 
 
 ---
 
+> [!IMPORTANT]
+>
+> This project focuses on **systems research** — specifically the infrastructure, scheduling, provisioning, and serving aspects of multi-modal generation workloads.
+> The application workloads are used to **stress-test and evaluate the system**, not to assess or guarantee the quality of the generated content.
+> Outputs may not be inconsistent, contain visual artifacts, or otherwise degraded — this is irrelevant to the research goals.
+> This project is not designed for production purposes.
+
+---
+
 ## 🚀 Features
 - Model on-boarding for 25+ multi-modal models (video, audio, image, LLMs)
 - Provisioning of GPUs, replicas, and model variants
