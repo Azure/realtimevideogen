@@ -1220,6 +1220,7 @@ class LMMGenerator:
         voice: str = "af_heart",  # Default voice
         speed: float = 1.0,
         lang_code: str = "a",  # American English
+        voice_sample: Optional[str] = None,
         task_id: Optional[str] = None,
         timeout: ClientTimeout = SERVICE_TIMEOUT,
         deadline: Optional[float] = None,
@@ -1227,15 +1228,29 @@ class LMMGenerator:
         """
         Generate audio from text using the TTS service.
         Returns base64 encoded audio string.
+
+        Args:
+            text: The text to synthesise.
+            voice: Name of a built-in voice preset.
+            speed: Speech speed multiplier.
+            lang_code: Target language code.
+            voice_sample: Optional base64-encoded WAV audio to clone the voice from.
+                Forwarded to the TTS service so that voice-cloning-capable backends
+                (e.g. VibeVoice) can use it even when called via this generic helper.
+            task_id: Optional task identifier for logging and request tracking.
+            timeout: aiohttp client timeout for the service request.
+            deadline: Optional absolute time (epoch seconds) by which the result must arrive.
         """
         service_name = get_service_name(TaskClass.TTS)
-        payload_json = {
+        payload_json: Dict[str, Union[str, float]] = {
             "job_id": f"{self.job_id}_{task_id}",
             "text": text,
             "voice": voice,
             "speed": speed,
             "lang_code": lang_code,
         }
+        if voice_sample is not None:
+            payload_json["voice_sample"] = voice_sample
         request = ServiceRequest(
             request_id=f"{self.job_id}_{task_id}_{service_name}",
             service_name=service_name,

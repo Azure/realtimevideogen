@@ -622,7 +622,13 @@ async def test_gen_dub_scene_voice_cloning_falls_back_on_error() -> None:
         await job.gen_dub_scene(fake_scene, lang_code="e")
 
     # gen_clone_audio was attempted, then gen_audio was used as fallback
+    # and voice_sample is forwarded so voice-cloning-capable TTS backends can still use it
     gen_clone_audio_mock.assert_called_once()
-    gen_audio_mock.assert_called_once()
+    gen_audio_call_kwargs = gen_audio_mock.call_args
+    assert gen_audio_call_kwargs is not None
+    assert "voice_sample" in gen_audio_call_kwargs.kwargs
+    # The forwarded sample must match the scene audio that was written to disk
+    expected_voice_sample = base64.b64encode(b"\x00" * 16).decode()
+    assert gen_audio_call_kwargs.kwargs["voice_sample"] == expected_voice_sample
 
     await job.close()

@@ -312,6 +312,7 @@ class StreamDubJob(StreamWiseJob):
                 audio_base64 = await self.gen.gen_audio(
                     text=scene.translation,
                     lang_code=lang_code,
+                    voice_sample=voice_sample,
                     task_id=f"{scene_id:03d}",
                     deadline=deadline,
                 )
