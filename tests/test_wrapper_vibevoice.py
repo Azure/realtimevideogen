@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import gc
-import pytest
+import base64
 import inspect
+import tempfile
+import pytest
 
 import torch
 
@@ -287,6 +290,65 @@ async def test_vibevoice_get_rest_args_voice() -> None:
     result_default = await model.get_rest_args({"text": "Hello world"})
     assert "voice" in result_default["args"]
     assert result_default["args"]["voice"] == "af_heart"
+
+
+@pytest.mark.asyncio
+async def test_vibevoice_get_rest_args_voice_sample() -> None:
+    """get_rest_args forwards voice_sample when present and omits it when absent."""
+    model = VibeVoiceGeneration()
+
+    with open("tests/data/sample.wav", "rb") as f:
+        wav_bytes = f.read()
+    dummy_audio = base64.b64encode(wav_bytes).decode()
+
+    # voice_sample present -> included in args
+    result = await model.get_rest_args({
+        "text": "Hello world",
+        "voice_sample": dummy_audio,
+    })
+    assert result["args"].get("voice_sample") == dummy_audio
+
+    # voice_sample absent -> not included in args
+    result_no_sample = await model.get_rest_args({"text": "Hello world"})
+    assert "voice_sample" not in result_no_sample["args"]
+
+
+def test_decode_voice_sample_to_tmp_file() -> None:
+    """_decode_voice_sample_to_tmp_file writes the decoded bytes to a temp WAV file."""
+    model = VibeVoiceGeneration()
+
+    with open("tests/data/sample.wav", "rb") as f:
+        audio_content = f.read()
+    voice_sample_b64 = base64.b64encode(audio_content).decode()
+
+    tmp_path = model._decode_voice_sample_to_tmp_file(voice_sample_b64)
+    try:
+        assert os.path.exists(tmp_path), "Temp file must be created"
+        assert tmp_path.endswith(".wav"), "Temp file must have .wav extension"
+        with open(tmp_path, "rb") as f:
+            written = f.read()
+        assert written == audio_content, "Written bytes must match original audio content"
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+def test_cleanup_tmp_voice_file() -> None:
+    """_cleanup_tmp_voice_file removes the file and handles None / missing paths gracefully."""
+    model = VibeVoiceGeneration()
+
+    # None input is a no-op (must not raise)
+    model._cleanup_tmp_voice_file(None)
+
+    # Existing file is deleted
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        tmp_path = f.name
+    assert os.path.exists(tmp_path)
+    model._cleanup_tmp_voice_file(tmp_path)
+    assert not os.path.exists(tmp_path), "File must be deleted by _cleanup_tmp_voice_file"
+
+    # Already-deleted path must not raise
+    model._cleanup_tmp_voice_file(tmp_path)
 
 
 def test_timestep_samplers() -> None:

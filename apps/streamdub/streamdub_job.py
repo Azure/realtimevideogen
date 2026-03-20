@@ -22,9 +22,6 @@ from dub_prompts import VIDEO_DUB_NEG_PROMPT
 from video import MAX_FT_DURATION_SECS
 from video import FANTASYTALKING_FPS
 
-# Default TTS voice; TODO: replace with VibeVoice speaker voice cloning
-DEFAULT_TTS_VOICE = "af_heart"
-
 from scenedetect import open_video
 from scenedetect import SceneManager
 from scenedetect.detectors import ContentDetector
@@ -56,6 +53,7 @@ from media_utils import get_audio_duration
 from media_utils import extract_audio_from_video
 from media_utils import get_video_frames
 from media_utils import chunk_audio_base64
+from media_utils import save_video_audio
 
 from language_utils import to_language
 
@@ -275,19 +273,55 @@ class StreamDubJob(StreamWiseJob):
             await file.write(scene.translation)
         await self.save_scenes()
 
+        if not scene.translation.strip():
+            self.logger.info(
+                f"[{scene_id}] No translation available, using original audio and skipping lip sync.")
+            return await self.get_video_scene(scene)
+
         await self.save_status(JobStatus.RUNNING)
 
-        # Generate dubbed audio
-        # TODO: use VibeVoice to clone the speaker's voice from the original audio
+        # Generate dubbed audio using the original scene audio as the voice reference
+        # so that the speaker's voice identity is preserved in the dubbed output.
         deadline = self.get_submission_time() + scene.start_sec
-        audio_base64 = await self.gen.gen_audio(
-            text=scene.translation,
-            voice=DEFAULT_TTS_VOICE,
-            speed=1.1,
-            lang_code=lang_code,
-            task_id=f"{scene_id:03d}",
-            deadline=deadline,
-        )
+        original_audio_path = f"{self.job_path}/scene_{scene_id:03d}.wav"
+        voice_sample: Optional[str] = None
+        if self.config.get("voice_cloning", True):
+            try:
+                voice_sample = await read_file_base64(original_audio_path)
+                self.logger.info(
+                    f"[{scene_id}] Using original scene audio for voice cloning "
+                    f"({bytes_to_human(len(voice_sample))}).")
+            except Exception as ex:
+                self.logger.warning(
+                    f"[{scene_id}] Could not read original scene audio for voice cloning: {ex}. "
+                    "Falling back to default voice.")
+        else:
+            self.logger.info(f"[{scene_id}] Voice cloning disabled; using default voice.")
+        if voice_sample is not None:
+            try:
+                audio_base64 = await self.gen.gen_clone_audio(
+                    text=scene.translation,
+                    voice_sample=voice_sample,
+                    lang_code=lang_code,
+                    task_id=f"{scene_id:03d}",
+                    deadline=deadline,
+                )
+            except Exception as ex:
+                self.logger.warning(
+                    f"[{scene_id}] Voice cloning failed: {ex}. Falling back to default voice.")
+                audio_base64 = await self.gen.gen_audio(
+                    text=scene.translation,
+                    lang_code=lang_code,
+                    task_id=f"{scene_id:03d}",
+                    deadline=deadline,
+                )
+        else:
+            audio_base64 = await self.gen.gen_audio(
+                text=scene.translation,
+                lang_code=lang_code,
+                task_id=f"{scene_id:03d}",
+                deadline=deadline,
+            )
         scene.audio_path = f"scene_{scene_id:03d}_dubbed.wav"
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         await save_base64_as_binary(scene_audio_path, audio_base64)
@@ -299,6 +333,11 @@ class StreamDubJob(StreamWiseJob):
                 f"[{scene_id}] Scene too long: "
                 f"{scene.duration_sec:.3f} > {MAX_FT_DURATION_SECS:.3f} seconds.")
         scene_dubbed_video_binary = await self.gen_video_lip_synced(scene)
+
+        # Add subtitles (on by default)
+        if self.config.get("add_subtitles", True):
+            scene_dubbed_video_binary = await self._add_subtitles_to_video(
+                scene, scene_dubbed_video_binary)
 
         # Save scene video
         scene_dubbed_video_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed.mp4"
@@ -327,6 +366,32 @@ class StreamDubJob(StreamWiseJob):
             await file.write(scene_video_binary)
 
         return scene_video_binary
+
+    async def _add_subtitles_to_video(
+        self,
+        scene: SceneSegment,
+        video_binary: bytes,
+    ) -> bytes:
+        """
+        Overlay the translated subtitle text onto every frame of the dubbed video.
+        """
+        if not scene.translation:
+            return video_binary
+
+        scene_id = scene.scene_id
+        video_frames = await self._overlay_subtitles_on_frames(video_binary, scene.translation)
+        video_fps = get_video_file_info(video_binary)["video"]["fps"]
+
+        scene_audio_path = f"{self.job_path}/{scene.audio_path}"
+        subtitled_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed_subtitled.mp4"
+        subtitled_path = await save_video_audio(
+            video_content=video_frames,
+            audio_path=scene_audio_path,
+            fps=video_fps,
+            out_video_path=subtitled_path,
+        )
+        async with aiofiles.open(subtitled_path, "rb") as subtitle_file:
+            return await subtitle_file.read()
 
     async def transcribe_audio(
         self,

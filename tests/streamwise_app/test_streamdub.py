@@ -3,6 +3,7 @@
 Unit tests for StreamDub.
 """
 
+import base64
 import json
 import os
 import sys
@@ -187,6 +188,109 @@ async def test_gen_dub_writes_scenes_json() -> None:
 
 
 @pytest.mark.asyncio
+async def test_gen_dub_scene_uses_voice_cloning() -> None:
+    """gen_dub_scene must call gen_clone_audio with the original scene audio when available."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job_id = "test_voice_clone"
+    job = _StreamDubJob(job_id=job_id, service_manager=service_manager, config={"add_subtitles": False})
+
+    # Write a dummy original scene audio file that the job should read and forward
+    original_audio_content = b"RIFF....WAVEfmt "  # minimal dummy WAV bytes
+    original_audio_b64 = base64.b64encode(original_audio_content).decode()
+    scene_audio_path = os.path.join(job.job_path, "scene_000.wav")
+    os.makedirs(job.job_path, exist_ok=True)
+    with open(scene_audio_path, "wb") as f:
+        f.write(original_audio_content)
+
+    # Create a scene with transcript already set (skip transcription / translation)
+    fake_scene = SceneSegment(
+        scene_id=0,
+        start_frame=0,
+        end_frame=30,
+        start_sec=0.0,
+        end_sec=1.0,
+    )
+    fake_scene.audio_path = "scene_000.wav"
+    fake_scene.transcript = "Hola mundo"  # pre-translated text
+
+    dubbed_audio_b64 = base64.b64encode(b"dubbed_audio").decode()
+    dubbed_video_binary = b"dubbed_video"
+
+    gen_clone_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_video_mock = AsyncMock(return_value=dubbed_video_binary)
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello world")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola mundo")), \
+         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", gen_video_mock):
+        await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # Verify that gen_clone_audio was called with voice_sample set to the original audio base64
+    gen_clone_audio_mock.assert_called_once()
+    call_kwargs = gen_clone_audio_mock.call_args.kwargs
+    assert call_kwargs.get("voice_sample") == original_audio_b64, (
+        "voice_sample must equal the base64-encoded original scene audio"
+    )
+    assert call_kwargs.get("text") == "Hola mundo", (
+        "gen_clone_audio must receive the translated text"
+    )
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_falls_back_when_no_audio() -> None:
+    """gen_dub_scene falls back to gen_audio when the original scene audio is missing."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job = _StreamDubJob(job_id="test_fallback", service_manager=service_manager, config={"add_subtitles": False})
+
+    # Do NOT write a scene audio file — simulate missing audio
+    fake_scene = SceneSegment(
+        scene_id=0,
+        start_frame=0,
+        end_frame=30,
+        start_sec=0.0,
+        end_sec=1.0,
+    )
+    fake_scene.audio_path = "scene_000.wav"
+    fake_scene.transcript = "Hola mundo"
+
+    dubbed_audio_b64 = base64.b64encode(b"dubbed_audio").decode()
+    dubbed_video_binary = b"dubbed_video"
+
+    gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_clone_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_video_mock = AsyncMock(return_value=dubbed_video_binary)
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello world")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola mundo")), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
+         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", gen_video_mock):
+        await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # gen_audio should be called for the fallback path; gen_clone_audio must NOT be called
+    gen_audio_mock.assert_called_once()
+    gen_clone_audio_mock.assert_not_called()
+
+    await job.close()
+
+
+@pytest.mark.asyncio
 async def test_gen_dub_scene_updates_scenes_json() -> None:
     """gen_dub_scene must update scenes.json with transcript and translation
     so the UI stops showing '⏳ Transcribing…' / '⏳ Translating…' during processing."""
@@ -235,8 +339,10 @@ async def test_gen_dub_scene_updates_scenes_json() -> None:
          patch.object(job, "translate_scene", side_effect=fake_translate), \
          patch.object(job, "save_status", new=AsyncMock()), \
          patch.object(job, "gen_video_lip_synced", side_effect=fake_lip_sync), \
+         patch.object(job, "_add_subtitles_to_video", new=AsyncMock(return_value=b"video_bytes")), \
          patch.object(job, "get_submission_time", return_value=0.0):
         job.gen = MagicMock()
+        job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
         job.gen.gen_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
         await job.gen_dub_scene(scene, lang_code="e")
@@ -284,7 +390,10 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
             from apps.scene import SceneSegment
 
     service_manager = AsyncMock()
-    job = _StreamDubJob(job_id="test_translation_field", service_manager=service_manager)
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job = _StreamDubJob(job_id="test_translation_field", service_manager=service_manager,
+                        config={"add_subtitles": False})
 
     # Pre-create the job directory so transcript file writes succeed
     os.makedirs(job.job_path, exist_ok=True)
@@ -295,7 +404,7 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
         audio_path="scene_000.wav",
     )
 
-    # Create a dummy audio file so save_base64_as_binary has a path to write
+    # Create a dummy audio file so voice cloning has a sample to read
     with open(os.path.join(job.job_path, "scene_000.wav"), "wb") as f:
         f.write(b"\x00" * 16)
 
@@ -317,7 +426,7 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
          patch.object(job, "gen_video_lip_synced", side_effect=fake_lip_sync), \
          patch.object(job, "get_submission_time", return_value=0.0):
         job.gen = MagicMock()
-        job.gen.gen_audio = AsyncMock(return_value="AAAA")
+        job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
         result = await job.gen_dub_scene(scene, lang_code="e")
 
@@ -327,12 +436,193 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
     # Translation must be stored in the dedicated field
     assert scene.translation == translated_text, \
         "scene.translation must hold the translated text"
-    # TTS must have been called with the translation text, not the original
-    job.gen.gen_audio.assert_called_once()
-    call_kwargs = job.gen.gen_audio.call_args
+    # gen_clone_audio must have been called with the translation text, not the original
+    job.gen.gen_clone_audio.assert_called_once()
+    call_kwargs = job.gen.gen_clone_audio.call_args
     tts_text = call_kwargs.kwargs["text"]
     assert tts_text == translated_text, \
-        "gen_audio must receive the translation, not the original transcript"
+        "gen_clone_audio must receive the translation, not the original transcript"
     assert result == b"video_bytes"
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_empty_translation_uses_original_video() -> None:
+    """gen_dub_scene must use original video (no lip sync) when translation is empty."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job = _StreamDubJob(
+        job_id="test_empty_translation",
+        service_manager=service_manager,
+        config={"add_subtitles": False},
+    )
+    os.makedirs(job.job_path, exist_ok=True)
+
+    fake_scene = SceneSegment(
+        scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0,
+        audio_path="scene_000.wav",
+    )
+
+    original_video = b"original_video_bytes"
+    get_video_mock = AsyncMock(return_value=original_video)
+    gen_audio_mock = AsyncMock()
+    gen_clone_audio_mock = AsyncMock()
+    gen_video_mock = AsyncMock()
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="")), \
+         patch.object(job, "get_video_scene", get_video_mock), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
+         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", gen_video_mock):
+        result = await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # Original video must be returned; no audio generation or lip sync should happen
+    get_video_mock.assert_called_once()
+    gen_audio_mock.assert_not_called()
+    gen_clone_audio_mock.assert_not_called()
+    gen_video_mock.assert_not_called()
+    assert result == original_video
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_adds_subtitles() -> None:
+    """gen_dub_scene must call _add_subtitles_to_video when add_subtitles is True (default)."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    # Default config: add_subtitles defaults to True
+    job = _StreamDubJob(job_id="test_subtitles", service_manager=service_manager)
+    os.makedirs(job.job_path, exist_ok=True)
+
+    # Write a dummy audio file for voice cloning
+    with open(os.path.join(job.job_path, "scene_000.wav"), "wb") as f:
+        f.write(b"\x00" * 16)
+
+    fake_scene = SceneSegment(
+        scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0,
+        audio_path="scene_000.wav",
+    )
+
+    dubbed_video = b"dubbed_video_bytes"
+    subtitled_video = b"subtitled_video_bytes"
+    subtitles_mock = AsyncMock(return_value=subtitled_video)
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola")), \
+         patch.object(job.gen, "gen_clone_audio", AsyncMock(return_value=base64.b64encode(b"audio").decode())), \
+         patch.object(job, "gen_video_lip_synced", AsyncMock(return_value=dubbed_video)), \
+         patch.object(job, "_add_subtitles_to_video", subtitles_mock):
+        result = await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # _add_subtitles_to_video must be called with the scene and dubbed video
+    subtitles_mock.assert_called_once()
+    call_args = subtitles_mock.call_args
+    assert call_args.args[0] is fake_scene
+    assert call_args.args[1] == dubbed_video
+    assert result == subtitled_video
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_voice_cloning_disabled() -> None:
+    """gen_dub_scene uses gen_audio when voice_cloning is disabled in config."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job = _StreamDubJob(
+        job_id="test_no_clone",
+        service_manager=service_manager,
+        config={"add_subtitles": False, "voice_cloning": False},
+    )
+    os.makedirs(job.job_path, exist_ok=True)
+
+    # Write a scene audio file — voice cloning is disabled so it must NOT be used
+    with open(os.path.join(job.job_path, "scene_000.wav"), "wb") as f:
+        f.write(b"\x00" * 16)
+
+    fake_scene = SceneSegment(
+        scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0,
+        audio_path="scene_000.wav",
+    )
+
+    dubbed_audio_b64 = base64.b64encode(b"dubbed_audio").decode()
+    gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_clone_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola")), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
+         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", AsyncMock(return_value=b"video")):
+        await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    gen_audio_mock.assert_called_once()
+    gen_clone_audio_mock.assert_not_called()
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_gen_dub_scene_voice_cloning_falls_back_on_error() -> None:
+    """gen_dub_scene falls back to gen_audio when gen_clone_audio raises an exception."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job = _StreamDubJob(
+        job_id="test_clone_fallback",
+        service_manager=service_manager,
+        config={"add_subtitles": False},
+    )
+    os.makedirs(job.job_path, exist_ok=True)
+
+    # Write a scene audio file so voice cloning is attempted
+    with open(os.path.join(job.job_path, "scene_000.wav"), "wb") as f:
+        f.write(b"\x00" * 16)
+
+    fake_scene = SceneSegment(
+        scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0,
+        audio_path="scene_000.wav",
+    )
+
+    dubbed_audio_b64 = base64.b64encode(b"fallback_audio").decode()
+    gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_clone_audio_mock = AsyncMock(side_effect=RuntimeError("VibeVoice unavailable"))
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
+         patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola")), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
+         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", AsyncMock(return_value=b"video")):
+        await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # gen_clone_audio was attempted, then gen_audio was used as fallback
+    gen_clone_audio_mock.assert_called_once()
+    gen_audio_mock.assert_called_once()
 
     await job.close()

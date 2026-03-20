@@ -2,8 +2,10 @@
 Wrapper for VibeVoice model.
 """
 import os
+import base64
 import logging
 import asyncio
+import tempfile
 
 import torch
 from torch import inference_mode
@@ -191,29 +193,81 @@ class VibeVoiceGeneration(ModelGeneration):
         logging.info("Warmup for VibeVoice generation.")
         await self.generate(text="Warmup")
 
+    def _decode_voice_sample_to_tmp_file(self, voice_sample: str) -> str:
+        """Decode a base64-encoded WAV voice sample to a temporary file.
+
+        The caller is responsible for deleting the file when done.
+
+        Args:
+            voice_sample: Base64-encoded WAV audio.
+
+        Returns:
+            Path to the temporary WAV file.
+        """
+        audio_bytes = base64.b64decode(voice_sample)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_f:
+            tmp_f.write(audio_bytes)
+            tmp_path = tmp_f.name
+        logging.info(f"Decoded voice_sample to temporary file: {tmp_path} ({len(audio_bytes)} bytes).")
+        return tmp_path
+
+    def _cleanup_tmp_voice_file(self, tmp_path: Optional[str]) -> None:
+        """Remove a temporary voice file created by _decode_voice_sample_to_tmp_file.
+
+        Silently ignores errors so that cleanup never raises inside a finally block.
+
+        Args:
+            tmp_path: Path returned by _decode_voice_sample_to_tmp_file, or None (no-op).
+        """
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError as e:
+                logging.warning(f"Could not remove temporary voice file {tmp_path}: {e}")
+
     @override
     @inference_mode()
     async def generate(
         self,
         text: str,
         voice: str = "woman_000",
+        voice_sample: Optional[str] = None,
         cfg_scale: float = 1.3,
         job_id: Optional[str] = None,
         output_type: str = "audio_path",
     ) -> str:
+        """Generate speech audio from text.
+
+        Args:
+            text: The text to synthesise.
+            voice: Name of a built-in voice preset (used when *voice_sample* is not provided).
+            voice_sample: Base64-encoded WAV audio to clone the voice from.  When supplied
+                the model uses this audio as the reference speaker instead of a preset.
+            cfg_scale: Classifier-free guidance scale.
+            job_id: Optional job identifier used for output file naming.
+            output_type: Output format selector (currently only "audio_path" is supported).
+        """
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
 
         self.running = True
 
+        _tmp_voice_path: Optional[str] = None
         try:
             if not self.voice_mapper:
                 raise ValueError("VoiceMapper not initialized")
-            voice_path = self.voice_mapper.get_voice_path(voice)
-            logging.info(f"Using voice: {voice} -> {voice_path}")
-            voice_samples = []
-            voice_samples.append(voice_path)
+
+            if voice_sample is not None:
+                # Decode the base64 reference audio and write it to a temp file so that
+                # the processor can load it as a voice sample for cloning.
+                _tmp_voice_path = self._decode_voice_sample_to_tmp_file(voice_sample)
+                voice_path = _tmp_voice_path
+                logging.info("Using cloned voice from provided voice_sample.")
+            else:
+                voice_path = self.voice_mapper.get_voice_path(voice)
+                logging.info(f"Using voice: {voice} -> {voice_path}")
+            voice_samples = [voice_path]
 
             # https://github.com/microsoft/VibeVoice/blob/main/demo/inference_from_file.py
             if not self.processor:
@@ -241,7 +295,6 @@ class VibeVoiceGeneration(ModelGeneration):
                 max_new_tokens=None,
                 cfg_scale=cfg_scale,
                 tokenizer=self.processor.tokenizer,
-                # generation_config={'do_sample': False, 'temperature': 0.95, 'top_p': 0.95, 'top_k': 0},
                 generation_config={'do_sample': False},
                 verbose=True,
             )
@@ -249,11 +302,6 @@ class VibeVoiceGeneration(ModelGeneration):
             if job_id is not None:
                 output_path = f"/tmp/file_{job_id}.wav"
             if outputs.speech_outputs and outputs.speech_outputs[0] is not None:
-                # Assuming 24kHz sample rate (common for speech synthesis)
-                # sample_rate = 24000
-                # audio_samples = outputs.speech_outputs[0].shape[-1] if len(outputs.speech_outputs[0].shape) > 0
-                # else len(outputs.speech_outputs[0])
-                # audio_duration = audio_samples / sample_rate
                 speech_output = outputs.speech_outputs[0]
                 await asyncio.to_thread(
                     self.processor.save_audio,
@@ -266,6 +314,7 @@ class VibeVoiceGeneration(ModelGeneration):
         finally:
             self.running = False
             gen_timer.end("total")
+            self._cleanup_tmp_voice_file(_tmp_voice_path)
 
     async def get_rest_args(
         self,
@@ -281,11 +330,15 @@ class VibeVoiceGeneration(ModelGeneration):
         if text is None:
             raise ValueError("Missing 'text' parameter")
         voice = data_json.get("voice", "af_heart")
+        voice_sample = data_json.get("voice_sample", None)
+        args: Dict[str, Any] = {
+            "job_id": job_id,
+            "text": text,
+            "voice": voice,
+        }
+        if voice_sample is not None:
+            args["voice_sample"] = voice_sample
         return {
             "task": self.model_name,
-            "args": {
-                "job_id": job_id,
-                "text": text,
-                "voice": voice
-            }
+            "args": args,
         }
