@@ -177,16 +177,11 @@
                     <div id="video-content" style="min-height: 300px;"></div>
                 </div>
             </div>
-            
+
             <div class="col-12 mb-3" id="scenes-section" style="display: none;">
                 <h2 class="mt-5 mb-3">🎞️ Scenes</h2>
                 <p id="scenes-info">No scenes.</p>
                 <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
-            </div>
-
-            <div class="col-12 mb-3" id="frames-section" style="display: none;">
-                <h2 class="mt-5 mb-3">🖼️ Frames</h2>
-                <div id="frames-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
             </div>
         </div>
 
@@ -195,12 +190,10 @@
 
             const videoContent = document.getElementById("video-content");
             const scenesContent = document.getElementById("scenes-content");
-            const framesContent = document.getElementById("frames-content");
 
             const waitingSection = document.getElementById("waiting-section");
             const videoSection = document.getElementById("video-section");
             const scenesSection = document.getElementById("scenes-section");
-            const framesSection = document.getElementById("frames-section");
 
             function updateStatusBadge(status) {
                 const statusBadge = document.getElementById("status-badge");
@@ -275,169 +268,144 @@
             }
             fetchVideo();
 
-            // Scenes
+            // Scenes (original frames + edited frames side-by-side)
             const scenesUrl = "/file_stream/{{ job_id }}/scenes.json";
             async function fetchScenes() {
                 try {
                     const res = await fetch(scenesUrl + "?t=" + Date.now());
-                    if (res.status === 404) return;  // Not found
+                    if (res.status === 404) return;  // Not yet available
                     if (!res.ok) throw new Error(res.statusText);
 
                     const scenes = await res.json();
 
-                    // Get number of scenes
                     const numScenes = scenes.length;
                     if (numScenes > 0) {
                         waitingSection.style.display = "none";
                         scenesSection.style.display = "block";
-
-                        const scenesInfo = document.getElementById("scenes-info");
-                        scenesInfo.textContent = `Number of scenes: ${numScenes}.`;
+                        document.getElementById("scenes-info").textContent =
+                            `${numScenes} scene(s) detected.`;
                     }
 
                     for (const scene of scenes) {
                         const sceneId = scene.scene_id;
                         const sceneRowId = `scene-${sceneId}`;
-                        let sceneRow = document.getElementById(sceneRowId);
-                        if (!sceneRow) {
-                            sceneRow = document.createElement("div");
-                            sceneRow.id = sceneRowId;
-                            sceneRow.className = "mb-4 d-flex gap-3 align-items-start";
-                            scenesContent.appendChild(sceneRow);
+                        if (document.getElementById(sceneRowId)) continue; // already rendered
 
-                            // Wrapper for media (left)
-                            const mediaColumn = document.createElement("div");
-                            mediaColumn.className = "me-3 d-flex flex-column align-items-start";
-                            sceneRow.appendChild(mediaColumn);
+                        const sceneRow = document.createElement("div");
+                        sceneRow.id = sceneRowId;
+                        sceneRow.className = "mb-4 d-flex gap-3 align-items-start p-2 rounded";
+                        scenesContent.appendChild(sceneRow);
 
-                            // Image (top-left)
-                            if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
-                                const sceneImg = document.createElement("img");
-                                sceneImg.id = `scene-img-${sceneId}`;
-                                sceneImg.alt = `Scene ${sceneId}`;
-                                sceneImg.width = 320;
-                                sceneImg.className = "img-fluid rounded shadow-sm mb-2";
-                                const imagePath = scene.frame_image_paths[0];
-                                sceneImg.src = `/file_stream/{{ job_id }}/${imagePath}`;
-                                mediaColumn.appendChild(sceneImg);
-                            }
+                        // --- Original frame column (left) ---
+                        const originalColumn = document.createElement("div");
+                        originalColumn.className = "d-flex flex-column align-items-start";
+                        sceneRow.appendChild(originalColumn);
 
-                            // Audio (under image)
-                            const audioWrapper = document.createElement("div");
-                            audioWrapper.className = "me-3";
-                            audioWrapper.style.width = "320px";
-                            audioWrapper.style.height = "30px";
+                        const origLabel = document.createElement("small");
+                        origLabel.className = "text-muted fw-bold mb-1";
+                        origLabel.textContent = "🎬 Original";
+                        originalColumn.appendChild(origLabel);
 
-                            const audioPlayer = document.createElement("audio");
-                            audioPlayer.controls = true;
-                            audioPlayer.className = "mt-1";
-                            audioPlayer.style.width = "320px";
-                            audioPlayer.style.height = "30px";
-                            audioPlayer.innerHTML = `
-                                <source id="src-audio-${sceneId}" type="audio/wav">
-                                Your browser does not support the audio element.
-                            `;
-                            if (scene.audio_path) {
-                                const audioPath = scene.audio_path;
-                                audioPlayer.src = `/file_stream/{{ job_id }}/${audioPath}`;
-                            }
-                            audioWrapper.appendChild(audioPlayer);
-                            mediaColumn.appendChild(audioWrapper);
+                        if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
+                            const sceneImg = document.createElement("img");
+                            sceneImg.id = `scene-img-${sceneId}`;
+                            sceneImg.alt = `Scene ${sceneId} original`;
+                            sceneImg.width = 320;
+                            sceneImg.className = "img-fluid rounded shadow-sm mb-2";
+                            sceneImg.src = `/file_stream/{{ job_id }}/${scene.frame_image_paths[0]}`;
+                            originalColumn.appendChild(sceneImg);
+                        }
 
-                            // Text (right)
-                            const sceneText = document.createElement("div");
-                            const color = "text-primary";
-                            sceneText.innerHTML = `<span class="${color}"><strong>Scene ${sceneId} (${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} seconds)</strong></span>`;
-                            if (scene.descriptions && scene.descriptions.length > 0) {
-                                sceneText.innerHTML += `<p><strong>${scene.descriptions.length} frame descriptions:</strong><p>`;
-                            }
+                        const audioWrapper = document.createElement("div");
+                        audioWrapper.style.width = "320px";
+                        const audioPlayer = document.createElement("audio");
+                        audioPlayer.controls = true;
+                        audioPlayer.style.width = "320px";
+                        audioPlayer.style.height = "30px";
+                        audioPlayer.innerHTML = `<source type="audio/wav">Your browser does not support the audio element.`;
+                        if (scene.audio_path) {
+                            audioPlayer.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
+                        }
+                        audioWrapper.appendChild(audioPlayer);
+                        originalColumn.appendChild(audioWrapper);
+
+                        // --- Edited frame column (middle) ---
+                        const editedColumn = document.createElement("div");
+                        editedColumn.className = "d-flex flex-column align-items-start";
+                        sceneRow.appendChild(editedColumn);
+
+                        const editLabel = document.createElement("small");
+                        editLabel.className = "text-muted fw-bold mb-1";
+                        editLabel.textContent = "✏️ Edited";
+                        editedColumn.appendChild(editLabel);
+
+                        const editImg = document.createElement("img");
+                        editImg.id = `scene-edit-img-${sceneId}`;
+                        editImg.alt = `Scene ${sceneId} edited`;
+                        editImg.width = 320;
+                        editImg.className = "img-fluid rounded shadow-sm mb-2";
+                        editImg.style.display = "none";
+                        editedColumn.appendChild(editImg);
+
+                        const editPending = document.createElement("div");
+                        editPending.id = `scene-edit-pending-${sceneId}`;
+                        editPending.className = "text-muted fst-italic";
+                        editPending.style.width = "320px";
+                        editPending.textContent = "⏳ Editing...";
+                        editedColumn.appendChild(editPending);
+
+                        // --- Text column (right) ---
+                        const sceneText = document.createElement("div");
+                        sceneText.innerHTML =
+                            `<span class="text-primary"><strong>Scene ${sceneId} ` +
+                            `(${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} s)</strong></span>`;
+                        if (scene.descriptions && scene.descriptions.length > 0) {
+                            sceneText.innerHTML +=
+                                `<p><strong>${scene.descriptions.length} frame description(s):</strong></p>`;
                             for (const desc of scene.descriptions) {
                                 const p = document.createElement("p");
                                 p.innerText = desc;
                                 sceneText.appendChild(p);
                             }
-                            if (scene.transcript) {
-                                const transcriptHeader = document.createElement("p");
-                                const transcriptPara = document.createElement("p");
-                                transcriptPara.innerHTML = `<strong>Transcript:</strong>` + scene.transcript;
-                                sceneText.appendChild(transcriptPara);
-                            }
-                            sceneRow.appendChild(sceneText);
                         }
+                        if (scene.transcript) {
+                            const tp = document.createElement("p");
+                            tp.innerHTML = `<strong>Transcript:</strong> ` + scene.transcript;
+                            sceneText.appendChild(tp);
+                        }
+                        sceneRow.appendChild(sceneText);
                     }
+
+                    // After rendering scenes, probe for any edit frames already on disk
+                    fetchSceneEditFrames();
                 } catch (err) {
                     console.log("Cannot load scenes:", err.message);
                 }
             }
             fetchScenes();
-            // fetchScenesInterval = setInterval(fetchScenes, 1000);
 
-            // Frames
-            const numFrames = 10;  // TODO
-
-            async function fetchFrames() {
-                for (let i = 0; i < numFrames; i++) {
-                    // Create frame container if it doesn't exist
-                    const frameRowId = `frame-${i}`;
-                    let frameRow = document.getElementById(frameRowId);
-                    if (!frameRow) {
-                        frameRow = document.createElement("div");
-                        frameRow.id = frameRowId;
-                        frameRow.className = "mb-4 d-flex gap-3 align-items-start";
-
-                        // Image (left)
-                        const frameImg = document.createElement("img");
-                        frameImg.id = `frame-img-${i}`;
-                        frameImg.alt = `Frame ${i}`;
-                        frameImg.width = 320;
-                        frameImg.className = "img-fluid rounded shadow-sm mb-2";
-                        frameRow.appendChild(frameImg);
-
-                        // Text (right)
-                        const frameText = document.createElement("div");
-                        frameText.id = `frame-text-${i}`;
-                        frameText.className = "mt-2";
-                        frameRow.appendChild(frameText);
-
-                        framesContent.appendChild(frameRow);
-                    }
-
-                    // Fetch frame image
-                    const frameImageUrl = `/file_stream/{{ job_id }}/frame_${String(i).padStart(3,'0')}.jpg`;
-                    const frameImagePromise = fetch(frameImageUrl + "?t=" + Date.now(), { method: "HEAD" })
-                        .then(res => {
-                            if (res.ok) {
-                                const frameImg = document.getElementById(`frame-img-${i}`);
-                                if (frameImg.src !== frameImageUrl) {
-                                    frameImg.src = frameImageUrl;
-                                    waitingSection.style.display = "none";
-                                    framesSection.style.display = "block";
-                                }
+            // Probe for edited-scene thumbnails (scene_{id:03d}_edit_frame.png)
+            function fetchSceneEditFrames() {
+                const sceneRows = scenesContent.querySelectorAll("[id^='scene-']");
+                for (const sceneRow of sceneRows) {
+                    const sceneId = parseInt(sceneRow.id.replace("scene-", ""), 10);
+                    const editImg = document.getElementById(`scene-edit-img-${sceneId}`);
+                    if (!editImg || editImg.dataset.loaded) continue; // skip if already loaded
+                    const editFrameUrl =
+                        `/file_stream/{{ job_id }}/scene_${String(sceneId).padStart(3, '0')}_edit_frame.png`;
+                    fetch(editFrameUrl + "?t=" + Date.now(), { method: "HEAD" })
+                        .then(r => {
+                            if (r.ok) {
+                                editImg.src = editFrameUrl;
+                                editImg.style.display = "block";
+                                editImg.dataset.loaded = "1";
+                                const pending = document.getElementById(`scene-edit-pending-${sceneId}`);
+                                if (pending) pending.style.display = "none";
                             }
                         })
-                        .catch(err => `Cannot load frame image: ${err.message}`);
-
-                    // Fetch frame text
-                    const frameTextUrl = `/file_stream/{{ job_id }}/frame_${String(i).padStart(3,'0')}.txt`;
-                    const frameTextPromise = fetch(frameTextUrl + "?t=" + Date.now())
-                        .then(res => {
-                            if (!res.ok) return null;
-                            return res.text();
-                        })
-                        .then(text => {
-                            if (!text) return;
-                            const frameText = document.getElementById(`frame-text-${i}`);
-                            const color = "text-primary";
-                            frameText.innerHTML = `<span class="${color}"><strong>Frame ${i}:</strong></span> ` + text;
-                        })
-                        .catch(err => `Cannot load frame text: ${err.message}`);
+                        .catch(() => {});
                 }
-                // TODO stop fetching frames when job is completed
             }
-
-            //fetchFrames();
-
-            //fetchFramesInterval = setInterval(fetchFrames, 1000);
         </script>
 
 
@@ -465,8 +433,11 @@
                 await fetchLogs();
                 const status = await getJobStatus();
                 if (status) updateStatusBadge(status);
+                fetchSceneEditFrames();
                 if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
                     clearInterval(logInterval);
+                    await fetchScenes();  // re-fetch in case scenes.json was just written
+                    fetchSceneEditFrames();
                 }
             }
             refreshLogLoop();
