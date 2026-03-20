@@ -299,10 +299,10 @@ class StreamDubJob(StreamWiseJob):
             self.logger.info(f"[{scene_id}] Voice cloning disabled; using default voice.")
         if voice_sample is not None:
             try:
-                audio_base64 = await self.gen.gen_clone_audio(
+                audio_base64 = await self.gen.gen_audio(
                     text=scene.translation,
-                    voice_sample=voice_sample,
                     lang_code=lang_code,
+                    voice_sample=voice_sample,
                     task_id=f"{scene_id:03d}",
                     deadline=deadline,
                 )

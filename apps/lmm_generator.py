@@ -1220,22 +1220,42 @@ class LMMGenerator:
         voice: str = "af_heart",  # Default voice
         speed: float = 1.0,
         lang_code: str = "a",  # American English
+        voice_sample: Optional[str] = None,
         task_id: Optional[str] = None,
         timeout: ClientTimeout = SERVICE_TIMEOUT,
         deadline: Optional[float] = None,
     ) -> str:
         """
-        Generate audio from text using the TTS service.
-        Returns base64 encoded audio string.
+        Generate audio from text.
+
+        Routes automatically: when *voice_sample* is supplied the request goes to
+        the VibeVoice service for voice cloning; otherwise the standard TTS service
+        (e.g. kokoro) is used.
+
+        Args:
+            text: The text to synthesise.
+            voice: Name of a built-in voice preset (used when no voice_sample).
+            speed: Speech speed multiplier.
+            lang_code: Target language code.
+            voice_sample: Optional base64-encoded WAV audio to clone the voice from.
+                When present, the request is routed to VibeVoice instead of standard TTS.
+            task_id: Optional task identifier for logging and request tracking.
+            timeout: aiohttp client timeout for the service request.
+            deadline: Optional absolute time (epoch seconds) by which the result must arrive.
         """
-        service_name = get_service_name(TaskClass.TTS)
-        payload_json = {
+        if voice_sample is not None:
+            service_name = "vibevoice"
+        else:
+            service_name = get_service_name(TaskClass.TTS)
+        payload_json: Dict[str, Union[str, float]] = {
             "job_id": f"{self.job_id}_{task_id}",
             "text": text,
             "voice": voice,
             "speed": speed,
             "lang_code": lang_code,
         }
+        if voice_sample is not None:
+            payload_json["voice_sample"] = voice_sample
         request = ServiceRequest(
             request_id=f"{self.job_id}_{task_id}_{service_name}",
             service_name=service_name,
@@ -1257,64 +1277,6 @@ class LMMGenerator:
             return audio_base64
         except Exception as ex:
             err_msg = "Error generating audio"
-            self.logger.error(f"{err_msg} for request {request.request_id}: {ex}")
-            raise ServiceError(
-                service_name=request.service_name,
-                job_id=f"{self.job_id}_{task_id}",
-                request_id=request.request_id,
-                message=err_msg,
-                url=self.get_service_url(request.service_name),
-                response_body=str(ex))
-
-    async def gen_clone_audio(
-        self,
-        text: str,
-        voice_sample: str,
-        lang_code: str = "a",  # American English
-        task_id: Optional[str] = None,
-        timeout: ClientTimeout = SERVICE_TIMEOUT,
-        deadline: Optional[float] = None,
-    ) -> str:
-        """
-        Generate audio from text using voice cloning via the VibeVoice service.
-        Returns base64 encoded audio string.
-
-        Args:
-            text: The text to synthesise.
-            voice_sample: Base64-encoded WAV audio used as the reference speaker for cloning.
-            lang_code: Target language code.
-            task_id: Optional task identifier for logging and request tracking.
-            timeout: aiohttp client timeout for the service request.
-            deadline: Optional absolute time (epoch seconds) by which the result must arrive.
-        """
-        service_name = "vibevoice"
-        payload_json: Dict[str, Union[str, float]] = {
-            "job_id": f"{self.job_id}_{task_id}",
-            "text": text,
-            "lang_code": lang_code,
-            "voice_sample": voice_sample,
-        }
-        request = ServiceRequest(
-            request_id=f"{self.job_id}_{task_id}_{service_name}",
-            service_name=service_name,
-            payload_json=payload_json,
-            timeout=timeout,
-            deadline=deadline,
-        )
-        try:
-            self.logger.info(f"Submitting request {request.request_id} to clone audio.")
-            future = await self._submit_request(request)
-            content_type, audio_binary = await future
-            self.logger.info(
-                f"Received response for request {request.request_id} "
-                f"with {bytes_to_human(len(audio_binary))} and type {content_type}.")
-            self._assert_content_type(
-                "audio/wav", content_type,
-                "Unexpected audio type", request)
-            audio_base64 = binary_to_base64(audio_binary)
-            return audio_base64
-        except Exception as ex:
-            err_msg = "Error cloning audio"
             self.logger.error(f"{err_msg} for request {request.request_id}: {ex}")
             raise ServiceError(
                 service_name=request.service_name,

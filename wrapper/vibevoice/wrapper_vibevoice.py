@@ -259,10 +259,26 @@ class VibeVoiceGeneration(ModelGeneration):
                 raise ValueError("VoiceMapper not initialized")
 
             if voice_sample is not None:
-                # Decode the base64 reference audio and write it to a temp file so that
-                # the processor can load it as a voice sample for cloning.
-                _tmp_voice_path = self._decode_voice_sample_to_tmp_file(voice_sample)
-                voice_path = _tmp_voice_path
+                if job_id is not None:
+                    # Save the input audio for debugging, mirroring how other wrappers
+                    # save their inputs (e.g. /tmp/{job_id}.png for images).
+                    # Use basename to strip any path-traversal characters from job_id.
+                    safe_job_id = os.path.basename(job_id)
+                    debug_voice_path = f"/tmp/{safe_job_id}_voice_sample.wav"
+                    audio_bytes = base64.b64decode(voice_sample)
+                    with open(debug_voice_path, "wb") as out_f:
+                        out_f.write(audio_bytes)
+                    logging.info(
+                        f"Saved voice_sample to {debug_voice_path} ({len(audio_bytes)} bytes)."
+                    )
+                    voice_path = debug_voice_path
+                    # _tmp_voice_path stays None: debug file is not cleaned up so it
+                    # remains available for post-mortem inspection.
+                else:
+                    # No job_id available (e.g. during warmup): fall back to a temp file
+                    # that is cleaned up in the finally block.
+                    _tmp_voice_path = self._decode_voice_sample_to_tmp_file(voice_sample)
+                    voice_path = _tmp_voice_path
                 logging.info("Using cloned voice from provided voice_sample.")
             else:
                 voice_path = self.voice_mapper.get_voice_path(voice)
