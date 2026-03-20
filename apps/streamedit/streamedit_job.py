@@ -70,6 +70,37 @@ class StreamEditJob(StreamWiseJob):
         assert video_base64 is not None
         await self.gen_edit(video_base64)
 
+    def _save_frame_from_video(self, video_path: str, frame_path: str, frame_num: int = 0) -> bool:
+        """Extract a single frame from a video file and save it as a JPEG.
+
+        Returns True on success, False if the frame could not be read.
+        """
+        import cv2  # noqa: PLC0415 - deferred to avoid module-level dependency
+        cap = cv2.VideoCapture(video_path)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        ok, frame = cap.read()
+        cap.release()
+        if ok:
+            cv2.imwrite(frame_path, frame)
+        return ok
+
+    async def extract_scene_frames(self) -> None:
+        """Extract one representative frame per scene from the input video and save as JPEG.
+
+        Populates ``scene.frame_image_paths`` for each scene so the WebUI can
+        display a thumbnail alongside the scene details.
+        """
+        video_path = f"{self.job_path}/video.mp4"
+        for scene in self.scenes:
+            frame_file_name = f"scene_{scene.scene_id:03d}_frame.jpg"
+            frame_path = f"{self.job_path}/{frame_file_name}"
+            ok = self._save_frame_from_video(video_path, frame_path, scene.start_frame)
+            if ok:
+                scene.add_image_path(frame_file_name)
+            else:
+                self.logger.warning(
+                    f"[{scene.scene_id}] Failed to extract frame at position {scene.start_frame}.")
+
     async def _save_video_as_output(self, video_path: str) -> None:
         """Copy a video file to the job output path."""
         out_path = f"{self.job_path}/{self.job_id}.mp4"
@@ -118,7 +149,10 @@ class StreamEditJob(StreamWiseJob):
             # Chunk audio into per-scene files
             await self.chunk_audio_into_scenes()
 
-            # Write scenes debug file (audio_path is now populated)
+            # Extract a thumbnail frame per scene for the WebUI
+            await self.extract_scene_frames()
+
+            # Write scenes debug file (audio_path and frame_image_paths are now populated)
             scenes_path = f"{self.job_path}/scenes.json"
             async with aiofiles.open(scenes_path, "w") as scene_file:
                 scenes_dict_list = [asdict(scene) for scene in self.scenes]
@@ -133,6 +167,10 @@ class StreamEditJob(StreamWiseJob):
                     scene_path = await self.gen_edit_scene(scene, edit_prompt)
                     scene_video_paths.append(scene_path)
                     self.logger.info(f"[{scene.scene_id}] Edited scene saved to '{scene_path}'.")
+                    # Extract a thumbnail from the edited scene for the WebUI
+                    edit_frame_path = f"{self.job_path}/scene_{scene.scene_id:03d}_edit_frame.jpg"
+                    if not self._save_frame_from_video(scene_path, edit_frame_path):
+                        self.logger.warning(f"[{scene.scene_id}] Could not extract edit frame.")
                 except Exception as ex:
                     self.logger.error(f"[{scene.scene_id}] Error editing scene: {ex}")
                     scene_video_paths.append(None)

@@ -224,3 +224,65 @@ async def test_streamedit_job_gen_edit_scene_saves_video() -> None:
 
         # The returned path must point to the edited scene file
         assert result_path == f"{tmp_dir}/scene_002_edit.mp4"
+
+
+@pytest.mark.asyncio
+async def test_extract_scene_frames_saves_jpgs() -> None:
+    """extract_scene_frames saves scene_{id:03d}_frame.jpg and populates frame_image_paths."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        job = StreamEditJob(
+            job_id="test_extract_frames",
+            service_manager=MagicMock(),
+        )
+        job.job_path = tmp_dir
+
+        job.scenes = [
+            SceneSegment(scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0),
+            SceneSegment(scene_id=1, start_frame=30, end_frame=60, start_sec=1.0, end_sec=2.0),
+        ]
+
+        # Patch cv2 so we don't need a real video file
+        mock_cv2 = MagicMock()
+        mock_cap = MagicMock()
+        mock_cap.read.return_value = (True, MagicMock())  # ok=True, dummy frame
+        mock_cv2.VideoCapture.return_value = mock_cap
+
+        def _fake_imwrite(path: str, _frame: object) -> bool:
+            with open(path, "wb") as fh:
+                fh.write(b"jpegdata")
+            return True
+
+        mock_cv2.imwrite.side_effect = _fake_imwrite
+
+        with patch.dict(sys.modules, {"cv2": mock_cv2}):
+            await job.extract_scene_frames()
+
+        # Each scene should now have exactly one image path
+        assert job.scenes[0].frame_image_paths == ["scene_000_frame.jpg"]
+        assert job.scenes[1].frame_image_paths == ["scene_001_frame.jpg"]
+
+
+@pytest.mark.asyncio
+async def test_extract_scene_frames_skips_failed_frame() -> None:
+    """extract_scene_frames skips a scene when cv2 cannot read the frame."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        job = StreamEditJob(
+            job_id="test_extract_frames_fail",
+            service_manager=MagicMock(),
+        )
+        job.job_path = tmp_dir
+
+        job.scenes = [
+            SceneSegment(scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0),
+        ]
+
+        mock_cv2 = MagicMock()
+        mock_cap = MagicMock()
+        mock_cap.read.return_value = (False, None)  # read fails
+        mock_cv2.VideoCapture.return_value = mock_cap
+
+        with patch.dict(sys.modules, {"cv2": mock_cv2}):
+            await job.extract_scene_frames()
+
+        # frame_image_paths must remain empty since reading failed
+        assert job.scenes[0].frame_image_paths == []
