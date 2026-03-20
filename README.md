@@ -8,13 +8,12 @@ For example, [StreamCast](apps/README.md) is a service that generates real-time 
 
 ---
 
-> [!IMPORTANT]
-> **Systems Research Disclaimer**
+> [!Systems Research Disclaimer]
 >
-> This project is focused on **systems research** — specifically the infrastructure, scheduling, provisioning, and serving aspects of multi-modal generation workloads.
-> The workloads (video, audio, and image generation) are used to **stress-test and evaluate the system**, not to assess or guarantee the quality of the generated content.
-> **Do not expect high-quality content outputs.** Model outputs may be low-resolution, contain visual artifacts, or otherwise degraded — this is intentional and irrelevant to the research goals.
-> If you are looking for a production-grade content generation service, this project is not designed for that purpose.
+> This project focuses on **systems research** — specifically the infrastructure, scheduling, provisioning, and serving aspects of multi-modal generation workloads.
+> The application workloads are used to **stress-test and evaluate the system**, not to assess or guarantee the quality of the generated content.
+> Outputs may not be inconsistent, contain visual artifacts, or otherwise degraded — this is irrelevant to the research goals.
+> This project is not designed for production purposes.
 
 ---
 
