@@ -41,6 +41,12 @@ from media_utils import get_video_frames
 from media_utils import extract_audio_from_video
 from media_utils import concatenate_videos
 
+from tts_utils import get_audio_chunks_by_silences
+
+from video import MAX_FT_DURATION_SECS
+from video import FANTASYTALKING_FPS
+from video import get_num_video_frames_from_duration
+
 from edit_prompts import build_edit_prompt
 from edit_prompts import EDIT_PROMPT
 
@@ -242,20 +248,109 @@ class StreamEditJob(StreamWiseJob):
             start_seconds=scene.start_sec,
             end_seconds=scene.end_sec,
         )
-        scene_video_frames = await get_video_frames(scene_binary)
 
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         scene_audio_base64 = await read_file_base64(scene_audio_path)
 
-        scene_edit_binary = await self.gen.gen_video_audio_from_video(
-            video=scene_video_frames,
-            audio_base64=scene_audio_base64,
-            prompt=edit_prompt,
-            task_id=f"{scene.scene_id:03d}",
-            deadline=self.get_submission_time() + scene.start_sec,
-        )
+        scene_duration = scene.end_sec - scene.start_sec
+        if scene_duration > MAX_FT_DURATION_SECS:
+            scene_edit_binary = await self._gen_edit_scene_chunked(
+                scene=scene,
+                scene_binary=scene_binary,
+                scene_audio_path=scene_audio_path,
+                scene_audio_base64=scene_audio_base64,
+                edit_prompt=edit_prompt,
+            )
+        else:
+            scene_video_frames = await get_video_frames(scene_binary)
+            scene_edit_binary = await self.gen.gen_video_audio_from_video(
+                video=scene_video_frames,
+                audio_base64=scene_audio_base64,
+                prompt=edit_prompt,
+                task_id=f"{scene.scene_id:03d}",
+                deadline=self.get_submission_time() + scene.start_sec,
+            )
 
         scene_path = f"{self.job_path}/scene_{scene.scene_id:03d}_edit.mp4"
         async with aiofiles.open(scene_path, "wb") as file:
             await file.write(scene_edit_binary)
         return scene_path
+
+    async def _gen_edit_scene_chunked(
+        self,
+        scene: SceneSegment,
+        scene_binary: bytes,
+        scene_audio_path: str,
+        scene_audio_base64: str,
+        edit_prompt: str,
+    ) -> bytes:
+        """
+        Generate edited scene in sub-chunks when the scene exceeds MAX_FT_DURATION_SECS.
+        Splits the scene audio by silences, generates each sub-chunk independently,
+        then concatenates the results.
+        """
+        scene_duration = scene.end_sec - scene.start_sec
+        self.logger.info(
+            "[%d] Scene too long (%.3f > %.3f s), using chunked generation.",
+            scene.scene_id, scene_duration, MAX_FT_DURATION_SECS)
+
+        audio_splits = get_audio_chunks_by_silences(
+            scene_audio_path,
+            max_duration_seconds=MAX_FT_DURATION_SECS,
+            chunk_alignment_seconds=1.0 / FANTASYTALKING_FPS,
+        )
+
+        if not audio_splits:
+            raise ValueError(f"[{scene.scene_id}] No audio splits produced for long scene.")
+
+        self.logger.info(
+            "[%d] Split into %d sub-chunks.", scene.scene_id, len(audio_splits))
+
+        sub_binaries: List[bytes] = []
+        for sub_idx, (sub_start_s, sub_end_s) in enumerate(audio_splits):
+            sub_duration = sub_end_s - sub_start_s
+            self.logger.info(
+                "[%d.%d] Sub-chunk %.3f-%.3f s (%.3f s).",
+                scene.scene_id, sub_idx, sub_start_s, sub_end_s, sub_duration)
+
+            sub_scene_binary = chunk_video_binary(
+                video_binary=scene_binary,
+                start_seconds=sub_start_s,
+                end_seconds=sub_end_s,
+            )
+            sub_scene_frames = await get_video_frames(sub_scene_binary)
+
+            if not sub_scene_frames:
+                self.logger.warning(
+                    "[%d.%d] No frames for sub-chunk, skipping.", scene.scene_id, sub_idx)
+                continue
+
+            # Align frame count to what FantasyTalking expects for the audio duration
+            expected_frames = get_num_video_frames_from_duration(sub_duration)
+            if len(sub_scene_frames) < expected_frames:
+                sub_scene_frames += [sub_scene_frames[-1]] * (expected_frames - len(sub_scene_frames))
+            elif len(sub_scene_frames) > expected_frames:
+                sub_scene_frames = sub_scene_frames[:expected_frames]
+
+            sub_audio_base64 = chunk_audio_base64(
+                audio_base64=scene_audio_base64,
+                start_seconds=sub_start_s,
+                end_seconds=sub_end_s,
+            )
+
+            sub_edit_binary = await self.gen.gen_video_audio_from_video(
+                video=sub_scene_frames,
+                audio_base64=sub_audio_base64,
+                prompt=edit_prompt,
+                task_id=f"{scene.scene_id:03d}_{sub_idx:03d}",
+                deadline=self.get_submission_time() + scene.start_sec + sub_start_s,
+            )
+            sub_binaries.append(sub_edit_binary)
+
+        if not sub_binaries:
+            raise ValueError(f"[{scene.scene_id}] All sub-chunks failed for long scene.")
+
+        scene_edit_binary = await concatenate_videos(sub_binaries)
+        if not scene_edit_binary:
+            raise ValueError(f"[{scene.scene_id}] Cannot concatenate sub-chunk results.")
+        return scene_edit_binary
