@@ -91,14 +91,14 @@ class StreamEditJob(StreamWiseJob):
         return ok
 
     async def extract_scene_frames(self) -> None:
-        """Extract one representative frame per scene from the input video and save as JPEG.
+        """Extract one representative frame per scene from the input video and save as PNG.
 
         Populates ``scene.frame_image_paths`` for each scene so the WebUI can
         display a thumbnail alongside the scene details.
         """
         video_path = f"{self.job_path}/video.mp4"
         for scene in self.scenes:
-            frame_file_name = f"scene_{scene.scene_id:03d}_frame.jpg"
+            frame_file_name = f"scene_{scene.scene_id:03d}_frame.png"
             frame_path = f"{self.job_path}/{frame_file_name}"
             ok = self._save_frame_from_video(video_path, frame_path, scene.start_frame)
             if ok:
@@ -174,7 +174,7 @@ class StreamEditJob(StreamWiseJob):
                     scene_video_paths.append(scene_path)
                     self.logger.info(f"[{scene.scene_id}] Edited scene saved to '{scene_path}'.")
                     # Extract a thumbnail from the edited scene for the WebUI
-                    edit_frame_path = f"{self.job_path}/scene_{scene.scene_id:03d}_edit_frame.jpg"
+                    edit_frame_path = f"{self.job_path}/scene_{scene.scene_id:03d}_edit_frame.png"
                     if not self._save_frame_from_video(scene_path, edit_frame_path):
                         self.logger.warning(f"[{scene.scene_id}] Could not extract edit frame.")
                 except Exception as ex:

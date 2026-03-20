@@ -384,7 +384,7 @@
             }
             fetchScenes();
 
-            // Probe for edited-scene thumbnails (scene_{id:03d}_edit_frame.jpg)
+            // Probe for edited-scene thumbnails (scene_{id:03d}_edit_frame.png)
             function fetchSceneEditFrames() {
                 const sceneRows = scenesContent.querySelectorAll("[id^='scene-']");
                 for (const sceneRow of sceneRows) {
@@ -392,7 +392,7 @@
                     const editImg = document.getElementById(`scene-edit-img-${sceneId}`);
                     if (!editImg || editImg.dataset.loaded) continue; // skip if already loaded
                     const editFrameUrl =
-                        `/file_stream/{{ job_id }}/scene_${String(sceneId).padStart(3, '0')}_edit_frame.jpg`;
+                        `/file_stream/{{ job_id }}/scene_${String(sceneId).padStart(3, '0')}_edit_frame.png`;
                     fetch(editFrameUrl + "?t=" + Date.now(), { method: "HEAD" })
                         .then(r => {
                             if (r.ok) {

@@ -324,8 +324,8 @@ async def test_streamedit_job_gen_edit_scene_saves_video() -> None:
 
 
 @pytest.mark.asyncio
-async def test_extract_scene_frames_saves_jpgs() -> None:
-    """extract_scene_frames saves scene_{id:03d}_frame.jpg and populates frame_image_paths."""
+async def test_extract_scene_frames_saves_pngs() -> None:
+    """extract_scene_frames saves scene_{id:03d}_frame.png and populates frame_image_paths."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         job = StreamEditJob(
             job_id="test_extract_frames",
@@ -346,7 +346,7 @@ async def test_extract_scene_frames_saves_jpgs() -> None:
 
         def _fake_imwrite(path: str, _frame: object) -> bool:
             with open(path, "wb") as fh:
-                fh.write(b"jpegdata")
+                fh.write(b"pngdata")
             return True
 
         mock_cv2.imwrite.side_effect = _fake_imwrite
@@ -355,8 +355,8 @@ async def test_extract_scene_frames_saves_jpgs() -> None:
             await job.extract_scene_frames()
 
         # Each scene should now have exactly one image path
-        assert job.scenes[0].frame_image_paths == ["scene_000_frame.jpg"]
-        assert job.scenes[1].frame_image_paths == ["scene_001_frame.jpg"]
+        assert job.scenes[0].frame_image_paths == ["scene_000_frame.png"]
+        assert job.scenes[1].frame_image_paths == ["scene_001_frame.png"]
 
 
 @pytest.mark.asyncio
