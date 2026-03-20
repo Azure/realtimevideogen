@@ -182,6 +182,103 @@ async def test_streamedit_job_chunk_audio_into_scenes() -> None:
 
 
 @pytest.mark.asyncio
+async def test_streamedit_job_gen_edit_scene_chunked() -> None:
+    """_gen_edit_scene_chunked splits audio and generates sub-chunk videos."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        job = StreamEditJob(
+            job_id="test_scene_chunked",
+            service_manager=MagicMock(),
+        )
+        job.job_path = tmp_dir
+
+        # Fake scene audio file
+        fake_audio_base64 = base64.b64encode(b"dummy_audio_long").decode()
+        with open(f"{tmp_dir}/scene_005.wav", "wb") as f:
+            f.write(b"dummy_audio_long")
+
+        scene = SceneSegment(
+            scene_id=5,
+            start_frame=0,
+            end_frame=300,
+            start_sec=0.0,
+            end_sec=12.0,  # > MAX_FT_DURATION_SECS (~5.1 s)
+            audio_path="scene_005.wav",
+        )
+
+        fake_frame = Image.new("RGB", (64, 64), color="red")
+        fake_sub_edit = b"sub_edited_video"
+        fake_concat = b"concatenated_video"
+
+        with patch.object(_sei_module, "get_audio_chunks_by_silences",
+                          return_value=[(0.0, 5.0), (5.0, 10.0), (10.0, 12.0)]), \
+             patch.object(_sei_module, "chunk_video_binary", return_value=b"sub_scene_vid"), \
+             patch.object(_sei_module, "get_video_frames", new_callable=AsyncMock,
+                          return_value=[fake_frame] * 10), \
+             patch.object(_sei_module, "chunk_audio_base64", return_value=fake_audio_base64), \
+             patch.object(_sei_module, "concatenate_videos", new_callable=AsyncMock,
+                          return_value=fake_concat), \
+             patch.object(job.gen, "gen_video_audio_from_video", new_callable=AsyncMock,
+                          return_value=fake_sub_edit):
+
+            result = await job._gen_edit_scene_chunked(
+                scene=scene,
+                scene_binary=b"scene_vid",
+                scene_audio_path=f"{tmp_dir}/scene_005.wav",
+                scene_audio_base64=fake_audio_base64,
+                edit_prompt="edit",
+            )
+
+        assert result == fake_concat
+
+
+@pytest.mark.asyncio
+async def test_streamedit_job_gen_edit_scene_uses_chunked_for_long_scene() -> None:
+    """gen_edit_scene uses the chunked path when scene duration > MAX_FT_DURATION_SECS."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        job = StreamEditJob(
+            job_id="test_long_scene",
+            service_manager=MagicMock(),
+        )
+        job.job_path = tmp_dir
+
+        # Fake input video file
+        video_path = f"{tmp_dir}/video.mp4"
+        with open(video_path, "wb") as f:
+            f.write(b"fake_video_data")
+
+        # Fake scene audio file
+        fake_audio_base64 = base64.b64encode(b"dummy_audio_long").decode()
+        with open(f"{tmp_dir}/scene_003.wav", "wb") as f:
+            f.write(b"dummy_audio_long")
+
+        scene = SceneSegment(
+            scene_id=3,
+            start_frame=0,
+            end_frame=360,
+            start_sec=0.0,
+            end_sec=12.0,  # > MAX_FT_DURATION_SECS (~5.1 s)
+            audio_path="scene_003.wav",
+        )
+
+        fake_concat = b"chunked_edit_result"
+
+        chunked_mock = AsyncMock(return_value=fake_concat)
+        with patch.object(_sei_module, "chunk_video_binary", return_value=b"scene_vid"), \
+             patch.object(_sei_module, "read_file_base64", new_callable=AsyncMock,
+                          return_value=fake_audio_base64), \
+             patch.object(job, "_gen_edit_scene_chunked", chunked_mock):
+
+            result_path = await job.gen_edit_scene(scene)
+
+        # Chunked path must have been invoked
+        chunked_mock.assert_called_once()
+
+        # The edited file must be saved
+        assert os.path.exists(f"{tmp_dir}/scene_003_edit.mp4")
+        assert result_path == f"{tmp_dir}/scene_003_edit.mp4"
+
+
+@pytest.mark.asyncio
 async def test_streamedit_job_gen_edit_scene_saves_video() -> None:
     """gen_edit_scene reads audio from scene.audio_path and saves the edited video."""
     with tempfile.TemporaryDirectory() as tmp_dir:
