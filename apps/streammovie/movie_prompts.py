@@ -83,6 +83,7 @@ Add style-specific exclusions as needed (e.g. "warm cozy atmosphere" for a cold 
 
 - ~15 shots per minute of screen time (average 4–6 seconds per shot)
 - A 10-minute movie needs ~150 shots; a 90-minute movie needs ~1 350 shots
+- When the user specifies a number of shots, you MUST generate EXACTLY that many shot_description objects — no more, no less.
 
 # COMPLETE EXAMPLE
 

@@ -15,8 +15,15 @@ body {
     width: 100%;
     padding: 0.5rem;
     font-size: 1rem;
+    color: #212529;
+    background-color: #fff;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+
+.form-control::placeholder {
+    color: #6c757d;
+    opacity: 1;
 }
 
 .btn {
@@ -64,6 +71,10 @@ body {
 
 .text-center {
     text-align: center;
+}
+
+.text-end {
+    text-align: right;
 }
 
 .mb-3 {

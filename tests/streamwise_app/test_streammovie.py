@@ -114,11 +114,16 @@ def _make_mock_script_chunks_with_noise():
 class LMMGeneratorMovieMock(LMMGeneratorMock):
     """LMMGeneratorMock that handles gen_text_stream for movie script generation."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.last_messages: list = []
+
     async def gen_text_stream(
         self,
         *args,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
+        self.last_messages = kwargs.get("messages", [])
         for chunk in _make_mock_script_chunks():
             yield chunk
 
@@ -470,6 +475,17 @@ def test_build_movie_messages() -> None:
     assert "filmmaker" in messages[0]["content"]
     assert messages[1]["role"] == "user"
     assert "sci-fi thriller" in messages[1]["content"]
+    # No shot count instruction when max_shots is not specified
+    assert "EXACTLY" not in messages[1]["content"]
+
+
+def test_build_movie_messages_with_max_shots() -> None:
+    """build_movie_messages with max_shots includes the exact-count instruction."""
+    messages = StreamMovieJob.build_movie_messages("a heist drama", max_shots=3)
+    assert len(messages) == 2
+    user_content = messages[1]["content"]
+    assert "heist drama" in user_content
+    assert "EXACTLY 3 shots" in user_content
 
 
 @pytest.mark.asyncio
@@ -530,5 +546,37 @@ async def test_stream_movie_script_filters_noise() -> None:
     assert "explanatory paragraph" not in content
     assert "notes about the next act" not in content
     assert "```" not in content
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_stream_movie_script_max_shots_instruction() -> None:
+    """When max_shots is set, the LLM receives an exact shot-count instruction."""
+    job = _make_job("test_max_shots_instruction", config={"max_shots": 3})
+    mock_gen = job.gen  # type: ignore[assignment]
+
+    await job._stream_movie_script("A thriller.", max_shots=3)
+
+    # The last messages sent to the LLM must include the exact-count instruction
+    assert mock_gen.last_messages, "No messages were captured by the mock"
+    user_message = mock_gen.last_messages[-1]
+    assert user_message["role"] == "user"
+    assert "EXACTLY 3 shots" in user_message["content"]
+
+    await job.close()
+
+
+@pytest.mark.asyncio
+async def test_stream_movie_script_no_shot_instruction_when_unset() -> None:
+    """When max_shots is not set, the LLM message has no exact-count instruction."""
+    job = _make_job("test_no_shot_instruction")
+    mock_gen = job.gen  # type: ignore[assignment]
+
+    await job._stream_movie_script("A comedy.", max_shots=-1)
+
+    assert mock_gen.last_messages, "No messages were captured by the mock"
+    user_message = mock_gen.last_messages[-1]
+    assert "EXACTLY" not in user_message["content"]
 
     await job.close()
