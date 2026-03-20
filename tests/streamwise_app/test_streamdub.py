@@ -189,7 +189,7 @@ async def test_gen_dub_writes_scenes_json() -> None:
 
 @pytest.mark.asyncio
 async def test_gen_dub_scene_uses_voice_cloning() -> None:
-    """gen_dub_scene must call gen_clone_audio with the original scene audio when available."""
+    """gen_dub_scene must call gen_audio with voice_sample when original scene audio is available."""
     with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
         with temp_sys_path("apps", "apps/streamdub"):
             from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
@@ -223,23 +223,23 @@ async def test_gen_dub_scene_uses_voice_cloning() -> None:
     dubbed_audio_b64 = base64.b64encode(b"dubbed_audio").decode()
     dubbed_video_binary = b"dubbed_video"
 
-    gen_clone_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
+    gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
     gen_video_mock = AsyncMock(return_value=dubbed_video_binary)
 
     with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello world")), \
          patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola mundo")), \
-         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
          patch.object(job, "gen_video_lip_synced", gen_video_mock):
         await job.gen_dub_scene(fake_scene, lang_code="e")
 
-    # Verify that gen_clone_audio was called with voice_sample set to the original audio base64
-    gen_clone_audio_mock.assert_called_once()
-    call_kwargs = gen_clone_audio_mock.call_args.kwargs
+    # Verify that gen_audio was called with voice_sample set to the original audio base64
+    gen_audio_mock.assert_called_once()
+    call_kwargs = gen_audio_mock.call_args.kwargs
     assert call_kwargs.get("voice_sample") == original_audio_b64, (
         "voice_sample must equal the base64-encoded original scene audio"
     )
     assert call_kwargs.get("text") == "Hola mundo", (
-        "gen_clone_audio must receive the translated text"
+        "gen_audio must receive the translated text"
     )
 
     await job.close()
@@ -247,7 +247,7 @@ async def test_gen_dub_scene_uses_voice_cloning() -> None:
 
 @pytest.mark.asyncio
 async def test_gen_dub_scene_falls_back_when_no_audio() -> None:
-    """gen_dub_scene falls back to gen_audio when the original scene audio is missing."""
+    """gen_dub_scene calls gen_audio without voice_sample when the original scene audio is missing."""
     with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
         with temp_sys_path("apps", "apps/streamdub"):
             from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
@@ -273,19 +273,17 @@ async def test_gen_dub_scene_falls_back_when_no_audio() -> None:
     dubbed_video_binary = b"dubbed_video"
 
     gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
-    gen_clone_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
     gen_video_mock = AsyncMock(return_value=dubbed_video_binary)
 
     with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello world")), \
          patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola mundo")), \
          patch.object(job.gen, "gen_audio", gen_audio_mock), \
-         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
          patch.object(job, "gen_video_lip_synced", gen_video_mock):
         await job.gen_dub_scene(fake_scene, lang_code="e")
 
-    # gen_audio should be called for the fallback path; gen_clone_audio must NOT be called
+    # gen_audio should be called without voice_sample (no audio file → standard TTS)
     gen_audio_mock.assert_called_once()
-    gen_clone_audio_mock.assert_not_called()
+    assert gen_audio_mock.call_args.kwargs.get("voice_sample") is None
 
     await job.close()
 
@@ -342,7 +340,6 @@ async def test_gen_dub_scene_updates_scenes_json() -> None:
          patch.object(job, "_add_subtitles_to_video", new=AsyncMock(return_value=b"video_bytes")), \
          patch.object(job, "get_submission_time", return_value=0.0):
         job.gen = MagicMock()
-        job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
         job.gen.gen_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
         await job.gen_dub_scene(scene, lang_code="e")
@@ -426,7 +423,7 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
          patch.object(job, "gen_video_lip_synced", side_effect=fake_lip_sync), \
          patch.object(job, "get_submission_time", return_value=0.0):
         job.gen = MagicMock()
-        job.gen.gen_clone_audio = AsyncMock(return_value="AAAA")
+        job.gen.gen_audio = AsyncMock(return_value="AAAA")
         job.gen.stop = AsyncMock()
         result = await job.gen_dub_scene(scene, lang_code="e")
 
@@ -436,12 +433,12 @@ async def test_gen_dub_scene_stores_translation_separately() -> None:
     # Translation must be stored in the dedicated field
     assert scene.translation == translated_text, \
         "scene.translation must hold the translated text"
-    # gen_clone_audio must have been called with the translation text, not the original
-    job.gen.gen_clone_audio.assert_called_once()
-    call_kwargs = job.gen.gen_clone_audio.call_args
+    # gen_audio must have been called with the translation text, not the original
+    job.gen.gen_audio.assert_called_once()
+    call_kwargs = job.gen.gen_audio.call_args
     tts_text = call_kwargs.kwargs["text"]
     assert tts_text == translated_text, \
-        "gen_clone_audio must receive the translation, not the original transcript"
+        "gen_audio must receive the translation, not the original transcript"
     assert result == b"video_bytes"
 
     await job.close()
@@ -473,21 +470,18 @@ async def test_gen_dub_scene_empty_translation_uses_original_video() -> None:
     original_video = b"original_video_bytes"
     get_video_mock = AsyncMock(return_value=original_video)
     gen_audio_mock = AsyncMock()
-    gen_clone_audio_mock = AsyncMock()
     gen_video_mock = AsyncMock()
 
     with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
          patch.object(job, "translate_scene", new=AsyncMock(return_value="")), \
          patch.object(job, "get_video_scene", get_video_mock), \
          patch.object(job.gen, "gen_audio", gen_audio_mock), \
-         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
          patch.object(job, "gen_video_lip_synced", gen_video_mock):
         result = await job.gen_dub_scene(fake_scene, lang_code="e")
 
     # Original video must be returned; no audio generation or lip sync should happen
     get_video_mock.assert_called_once()
     gen_audio_mock.assert_not_called()
-    gen_clone_audio_mock.assert_not_called()
     gen_video_mock.assert_not_called()
     assert result == original_video
 
@@ -524,7 +518,7 @@ async def test_gen_dub_scene_adds_subtitles() -> None:
 
     with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
          patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola")), \
-         patch.object(job.gen, "gen_clone_audio", AsyncMock(return_value=base64.b64encode(b"audio").decode())), \
+         patch.object(job.gen, "gen_audio", AsyncMock(return_value=base64.b64encode(b"audio").decode())), \
          patch.object(job, "gen_video_lip_synced", AsyncMock(return_value=dubbed_video)), \
          patch.object(job, "_add_subtitles_to_video", subtitles_mock):
         result = await job.gen_dub_scene(fake_scene, lang_code="e")
@@ -568,24 +562,23 @@ async def test_gen_dub_scene_voice_cloning_disabled() -> None:
 
     dubbed_audio_b64 = base64.b64encode(b"dubbed_audio").decode()
     gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
-    gen_clone_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
 
     with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
          patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola")), \
          patch.object(job.gen, "gen_audio", gen_audio_mock), \
-         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
          patch.object(job, "gen_video_lip_synced", AsyncMock(return_value=b"video")):
         await job.gen_dub_scene(fake_scene, lang_code="e")
 
+    # gen_audio must be called without voice_sample (voice cloning disabled → standard TTS)
     gen_audio_mock.assert_called_once()
-    gen_clone_audio_mock.assert_not_called()
+    assert gen_audio_mock.call_args.kwargs.get("voice_sample") is None
 
     await job.close()
 
 
 @pytest.mark.asyncio
 async def test_gen_dub_scene_voice_cloning_falls_back_on_error() -> None:
-    """gen_dub_scene falls back to gen_audio when gen_clone_audio raises an exception."""
+    """gen_dub_scene falls back to standard TTS (no voice_sample) when voice cloning fails."""
     with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
         with temp_sys_path("apps", "apps/streamdub"):
             from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
@@ -610,25 +603,31 @@ async def test_gen_dub_scene_voice_cloning_falls_back_on_error() -> None:
         audio_path="scene_000.wav",
     )
 
-    dubbed_audio_b64 = base64.b64encode(b"fallback_audio").decode()
-    gen_audio_mock = AsyncMock(return_value=dubbed_audio_b64)
-    gen_clone_audio_mock = AsyncMock(side_effect=RuntimeError("VibeVoice unavailable"))
+    fallback_audio_b64 = base64.b64encode(b"fallback_audio").decode()
+
+    # First call (with voice_sample → VibeVoice) raises; second call (no voice_sample → kokoro) succeeds
+    call_count = 0
+
+    async def gen_audio_side_effect(**kwargs: object) -> str:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("VibeVoice unavailable")
+        return fallback_audio_b64
+
+    gen_audio_mock = AsyncMock(side_effect=gen_audio_side_effect)
 
     with patch.object(job, "transcribe_audio", new=AsyncMock(return_value="Hello")), \
          patch.object(job, "translate_scene", new=AsyncMock(return_value="Hola")), \
          patch.object(job.gen, "gen_audio", gen_audio_mock), \
-         patch.object(job.gen, "gen_clone_audio", gen_clone_audio_mock), \
          patch.object(job, "gen_video_lip_synced", AsyncMock(return_value=b"video")):
         await job.gen_dub_scene(fake_scene, lang_code="e")
 
-    # gen_clone_audio was attempted, then gen_audio was used as fallback
-    # and voice_sample is forwarded so voice-cloning-capable TTS backends can still use it
-    gen_clone_audio_mock.assert_called_once()
-    gen_audio_call_kwargs = gen_audio_mock.call_args
-    assert gen_audio_call_kwargs is not None
-    assert "voice_sample" in gen_audio_call_kwargs.kwargs
-    # The forwarded sample must match the scene audio that was written to disk
-    expected_voice_sample = base64.b64encode(b"\x00" * 16).decode()
-    assert gen_audio_call_kwargs.kwargs["voice_sample"] == expected_voice_sample
+    # gen_audio called twice: first with voice_sample (→ VibeVoice, fails), then without (→ kokoro)
+    assert gen_audio_mock.call_count == 2
+    first_call_kwargs = gen_audio_mock.call_args_list[0].kwargs
+    second_call_kwargs = gen_audio_mock.call_args_list[1].kwargs
+    assert first_call_kwargs.get("voice_sample") is not None, "first call must include voice_sample"
+    assert second_call_kwargs.get("voice_sample") is None, "fallback call must NOT include voice_sample"
 
     await job.close()
