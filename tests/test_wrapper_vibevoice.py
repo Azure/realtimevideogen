@@ -333,6 +333,76 @@ def test_decode_voice_sample_to_tmp_file() -> None:
             os.unlink(tmp_path)
 
 
+@pytest.mark.asyncio
+async def test_vibevoice_voice_sample_debug_file_saved() -> None:
+    """When voice_sample + job_id are provided, the decoded audio is persisted to
+    /tmp/{job_id}_voice_sample.wav before processing begins."""
+    from unittest.mock import patch, MagicMock
+
+    model = VibeVoiceGeneration()
+
+    with open("tests/data/sample.wav", "rb") as f:
+        wav_bytes = f.read()
+    voice_sample_b64 = base64.b64encode(wav_bytes).decode()
+
+    job_id = "vibevoice_debug_test_001"
+    debug_path = f"/tmp/{os.path.basename(job_id)}_voice_sample.wav"
+
+    if os.path.exists(debug_path):
+        os.unlink(debug_path)
+
+    # Bypass model-init guard; leave processor=None so generate() raises *after*
+    # it has already written the debug file.
+    model.voice_mapper = MagicMock()
+    model.processor = None
+
+    with patch.object(model, "_assert_model_init"):
+        with pytest.raises(ValueError, match="Processor not initialized"):
+            await model.generate(text="Hello", voice_sample=voice_sample_b64, job_id=job_id)
+
+    try:
+        assert os.path.exists(debug_path), "Debug voice sample file must be created"
+        with open(debug_path, "rb") as f:
+            assert f.read() == wav_bytes, "Debug file content must match original audio"
+    finally:
+        if os.path.exists(debug_path):
+            os.unlink(debug_path)
+
+
+@pytest.mark.asyncio
+async def test_vibevoice_voice_sample_no_job_id_uses_tmp_file() -> None:
+    """When voice_sample is provided but job_id is None, a temporary file is used
+    (and will be cleaned up), not a named debug file."""
+    from unittest.mock import patch, MagicMock
+
+    model = VibeVoiceGeneration()
+
+    with open("tests/data/sample.wav", "rb") as f:
+        wav_bytes = f.read()
+    voice_sample_b64 = base64.b64encode(wav_bytes).decode()
+
+    recorded: list[str] = []
+    original_decode = model._decode_voice_sample_to_tmp_file
+
+    def capturing_decode(vs: str) -> str:
+        path = original_decode(vs)
+        recorded.append(path)
+        return path
+
+    model.voice_mapper = MagicMock()
+    model.processor = None
+
+    with patch.object(model, "_assert_model_init"):
+        with patch.object(model, "_decode_voice_sample_to_tmp_file", side_effect=capturing_decode):
+            with pytest.raises(ValueError, match="Processor not initialized"):
+                # job_id=None → should use temp file, not a named debug path
+                await model.generate(text="Hello", voice_sample=voice_sample_b64, job_id=None)
+
+    assert len(recorded) == 1, "_decode_voice_sample_to_tmp_file must be called once"
+    # Temp file should have been cleaned up by the finally block inside generate()
+    assert not os.path.exists(recorded[0]), "Temp voice file must be deleted after generate()"
+
+
 def test_cleanup_tmp_voice_file() -> None:
     """_cleanup_tmp_voice_file removes the file and handles None / missing paths gracefully."""
     model = VibeVoiceGeneration()
