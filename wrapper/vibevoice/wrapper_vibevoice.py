@@ -269,9 +269,7 @@ class VibeVoiceGeneration(ModelGeneration):
                     with open(debug_voice_path, "wb") as out_f:
                         out_f.write(audio_bytes)
                     logging.info(
-                        "Saved voice_sample to %s (%d bytes).",
-                        debug_voice_path,
-                        len(audio_bytes),
+                        f"Saved voice_sample to {debug_voice_path} ({len(audio_bytes)} bytes)."
                     )
                     voice_path = debug_voice_path
                     # _tmp_voice_path stays None: debug file is not cleaned up so it
@@ -284,7 +282,7 @@ class VibeVoiceGeneration(ModelGeneration):
                 logging.info("Using cloned voice from provided voice_sample.")
             else:
                 voice_path = self.voice_mapper.get_voice_path(voice)
-                logging.info("Using voice: %s -> %s", voice, voice_path)
+                logging.info(f"Using voice: {voice} -> {voice_path}")
             voice_samples = [voice_path]
 
             # https://github.com/microsoft/VibeVoice/blob/main/demo/inference_from_file.py
