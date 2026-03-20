@@ -8,7 +8,7 @@ For example, [StreamCast](apps/README.md) is a service that generates real-time 
 
 ---
 
-> [!Systems Research Disclaimer]
+> [!IMPORTANT]
 >
 > This project focuses on **systems research** — specifically the infrastructure, scheduling, provisioning, and serving aspects of multi-modal generation workloads.
 > The application workloads are used to **stress-test and evaluate the system**, not to assess or guarantee the quality of the generated content.
