@@ -87,6 +87,18 @@
                         <input type="number" class="form-control" id="max_tokens" name="max_tokens" value="5120" min="1">
                     </div>
 
+                    <!-- Advanced Settings (collapsed by default) -->
+                    <div class="mb-3 text-end">
+                        <button class="btn btn-outline-secondary btn-sm" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#advanced-settings"
+                                aria-expanded="false" aria-controls="advanced-settings"
+                                title="Advanced Settings">
+                            ⚙️
+                        </button>
+                    </div>
+
+                    <div class="collapse" id="advanced-settings">
+
                     <h4>🎨 Image</h4>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
@@ -194,7 +206,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-6">
+                    <div class="mb-4">
                         <label for="speech_speed" class="form-label">🎙️ Speech speed:</label>
                         <span id="speech_speed_value">1.1</span>x
                         <input type="range" class="form-range"
@@ -202,6 +214,8 @@
                             value="1.1" min="0.5" max="2.0" step="0.1"
                             oninput="document.getElementById('speech_speed_value').textContent = this.value">
                     </div>
+
+                    </div><!-- end #advanced-settings -->
 
                     <!-- Estimate + submit -->
                     <div class="mb-3">
