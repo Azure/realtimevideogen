@@ -618,6 +618,7 @@ async def api_add_pod() -> QuartReturn:
     ephemeral_storage_gib = int(form.get("ephemeralStorage", 16))
     gpu = int(form.get("gpu", 0))
     gpu_type = form.get("gpu_type")
+    mig_profile = form.get("mig_profile", "").strip() or None
     tag = form.get("tag", "").strip() or None
     lb_rg = form.get("lb_rg")
     lb_ip = form.get("lb_ip")
@@ -630,6 +631,7 @@ async def api_add_pod() -> QuartReturn:
             ephemeral_storage_gib=ephemeral_storage_gib,
             gpu=gpu,
             gpu_type=gpu_type,
+            mig_profile=mig_profile,
             tag=tag,
             lb_rg=lb_rg,
             lb_ip=lb_ip,

@@ -168,6 +168,33 @@
                             </select>
                         </div>
                     </div>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <label for="wrapper_mig_profile" class="form-label">
+                                🔀 MIG Profile
+                                <span tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Optional. Select a MIG profile to share one A100/H100 GPU between multiple pods. Leave as 'None (full GPU)' to use a whole GPU. Requires MIG mode enabled on the node."
+                                    style="cursor:pointer;">ℹ️</span>
+                            </label>
+                            <select class="form-select" id="wrapper_mig_profile" name="mig_profile">
+                                <option value="">None (full GPU)</option>
+                                <optgroup label="A100 40 GB profiles">
+                                    <option value="1g.5gb">1g.5gb — 1/7 GPU, 5 GB</option>
+                                    <option value="2g.10gb">2g.10gb — 2/7 GPU, 10 GB</option>
+                                    <option value="3g.20gb">3g.20gb — 3/7 GPU, 20 GB</option>
+                                    <option value="4g.20gb">4g.20gb — 4/7 GPU, 20 GB</option>
+                                    <option value="7g.40gb">7g.40gb — full GPU, 40 GB</option>
+                                </optgroup>
+                                <optgroup label="A100 80 GB / H100 80 GB profiles">
+                                    <option value="1g.10gb">1g.10gb — 1/7 GPU, 10 GB</option>
+                                    <option value="2g.20gb">2g.20gb — 2/7 GPU, 20 GB</option>
+                                    <option value="3g.40gb">3g.40gb — 3/7 GPU, 40 GB</option>
+                                    <option value="4g.40gb">4g.40gb — 4/7 GPU, 40 GB</option>
+                                    <option value="7g.80gb">7g.80gb — full GPU, 80 GB</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
                 </fieldset>
 
                 <!-- Load Balancer / Public IP Section -->
@@ -357,7 +384,7 @@
             const defaults = {
                 podcasttranscript:   {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
                 slidetranscript:     {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
-                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1},
+                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.5gb'},
                 xtts:                {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1},
                 thinksound:          {cpu:2,  memory:8,   ephemeralStorage:32, gpu:1},
                 vibevoice:           {cpu:4,  memory:8,   ephemeralStorage:32, gpu:1},
@@ -375,7 +402,7 @@
                 flux2klein:          {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
                 imageresize:         {cpu:4,  memory:8,   ephemeralStorage:16, gpu:0},
                 realesrgan:          {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
-                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
+                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.5gb'},
                 bagel:               {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 gemma:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
                 llama32:             {cpu:12, memory:192, ephemeralStorage:96, gpu:4},
@@ -409,8 +436,13 @@
                 const ephemeral = document.getElementById('wrapper_ephemeralStorage').value;
                 const gpu = document.getElementById('wrapper_gpu').value;
                 const gpu_type = document.getElementById('wrapper_gpu_type').value;
+                const mig_profile = document.getElementById('wrapper_mig_profile').value;
                 const info = document.getElementById('preset-info');
-                info.innerHTML = `CPU: <b>${cpu}</b> cores, Memory: <b>${memory}</b> GiB, Ephemeral: <b>${ephemeral}</b> GiB, GPU: <b>${gpu}</b> (${getFriendlyGpuType(gpu_type)})`;
+                let gpuDesc = `<b>${gpu}</b> (${getFriendlyGpuType(gpu_type)})`;
+                if (mig_profile) {
+                    gpuDesc += ` MIG <b>${mig_profile}</b>`;
+                }
+                info.innerHTML = `CPU: <b>${cpu}</b> cores, Memory: <b>${memory}</b> GiB, Ephemeral: <b>${ephemeral}</b> GiB, GPU: ${gpuDesc}`;
                 info.style.display = '';
             }
 
@@ -436,13 +468,13 @@
                             document.getElementById('wrapper_gpu_val').textContent = defaults[val].gpu + " GPUs";
                         }
                         document.getElementById('wrapper_gpu_type').value = defaults[val].gpu_type || 'any';
-
+                        document.getElementById('wrapper_mig_profile').value = defaults[val].mig_profile || '';
                     }
                     updatePresetInfo(val);
                 });
 
                 // Add listeners to sliders to update info box
-                ['wrapper_cpu','wrapper_memory','wrapper_ephemeralStorage','wrapper_gpu','wrapper_gpu_type'].forEach(function(id) {
+                ['wrapper_cpu','wrapper_memory','wrapper_ephemeralStorage','wrapper_gpu','wrapper_gpu_type','wrapper_mig_profile'].forEach(function(id) {
                     document.getElementById(id).addEventListener('input', function() {
                         updatePresetInfo(document.getElementById('wrapper_container_name').value);
                     });

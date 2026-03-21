@@ -212,6 +212,31 @@ def get_gpu_type_affinity(gpu_type: Optional[str]) -> List[str]:
     return []
 
 
+# Valid NVIDIA MIG profiles for A100 and H100 GPUs.
+# Each profile name maps to the Kubernetes resource suffix (nvidia.com/mig-<profile>).
+MIG_PROFILES = {
+    # A100 40 GB profiles
+    "1g.5gb",
+    "2g.10gb",
+    "3g.20gb",
+    "4g.20gb",
+    "7g.40gb",
+    # A100 80 GB / H100 80 GB profiles
+    "1g.10gb",
+    "2g.20gb",
+    "3g.40gb",
+    "4g.40gb",
+    "7g.80gb",
+}
+
+
+def get_mig_resource_name(mig_profile: str) -> Optional[str]:
+    """Return the Kubernetes resource name for a given MIG profile, or None if invalid."""
+    if mig_profile in MIG_PROFILES:
+        return f"nvidia.com/mig-{mig_profile}"
+    return None
+
+
 def get_container_port(container_name: str) -> int:
     """Get the default container port for a given container name, with special cases for certain containers."""
     if container_name in VLLM_SERVICES:
@@ -239,6 +264,7 @@ async def add_pod(
     ephemeral_storage_gib: int = 16,
     gpu: int = 0,
     gpu_type: Optional[str] = None,
+    mig_profile: Optional[str] = None,
     tag: Optional[str] = None,
     lb_rg: Optional[str] = None,
     lb_ip: Optional[str] = None,
@@ -249,13 +275,23 @@ async def add_pod(
     """
     API interface to add a pod for the specified container.
     If this does not work, try "deployment/helm/deploy.sh" to deploy namespace, etc.
+
+    When *mig_profile* is provided (e.g. ``"1g.5gb"``), the pod requests a
+    MIG slice instead of a whole GPU.  The *gpu* parameter then represents
+    the number of MIG instances requested (usually 1).  MIG is only supported
+    on A100 and H100 GPUs; set *gpu_type* accordingly (``"a100"``, ``"h100"``,
+    or ``"a+"``/``"h+"``) so the pod is scheduled on a MIG-capable node.
     """
     if not container_name:
         return jsonify({"error": "Missing required parameter 'container_name'"}), HTTPStatus.BAD_REQUEST
 
+    if mig_profile and not get_mig_resource_name(mig_profile):
+        return jsonify({"error": f"Invalid MIG profile '{mig_profile}'"}), HTTPStatus.BAD_REQUEST
+
     logging.info(
         f"Adding pod for '{container_name}' with {cpu} CPU, {memory_gib} GiB memory, "
-        f"{ephemeral_storage_gib} GiB storage, {gpu} GPU(s) of type '{gpu_type}'. "
+        f"{ephemeral_storage_gib} GiB storage, {gpu} GPU(s) of type '{gpu_type}'"
+        + (f" MIG profile '{mig_profile}'" if mig_profile else "") + ". "
         f"Load balancer RG: '{lb_rg}', IP: '{lb_ip}', port: '{lb_port}'.")
 
     # Resources
@@ -271,8 +307,14 @@ async def add_pod(
         resource_request["ephemeral-storage"] = f"{ephemeral_storage_gib}Gi"
         resource_limit["ephemeral-storage"] = f"{ephemeral_storage_gib * 2}Gi"
     if gpu and gpu > 0:
-        resource_request["nvidia.com/gpu"] = gpu
-        resource_limit["nvidia.com/gpu"] = gpu
+        if mig_profile:
+            # Request a MIG slice: nvidia.com/mig-<profile> (e.g. nvidia.com/mig-1g.5gb)
+            mig_resource = get_mig_resource_name(mig_profile)
+            resource_request[mig_resource] = gpu  # type: ignore[index]
+            resource_limit[mig_resource] = gpu  # type: ignore[index]
+        else:
+            resource_request["nvidia.com/gpu"] = gpu
+            resource_limit["nvidia.com/gpu"] = gpu
 
     image_url = await get_docker_image(container_name, tag=tag)
     if image_url is None:
@@ -435,6 +477,7 @@ async def add_pod(
             "container_name": container_name,
             "image_url": image_url,
             "resource_request": resource_request,
+            **({"mig_profile": mig_profile} if mig_profile else {}),
         }), HTTPStatus.OK
 
 
