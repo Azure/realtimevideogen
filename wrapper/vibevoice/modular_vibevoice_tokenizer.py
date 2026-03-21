@@ -815,6 +815,7 @@ class TokenizerEncoder(nn.Module):
         disable_last_norm = getattr(config, "disable_last_norm", False)
 
         # determine the norm type based on layernorm
+        # norm_type is Any because it can be either a class (ConvLayerNorm) or a partial callable (partial[ConvRMSNorm])
         norm_type: Any
         if layernorm == 'LN':
             norm_type = ConvLayerNorm
@@ -983,6 +984,7 @@ class TokenizerDecoder(nn.Module):
         disable_last_norm = getattr(config, "disable_last_norm", False)
 
         # determine the norm type based on layernorm
+        # norm_type is Any because it can be either a class (ConvLayerNorm) or a partial callable (partial[ConvRMSNorm])
         norm_type: Any
         if layernorm == 'LN':
             norm_type = ConvLayerNorm

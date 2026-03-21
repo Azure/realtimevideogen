@@ -1,5 +1,8 @@
 """Tokenization classes for vibevoice."""
 
+from typing import Any
+from typing import Optional
+
 from transformers.utils import logging
 from transformers.models.qwen2.tokenization_qwen2 import Qwen2Tokenizer
 # TODO this is gone now
@@ -34,17 +37,17 @@ class VibeVoiceTextTokenizer(Qwen2Tokenizer):
 
     def __init__(
         self,
-        vocab_file,
-        merges_file,
-        errors="replace",
-        unk_token="<|endoftext|>",
-        bos_token=None,
-        eos_token="<|endoftext|>",
-        pad_token="<|endoftext|>",
-        add_prefix_space=False,
-        add_special_tokens=True,
-        **kwargs,
-    ):
+        vocab_file: str,
+        merges_file: str,
+        errors: str = "replace",
+        unk_token: Optional[str] = "<|endoftext|>",
+        bos_token: Optional[str] = None,
+        eos_token: Optional[str] = "<|endoftext|>",
+        pad_token: Optional[str] = "<|endoftext|>",
+        add_prefix_space: bool = False,
+        add_special_tokens: bool = True,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
             vocab_file=vocab_file,
             merges_file=merges_file,
@@ -61,7 +64,7 @@ class VibeVoiceTextTokenizer(Qwen2Tokenizer):
         # Add VibeVoice-specific special tokens
         self._add_vibevoice_special_tokens()
 
-    def _add_vibevoice_special_tokens(self):
+    def _add_vibevoice_special_tokens(self) -> int:
         """Add VibeVoice-specific special tokens."""
         special_tokens = {
             "additional_special_tokens": [
@@ -133,16 +136,16 @@ class VibeVoiceTextTokenizerFast(Qwen2Tokenizer):
 
     def __init__(
         self,
-        vocab_file=None,
-        merges_file=None,
-        tokenizer_file=None,
-        unk_token="<|endoftext|>",
-        bos_token=None,
-        eos_token="<|endoftext|>",
-        pad_token="<|endoftext|>",
-        add_prefix_space=False,
-        **kwargs,
-    ):
+        vocab_file: Optional[str] = None,
+        merges_file: Optional[str] = None,
+        tokenizer_file: Optional[str] = None,
+        unk_token: Optional[str] = "<|endoftext|>",
+        bos_token: Optional[str] = None,
+        eos_token: Optional[str] = "<|endoftext|>",
+        pad_token: Optional[str] = "<|endoftext|>",
+        add_prefix_space: bool = False,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
             vocab_file=vocab_file,
             merges_file=merges_file,
@@ -158,7 +161,7 @@ class VibeVoiceTextTokenizerFast(Qwen2Tokenizer):
         # Add VibeVoice-specific special tokens
         self._add_vibevoice_special_tokens()
 
-    def _add_vibevoice_special_tokens(self):
+    def _add_vibevoice_special_tokens(self) -> int:
         """Add VibeVoice-specific special tokens."""
         special_tokens = {
             "additional_special_tokens": [

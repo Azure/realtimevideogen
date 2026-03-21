@@ -101,14 +101,15 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
         normalize_audio: bool = True,
         target_dB_FS: float = -25,
         eps: float = 1e-6,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
 
         self.sampling_rate = sampling_rate
         self.normalize_audio = normalize_audio
 
         # Initialize audio normalizer if needed
+        self.normalizer: Optional[AudioNormalizer]
         if self.normalize_audio:
             self.normalizer = AudioNormalizer(target_dB_FS=target_dB_FS, eps=eps)
         else:
@@ -173,11 +174,11 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
 
     def __call__(
         self,
-        audio: Union[str, np.ndarray, List[float], List[np.ndarray], List[List[float]], List[str]] = None,
+        audio: Optional[Union[str, np.ndarray, List[float], List[np.ndarray], List[List[float]], List[str]]] = None,
         sampling_rate: Optional[int] = None,
         return_tensors: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Process audio for VibeVoice models.
         Args:
@@ -215,7 +216,7 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
             # Check if it's a list of file paths
             if all(isinstance(item, str) for item in audio):
                 # Batch of audio file paths
-                audio = [self._load_audio_from_path(path) for path in audio]
+                audio = [self._load_audio_from_path(path) for path in audio if isinstance(path, str)]
                 is_batched = True
             else:
                 # Check if it's batched audio arrays
@@ -336,7 +337,7 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
         sampling_rate: Optional[int] = None,
         normalize: bool = False,
         batch_prefix: str = "audio_",
-    ):
+    ) -> List[str]:
         """
         Save audio data to WAV file(s).
         Args:

@@ -173,7 +173,7 @@ class StreamChatJob(StreamWiseJob):
             """
 
             return {
-                "id": msg_id,
+                "id": str(msg_id),
                 "reply": response_text,
             }
 
@@ -227,6 +227,7 @@ class StreamChatJob(StreamWiseJob):
         lang_code = "a"  # American English TODO
         response_text_clean = response_text.replace("\n", " ").strip()
         response_text_clean = remove_emojis(response_text_clean)
+        assert self.character is not None, "Character must be set before generating audio"
         audio_base64 = await self.gen.gen_audio(
             text=response_text_clean,
             voice=self.character.voice,

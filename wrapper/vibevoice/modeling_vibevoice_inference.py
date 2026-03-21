@@ -171,7 +171,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         self,
         acoustic_tokenizer: Optional[Any] = None,
         semantic_tokenizer: Optional[Any] = None,
-    ):
+    ) -> None:
         """Set the speech tokenizers used for encoding and decoding speech."""
         self.model.set_speech_tokenizers(acoustic_tokenizer, semantic_tokenizer)
 
@@ -218,7 +218,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         speech_masks: Optional[torch.BoolTensor] = None,
         speech_input_mask: Optional[torch.BoolTensor] = None,
         logits_to_keep: Union[int, slice] = 0,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Tuple, VibeVoiceCausalLMOutputWithPast]:
         """
         Args:
@@ -285,12 +285,14 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         **kwargs: Dict[str, Any]
     ) -> Any:
         if generation_config is None:
+            assert tokenizer is not None, "tokenizer must be provided when generation_config is None"
             generation_config = GenerationConfig(
                 bos_token_id=tokenizer.bos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id
             )
         else:
+            assert tokenizer is not None, "tokenizer must be provided"
             generation_config = GenerationConfig(
                 **generation_config,
                 bos_token_id=tokenizer.bos_token_id,
@@ -359,7 +361,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             return generation_config, model_kwargs, input_ids
 
     @torch.no_grad()
-    def generate(  # type: ignore[override]
+    def generate(
         self,
         inputs: Optional[torch.Tensor] = None,
         generation_config: Optional[GenerationConfig] = None,
@@ -377,7 +379,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         return_speech: bool = True,
         cfg_scale: float = 1.0,
         stop_check_fn: Optional[Callable[[], bool]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[torch.LongTensor, VibeVoiceGenerationOutput]:
         """
         Generates sequences of token ids and optionally speech outputs.
@@ -441,7 +443,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         verbose = kwargs.get("verbose", False)
 
         # Initialize audio chunks storage for each sample
-        audio_chunks = [[] for _ in range(batch_size)]
+        audio_chunks: List[List[Any]] = [[] for _ in range(batch_size)]
 
         initial_length = input_ids.shape[-1]
         initial_length_per_sample = model_kwargs['attention_mask'].sum(dim=-1)
@@ -514,6 +516,9 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
             if is_prefill:
                 # we process the speech inputs only during the first generation step
+                assert speech_tensors is not None
+                assert speech_masks is not None
+                assert speech_input_mask is not None
                 prefill_inputs = {
                     "speech_tensors": speech_tensors.to(device=device),
                     "speech_masks": speech_masks.to(device),
