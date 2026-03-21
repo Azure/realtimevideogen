@@ -15,7 +15,7 @@
 # DISCLAIMER: This file is strongly influenced by https://github.com/LuChengTHU/dpm-solver
 
 import math
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -29,7 +29,7 @@ from diffusers.schedulers.scheduling_utils import SchedulerOutput
 
 
 def betas_for_alpha_bar(
-    num_diffusion_timesteps,
+    num_diffusion_timesteps: int,
     max_beta: float = 0.999,
     alpha_transform_type: str = "cosine",
 ) -> torch.Tensor:
@@ -65,22 +65,20 @@ def betas_for_alpha_bar(
     elif alpha_transform_type == "cauchy":
         # µ + γ tan (π (0.5 - x))  γ = 1, µ = 3
         # alpha^2 = 1-1/(exp(λ)+1)
-        def alpha_bar_fn(
-            t: float,
-            gamma: float = 1,
-            mu: float = 3
-        ) -> float:
-            snr = mu + gamma * math.tan(math.pi * (0.5 - t) * 0.9)
+        _gamma: float = 1.0
+        _mu_c: float = 3.0
+
+        def alpha_bar_fn(t: float) -> float:
+            snr = _mu_c + _gamma * math.tan(math.pi * (0.5 - t) * 0.9)
             return 1 - 1 / (math.exp(snr) + 1.1)
 
     elif alpha_transform_type == "laplace":
         # µ − bsgn(0.5 − t) log(1 − 2|t − 0.5|) µ = 0, b = 1
-        def alpha_bar_fn(
-            t: float,
-            mu: float = 0,
-            b: float = 1
-        ) -> float:
-            snr = mu - b * math.copysign(1, 0.5 - t) * math.log(1 - 2 * abs(t - 0.5) * 0.98)
+        _mu_l: float = 0.0
+        _b: float = 1.0
+
+        def alpha_bar_fn(t: float) -> float:
+            snr = _mu_l - _b * math.copysign(1, 0.5 - t) * math.log(1 - 2 * abs(t - 0.5) * 0.98)
             return 1 - 1 / (math.exp(snr) + 1.02)
 
     else:
@@ -301,24 +299,24 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             )
 
         # setable values
-        self.num_inference_steps = None
+        self.num_inference_steps: Optional[int] = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
         self.timesteps = torch.from_numpy(timesteps)
         self.model_outputs = [None] * solver_order
         self.lower_order_nums = 0
-        self._step_index = None
-        self._begin_index = None
+        self._step_index: Optional[int] = None
+        self._begin_index: Optional[int] = None
         self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
 
     @property
-    def step_index(self) -> int:
+    def step_index(self) -> Optional[int]:
         """
         The index counter for current timestep. It will increase 1 after each scheduler step.
         """
         return self._step_index
 
     @property
-    def begin_index(self) -> int:
+    def begin_index(self) -> Optional[int]:
         """
         The index for the first timestep. It should be set from pipeline with `set_begin_index` method.
         """
@@ -372,6 +370,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
             # "linspace", "leading", "trailing" corresponds to annotation of
             # Table 2. of https://arxiv.org/abs/2305.08891
+            assert num_inference_steps is not None
             if self.config.timestep_spacing == "linspace":
                 timesteps = (
                     np.linspace(0, last_timestep - 1, num_inference_steps + 1)
@@ -383,16 +382,18 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 step_ratio = last_timestep // (num_inference_steps + 1)
                 # creates integer timesteps by multiplying by ratio
                 # casting to int to avoid issues when num_inference_step is power of 3
-                timesteps = (
+                _ts_leading = (
                     (np.arange(0, num_inference_steps + 1) * step_ratio).round()[::-1][:-1].copy().astype(np.int64)
                 )
-                timesteps += self.config.steps_offset
+                _ts_leading += self.config.steps_offset
+                timesteps = _ts_leading
             elif self.config.timestep_spacing == "trailing":
                 step_ratio = self.config.num_train_timesteps / num_inference_steps
                 # creates integer timesteps by multiplying by ratio
                 # casting to int to avoid issues when num_inference_step is power of 3
-                timesteps = np.arange(last_timestep, 0, -step_ratio).round().copy().astype(np.int64)
-                timesteps -= 1
+                _ts_trailing = np.arange(last_timestep, 0, -step_ratio).round().copy().astype(np.int64)
+                _ts_trailing -= 1
+                timesteps = _ts_trailing
             else:
                 raise ValueError(
                     f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of "
@@ -403,10 +404,12 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         log_sigmas = np.log(sigmas)
 
         if self.config.use_karras_sigmas:
+            assert num_inference_steps is not None
             sigmas = np.flip(sigmas).copy()
             sigmas = self._convert_to_karras(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
         elif self.config.use_lu_lambdas:
+            assert num_inference_steps is not None
             lambdas = np.flip(log_sigmas.copy())
             lambdas = self._convert_to_lu(in_lambdas=lambdas, num_inference_steps=num_inference_steps)
             sigmas = np.exp(lambdas)
@@ -475,7 +478,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         return sample
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._sigma_to_t
-    def _sigma_to_t(self, sigma, log_sigmas):
+    def _sigma_to_t(self, sigma: np.ndarray, log_sigmas: np.ndarray) -> np.ndarray:
         # get log sigma
         log_sigma = np.log(np.maximum(sigma, 1e-10))
 
@@ -498,14 +501,14 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         t = t.reshape(sigma.shape)
         return t
 
-    def _sigma_to_alpha_sigma_t(self, sigma):
+    def _sigma_to_alpha_sigma_t(self, sigma: Any) -> Tuple[Any, Any]:
         alpha_t = 1 / ((sigma**2 + 1) ** 0.5)
         sigma_t = sigma * alpha_t
 
         return alpha_t, sigma_t
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._convert_to_karras
-    def _convert_to_karras(self, in_sigmas: torch.Tensor, num_inference_steps) -> torch.Tensor:
+    def _convert_to_karras(self, in_sigmas: torch.Tensor, num_inference_steps: int) -> torch.Tensor:
         """Constructs the noise schedule of Karras et al. (2022)."""
 
         # Hack to make sure that other schedulers which copy this function don't break
@@ -530,7 +533,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigmas = (max_inv_rho + ramp * (min_inv_rho - max_inv_rho)) ** rho
         return sigmas
 
-    def _convert_to_lu(self, in_lambdas: torch.Tensor, num_inference_steps) -> torch.Tensor:
+    def _convert_to_lu(self, in_lambdas: torch.Tensor, num_inference_steps: int) -> torch.Tensor:
         """Constructs the noise schedule of Lu et al. (2022)."""
 
         lambda_min: float = in_lambdas[-1].item()
@@ -546,9 +549,9 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     def convert_model_output(
         self,
         model_output: torch.Tensor,
-        *args,
-        sample: torch.Tensor = None,
-        **kwargs,
+        *args: Any,
+        sample: Optional[torch.Tensor] = None,
+        **kwargs: Any,
     ) -> torch.Tensor:
         """
         Convert the model output to the corresponding type the DPMSolver/DPMSolver++ algorithm needs. DPM-Solver is
@@ -646,10 +649,10 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     def dpm_solver_first_order_update(
         self,
         model_output: torch.Tensor,
-        *args,
-        sample: torch.Tensor = None,
+        *args: Any,
+        sample: Optional[torch.Tensor] = None,
         noise: Optional[torch.Tensor] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> torch.Tensor:
         """
         One step for the first-order DPMSolver (equivalent to DDIM).
@@ -687,6 +690,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 "via an internal counter `self.step_index`",
             )
 
+        assert self.step_index is not None
         sigma_t, sigma_s = self.sigmas[self.step_index + 1], self.sigmas[self.step_index]
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s, sigma_s = self._sigma_to_alpha_sigma_t(sigma_s)
@@ -717,10 +721,10 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     def multistep_dpm_solver_second_order_update(
         self,
         model_output_list: List[torch.Tensor],
-        *args,
-        sample: torch.Tensor = None,
+        *args: Any,
+        sample: Optional[torch.Tensor] = None,
         noise: Optional[torch.Tensor] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> torch.Tensor:
         """
         One step for the second-order multistep DPMSolver.
@@ -758,6 +762,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 "via an internal counter `self.step_index`",
             )
 
+        assert self.step_index is not None
         sigma_t, sigma_s0, sigma_s1 = (
             self.sigmas[self.step_index + 1],
             self.sigmas[self.step_index],
@@ -842,9 +847,9 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     def multistep_dpm_solver_third_order_update(
         self,
         model_output_list: List[torch.Tensor],
-        *args,
-        sample: torch.Tensor = None,
-        **kwargs,
+        *args: Any,
+        sample: Optional[torch.Tensor] = None,
+        **kwargs: Any,
     ) -> torch.Tensor:
         """
         One step for the third-order multistep DPMSolver.
@@ -883,6 +888,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 "via an internal counter `self.step_index`",
             )
 
+        assert self.step_index is not None
         sigma_t, sigma_s0, sigma_s1, sigma_s2 = (
             self.sigmas[self.step_index + 1],
             self.sigmas[self.step_index],
@@ -926,7 +932,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             )
         return x_t
 
-    def index_for_timestep(self, timestep, schedule_timesteps=None):
+    def index_for_timestep(self, timestep: Any, schedule_timesteps: Optional[torch.Tensor] = None) -> int:
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
@@ -945,7 +951,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         return step_index
 
-    def _init_step_index(self, timestep):
+    def _init_step_index(self, timestep: Any) -> None:
         """
         Initialize the step_index counter for the scheduler.
         """
@@ -962,7 +968,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         model_output: torch.Tensor,
         timestep: int,
         sample: torch.Tensor,
-        generator=None,
+        generator: Optional[torch.Generator] = None,
         variance_noise: Optional[torch.Tensor] = None,
         return_dict: bool = True,
     ) -> Union[SchedulerOutput, Tuple]:
@@ -1021,6 +1027,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 model_output.shape, generator=generator, device=model_output.device, dtype=torch.float32
             )
         elif self.config.algorithm_type in ["sde-dpmsolver", "sde-dpmsolver++"]:
+            assert variance_noise is not None
             noise = variance_noise.to(device=model_output.device, dtype=torch.float32)
         else:
             noise = None
@@ -1039,6 +1046,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         prev_sample = prev_sample.to(model_output.dtype)
 
         # upon completion increase step index by one
+        assert self._step_index is not None
         self._step_index += 1
 
         if not return_dict:
@@ -1091,5 +1099,5 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         velocity = alpha_t * noise - sigma_t * original_samples
         return velocity
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.config.num_train_timesteps
