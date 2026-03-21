@@ -259,6 +259,9 @@ class StreamDubJob(StreamWiseJob):
 
         # TODO make this async into tasks
 
+        if "♪" in scene.transcript:
+            self.logger.info(f"[{scene_id}] Scene contains music ({scene.transcript}), skip dubbing.")
+            return await self.get_video_scene(scene)
         if _is_empty_transcript(scene.transcript):
             self.logger.info(f"[{scene_id}] Scene has no translatable text ({scene.transcript!r}), skip dubbing.")
             return await self.get_video_scene(scene)
