@@ -26,7 +26,7 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
 
     @functools.wraps(transformer.__class__.forward)
     def new_forward(
-        self,
+        self: Any,
         hidden_states: torch.Tensor,
         encoder_hidden_states: Optional[torch.Tensor] = None,
         *args: Any,
@@ -43,6 +43,7 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
             raise ValueError(f"Cannot split {hidden_states.shape[0]} ({hidden_states.shape}) into {cfg_world} parts")
         if hidden_states.shape[-2] % sp_world != 0:
             raise ValueError(f"Cannot split {hidden_states.shape[-2]} ({hidden_states.shape}) into {sp_world} parts")
+        assert encoder_hidden_states is not None, "encoder_hidden_states must not be None"
         if encoder_hidden_states.shape[-2] % sp_world != 0:
             get_runtime_state().split_text_embed_in_sp = False
         else:
@@ -80,7 +81,7 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
             return output.__class__(sample, *output[1:])
         return (sample, *output[1:])
 
-    new_forward = new_forward.__get__(transformer)
+    new_forward = new_forward.__get__(transformer)  # type: ignore[attr-defined]
     transformer.forward = new_forward
 
     return pipe

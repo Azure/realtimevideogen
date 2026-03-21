@@ -93,8 +93,8 @@ def attn_varlen_func(
     cu_seqlens_kv: torch.Tensor,
     max_seqlen_q: int,
     max_seqlen_kv: int,
-    hybrid_seq_parallel_attn=None,
-    attn=None
+    hybrid_seq_parallel_attn: Any = None,
+    attn: Any = None
 ) -> torch.Tensor:
     if cu_seqlens_q is None and cu_seqlens_kv is None and max_seqlen_q is None and max_seqlen_kv is None:
         # Needed for XDiT
@@ -197,14 +197,14 @@ def parallelize_transformer(pipe_hunyuan: HunyuanVideoFramepackPipeline) -> Huny
     """
     @functools.wraps(transformer.__class__.forward)
     def new_forward(
-        self,
+        self: Any,
         hidden_states: torch.Tensor,  # shape: [1, 16, 9, 80, 76]
-        timestep,
+        timestep: Any,
         encoder_hidden_states: torch.Tensor,  # shape: [1, 512, 4096]
         encoder_attention_mask: torch.Tensor,  # shape: [1, 512]
-        pooled_projections,
-        guidance,
-        latent_indices=None,
+        pooled_projections: Any,
+        guidance: Any,
+        latent_indices: Any = None,
         clean_latents: Optional[torch.Tensor] = None,            # shape: [1, 16,  2, 80, 76]
         clean_latent_indices: Optional[torch.Tensor] = None,     # shape: [1, 2]
         clean_latents_2x: Optional[torch.Tensor] = None,         # shape: [1, 16,  2, 80, 76]
@@ -329,7 +329,7 @@ def parallelize_transformer(pipe_hunyuan: HunyuanVideoFramepackPipeline) -> Huny
 
         return hidden_states,
 
-    new_forward = new_forward.__get__(transformer)
+    new_forward = new_forward.__get__(transformer)  # type: ignore[attr-defined]
     transformer.forward = new_forward
 
     # Apply the xFuser attention processor to all transformer blocks
