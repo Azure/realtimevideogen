@@ -59,11 +59,13 @@ jobs:
         echo "## Mypy Type Checking" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || echo 0)
+        WARNING_COUNT=$(grep -c ": warning:" mypy-results.txt 2>/dev/null || echo 0)
         NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || echo 0)
         echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
         echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Errors | ${ERROR_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Notes  | ${NOTE_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| ❌ Errors | ${ERROR_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| ⚠️ Warnings | ${WARNING_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| 📝 Notes | ${NOTE_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         echo "<details><summary>Full mypy output</summary>" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
