@@ -61,7 +61,7 @@ jobs:
         ls -lh base-image.tar.gz
 
     - name: Upload base image artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v8
       with:
         name: base-image
         path: base-image.tar.gz
@@ -87,7 +87,7 @@ jobs:
         df -h
 
     - name: Download base image artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v8
       with:
         name: base-image
 
@@ -192,7 +192,7 @@ jobs:
 
     - name: Upload audio artifact
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v8
       with:
         name: kokoro-test-audio
         path: test_audio.wav
@@ -234,7 +234,7 @@ jobs:
         df -h
 
     - name: Download base image artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v8
       with:
         name: base-image
 
@@ -277,7 +277,7 @@ jobs:
 
     - name: Upload ${{ matrix.app }} pages artifact
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v8
       with:
         name: ${{ matrix.app }}-pages
         path: app_pages/
@@ -306,7 +306,7 @@ jobs:
         df -h
 
     - name: Download base image artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v8
       with:
         name: base-image
 
@@ -349,7 +349,7 @@ jobs:
 
     - name: Upload StreamWise pages artifact
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v8
       with:
         name: streamwise-pages
         path: streamwise_pages/
