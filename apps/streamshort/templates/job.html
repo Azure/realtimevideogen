@@ -181,13 +181,13 @@
             <div class="col-12 mb-3" id="scenes-section" style="display: none;">
                 <h2 class="mt-5 mb-3">🎞️ Scenes</h2>
                 <p id="scenes-info">No scenes.</p>
-                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
+                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
             </div>
 
             <div class="col-12 mb-3" id="selected-scenes-section" style="display: none;">
                 <h2 class="mt-5 mb-3">✂️ Selected for Short</h2>
                 <p id="selected-scenes-info">No scenes selected yet.</p>
-                <div id="selected-scenes-content" class="p-3 rounded" style="background-color: #d1e7dd; font-family: monospace;"></div>
+                <div id="selected-scenes-content" class="p-3 rounded" style="background-color: #d1e7dd; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
             </div>
 
             <div class="col-12 mb-3" id="frames-section" style="display: none;">
@@ -311,13 +311,25 @@
                         if (!sceneRow) {
                             sceneRow = document.createElement("div");
                             sceneRow.id = sceneRowId;
-                            sceneRow.className = "mb-4 d-flex gap-3 align-items-start p-2 rounded";
+                            sceneRow.className = "mb-4 p-3 border rounded bg-white shadow-sm";
                             scenesContent.appendChild(sceneRow);
+
+                            // Header
+                            const header = document.createElement("h6");
+                            header.id = `scene-title-${sceneId}`;
+                            header.className = "fw-bold text-primary mb-3";
+                            header.textContent = `Scene ${sceneId}  (${scene.start_sec.toFixed(1)}s – ${scene.end_sec.toFixed(1)}s)`;
+                            sceneRow.appendChild(header);
+
+                            // Inner row
+                            const innerRow = document.createElement("div");
+                            innerRow.className = "d-flex gap-3 align-items-start";
+                            sceneRow.appendChild(innerRow);
 
                             // Wrapper for media (left)
                             const mediaColumn = document.createElement("div");
                             mediaColumn.className = "me-3 d-flex flex-column align-items-start";
-                            sceneRow.appendChild(mediaColumn);
+                            innerRow.appendChild(mediaColumn);
 
                             // Image (top-left)
                             if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
@@ -355,10 +367,9 @@
 
                             // Text (right)
                             const sceneText = document.createElement("div");
-                            const color = "text-primary";
-                            sceneText.innerHTML = `<span id="scene-title-${sceneId}" class="${color}"><strong>Scene ${sceneId} (${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} seconds)</strong></span>`;
+                            sceneText.className = "flex-fill";
                             if (scene.descriptions && scene.descriptions.length > 0) {
-                                sceneText.innerHTML += `<p><strong>${scene.descriptions.length} frame descriptions:</strong><p>`;
+                                sceneText.innerHTML = `<p><strong>${scene.descriptions.length} frame descriptions:</strong></p>`;
                             }
                             for (const desc of scene.descriptions) {
                                 const p = document.createElement("p");
@@ -366,12 +377,11 @@
                                 sceneText.appendChild(p);
                             }
                             if (scene.transcript) {
-                                const transcriptHeader = document.createElement("p");
                                 const transcriptPara = document.createElement("p");
                                 transcriptPara.innerHTML = `<strong>Transcript:</strong>` + scene.transcript;
                                 sceneText.appendChild(transcriptPara);
                             }
-                            sceneRow.appendChild(sceneText);
+                            innerRow.appendChild(sceneText);
 
                             // Apply selection highlight if already known
                             if (selectedSceneIds.has(sceneId)) {
@@ -450,9 +460,9 @@
                 const count = totalScenes !== undefined ? totalScenes : scenesContent.children.length;
                 if (selectedSceneIds.size > 0) {
                     scenesInfo.textContent =
-                        `${count} scene(s) detected. ${selectedSceneIds.size} selected for the short (highlighted in green).`;
+                        `Number of scenes: ${count}. ${selectedSceneIds.size} selected for the short (highlighted in green).`;
                 } else {
-                    scenesInfo.textContent = `${count} scene(s) detected.`;
+                    scenesInfo.textContent = `Number of scenes: ${count}.`;
                 }
             }
 

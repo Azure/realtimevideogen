@@ -181,7 +181,7 @@
             <div class="col-12 mb-3" id="scenes-section" style="display: none;">
                 <h2 class="mt-5 mb-3">🎞️ Scenes</h2>
                 <p id="scenes-info">No scenes.</p>
-                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
+                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
             </div>
         </div>
 
@@ -283,7 +283,7 @@
                         waitingSection.style.display = "none";
                         scenesSection.style.display = "block";
                         document.getElementById("scenes-info").textContent =
-                            `${numScenes} scene(s) detected.`;
+                            `Number of scenes: ${numScenes}.`;
                     }
 
                     for (const scene of scenes) {
@@ -293,13 +293,24 @@
 
                         const sceneRow = document.createElement("div");
                         sceneRow.id = sceneRowId;
-                        sceneRow.className = "mb-4 d-flex gap-3 align-items-start p-2 rounded";
+                        sceneRow.className = "mb-4 p-3 border rounded bg-white shadow-sm";
                         scenesContent.appendChild(sceneRow);
+
+                        // Header
+                        const header = document.createElement("h6");
+                        header.className = "fw-bold text-primary mb-3";
+                        header.textContent = `Scene ${sceneId}  (${scene.start_sec.toFixed(1)}s – ${scene.end_sec.toFixed(1)}s)`;
+                        sceneRow.appendChild(header);
+
+                        // Inner row
+                        const row = document.createElement("div");
+                        row.className = "d-flex gap-3 align-items-start";
+                        sceneRow.appendChild(row);
 
                         // --- Original frame column (left) ---
                         const originalColumn = document.createElement("div");
                         originalColumn.className = "d-flex flex-column align-items-start";
-                        sceneRow.appendChild(originalColumn);
+                        row.appendChild(originalColumn);
 
                         const origLabel = document.createElement("small");
                         origLabel.className = "text-muted fw-bold mb-1";
@@ -332,7 +343,7 @@
                         // --- Edited frame column (middle) ---
                         const editedColumn = document.createElement("div");
                         editedColumn.className = "d-flex flex-column align-items-start";
-                        sceneRow.appendChild(editedColumn);
+                        row.appendChild(editedColumn);
 
                         const editLabel = document.createElement("small");
                         editLabel.className = "text-muted fw-bold mb-1";
@@ -356,11 +367,9 @@
 
                         // --- Text column (right) ---
                         const sceneText = document.createElement("div");
-                        sceneText.innerHTML =
-                            `<span class="text-primary"><strong>Scene ${sceneId} ` +
-                            `(${scene.start_sec.toFixed(1)} - ${scene.end_sec.toFixed(1)} s)</strong></span>`;
+                        sceneText.className = "flex-fill";
                         if (scene.descriptions && scene.descriptions.length > 0) {
-                            sceneText.innerHTML +=
+                            sceneText.innerHTML =
                                 `<p><strong>${scene.descriptions.length} frame description(s):</strong></p>`;
                             for (const desc of scene.descriptions) {
                                 const p = document.createElement("p");
@@ -373,7 +382,7 @@
                             tp.innerHTML = `<strong>Transcript:</strong> ` + scene.transcript;
                             sceneText.appendChild(tp);
                         }
-                        sceneRow.appendChild(sceneText);
+                        row.appendChild(sceneText);
                     }
 
                     // After rendering scenes, probe for any edit frames already on disk
