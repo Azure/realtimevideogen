@@ -1,4 +1,6 @@
-# Source: https://github.com/xdit-project/xDiT/blob/main/xfuser/model_executor/models/transformers/transformer_flux2.py
+# Source (vendored, adapted):
+# https://github.com/xdit-project/xDiT/blob/8f3e28a4f0c94545a1c2b9dfc3bb18b9e6f4c2d1/xfuser/model_executor/models/transformers/transformer_flux2.py
+# See the upstream repository and its LICENSE file for original license and copyright details.
 import torch
 from typing import Optional, Tuple
 from diffusers.models.transformers.transformer_flux2 import (
@@ -232,11 +234,11 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         hidden_states: torch.Tensor,
         encoder_hidden_states: Optional[torch.Tensor] = None,
         *args,
-        timestep: torch.LongTensor = None,
-        img_ids: torch.Tensor = None,
-        txt_ids: torch.Tensor = None,
+        timestep: Optional[torch.LongTensor] = None,
+        img_ids: Optional[torch.Tensor] = None,
+        txt_ids: Optional[torch.Tensor] = None,
         **kwargs,
-    ):
+    ) -> torch.Tensor:
 
         sp_world_size = get_sequence_parallel_world_size()
         sequence_length = hidden_states.shape[1]
