@@ -42,6 +42,7 @@ scene_mocks_base = {
 with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
     with temp_sys_path("apps", "apps/streamdub"):
         from apps.streamdub.streamdub_job import StreamDubJob
+        from apps.streamdub.streamdub_job import _is_empty_transcript
 
 
 streamdub_app = StreamDubApp()
@@ -629,5 +630,93 @@ async def test_gen_dub_scene_voice_cloning_falls_back_on_error() -> None:
     second_call_kwargs = gen_audio_mock.call_args_list[1].kwargs
     assert first_call_kwargs.get("voice_sample") is not None, "first call must include voice_sample"
     assert second_call_kwargs.get("voice_sample") is None, "fallback call must NOT include voice_sample"
+
+    await job.close()
+
+
+# ---------------------------------------------------------------------------
+# _is_empty_transcript unit tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text", [
+    "",
+    "-",
+    "- -",
+    "♪ ♪",
+    "  ",
+    "---",
+    "♪",
+    " - - ",
+])
+def test_is_empty_transcript_true(text: str) -> None:
+    """_is_empty_transcript must return True for texts with no word characters."""
+    assert _is_empty_transcript(text), f"Expected True for {text!r}"
+
+
+@pytest.mark.parametrize("text", [
+    "Hello",
+    "Hello world",
+    "- hello -",
+    "♪ La la la ♪",
+    "1",
+    "ok",
+])
+def test_is_empty_transcript_false(text: str) -> None:
+    """_is_empty_transcript must return False when the text contains word characters."""
+    assert not _is_empty_transcript(text), f"Expected False for {text!r}"
+
+
+# ---------------------------------------------------------------------------
+# gen_dub_scene skips dubbing for empty-like transcripts
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("transcript", [
+    "-",
+    "- -",
+    "♪ ♪",
+    "  ",
+])
+async def test_gen_dub_scene_skips_empty_like_transcript(transcript: str) -> None:
+    """gen_dub_scene must skip translation and use original video for non-word transcripts."""
+    with patch.dict(sys.modules, {**mock_modules, **scene_mocks_base}):
+        with temp_sys_path("apps", "apps/streamdub"):
+            from apps.streamdub.streamdub_job import StreamDubJob as _StreamDubJob
+            from apps.scene import SceneSegment
+
+    service_manager = AsyncMock()
+    service_manager.get_service_url = MagicMock(return_value="http://mock:1234")
+
+    job = _StreamDubJob(
+        job_id=f"test_empty_transcript_{hash(transcript) & 0xFFFF}",
+        service_manager=service_manager,
+        config={"add_subtitles": False},
+    )
+    os.makedirs(job.job_path, exist_ok=True)
+
+    fake_scene = SceneSegment(
+        scene_id=0, start_frame=0, end_frame=30, start_sec=0.0, end_sec=1.0,
+        audio_path="scene_000.wav",
+    )
+
+    original_video = b"original_video_bytes"
+    get_video_mock = AsyncMock(return_value=original_video)
+    translate_mock = AsyncMock()
+    gen_audio_mock = AsyncMock()
+    gen_video_mock = AsyncMock()
+
+    with patch.object(job, "transcribe_audio", new=AsyncMock(return_value=transcript)), \
+         patch.object(job, "translate_scene", translate_mock), \
+         patch.object(job, "get_video_scene", get_video_mock), \
+         patch.object(job.gen, "gen_audio", gen_audio_mock), \
+         patch.object(job, "gen_video_lip_synced", gen_video_mock):
+        result = await job.gen_dub_scene(fake_scene, lang_code="e")
+
+    # Must return original video without calling translation, audio gen, or lip sync
+    get_video_mock.assert_called_once()
+    translate_mock.assert_not_called()
+    gen_audio_mock.assert_not_called()
+    gen_video_mock.assert_not_called()
+    assert result == original_video
 
     await job.close()
