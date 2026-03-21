@@ -38,11 +38,11 @@ class ConvLayerNorm(nn.LayerNorm):
     def __init__(
         self,
         normalized_shape: Union[int, List[int], torch.Size],
-        **kwargs: Dict[str, Any]
+        **kwargs: Any
     ) -> None:
         super().__init__(normalized_shape, **kwargs)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.transpose(1, 2)  # b ... t -> b t ...
         x = nn.functional.layer_norm(
             x.float(),
@@ -73,10 +73,10 @@ class RMSNorm(nn.Module):
         else:
             self.register_parameter('weight', None)
 
-    def _norm(self, x):
+    def _norm(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         output = self._norm(x.float()).type_as(x)
         if self.weight is not None:
             output = output * self.weight
@@ -129,7 +129,7 @@ def apply_parametrization_norm(module: nn.Module, norm: str = 'none') -> nn.Modu
     return module
 
 
-def get_norm_module(module: nn.Module, causal: bool = False, norm: str = 'none', **norm_kwargs) -> nn.Module:
+def get_norm_module(module: nn.Module, causal: bool = False, norm: str = 'none', **norm_kwargs: Any) -> nn.Module:
     """Return the proper normalization module. If causal is True, this will ensure the returned
     module is causal, or return an error if the normalization doesn't support causal evaluation.
     """
@@ -197,11 +197,11 @@ class NormConv1d(nn.Module):
     """Wrapper around Conv1d and normalization applied to this conv"""
     def __init__(
         self,
-        *args,
+        *args: Any,
         causal: bool = False,
         norm: str = 'none',
         norm_kwargs: Dict[str, Any] = {},
-        **kwargs: Dict[str, Any]
+        **kwargs: Any
     ) -> None:
         super().__init__()
         self.conv = apply_parametrization_norm(nn.Conv1d(*args, **kwargs), norm)
@@ -221,18 +221,18 @@ class NormConvTranspose1d(nn.Module):
     """Wrapper around ConvTranspose1d and normalization applied to this conv"""
     def __init__(
         self,
-        *args,
+        *args: Any,
         causal: bool = False,
         norm: str = 'none',
         norm_kwargs: Dict[str, Any] = {},
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         super().__init__()
         self.convtr = apply_parametrization_norm(nn.ConvTranspose1d(*args, **kwargs), norm)
         self.norm = get_norm_module(self.convtr, causal, norm, **norm_kwargs)
         self.norm_type = norm
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.convtr(x)
         x = self.norm(x)
         return x
@@ -358,12 +358,13 @@ class SConv1d(nn.Module):
         self.padding_total = (kernel_size - 1) * dilation - (stride - 1)
 
         # Create a unique layer ID for cache management
-        self._layer_id = None
+        self._layer_id: Optional[str] = None
 
     @property
     def layer_id(self) -> str:
         if self._layer_id is None:
             self._layer_id = f"sconv1d_{id(self)}"
+        assert self._layer_id is not None
         return self._layer_id
 
     def forward(
@@ -529,10 +530,10 @@ class SConvTranspose1d(nn.Module):
         self.context_size = kernel_size - 1
 
         # Create a unique layer ID for cache management
-        self._layer_id = None
+        self._layer_id: Optional[str] = None
 
     @property
-    def layer_id(self):
+    def layer_id(self) -> str:
         if self._layer_id is None:
             self._layer_id = f"sconvtr1d_{id(self)}"
         return self._layer_id
@@ -658,17 +659,17 @@ class SConvTranspose1d(nn.Module):
 class FFN(nn.Module):
     def __init__(
         self,
-        embed_dim,
-        ffn_dim,
-        bias=False,
-    ):
+        embed_dim: int,
+        ffn_dim: int,
+        bias: bool = False,
+    ) -> None:
         super().__init__()
         self.embed_dim = embed_dim
         self.linear1 = nn.Linear(self.embed_dim, ffn_dim, bias=bias)
         self.gelu = ACT2FN["gelu"]
         self.linear2 = nn.Linear(ffn_dim, self.embed_dim, bias=bias)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.linear1(x)
         x = self.gelu(x)
         x = self.linear2(x)
@@ -678,23 +679,23 @@ class FFN(nn.Module):
 class Convlayer(nn.Module):
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        dilation=1,
-        groups=1,
-        bias=True,
-        pad_mode='zeros',
-        norm='weight_norm',
-        causal=True,
-    ):
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        dilation: int = 1,
+        groups: int = 1,
+        bias: bool = True,
+        pad_mode: str = 'zeros',
+        norm: str = 'weight_norm',
+        causal: bool = True,
+    ) -> None:
         super().__init__()
         self.conv = SConv1d(
             in_channels, out_channels, kernel_size, stride=stride, dilation=dilation,
             groups=groups, bias=bias, pad_mode=pad_mode, norm=norm, causal=causal)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.conv(x)
 
 
@@ -706,8 +707,8 @@ class Block1D(nn.Module):
         drop_path: float = 0.,
         mixer_layer: str = "conv",
         layer_scale_init_value: float = 1e-6,
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         super().__init__()
 
         if kwargs.get('layernorm', 'LN') == 'LN':
@@ -785,7 +786,7 @@ class TokenizerEncoder(nn.Module):
     Args:
         config: Configuration object with model parameters
     """
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         super().__init__()
 
         # Extract parameters from config
@@ -814,6 +815,7 @@ class TokenizerEncoder(nn.Module):
         disable_last_norm = getattr(config, "disable_last_norm", False)
 
         # determine the norm type based on layernorm
+        norm_type: Any
         if layernorm == 'LN':
             norm_type = ConvLayerNorm
         elif layernorm == 'RMSNorm':
@@ -882,7 +884,14 @@ class TokenizerEncoder(nn.Module):
             norm=norm,
             bias=bias)
 
-    def forward_features(self, x, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def forward_features(
+        self,
+        x: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> torch.Tensor:
         for i in range(len(self.depths)):
             # Apply downsampling
             for layer in self.downsample_layers[i]:
@@ -921,7 +930,14 @@ class TokenizerEncoder(nn.Module):
 
         return self.norm(x)
 
-    def forward(self, x, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def forward(
+        self,
+        x: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> torch.Tensor:
         x = self.forward_features(x, cache=cache, sample_indices=sample_indices, use_cache=use_cache, debug=debug)
         x = self.head(x, cache=cache, sample_indices=sample_indices, use_cache=use_cache, debug=debug)
         return x
@@ -934,7 +950,7 @@ class TokenizerDecoder(nn.Module):
     Args:
         config: Configuration object with model parameters
     """
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         super().__init__()
 
         # Extract parameters from config
@@ -967,6 +983,7 @@ class TokenizerDecoder(nn.Module):
         disable_last_norm = getattr(config, "disable_last_norm", False)
 
         # determine the norm type based on layernorm
+        norm_type: Any
         if layernorm == 'LN':
             norm_type = ConvLayerNorm
         elif layernorm == 'RMSNorm':
@@ -1038,11 +1055,13 @@ class TokenizerDecoder(nn.Module):
             bias=bias)
 
     def forward_features(
-        self, x, cache=None,
-        sample_indices=None,
+        self,
+        x: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
         use_cache: bool = False,
         debug: bool = False
-    ):
+    ) -> torch.Tensor:
         for i in range(len(self.depths)):
             # Apply upsampling
             for layer in self.upsample_layers[i]:
@@ -1087,7 +1106,7 @@ class TokenizerDecoder(nn.Module):
         sample_indices: Optional[torch.Tensor] = None,
         use_cache: bool = False,
         debug: bool = False
-    ):
+    ) -> torch.Tensor:
         x = self.forward_features(x, cache=cache, sample_indices=sample_indices, use_cache=use_cache, debug=debug)
         x = self.head(x, cache=cache, sample_indices=sample_indices, use_cache=use_cache, debug=debug)
         return x
@@ -1108,7 +1127,7 @@ class VibeVoiceTokenizerEncoderOutput:
     def sample(
         self,
         dist_type: str = "fix"
-    ):
+    ) -> Tuple[torch.Tensor, Optional[Union[float, torch.Tensor]]]:
         """
         Sample from the distribution.
 
@@ -1123,6 +1142,7 @@ class VibeVoiceTokenizerEncoderOutput:
             x = self.mean + self.std * torch.randn_like(self.mean)
             return x, self.std
         elif dist_type == 'gaussian':
+            assert self.std is not None
             batch_size = self.mean.size(0)
             value = self.std / 0.8
             std = torch.randn(batch_size, device=self.mean.device, dtype=self.mean.dtype) * value
@@ -1135,12 +1155,12 @@ class VibeVoiceTokenizerEncoderOutput:
         else:
             return self.mean, self.std
 
-    def kl(self):
+    def kl(self) -> torch.Tensor:
         """Compute KL divergence between this distribution and a standard normal."""
         target = torch.zeros_like(self.mean)
         return F.mse_loss(self.mean, target, reduction='none')
 
-    def mode(self):
+    def mode(self) -> torch.Tensor:
         """Return the distribution mode (which is the mean for Gaussian)."""
         return self.mean
 
@@ -1154,7 +1174,7 @@ class VibeVoiceAcousticTokenizerModel(PreTrainedModel):
     _supports_sdpa = True
     _no_split_modules = ["TokenizerEncoder", "TokenizerDecoder"]
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         super().__init__(config)
 
         self.register_buffer('fix_std', torch.tensor(config.fix_std), persistent=False)
@@ -1210,7 +1230,7 @@ class VibeVoiceAcousticTokenizerModel(PreTrainedModel):
         # Initialize weights
         self.apply(self._init_weights)
 
-    def _init_weights(self, module):
+    def _init_weights(self, module: nn.Module) -> None:
         """Initialize weights for the model"""
         if isinstance(module, nn.Linear):
             nn.init.normal_(module.weight, std=self.config.weight_init_value)
@@ -1225,13 +1245,24 @@ class VibeVoiceAcousticTokenizerModel(PreTrainedModel):
                 nn.init.zeros_(module.bias)
 
     @torch.no_grad()
-    def encode(self, audio, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def encode(
+        self,
+        audio: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> VibeVoiceTokenizerEncoderOutput:
         """Convert audio to latent representations"""
         latents = self.encoder(audio, cache=cache, sample_indices=sample_indices, use_cache=use_cache, debug=debug)
         return VibeVoiceTokenizerEncoderOutput(mean=latents.permute(0, 2, 1), std=self.fix_std)
 
     @torch.no_grad()
-    def sampling(self, encoder_output, dist_type=None):
+    def sampling(
+        self,
+        encoder_output: VibeVoiceTokenizerEncoderOutput,
+        dist_type: Optional[str] = None
+    ) -> Tuple[torch.Tensor, Optional[Union[float, torch.Tensor]]]:
         """Sample from the encoder output distribution"""
         dist_type = dist_type or self.std_dist_type
 
@@ -1243,7 +1274,14 @@ class VibeVoiceAcousticTokenizerModel(PreTrainedModel):
             raise ValueError(f"Unsupported dist_type: {dist_type}, expected 'fix' or 'gaussian'")
 
     @torch.no_grad()
-    def decode(self, latents, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def decode(
+        self,
+        latents: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> torch.Tensor:
         """Convert latent representations back to audio"""
         if latents.shape[1] == self.config.vae_dim:
             pass
@@ -1253,7 +1291,14 @@ class VibeVoiceAcousticTokenizerModel(PreTrainedModel):
         audio = self.decoder(latents, cache=cache, sample_indices=sample_indices, use_cache=use_cache, debug=debug)
         return audio
 
-    def forward(self, audio, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def forward(
+        self,
+        audio: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Full forward pass: encode audio to latents, then decode back to audio"""
         encoder_output = self.encode(
             audio, cache=cache,
@@ -1276,7 +1321,7 @@ class VibeVoiceSemanticTokenizerModel(PreTrainedModel):
     _supports_sdpa = True
     _no_split_modules = ["TokenizerEncoder"]
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         super().__init__(config)
 
         # Parse encoder depths
@@ -1306,7 +1351,7 @@ class VibeVoiceSemanticTokenizerModel(PreTrainedModel):
         # Initialize weights
         self.apply(self._init_weights)
 
-    def _init_weights(self, module):
+    def _init_weights(self, module: nn.Module) -> None:
         """Initialize weights for the model"""
         if isinstance(module, nn.Linear):
             nn.init.normal_(module.weight, std=self.config.weight_init_value)
@@ -1321,7 +1366,14 @@ class VibeVoiceSemanticTokenizerModel(PreTrainedModel):
                 nn.init.zeros_(module.bias)
 
     @torch.no_grad()
-    def encode(self, audio, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def encode(
+        self,
+        audio: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> VibeVoiceTokenizerEncoderOutput:
         """Convert audio to latent representations"""
         latents = self.encoder(
             audio, cache=cache, sample_indices=sample_indices,
@@ -1329,11 +1381,22 @@ class VibeVoiceSemanticTokenizerModel(PreTrainedModel):
         return VibeVoiceTokenizerEncoderOutput(mean=latents.permute(0, 2, 1))
 
     @torch.no_grad()
-    def sampling(self, encoder_output, dist_type=None):
+    def sampling(
+        self,
+        encoder_output: VibeVoiceTokenizerEncoderOutput,
+        dist_type: Optional[str] = None
+    ) -> Tuple[torch.Tensor, Optional[Union[float, torch.Tensor]]]:
         """Sample from the encoder output distribution"""
         return encoder_output.sample(dist_type='none')
 
-    def forward(self, audio, cache=None, sample_indices=None, use_cache=False, debug=False):
+    def forward(
+        self,
+        audio: torch.Tensor,
+        cache: Optional[VibeVoiceTokenizerStreamingCache] = None,
+        sample_indices: Optional[torch.Tensor] = None,
+        use_cache: bool = False,
+        debug: bool = False
+    ) -> Tuple[None, torch.Tensor]:
         """Full forward pass: encode audio to latents, then decode back to audio"""
         encoder_output = self.encode(
             audio, cache=cache, sample_indices=sample_indices,
