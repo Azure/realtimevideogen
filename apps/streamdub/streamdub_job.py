@@ -3,6 +3,7 @@ StreamDub job to generate a dubbed video.
 It coordinates the execution of the different models.
 """
 
+import re
 import sys
 import json
 import aiofiles
@@ -56,6 +57,15 @@ from media_utils import chunk_audio_base64
 from media_utils import save_video_audio
 
 from language_utils import to_language
+
+
+def _is_empty_transcript(text: str) -> bool:
+    """Return True when the transcript contains no translatable text.
+
+    Transcripts such as ``""``, ``"-"``, ``"- -"``, and ``"♪ ♪"`` have no
+    actual words and should not be sent to the translation service.
+    """
+    return not bool(re.search(r'\w', text))
 
 
 class StreamDubJob(StreamWiseJob):
@@ -252,8 +262,8 @@ class StreamDubJob(StreamWiseJob):
         if "♪" in scene.transcript:
             self.logger.info(f"[{scene_id}] Scene contains music ({scene.transcript}), skip dubbing.")
             return await self.get_video_scene(scene)
-        if not scene.transcript.strip():
-            self.logger.info(f"[{scene_id}] Scene has no transcription, skip dubbing.")
+        if _is_empty_transcript(scene.transcript):
+            self.logger.info(f"[{scene_id}] Scene has no translatable text ({scene.transcript!r}), skip dubbing.")
             return await self.get_video_scene(scene)
 
         self.logger.info(f"[{scene_id}] Transcript: {scene.transcript[0:80]}...")
@@ -425,7 +435,7 @@ class StreamDubJob(StreamWiseJob):
         Translate text using LLM.
         """
         text = scene.transcript
-        if not text:
+        if not text or _is_empty_transcript(text):
             return ""
 
         dub_prompt = DUB_PROMPT.format(
