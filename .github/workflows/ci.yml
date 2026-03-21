@@ -80,6 +80,17 @@ jobs:
         name: mypy-results
         path: mypy-results.txt
 
+    - name: Annotate mypy results
+      if: always()
+      uses: reviewdog/action-setup@v1
+
+    - name: Mypy reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat mypy-results.txt | reviewdog -f=mypy -name="mypy" -reporter=github-check -level=error || true
+
     - name: 'Run tests: Main'
       if: always()
       timeout-minutes: 10
@@ -322,41 +333,6 @@ jobs:
           :open_book: [Full HTML Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/) (updated on merge to main)
           :file_folder: [Download HTML Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) — see *html-coverage-report* artifact
         path: code-coverage-results.md
-
-    - name: Generate mypy PR comment
-      if: always() && github.event_name == 'pull_request'
-      run: |
-        if [ ! -f mypy-results.txt ]; then
-          echo "mypy-results.txt not found; skipping mypy comment." && exit 0
-        fi
-        ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || true)
-        ERROR_COUNT=${ERROR_COUNT:-0}
-        NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || true)
-        NOTE_COUNT=${NOTE_COUNT:-0}
-        {
-          echo "## :mag: Mypy Type Checking"
-          echo ""
-          echo "| Metric | Count |"
-          echo "|--------|-------|"
-          echo "| :x: Errors | ${ERROR_COUNT} |"
-          echo "| :pencil: Notes | ${NOTE_COUNT} |"
-          echo ""
-          echo "<details><summary>Full mypy output</summary>"
-          echo ""
-          echo '```'
-          cat mypy-results.txt
-          echo '```'
-          echo ""
-          echo "</details>"
-        } > mypy-comment.md
-
-    - name: Add mypy PR comment
-      if: always() && github.event_name == 'pull_request'
-      uses: marocchino/sticky-pull-request-comment@v3
-      with:
-        header: mypy
-        recreate: true
-        path: mypy-comment.md
 
   deploy-coverage:
     name: Deploy Coverage
