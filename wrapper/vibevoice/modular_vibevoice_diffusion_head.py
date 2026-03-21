@@ -51,7 +51,7 @@ class RMSNorm(nn.Module):
 
 
 def modulate(
-    x,
+    x: torch.Tensor,
     shift: torch.Tensor,
     scale: torch.Tensor,
 ) -> torch.Tensor:
@@ -66,7 +66,7 @@ class TimestepEmbedder(nn.Module):
         hidden_size (`int`): Size of the output embedding
         frequency_embedding_size (`int`, optional): Size of the intermediate frequency embedding
     """
-    def __init__(self, hidden_size, frequency_embedding_size=256):
+    def __init__(self, hidden_size: int, frequency_embedding_size: int = 256) -> None:
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(frequency_embedding_size, hidden_size, bias=False),
@@ -77,7 +77,7 @@ class TimestepEmbedder(nn.Module):
         self.frequency_embedding_size = frequency_embedding_size
 
     @staticmethod
-    def timestep_embedding(t, dim, max_period=10000):
+    def timestep_embedding(t: torch.Tensor, dim: int, max_period: int = 10000) -> torch.Tensor:
         """
         Create sinusoidal timestep embeddings.
         Args:
@@ -98,7 +98,7 @@ class TimestepEmbedder(nn.Module):
             embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
         return embedding.to(t.dtype)
 
-    def forward(self, t):
+    def forward(self, t: torch.Tensor) -> torch.Tensor:
         t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
         t_emb = self.mlp(t_freq)
         return t_emb
@@ -113,8 +113,8 @@ class FeedForwardNetwork(nn.Module):
     """
     def __init__(
         self,
-        embed_dim,
-        ffn_dim,
+        embed_dim: int,
+        ffn_dim: int,
     ) -> None:
         super().__init__()
         self.embed_dim = embed_dim
@@ -123,7 +123,7 @@ class FeedForwardNetwork(nn.Module):
         self.down_proj = nn.Linear(ffn_dim, self.embed_dim, bias=False)
         self.act_fn = ACT2FN['silu']  # Using SiLU as the activation function
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         gate = self.gate_proj(x)
         up = self.up_proj(x)
 
@@ -164,7 +164,7 @@ class HeadLayer(nn.Module):
             nn.Linear(cond_dim, 3 * self.embed_dim, bias=False)
         )
 
-    def forward(self, x, c) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         shift_ffn, scale_ffn, gate_ffn = self.adaLN_modulation(c).chunk(3, dim=-1)
         x = x + gate_ffn * self.ffn(modulate(self.norm(x), shift_ffn, scale_ffn))
         return x
@@ -179,7 +179,7 @@ class FinalLayer(nn.Module):
         cond_size (`int`): Condition embedding dimension
         norm_eps (`float`, optional): Epsilon for normalization
     """
-    def __init__(self, hidden_size, output_size, cond_size, norm_eps=1e-5):
+    def __init__(self, hidden_size: int, output_size: int, cond_size: int, norm_eps: float = 1e-5) -> None:
         super().__init__()
         self.norm_final = RMSNorm(hidden_size, eps=norm_eps, elementwise_affine=False)
         self.linear = nn.Linear(hidden_size, output_size, bias=False)
@@ -189,7 +189,7 @@ class FinalLayer(nn.Module):
             nn.Linear(cond_size, 2 * hidden_size, bias=False)
         )
 
-    def forward(self, x, c):
+    def forward(self, x: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         shift, scale = self.adaLN_modulation(c).chunk(2, dim=-1)
         x = modulate(self.norm_final(x), shift, scale)
         x = self.linear(x)
