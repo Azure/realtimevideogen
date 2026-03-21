@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}StreamWise{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <!-- jQuery (required by DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>
+        const ansiUp = new AnsiUp();
+    </script>
+</head>
+
+<body>
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-info" href="{{ url_for('submit_job') }}"
+            title="{% block submit_button_title %}Submit Generation{% endblock %}"
+            aria-label="{% block submit_button_aria %}Submit Generation{% endblock %}">🚀</a>
+        <a class="btn btn-outline-primary" href="/" title="Refresh" aria-label="Refresh">🔄</a>
+    </div>
+
+    <div class="container mb-5">
+        <h1 class="mb-4 text-center">{% block heading %}StreamWise{% endblock %}</h1>
+        <p>{% block description %}{% endblock %}</p>
+
+        <h2 class="mt-5 mb-3">🌐 Services</h2>
+        <div class="text-begin mb-3">
+            {% if services %}
+                <table id="services-table" class="table table-bordered table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Class</th>
+                            <th>Pod</th>
+                            <th>Container</th>
+                            <th>URL</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in services %}
+                            <tr>
+                                <td>{{ service.pod_name | get_class_emoji | safe }}</td>
+                                <td>{{ service.pod_name | get_friendly_container_name | safe }}</td>
+                                <td>{{ service.container_name }}</td>
+                                {% if service.ip and service.port %}
+                                    <td>{{ service.ip }}:{{ service.port }}</td>
+                                {% else %}
+                                    <td>-</td>
+                                {% endif %}
+                                <td>
+                                    {% if not service.status %}
+                                        <span class="text-danger" aria-label="Unknown" title="Unknown">⁉️</span>
+                                    {% elif service.status == 'ok' %}
+                                        <span class="text-success" aria-label="Running" title="Running">✅</span>
+                                        {% if service.busy %}
+                                            <span class="text-info" aria-label="Busy" title="Busy">⚙️</span>
+                                        {% else %}
+                                            <span class="text-success" aria-label="Ready" title="Ready">🟢</span>
+                                        {% endif %}
+                                    {% elif service.status == 'loading model' %}
+                                        <span class="text-warning" aria-label="Loading Model" title="Loading Model">⌛</span>
+                                    {% elif service.status == 'timeout' %}
+                                        <span class="text-danger" aria-label="Timeout" title="Timeout">🚫</span>
+                                    {% elif service.status == 'x' %}
+                                        <span class="text-danger" aria-label="Error" title="Error">❌</span>
+                                    {% else %}
+                                        {{ service.status }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No services found.</p>
+            {% endif %}
+        </div>
+
+        <h2 class="mt-5 mb-3">⚙️ Jobs</h2>
+        <div class="text-begin mb-3">
+            {% if jobs %}
+                <table id="jobs-table" class="table table-bordered table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th title="Job ID" aria-label="Job ID">Job</th>
+                            <th>Status</th>
+                            <th>Mode</th>
+                            <th>Resolution</th>
+                            <th>Frames</th>
+                            <th>FPS</th>
+                            <th>Duration</th>
+                            <th>Dialogues</th>
+                            <th>Words/dialogue</th>
+                            <th>Speed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                            <tr>
+                                <td><a href="{{ url_for('job_status', job_id=job.job_id) }}">{{ job.job_id }}</a></td>
+                                <td>
+                                    {% if job.status == 'COMPLETED' %}
+                                        <span class="text-success" aria-label="Completed" title="Completed">✅</span>
+                                    {% elif job.status == 'STARTED' %}
+                                        <span class="text-danger" aria-label="Started" title="Started">⌛</span>
+                                    {% elif job.status == 'RUNNING' %}
+                                        <span class="text-danger" aria-label="Running" title="Running">⚙️</span>
+                                    {% elif job.status == 'FAILED' %}
+                                        <span class="text-danger" aria-label="Failed" title="Failed">❌</span>
+                                    {% elif job.status == 'EXPIRED' %}
+                                        <span class="text-danger" aria-label="Expired" title="Expired">💀</span>
+                                    {% elif job.status == 'UNKNOWN' %}
+                                        <span class="text-danger" aria-label="Unknown" title="Unknown">⁉️</span>
+                                    {% else %}
+                                        <span class="text-danger">⁉️ {{ job.status }}</span>
+                                    {% endif %}
+                                </td>
+
+                                {% if not job.output_mode %}
+                                    <td>-</td>
+                                {% elif job.output_mode == 'video_audio_synced' %}
+                                    <td><span role="img" aria-label="Video & Audio (lip synced)">📽️🔉🗣️</span></td>
+                                {% elif job.output_mode == 'video_audio_unsynced' %}
+                                    <td><span role="img" aria-label="Video & Audio (unsynced)">📽️🔉</span></td>
+                                {% elif job.output_mode == 'audio_only' %}
+                                    <td><span role="img" aria-label="Audio Only">🔉</span></td>
+                                {% else %}
+                                    <td><span role="img" aria-label="{{ job.output_mode }}">❓</span></td>
+                                {% endif %}
+
+                                {% if not job.width or not job.height %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ job.width }} x {{ job.height }}</td>
+                                {% endif %}
+
+                                {% if not job.video or not job.video.num_frames %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ job.video.num_frames }}</td>
+                                {% endif %}
+
+                                {% if not job.video or not job.video.fps %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ job.video.fps | round(2) }}</td>
+                                {% endif %}
+
+                                {% if not job.video or not job.video.duration_seconds %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ job.video.duration_seconds | format_duration_short | safe }}</td>
+                                {% endif %}
+
+                                {% if not job.max_dialogues %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ job.max_dialogues }}</td>
+                                {% endif %}
+
+                                {% if not job.max_words_per_dialogue %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ job.max_words_per_dialogue }}</td>
+                                {% endif %}
+
+                                {% if not job.speech_speed %}
+                                    <td>-</td>
+                                {% else %}
+                                    <td>{{ "%.1fx" | format(job.speech_speed) }}</td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No jobs found.</p>
+            {% endif %}
+        </div>
+
+        {% if logs %}
+            <h2 class="mt-5 mb-3">📄 Logs</h2>
+            {% if logs.app %}
+                <h4 class="mt-4 mb-2">{% block app_log_header %}App{% endblock %}</h4>
+                <div id="logs"
+                    class="bg-dark text-white p-3 rounded"
+                    style="white-space: pre-wrap; font-family: monospace; max-height: 600px; overflow-y: auto;">
+                </div>
+                <script>
+                    const logsBox = document.getElementById('logs');
+                    logsBox.innerHTML = ansiUp.ansi_to_html({{ logs.app | tojson }});
+                    logsBox.scrollTop = logsBox.scrollHeight;
+                </script>
+            {% else %}
+                <p>{% block no_app_logs_text %}No app logs found.{% endblock %}</p>
+            {% endif %}
+            {% if logs.service_manager %}
+                <h4 class="mt-4 mb-2">📝 Service Manager</h4>
+                <div id="service-manager-logs"
+                    class="bg-dark text-white p-3 rounded"
+                    style="white-space: pre-wrap; font-family: monospace; max-height: 600px; overflow-y: auto;">
+                </div>
+                <script>
+                    const smLogsBox = document.getElementById('service-manager-logs');
+                    smLogsBox.innerHTML = ansiUp.ansi_to_html({{ logs.service_manager | tojson }});
+                    smLogsBox.scrollTop = smLogsBox.scrollHeight;
+                </script>
+            {% else %}
+                <p>No Service Manager logs found.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#jobs-table').DataTable({
+                paging: true,
+                pageLength: 25,  // optional: show 25 pods per page
+                order: [[0, 'desc']]  // order by Job ID descending
+            });
+            $('#services-table').DataTable({
+                paging: true,
+                pageLength: 25,  // optional: show 25 pods per page
+                order: [[1, 'asc']]  // order by pod ascending
+            });
+        });
+    </script>
+</body>
+</html>
