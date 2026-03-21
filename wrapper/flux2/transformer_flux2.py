@@ -2,7 +2,7 @@
 # https://github.com/xdit-project/xDiT/blob/8f3e28a4f0c94545a1c2b9dfc3bb18b9e6f4c2d1/xfuser/model_executor/models/transformers/transformer_flux2.py
 # See the upstream repository and its LICENSE file for original license and copyright details.
 import torch
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 from diffusers.models.transformers.transformer_flux2 import (
     Flux2Attention,
     Flux2AttnProcessor,
@@ -41,10 +41,10 @@ class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
         self,
         attn: "Flux2Attention",
         hidden_states: torch.Tensor,
-        encoder_hidden_states: torch.Tensor = None,
+        encoder_hidden_states: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         image_rotary_emb: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         query, key, value, encoder_query, encoder_key, encoder_value = _get_qkv_projections(
             attn, hidden_states, encoder_hidden_states
         )
@@ -261,6 +261,9 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         hidden_states = torch.chunk(
             hidden_states, get_sequence_parallel_world_size(), dim=-2
         )[get_sequence_parallel_rank()]
+        assert encoder_hidden_states is not None, "encoder_hidden_states is required"
+        assert img_ids is not None, "img_ids is required"
+        assert txt_ids is not None, "txt_ids is required"
         encoder_hidden_states = torch.chunk(
             encoder_hidden_states, get_classifier_free_guidance_world_size(), dim=0
         )[get_classifier_free_guidance_rank()]

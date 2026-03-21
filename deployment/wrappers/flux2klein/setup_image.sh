@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 IMAGE_NAME="flux2klein"
 
