@@ -6,6 +6,7 @@ import traceback
 from torch import inference_mode
 
 from typing import Optional
+from typing import Union
 from typing import Dict
 from typing import Any
 
@@ -38,16 +39,18 @@ class DiaGeneration(ModelGeneration):
     def init_parallelism(self) -> None:
         self.load_timer.start("torch_dist")
         # No real parallelism as it runs with a single GPU or CPU
+        device_id: Union[int, str]
         if torch.cuda.is_available():
             self.rank = 0
             self.local_rank = 0
             self.world_size = 1
-            self.device_id = self.local_rank
-            self.device = torch.device(f"cuda:{self.device_id}")
+            device_id = self.local_rank
+            self.device = torch.device(f"cuda:{device_id}")
             torch.cuda.set_device(self.local_rank)
         else:
-            self.device_id = "cpu"
-            self.device = torch.device(self.device_id)
+            device_id = "cpu"
+            self.device = torch.device(device_id)
+        self.device_id = device_id
         self.load_timer.end("torch_dist")
 
     def load_model(self) -> None:
@@ -121,7 +124,7 @@ class DiaGeneration(ModelGeneration):
         await self.generate(text="Warmup")
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         text: str,
         job_id: Optional[str] = None,
@@ -134,6 +137,8 @@ class DiaGeneration(ModelGeneration):
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
+        assert self.processor is not None
+        assert self.dia is not None
 
         self.running = True  # We can run in parallel but good to know if we are running
 
@@ -172,7 +177,7 @@ class DiaGeneration(ModelGeneration):
             logging.info(f"Generated {len(outputs)} output(s) for '{job_id}'.")
 
             return self._output_audio(
-                job_id=job_id,
+                job_id=job_id or "",
                 gen_timer=gen_timer,
                 outputs=outputs)
         finally:
@@ -187,6 +192,7 @@ class DiaGeneration(ModelGeneration):
         output_type: str = "audio_path",
     ) -> str:
         gen_timer.start("output_audio")
+        assert self.processor is not None
         try:
             if not job_id:
                 audio_path = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name

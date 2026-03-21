@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -159,7 +158,9 @@ class VibeVoiceModel(VibeVoicePreTrainedModel):
     def set_input_embeddings(self, value: nn.Module) -> None:
         self.language_model.embed_tokens = value
 
-    def set_speech_tokenizers(self, acoustic_tokenizer: Optional[Any] = None, semantic_tokenizer: Optional[Any] = None) -> None:
+    def set_speech_tokenizers(
+        self, acoustic_tokenizer: Optional[Any] = None, semantic_tokenizer: Optional[Any] = None
+    ) -> None:
         """Set the speech tokenizers used for encoding and decoding speech."""
         self.acoustic_tokenizer = acoustic_tokenizer
         self.semantic_tokenizer = semantic_tokenizer

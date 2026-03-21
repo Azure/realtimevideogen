@@ -23,7 +23,7 @@ import logging
 import soundfile
 import numpy as np
 
-from typing import List
+from typing import Iterator
 from typing import Tuple
 
 from np.typing import NDArray
@@ -38,7 +38,8 @@ def chunk_text(
     text: str,
     audio_prompt_text: str,
     max_words: int = 50,
-) -> List[Tuple[str, bool]]:
+    overlap_speakers: bool = False,
+) -> Iterator[Tuple[str, bool]]:
     """Split text into speaker-aware chunks.
     Args:
         text (str): The input text to chunk
