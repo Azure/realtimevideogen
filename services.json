@@ -94,6 +94,38 @@
             "image"
         ]
     },
+    "flux2": {
+        "name": "flux2",
+        "friendlyName": "FLUX.2",
+        "url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
+        "dockerImage": {
+            "name": "flux2",
+            "tag": "v0.4.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "flux2klein": {
+        "name": "flux2klein",
+        "friendlyName": "FLUX.2 Klein",
+        "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B",
+        "dockerImage": {
+            "name": "flux2klein",
+            "tag": "v0.4.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
     "4kagent": {
         "name": "4kagent",
         "friendlyName": "4KAgent",

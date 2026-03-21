@@ -765,6 +765,22 @@ async def fluxkrea_e2e() -> QuartReturn:
     return await gen_img(model)
 
 
+@route("/flux2", methods=["POST"])
+@exclusive_route("flux2")
+async def flux2_e2e() -> QuartReturn:
+    """FLUX.2-dev image generation endpoint."""
+    model = get_model("flux2")
+    return await gen_img(model)
+
+
+@route("/flux2klein", methods=["POST"])
+@exclusive_route("flux2klein")
+async def flux2klein_e2e() -> QuartReturn:
+    """FLUX.2-klein-9B image generation endpoint."""
+    model = get_model("flux2klein")
+    return await gen_img(model)
+
+
 @route("/hidream", methods=["POST"])
 @exclusive_route("hidream")
 async def hidream_e2e() -> QuartReturn:
@@ -1365,6 +1381,8 @@ def arg_parsing() -> Tuple[argparse.Namespace, Optional[EngineConfig]]:
     parser.add_argument("--fluxupscaler", action="store_true", help="Flux Upscaler model")
     parser.add_argument("--fluxkontext", action="store_true", help="Flux Kontext model")
     parser.add_argument("--fluxkrea", action="store_true", help="Flux Krea model")
+    parser.add_argument("--flux2", action="store_true", help="FLUX.2-dev model")
+    parser.add_argument("--flux2klein", action="store_true", help="FLUX.2-klein-9B model")
     parser.add_argument("--hidream", action="store_true", help="HiDream model")
     parser.add_argument("--qwenimage", action="store_true", help="Qwen Image model")
     parser.add_argument("--qwenimageedit", action="store_true", help="Qwen Image Edit model")
@@ -1508,6 +1526,18 @@ async def init_model(
         await load_model_wrapper_file(rank, model_name)
         from wrapper_fluxkrea import FluxKreaGeneration
         models[model_name] = FluxKreaGeneration(engine_config=engine_config)
+
+    if args.flux2:
+        model_name = "flux2"
+        await load_model_wrapper_file(rank, model_name)
+        from wrapper_flux2 import Flux2Generation
+        models[model_name] = Flux2Generation(engine_config=engine_config)
+
+    if args.flux2klein:
+        model_name = "flux2klein"
+        await load_model_wrapper_file(rank, model_name)
+        from wrapper_flux2klein import Flux2KleinGeneration
+        models[model_name] = Flux2KleinGeneration(engine_config=engine_config)
 
     if args.hidream:
         model_name = "hidream"

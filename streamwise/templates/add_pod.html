@@ -47,6 +47,8 @@
                             <optgroup label="🖼️ Image generation">
                                 <option value="flux">FLUX-dev</option>
                                 <option value="fluxkrea">FLUX Krea</option>
+                                <option value="flux2">FLUX.2</option>
+                                <option value="flux2klein">FLUX.2 Klein</option>
                                 <option value="hidream">HiDream I1</option>
                                 <option value="qwenimage">Qwen Image</option>
                                 <option value="januspro">Janus Pro</option>
@@ -240,6 +242,12 @@
                         <a href="{{ url_for('add_pod', service_name='fluxkontext') }}" class="text-decoration-none">🖼️ Flux Kontext</a>
                     </li>
                     <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='flux2') }}" class="text-decoration-none">🖼️ FLUX.2</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='flux2klein') }}" class="text-decoration-none">🖼️ FLUX.2 Klein</a>
+                    </li>
+                    <li class="list-group-item">
                         <a href="{{ url_for('add_pod', service_name='hunyuanframepackf1') }}" class="text-decoration-none">📽️ Hunyuan FramePack F1</a>
                     </li>
                     <li class="list-group-item">
@@ -363,6 +371,8 @@
                 fluxkrea:            {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
                 fluxupscaler:        {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 fluxkontext:         {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                flux2:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
+                flux2klein:          {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
                 imageresize:         {cpu:4,  memory:8,   ephemeralStorage:16, gpu:0},
                 realesrgan:          {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
                 yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
