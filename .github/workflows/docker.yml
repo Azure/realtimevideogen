@@ -27,7 +27,7 @@ jobs:
   base:
     name: Base image
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
     - uses: actions/checkout@v5
@@ -61,7 +61,7 @@ jobs:
         ls -lh base-image.tar.gz
 
     - name: Upload base image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: base-image
         path: base-image.tar.gz
@@ -71,7 +71,7 @@ jobs:
     name: Wrappers
     needs: base
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
     - uses: actions/checkout@v5
@@ -87,7 +87,7 @@ jobs:
         df -h
 
     - name: Download base image artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: base-image
 
@@ -205,7 +205,7 @@ jobs:
     name: App / ${{ matrix.app }}
     needs: base
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -234,7 +234,7 @@ jobs:
         df -h
 
     - name: Download base image artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: base-image
 
@@ -290,7 +290,7 @@ jobs:
     name: StreamWise
     needs: base
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
     - uses: actions/checkout@v5
@@ -306,7 +306,7 @@ jobs:
         df -h
 
     - name: Download base image artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: base-image
 
