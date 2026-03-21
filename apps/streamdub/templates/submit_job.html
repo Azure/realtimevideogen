@@ -21,6 +21,7 @@
 
     <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
 </head>
 
 <body class="bg-light">
@@ -191,60 +192,6 @@
     </div>
 
     <script>
-        const fileToBase64 = (file) => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                console.log("reader.result =", reader.result);
-                reader.onload = () => resolve(reader.result.split(',')[1]); // Strip "data:*/*;base64,"
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        };
-
-        function formatStringTime(totalSeconds) {
-            if (totalSeconds < 15)
-                return "15 seconds";
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-            return [
-                hours > 0 ? `${hours} hours` : "",
-                minutes > 0 ? `${minutes} minutes` : "",
-                (seconds > 0 || (hours === 0 && minutes === 0)) ? `${seconds} seconds` : ""
-            ].filter(Boolean).join(" ");
-        }
-
-        /*
-        function estimateGenerationTime() {
-            const video_duration = parseInt(document.getElementById("video_duration_seconds").value);
-            const outputMode = document.getElementById("output_mode").value;
-
-            let estimatedTime = 15; // Default minimum time 15 seconds
-            if (outputMode === "audio_only") {
-                // Audio only: 45 seconds for 60 seconds
-                estimatedTime = 45.0 * (video_duration / 60.0);
-            } else {
-                // Video+Audio: 2200 seconds for 60 seconds
-                estimatedTime = 2200.0 * (video_duration / 60.0);
-            }
-            estimatedTime = Math.max(estimatedTime, 15); // Minimum 15 seconds
-            estimatedTime = Math.round(estimatedTime);
-            return formatStringTime(estimatedTime);
-        };
-        */
-
-        /*
-        function updateGenerationTime() {
-            document.getElementById("generation_time_estimate").textContent = "~" + estimateGenerationTime();
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById("video_duration_seconds").addEventListener("input", updateGenerationTime);
-            document.getElementById("output_mode").addEventListener("change", updateGenerationTime);
-            updateGenerationTime();
-        });
-        */
-
         document.getElementById("job-form").addEventListener("submit", async function (event) {
             event.preventDefault();
 
