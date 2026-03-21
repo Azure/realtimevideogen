@@ -100,7 +100,7 @@
         "url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
         "dockerImage": {
             "name": "flux2",
-            "tag": "v0.1.0"
+            "tag": "v0.4.0"
         },
         "class": "text2image",
         "inputs": [
@@ -116,7 +116,7 @@
         "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B",
         "dockerImage": {
             "name": "flux2klein",
-            "tag": "v0.1.0"
+            "tag": "v0.4.0"
         },
         "class": "text2image",
         "inputs": [

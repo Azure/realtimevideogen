@@ -18,14 +18,13 @@ from torch import inference_mode
 from wrapper_model import GenerationInterruptedError
 from wrapper_flux import FluxGeneration
 
-from flux_xfuser import parallelize_transformer
-
-from diffusers import FluxPipeline
+from diffusers import Flux2KleinPipeline
 
 from xfuser.config import EngineConfig
 from xfuser.core.distributed import get_runtime_state
 from xfuser.core.distributed import initialize_runtime_state
 from xfuser.core.distributed import get_pipeline_parallel_world_size
+from xfuser.model_executor.models.transformers.transformer_flux2 import xFuserFlux2Transformer2DWrapper
 
 
 class Flux2KleinGeneration(FluxGeneration):
@@ -45,19 +44,22 @@ class Flux2KleinGeneration(FluxGeneration):
             param_dtype=param_dtype,
         )
 
-        self.pipeline: Optional[FluxPipeline] = None
+        self.pipeline: Optional[Flux2KleinPipeline] = None
 
     def load_model(self) -> None:
         """Load the FLUX.2-klein-9B model."""
         assert torch.cuda.is_available()
 
         self.load_timer.start("pipeline")
-        cache_args = None
-        self.pipeline = FluxPipeline.from_pretrained(
+        transformer = xFuserFlux2Transformer2DWrapper.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
-            engine_config=self.engine_config,
-            cache_args=cache_args,
             torch_dtype=self.param_dtype,
+            subfolder="transformer",
+        )
+        self.pipeline = Flux2KleinPipeline.from_pretrained(
+            pretrained_model_name_or_path=self.HF_MODEL_NAME,
+            torch_dtype=self.param_dtype,
+            transformer=transformer,
         )
         self.pipeline = self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
@@ -78,8 +80,6 @@ class Flux2KleinGeneration(FluxGeneration):
             max_condition_sequence_length=512,
             split_text_embed_in_sp=get_pipeline_parallel_world_size() == 1,
         )
-
-        parallelize_transformer(self.pipeline)
         self.load_timer.end("dit_parallel")
 
     def model_compile(self) -> None:
@@ -137,7 +137,7 @@ class Flux2KleinGeneration(FluxGeneration):
             seed_g.manual_seed(seed)
 
             def callback_gen_timer(
-                pipeline: FluxPipeline,
+                pipeline: Flux2KleinPipeline,
                 step: int,
                 timestep: int,
                 callback_kwargs: dict
