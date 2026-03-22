@@ -59,11 +59,13 @@ jobs:
         echo "## Mypy Type Checking" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || echo 0)
+        WARNING_COUNT=$(grep -c ": warning:" mypy-results.txt 2>/dev/null || echo 0)
         NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || echo 0)
         echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
         echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Errors | ${ERROR_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Notes  | ${NOTE_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| ❌ Errors | ${ERROR_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| ⚠️ Warnings | ${WARNING_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| 📝 Notes | ${NOTE_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         echo "<details><summary>Full mypy output</summary>" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -79,6 +81,17 @@ jobs:
       with:
         name: mypy-results
         path: mypy-results.txt
+
+    - name: Annotate mypy results
+      if: always()
+      uses: reviewdog/action-setup@v1
+
+    - name: Mypy reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat mypy-results.txt | reviewdog -f=mypy -name="mypy" -reporter=github-check -level=error || true
 
     - name: 'Run tests: Main'
       if: always()
@@ -315,6 +328,7 @@ jobs:
       if: always() && github.event_name == 'pull_request'
       uses: marocchino/sticky-pull-request-comment@v3
       with:
+        header: coverage
         recreate: true
         message: |
           ${{ steps.coverage-summary.outputs.summary || '' }}
