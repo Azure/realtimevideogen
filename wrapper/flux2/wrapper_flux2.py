@@ -155,7 +155,6 @@ class Flux2Generation(FluxGeneration):
                 height=height,
                 width=width,
                 prompt=prompt,
-                negative_prompt=neg_prompt,
                 num_inference_steps=sampling_steps,
                 output_type="pil",
                 generator=seed_g,

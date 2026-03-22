@@ -22,6 +22,11 @@ RUN conda run -n streamwise pip install -r requirements.txt && \
     conda run -n streamwise pip cache purge
 
 COPY docker_files/*.py .
+# Inject transformer_flux2.py (cloned from xDiT GitHub) into the installed xfuser package
+RUN XFUSER_TRANSFORMERS=$(conda run -n streamwise python -c \
+        "import xfuser, os; print(os.path.join(os.path.dirname(os.path.abspath(xfuser.__file__)), \
+        'model_executor/models/transformers'))") && \
+    cp transformer_flux2.py "$XFUSER_TRANSFORMERS/transformer_flux2.py"
 COPY docker_files/*.bash .
 COPY docker_files/*.json .
 COPY docker_files/templates ./templates
