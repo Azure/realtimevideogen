@@ -2,7 +2,7 @@
 To deploy the services to [kubernetes](https://kubernetes.io/) we use [Helm](https://helm.sh/).
 
 ## Installation
-For Helm installation instructions, see [Deployment README](../README.md#helm).
+For Helm installation instructions, see the [Generic Kubernetes Setup Guide](../k8s/README.md#helm-installation).
 
 Check GPUs:
 ```bash
@@ -12,11 +12,11 @@ kubectl get nodes -o jsonpath="{range .items[*]}{.metadata.name}{':\t'}{.status.
 ## Deployment
 
 ### Prerequisites
-Before deploying, ensure you have completed the following from [Deployment README](../README.md):
-- [ACR Setup and Login](../README.md#azure-container-registry-acr)
-- [Namespace Setup](../README.md#kubernetes-namespace-setup)
-- [Storage Setup](../README.md#storage-setup)
-- [Secrets Configuration](../README.md#secrets-configuration) (HF Token and ACR Secret)
+Before deploying, ensure you have completed the following from the [Generic Kubernetes Setup Guide](../k8s/README.md):
+- [ACR Setup and Login](../acr/README.md)
+- [Namespace Setup](../k8s/README.md#namespace-setup)
+- [Storage Setup](../k8s/README.md#storage-setup)
+- [Secrets Configuration](../k8s/README.md#secrets-configuration) (HF Token and ACR Secret)
 
 ### Optional: Manual Image Download
 We can download the images manually:

@@ -96,6 +96,10 @@ Expected output should show node(s) in `Ready` state.
 
 ## Step 2: Setup Kubernetes Prerequisites
 
+For the generic Kubernetes setup steps (namespace, storage, secrets), see the [Generic Kubernetes Setup guide](../k8s/README.md).
+
+Quick reference for AKS:
+
 ### 2.1 Namespace
 ```bash
 kubectl create namespace $K8S_NAMESPACE
@@ -115,8 +119,8 @@ kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token=$H
 ### 2.3 Storage
 Deploy persistent volumes and claims (used by GPU model services for caching):
 ```bash
-kubectl apply -f deployment/aks/local-pv.yaml
-kubectl apply -f deployment/aks/local-pvc.yaml -n $K8S_NAMESPACE
+kubectl apply -f deployment/k8s/local-pv.yaml
+kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 ```
 
 ## Step 3: Deploy StreamWise (Cluster Manager)
@@ -134,7 +138,7 @@ export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
 cd deployment/aks
 
-kubectl apply -f streamwise-service-account.yaml
+kubectl apply -f ../k8s/streamwise-service-account.yaml
 envsubst < streamwise-pod.yaml | kubectl apply -f -
 ```
 
@@ -157,7 +161,7 @@ Open the web UI at: `http://$IP_ADDRESS:8081`
 ### Remove StreamWise
 ```bash
 kubectl delete -f streamwise-pod.yaml
-kubectl delete -f streamwise-service-account.yaml
+kubectl delete -f ../k8s/streamwise-service-account.yaml
 ```
 
 ## Step 4: Deploy StreamCast
@@ -165,7 +169,7 @@ kubectl delete -f streamwise-service-account.yaml
 Deploy using the same variable substitution approach as Step 3:
 
 ```bash
-kubectl apply -f streamwiseapp-service-account.yaml
+kubectl apply -f ../k8s/streamwiseapp-service-account.yaml
 envsubst < streamcast-pod.yaml | kubectl apply -f -
 ```
 
@@ -180,15 +184,18 @@ Open the StreamCast UI at: `http://$IP_ADDRESS:8080`
 ### Remove StreamCast
 ```bash
 kubectl delete -f streamcast-pod.yaml
-kubectl delete -f streamwiseapp-service-account.yaml
+kubectl delete -f ../k8s/streamwiseapp-service-account.yaml
 ```
 
 ## Step 5: GPU Setup
 
-Install the NVIDIA device plugin so Kubernetes can schedule GPU workloads:
+Install the NVIDIA device plugin so Kubernetes can schedule GPU workloads.
+See the [Generic Kubernetes GPU Setup](../k8s/README.md#gpu-setup) for the generic installation steps.
+
+For AKS, apply the local DaemonSet manifest:
 ```bash
 kubectl create namespace gpu-resources
-kubectl apply -f nvidia-device-plugin-ds.yaml
+kubectl apply -f ../k8s/nvidia-device-plugin-ds.yaml
 ```
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
@@ -293,10 +300,10 @@ Common profiles for A100 80 GB / H100 80 GB:
 
 #### Configure the NVIDIA device plugin for MIG
 
-Apply the ConfigMap ([nvidia-plugin-mig-config.yaml](nvidia-plugin-mig-config.yaml)) to expose MIG instances as Kubernetes resources:
+Apply the ConfigMap ([nvidia-plugin-mig-config.yaml](../k8s/nvidia-plugin-mig-config.yaml)) to expose MIG instances as Kubernetes resources:
 
 ```bash
-kubectl apply -f nvidia-plugin-mig-config.yaml
+kubectl apply -f ../k8s/nvidia-plugin-mig-config.yaml
 # Restart the device plugin daemon set so it picks up the new config
 kubectl rollout restart daemonset nvidia-device-plugin-daemonset -n gpu-resources
 ```
@@ -404,9 +411,9 @@ Common issues:
 ```bash
 # Delete pods and services
 kubectl delete -f streamcast-pod.yaml
-kubectl delete -f streamwiseapp-service-account.yaml
+kubectl delete -f ../k8s/streamwiseapp-service-account.yaml
 kubectl delete -f streamwise-pod.yaml
-kubectl delete -f streamwise-service-account.yaml
+kubectl delete -f ../k8s/streamwise-service-account.yaml
 
 # Delete storage and namespace
 kubectl delete pvc local-pvc -n rtgen
