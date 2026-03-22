@@ -181,7 +181,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         """
         Download the PDF from the given URL and save it to a temporary file.
         """
-        response = requests.get(url)
+        response = requests.get(url, timeout=30)
         if response.status_code == HTTPStatus.OK:
             if not job_id:
                 output_path = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name

@@ -246,7 +246,7 @@ def main() -> None:
     print(f"[{rank}] Loaded WanVAE in {time.time() - t0:.3f} seconds")  # ~9 seconds
 
     # 0 DEBUG: VAE decode z shape torch.Size([1, 16, 21, 68, 90])
-    x0 = torch.load("tensor_x0.pt").to(device)  # [16, 21, 68, 90]
+    x0 = torch.load("tensor_x0.pt", weights_only=True).to(device)  # [16, 21, 68, 90]
     print(f"[{rank}] x0 shape: {x0.shape}")
     x0 = [x0]
 

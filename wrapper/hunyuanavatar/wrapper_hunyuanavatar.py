@@ -168,7 +168,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         # Load the wav2vec model
         self.load_timer.start("wav2vec")
         self.wav2vec = WhisperModel.from_pretrained(
-            f"{self.models_root_path}/whisper-tiny/"
+            f"{self.models_root_path}/whisper-tiny/"  # nosec B615 - local path
         ).to(device=self.device, dtype=torch.float32)
         self.wav2vec.requires_grad_(False)
         self.load_timer.end("wav2vec")
@@ -182,7 +182,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         # Load the feature extractor
         self.load_timer.start("feature_extractor")
         self.feature_extractor = AutoFeatureExtractor.from_pretrained(
-            f"{self.models_root_path}/whisper-tiny/")
+            f"{self.models_root_path}/whisper-tiny/")  # nosec B615 - local path
         self.load_timer.end("feature_extractor")
 
         self.text_encoder = self.hunyuan_video_sampler.text_encoder

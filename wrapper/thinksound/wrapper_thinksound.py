@@ -126,7 +126,7 @@ class ThinkSoundGeneration(ModelGeneration):
         model_config["model"]["diffusion"]["config"]["latent_seq_len"] = round(44100 / 64 / 32 * duration)
         model = create_model_from_config(model_config)
         ckpt_dir = "FunAudioLLM/ThinkSound"
-        model.load_state_dict(torch.load(ckpt_dir))
+        model.load_state_dict(torch.load(ckpt_dir, weights_only=False))  # nosec B614 - trusted model
         load_vae_state = load_ckpt_state_dict("FunAudioLLM/ThinkSound/vae.ckpt")
         model.pretransform.load_state_dict(load_vae_state)
         model = model.to(self.device)

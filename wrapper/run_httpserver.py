@@ -943,7 +943,7 @@ async def hunyuanframepack_vae_binary(job_id: str) -> QuartReturn:
             decompressed_len = len(data_decompressed)
         else:
             decompressed_len = len(data)
-        latents = torch.load(data_bytes)
+        latents = torch.load(data_bytes, weights_only=True)
 
         logging.info(
             f"Process latent for '{job_id}' with {decompressed_len} bytes (HTTP:{len(data)}) "
@@ -1288,7 +1288,7 @@ async def nccl_worker() -> None:
             torch.cuda.synchronize()
 
             payload_bytes = payload_tensor.cpu().numpy().tobytes()
-            payload = pickle.loads(payload_bytes)
+            payload = pickle.loads(payload_bytes)  # nosec B301 - internal IPC from rank 0
 
             if not isinstance(payload, dict):
                 logging.error(f"[{rank}] Invalid payload received: {payload}.")
