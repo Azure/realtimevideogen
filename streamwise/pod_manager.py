@@ -285,7 +285,10 @@ async def add_pod(
     if not container_name:
         return jsonify({"error": "Missing required parameter 'container_name'"}), HTTPStatus.BAD_REQUEST
 
-    if mig_profile and not get_mig_resource_name(mig_profile):
+    # When no GPU resources are requested, ignore any provided MIG profile to keep API behavior consistent.
+    if not gpu or gpu <= 0:
+        mig_profile = None
+    elif mig_profile and not get_mig_resource_name(mig_profile):
         return jsonify({"error": f"Invalid MIG profile '{mig_profile}'"}), HTTPStatus.BAD_REQUEST
 
     logging.info(
