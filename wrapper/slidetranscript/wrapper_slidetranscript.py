@@ -9,6 +9,8 @@ import aiofiles
 
 from openai import AsyncOpenAI
 
+from typing import TYPE_CHECKING
+from typing import cast
 from typing import override
 from typing import Dict
 from typing import Optional
@@ -16,6 +18,10 @@ from typing import List
 from typing import Tuple
 from typing import Any
 from typing import AsyncGenerator
+
+if TYPE_CHECKING:
+    from openai import AsyncStream
+    from openai.types.chat import ChatCompletionChunk
 
 from wrapper_model import ModelGeneration
 
@@ -228,18 +234,18 @@ class SlideTranscriptGenerator(ModelGeneration):
         async with aiofiles.open(f"/tmp/{job_id}_prompt.json", "w") as prompt_file:
             await prompt_file.write(json.dumps(messages, indent=2))
 
-        response_stream = await self.llm_client.chat.completions.create(
+        response_stream = cast("AsyncStream[ChatCompletionChunk]", await self.llm_client.chat.completions.create(
             model=self.llm_model,
             messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
             extra_body=self.extra_body,
             stream=True,
-        )
+        ))
 
         it = 0
         buffer_text = ""
-        async for chunk in response_stream:  # type: ignore[union-attr]
+        async for chunk in response_stream:
             if self.interrupted:  # type: ignore[has-type]
                 self.interrupted = False
                 logging.info("Generation interrupted.")
