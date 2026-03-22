@@ -31,6 +31,7 @@ def parse_args(
     args, unknown_args = parser.parse_known_args(namespace=namespace)
     if unknown_args:
         print(f"Additional arguments: {unknown_args}")
+    assert args is not None
     args = sanity_check_args(args)
     return args
 

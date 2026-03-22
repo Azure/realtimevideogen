@@ -72,7 +72,7 @@ class VideoAudioTextLoaderVal():
 
     def encode_data(
         self,
-        ref_image,
+        ref_image: Any,
         audio_path: str,
         prompt: str,
         fps: int
@@ -108,7 +108,7 @@ class VideoAudioTextLoaderVal():
         motion_bucket_id_exps = np.array([30] * 4)
         motion_bucket_id_heads = torch.from_numpy(motion_bucket_id_heads)
         motion_bucket_id_exps = torch.from_numpy(motion_bucket_id_exps)
-        fps = torch.from_numpy(np.array(fps))
+        fps_tensor = torch.from_numpy(np.array(fps))
 
         to_pil = ToPILImage()
         pixel_value_ref = rearrange(ref_image.clone().unsqueeze(0), "b h w c -> b c h w")   # (b c h w)
@@ -135,7 +135,7 @@ class VideoAudioTextLoaderVal():
             "audio_prompts": audio_prompts.to(dtype=torch.float16),
             "motion_bucket_id_heads": motion_bucket_id_heads.to(dtype=text_ids.dtype),
             "motion_bucket_id_exps": motion_bucket_id_exps.to(dtype=text_ids.dtype),
-            "fps": fps.to(dtype=torch.float16),
+            "fps": fps_tensor.to(dtype=torch.float16),
             "text_ids": text_ids.clone(),                                               # for llava_text_encoder
             "text_mask": text_mask.clone(),                                             # for llava_text_encoder
             "text_ids_2": text_ids_2.clone(),                                           # for clip_text_encoder

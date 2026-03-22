@@ -1,5 +1,6 @@
 """ VibeVoice_AcousticTokenizer model configuration"""
 
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -41,8 +42,8 @@ class VibeVoiceAcousticTokenizerConfig(PretrainedConfig):
         decoder_n_filters: int = 32,
         decoder_ratios: Optional[List[int]] = None,  # if None, same as encoder
         decoder_depths: Optional[str] = None,
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         super().__init__(**kwargs)
         self.channels = channels
         self.corpus_normalize = corpus_normalize
@@ -100,8 +101,8 @@ class VibeVoiceSemanticTokenizerConfig(PretrainedConfig):
         encoder_n_filters: int = 32,
         encoder_ratios: Optional[List[int]] = [8, 5, 5, 4, 2, 2],
         encoder_depths: str = "3-3-3-3-3-3-8",
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         super().__init__(**kwargs)
         self.channels = channels
         self.corpus_normalize = corpus_normalize
@@ -133,20 +134,20 @@ class VibeVoiceDiffusionHeadConfig(PretrainedConfig):
 
     def __init__(
         self,
-        hidden_size=768,
-        head_layers=4,
-        head_ffn_ratio=3.0,
-        rms_norm_eps=1e-5,
-        latent_size=64,
-        speech_vae_dim=None,
-        prediction_type="v_prediction",
-        diffusion_type="ddpm",
-        ddpm_num_steps=1000,
-        ddpm_num_inference_steps=20,
-        ddpm_beta_schedule="cosine",
-        ddpm_batch_mul=4,
-        **kwargs
-    ):
+        hidden_size: int = 768,
+        head_layers: int = 4,
+        head_ffn_ratio: float = 3.0,
+        rms_norm_eps: float = 1e-5,
+        latent_size: int = 64,
+        speech_vae_dim: Optional[int] = None,
+        prediction_type: str = "v_prediction",
+        diffusion_type: str = "ddpm",
+        ddpm_num_steps: int = 1000,
+        ddpm_num_inference_steps: int = 20,
+        ddpm_beta_schedule: str = "cosine",
+        ddpm_batch_mul: int = 4,
+        **kwargs: Any
+    ) -> None:
         self.hidden_size = hidden_size
         self.head_layers = head_layers
         self.head_ffn_ratio = head_ffn_ratio
@@ -186,12 +187,12 @@ class VibeVoiceConfig(PretrainedConfig):
 
     def __init__(
         self,
-        acoustic_tokenizer_config=None,
-        semantic_tokenizer_config=None,
-        decoder_config=None,
-        diffusion_head_config=None,
-        **kwargs
-    ):
+        acoustic_tokenizer_config: Optional[Any] = None,
+        semantic_tokenizer_config: Optional[Any] = None,
+        decoder_config: Optional[Any] = None,
+        diffusion_head_config: Optional[Any] = None,
+        **kwargs: Any
+    ) -> None:
         # kwargs["_attn_implementation"] = "flash_attention_2"
         kwargs["_attn_implementation_autoset"] = False
 

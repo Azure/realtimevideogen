@@ -248,7 +248,7 @@ async def get_k8s_nodes(
 
             gpu_model = "N/A"
             if "nvidia.com/gpu.product" in labels:
-                gpu_model = labels.get("nvidia.com/gpu.product")
+                gpu_model = labels.get("nvidia.com/gpu.product", "N/A")
             elif "beta.kubernetes.io/instance-type" in labels:
                 instance_type = labels["beta.kubernetes.io/instance-type"]
                 # gpu_model = get_gpu_model_from_instance_type(instance_type)
@@ -262,7 +262,7 @@ async def get_k8s_nodes(
 
             resource_group = "N/A"
             if "network-resourcegroup" in labels:
-                resource_group = labels.get("network-resourcegroup")
+                resource_group = labels.get("network-resourcegroup", "N/A")
 
             info = {
                 "node_name": node_name,

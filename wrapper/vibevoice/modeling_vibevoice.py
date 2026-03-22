@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from typing import Dict
+from typing import Any
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -55,13 +55,13 @@ class VibeVoiceGenerationOutput(ModelOutput):
 
 
 class SpeechConnector(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim: int, output_dim: int) -> None:
         super().__init__()
         self.fc1 = nn.Linear(input_dim, output_dim)
         self.norm = LlamaRMSNorm(output_dim, eps=1e-6)
         self.fc2 = nn.Linear(output_dim, output_dim)
 
-    def forward(self, features, **kwargs):
+    def forward(self, features: Any, **kwargs: Any) -> Any:
         x = self.fc1(features)
         x = self.norm(x)
         x = self.fc2(x)
@@ -81,7 +81,7 @@ class VibeVoicePreTrainedModel(PreTrainedModel):
     _supports_static_cache = True
     _supports_attention_backend = True
 
-    def _init_weights(self, module):
+    def _init_weights(self, module: nn.Module) -> None:
         if isinstance(module, VibeVoiceDiffusionHead):
             module.initialize_weights()
             return
@@ -109,7 +109,7 @@ class VibeVoicePreTrainedModel(PreTrainedModel):
 
 # @auto_docstring
 class VibeVoiceModel(VibeVoicePreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config: VibeVoiceConfig) -> None:
         super().__init__(config)
 
         if hasattr(config, 'torch_dtype') and config.torch_dtype is not None:
@@ -145,7 +145,7 @@ class VibeVoiceModel(VibeVoicePreTrainedModel):
             prediction_type=config.diffusion_head_config.prediction_type
         )
 
-    def get_input_embeddings(self):
+    def get_input_embeddings(self) -> nn.Module:
         if hasattr(self.language_model, 'embed_tokens'):
             # If the language model has an embed_tokens attribute, return it
             return self.language_model.embed_tokens
@@ -155,10 +155,12 @@ class VibeVoiceModel(VibeVoicePreTrainedModel):
                 return getattr(self.language_model, name)
         assert False, 'should not arrive here'
 
-    def set_input_embeddings(self, value):
+    def set_input_embeddings(self, value: nn.Module) -> None:
         self.language_model.embed_tokens = value
 
-    def set_speech_tokenizers(self, acoustic_tokenizer=None, semantic_tokenizer=None):
+    def set_speech_tokenizers(
+        self, acoustic_tokenizer: Optional[Any] = None, semantic_tokenizer: Optional[Any] = None
+    ) -> None:
         """Set the speech tokenizers used for encoding and decoding speech."""
         self.acoustic_tokenizer = acoustic_tokenizer
         self.semantic_tokenizer = semantic_tokenizer
@@ -182,7 +184,7 @@ class VibeVoiceModel(VibeVoicePreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
@@ -240,7 +242,7 @@ class VibeVoiceForConditionalGeneration(VibeVoicePreTrainedModel):
     def get_output_embeddings(self) -> nn.Module:
         return self.lm_head
 
-    def set_decoder(self, decoder) -> None:
+    def set_decoder(self, decoder: nn.Module) -> None:
         self.model.language_model = decoder
 
     def get_decoder(self) -> nn.Module:
@@ -275,7 +277,7 @@ class VibeVoiceForConditionalGeneration(VibeVoicePreTrainedModel):
 
     # Also, ensure set_output_embeddings is safe, though your implementation looks okay.
     # The key is to avoid calling it after accelerator.prepare().
-    def set_output_embeddings(self, new_embeddings) -> None:
+    def set_output_embeddings(self, new_embeddings: nn.Module) -> None:
         # Your current implementation using data.copy_ is good practice,
         # but the best way is to not call this after prepare().
         self.lm_head = new_embeddings
@@ -364,7 +366,7 @@ class VibeVoiceForConditionalGeneration(VibeVoicePreTrainedModel):
         acoustic_input_mask: Optional[torch.BoolTensor] = None,
         acoustic_loss_mask: Optional[torch.BoolTensor] = None,
         ddpm_batch_mul: int = 1,
-        **kwargs: Optional[Dict[str, Union[torch.Tensor, str]]],
+        **kwargs: Any,
     ) -> Union[Tuple, VibeVoiceCausalLMOutputWithPast]:
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
@@ -424,7 +426,7 @@ class VibeVoiceForConditionalGeneration(VibeVoicePreTrainedModel):
         # --- Diffusion Loss Calculation ---
         diffusion_loss = None
         # This block is executed only if we are in a context that involves speech.
-        if speech_tensors is not None and acoustic_loss_mask.sum().item() > 0:
+        if speech_tensors is not None and acoustic_loss_mask is not None and acoustic_loss_mask.sum().item() > 0:
             condition_features = hidden_states[acoustic_loss_mask]
 
             speech_len, latent_size = speech_features.shape
