@@ -233,24 +233,124 @@ INSTANCE_ID=0
 az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_NAME --instance-ids $INSTANCE_ID
 ```
 
+### 5.1 Partial GPU Support (MIG)
+
+NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources. This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
+
+#### Option A: AKS node pool with `--gpu-instance-profile` (recommended)
+
+For some GPU VM types like A100 v4 series (e.g., `Standard_ND96amsr_A100_v4`, `Standard_ND96asr_v4`), AKS can configure MIG partitioning automatically when creating a node pool. See the [Azure AKS GPU multi-instance documentation](https://learn.microsoft.com/en-us/azure/aks/gpu-multi-instance) for full details and supported VM sizes.
+
+```bash
+# Create a dedicated node pool where every A100 GPU is split into 1g.5gb slices
+az aks nodepool add \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --cluster-name $AKS_CLUSTER \
+  --name migpool \
+  --node-count 1 \
+  --node-vm-size Standard_ND96amsr_A100_v4 \
+  --gpu-instance-profile MIG1g
+```
+
+| `--gpu-instance-profile` value | Profile | GPU fraction | Memory |
+|-------------------------------|---------|-------------|--------|
+| `MIG1g` | `1g.5gb` | 1/7 | 5 GB |
+| `MIG2g` | `2g.10gb` | 2/7 | 10 GB |
+| `MIG3g` | `3g.20gb` | 3/7 | 20 GB |
+| `MIG4g` | `4g.20gb` | 4/7 | 20 GB |
+| `MIG7g` | `7g.40gb` | 7/7 | 40 GB |
+
+> **Note:** `--gpu-instance-profile` applies one uniform partition strategy across every GPU in the node pool.
+> It is set at pool creation time and cannot be changed afterwards.
+> Mix MIG and non-MIG workloads by creating separate node pools.
+
+#### Option B: Manual MIG configuration (any GPU node)
+
+For H100 nodes or when you need a custom mix of profiles, SSH into the GPU node (via `kubectl node-shell`) and run:
+
+```bash
+# Enable MIG mode on all GPUs (requires a node reboot or driver restart)
+sudo nvidia-smi -i 0 -mig 1
+
+# Verify MIG mode is on
+nvidia-smi -L
+
+# Example: partition GPU 0 into 2× 3g.40gb + 1× 1g.10gb on an H100 80 GB
+sudo nvidia-smi mig -cgi 3g.40gb,3g.40gb,1g.10gb -C -i 0
+```
+
+Common profiles for A100 80 GB / H100 80 GB:
+
+| Profile | GPU fraction | Memory |
+|---------|-------------|--------|
+| `1g.10gb` | 1/7 | 10 GB |
+| `2g.20gb` | 2/7 | 20 GB |
+| `3g.40gb` | 3/7 | 40 GB |
+| `4g.40gb` | 4/7 | 40 GB |
+| `7g.80gb` | 7/7 | 80 GB |
+
+> **Tip:** A100/H100 also support a *mixed* GPU configuration where some GPUs on a node run in MIG mode and others run in standard (whole-GPU) mode.  Setting `migStrategy = "mixed"` in the device plugin (see below) tells Kubernetes to expose both whole-GPU (`nvidia.com/gpu`) and MIG-slice (`nvidia.com/mig-*`) resources from the same node, so MIG and non-MIG workloads can coexist in the cluster.
+
+#### Configure the NVIDIA device plugin for MIG
+
+Apply the ConfigMap ([nvidia-plugin-mig-config.yaml](nvidia-plugin-mig-config.yaml)) to expose MIG instances as Kubernetes resources:
+
+```bash
+kubectl apply -f nvidia-plugin-mig-config.yaml
+# Restart the device plugin daemon set so it picks up the new config
+kubectl rollout restart daemonset nvidia-device-plugin-daemonset -n gpu-resources
+```
+
+With `migStrategy = "mixed"`, the device plugin advertises each MIG instance as a separate Kubernetes resource, e.g. `nvidia.com/mig-1g.10gb`.
+
+#### Deploy a service with a MIG slice
+
+Using the StreamWise web UI, select a **MIG Profile** in the Resources section when adding a service.
+
+Or via the REST API:
+```bash
+# Deploy Kokoro using a 1g.10gb MIG slice on an H100 node
+curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
+  -d "container_name=kokoro" \
+  -d "gpu=1" \
+  -d "mig_profile=1g.10gb" \
+  -d "gpu_type=h100" \
+  -d "memory=8" \
+  -d "cpu=2"
+
+# Deploy YOLO using a 1g.5gb MIG slice on an A100 40 GB node
+curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
+  -d "container_name=yolo" \
+  -d "gpu=1" \
+  -d "mig_profile=1g.5gb" \
+  -d "gpu_type=a100" \
+  -d "memory=8" \
+  -d "cpu=4"
+```
+
+> **Note:** When specifying a `mig_profile`, the pod requests `nvidia.com/mig-<profile>` instead of `nvidia.com/gpu`.
+> The `gpu` parameter then controls the number of MIG slices requested (usually `1`).
+> Pods that request a MIG slice will only be scheduled on nodes where MIG mode is enabled and matching instances exist.
+
 ## Step 6: Deploy GPU Microservices
 
 Deploy model services through the StreamWise web UI or REST API.
 
 **GPU requirements per service:**
-| Service | GPUs | Purpose |
-|---------|------|---------|
-| `gemma` | 2–4 | LLM (screenplay generation) |
-| `flux` | 2 | Text-to-image |
-| `hunyuanframepackf1` | 2 | Image-to-video |
-| `fantasytalking` | 2 | Audio-driven video |
-| `kokoro` | 1 | Text-to-speech |
-| `yolo` | 1 | Character extraction |
-| `realesrgan` | 1 | Video upscaling |
-| `podcasttranscript` | 0 | Transcript orchestration (CPU-only) |
+| Service | GPUs | MIG Profile (recommended) | Purpose |
+|---------|------|--------------------------|---------|
+| `gemma` | 2–4 | — (full GPUs) | LLM (screenplay generation) |
+| `flux` | 2 | — (full GPUs) | Text-to-image |
+| `hunyuanframepackf1` | 2 | — (full GPUs) | Image-to-video |
+| `fantasytalking` | 2 | — (full GPUs) | Audio-driven video |
+| `kokoro` | 1 | `1g.10gb` (H100) or `1g.5gb` (A100) | Text-to-speech |
+| `yolo` | 1 | `1g.10gb` (H100) or `1g.5gb` (A100) | Character extraction |
+| `realesrgan` | 1 | — | Video upscaling |
+| `podcasttranscript` | 0 | — | Transcript orchestration (CPU-only) |
 
 > **Capacity planning:** A single `Standard_ND96isrf_H100_v5` node provides 8 GPUs.
 > A minimal StreamCast pipeline (gemma + kokoro + flux + yolo + hunyuanframepackf1) requires 8 GPUs.
+> With MIG enabled, kokoro and yolo each consume only a 1/7 GPU slice, freeing whole GPUs for heavier models.
 > For parallel execution of all services, add a second GPU node.
 
 The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
@@ -261,10 +361,19 @@ curl -X POST "http://$IP_ADDRESS:8081/api/service"
 
 Or deploy individual services with specific resource allocations:
 ```bash
-# Deploy a single service
+# Deploy a single service (whole GPU)
 curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
+  -d "memory=8" \
+  -d "cpu=2"
+
+# Deploy with a MIG slice (partial GPU — requires MIG configured on the node; see Step 5.1)
+curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
+  -d "container_name=kokoro" \
+  -d "gpu=1" \
+  -d "mig_profile=1g.10gb" \
+  -d "gpu_type=h100" \
   -d "memory=8" \
   -d "cpu=2"
 

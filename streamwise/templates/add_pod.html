@@ -164,7 +164,36 @@
                                 <option value="a100">A100</option>
                                 <option value="h100">H100</option>
                                 <option value="h200">H200</option>
+                                <option value="gb200">GB200</option>
+                                <option value="gb300">GB300</option>
                                 <option value="v100">V100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <label for="wrapper_mig_profile" class="form-label">
+                                🔀 MIG Profile
+                                <span tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Optional. Select a MIG profile to share one A100/H100 GPU between multiple pods. Leave as 'None (full GPU)' to use a whole GPU. Requires MIG mode enabled on the node."
+                                    style="cursor:pointer;">ℹ️</span>
+                            </label>
+                            <select class="form-select" id="wrapper_mig_profile" name="mig_profile">
+                                <option value="">None (full GPU)</option>
+                                <optgroup label="40 GB GPU profiles (e.g. A100 40 GB)">
+                                    <option value="1g.5gb">1g.5gb — 1/7 GPU, 5 GB</option>
+                                    <option value="2g.10gb">2g.10gb — 2/7 GPU, 10 GB</option>
+                                    <option value="3g.20gb">3g.20gb — 3/7 GPU, 20 GB</option>
+                                    <option value="4g.20gb">4g.20gb — 4/7 GPU, 20 GB</option>
+                                    <option value="7g.40gb">7g.40gb — full GPU, 40 GB</option>
+                                </optgroup>
+                                <optgroup label="80 GB GPU profiles (e.g. A100 80 GB, H100 80 GB)">
+                                    <option value="1g.10gb">1g.10gb — 1/7 GPU, 10 GB</option>
+                                    <option value="2g.20gb">2g.20gb — 2/7 GPU, 20 GB</option>
+                                    <option value="3g.40gb">3g.40gb — 3/7 GPU, 40 GB</option>
+                                    <option value="4g.40gb">4g.40gb — 4/7 GPU, 40 GB</option>
+                                    <option value="7g.80gb">7g.80gb — full GPU, 80 GB</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
@@ -357,7 +386,7 @@
             const defaults = {
                 podcasttranscript:   {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
                 slidetranscript:     {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
-                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1},
+                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.5gb'},
                 xtts:                {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1},
                 thinksound:          {cpu:2,  memory:8,   ephemeralStorage:32, gpu:1},
                 vibevoice:           {cpu:4,  memory:8,   ephemeralStorage:32, gpu:1},
@@ -375,7 +404,7 @@
                 flux2klein:          {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
                 imageresize:         {cpu:4,  memory:8,   ephemeralStorage:16, gpu:0},
                 realesrgan:          {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
-                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
+                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.5gb'},
                 bagel:               {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 gemma:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
                 llama32:             {cpu:12, memory:192, ephemeralStorage:96, gpu:4},
@@ -398,19 +427,31 @@
                     case 'a100': return 'A100';
                     case 'h100': return 'H100';
                     case 'h200': return 'H200';
+                    case 'gb200': return 'GB200';
+                    case 'gb300': return 'GB300';
                     case 'v100': return 'V100';
                     default: return id;
                 }
             }
 
             function updatePresetInfo(val) {
-                const cpu = document.getElementById('wrapper_cpu').value;
-                const memory = document.getElementById('wrapper_memory').value;
-                const ephemeral = document.getElementById('wrapper_ephemeralStorage').value;
-                const gpu = document.getElementById('wrapper_gpu').value;
-                const gpu_type = document.getElementById('wrapper_gpu_type').value;
+                const cpu = escapeHtml(document.getElementById('wrapper_cpu').value);
+                const memory = escapeHtml(document.getElementById('wrapper_memory').value);
+                const ephemeral = escapeHtml(document.getElementById('wrapper_ephemeralStorage').value);
+                const gpu = escapeHtml(document.getElementById('wrapper_gpu').value);
+                const gpu_type = escapeHtml(document.getElementById('wrapper_gpu_type').value);
+                const mig_profile = escapeHtml(document.getElementById('wrapper_mig_profile').value);
                 const info = document.getElementById('preset-info');
-                info.innerHTML = `CPU: <b>${escapeHtml(cpu)}</b> cores, Memory: <b>${escapeHtml(memory)}</b> GiB, Ephemeral: <b>${escapeHtml(ephemeral)}</b> GiB, GPU: <b>${escapeHtml(gpu)}</b> (${escapeHtml(getFriendlyGpuType(gpu_type))})`;
+                let gpuDesc;
+                if (parseInt(gpu) === 0) {
+                    gpuDesc = 'No GPU';
+                } else {
+                    gpuDesc = `<b>${gpu}</b> (${getFriendlyGpuType(gpu_type)})`;
+                    if (mig_profile) {
+                        gpuDesc += ` MIG <b>${mig_profile}</b>`;
+                    }
+                }
+                info.innerHTML = `CPU: <b>${cpu}</b> cores, Memory: <b>${memory}</b> GiB, Ephemeral: <b>${ephemeral}</b> GiB, GPU: ${gpuDesc}`;
                 info.style.display = '';
             }
 
@@ -436,7 +477,7 @@
                             document.getElementById('wrapper_gpu_val').textContent = defaults[val].gpu + " GPUs";
                         }
                         document.getElementById('wrapper_gpu_type').value = defaults[val].gpu_type || 'any';
-
+                        document.getElementById('wrapper_mig_profile').value = defaults[val].mig_profile || '';
                     }
                     updatePresetInfo(val);
                 });
@@ -444,8 +485,16 @@
                 // Add listeners to sliders to update info box
                 ['wrapper_cpu','wrapper_memory','wrapper_ephemeralStorage','wrapper_gpu','wrapper_gpu_type'].forEach(function(id) {
                     document.getElementById(id).addEventListener('input', function() {
+                        // When GPU is set to 0, reset the MIG profile selection
+                        if (id === 'wrapper_gpu' && parseInt(this.value) === 0) {
+                            document.getElementById('wrapper_mig_profile').value = '';
+                        }
                         updatePresetInfo(document.getElementById('wrapper_container_name').value);
                     });
+                });
+                // Use 'change' for the select element (fires on every selection change)
+                document.getElementById('wrapper_mig_profile').addEventListener('change', function() {
+                    updatePresetInfo(document.getElementById('wrapper_container_name').value);
                 });
 
                 // Show info on load

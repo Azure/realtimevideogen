@@ -20,18 +20,20 @@ mock_modules = {}
 mock_modules.update(mock_k8s.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
-        from streamwise import streamwise
+        from streamwise import streamwise as sw
 
         from streamwise.pod_manager import get_gpu_type_affinity
         from streamwise.pod_manager import get_container_port
         from streamwise.pod_manager import get_gemma_settings
         from streamwise.pod_manager import get_llama32_settings
+        from streamwise.pod_manager import get_mig_resource_name
+        from streamwise.pod_manager import MIG_PROFILES
 
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_k8s_cluster() -> None:
     # for some reason k8s_config.load_kube_config() is not async mocked
-    streamwise.k8s_cluster = "unittest"
+    sw.k8s_cluster = "unittest"
 
 
 def test_get_gpu_type_affinity() -> None:
@@ -102,9 +104,35 @@ def test_get_llama32_settings() -> None:
     assert volumes is not None
 
 
+def test_get_mig_resource_name() -> None:
+    # Valid A100 40 GB profiles
+    assert get_mig_resource_name("1g.5gb") == "nvidia.com/mig-1g.5gb"
+    assert get_mig_resource_name("2g.10gb") == "nvidia.com/mig-2g.10gb"
+    assert get_mig_resource_name("3g.20gb") == "nvidia.com/mig-3g.20gb"
+    assert get_mig_resource_name("4g.20gb") == "nvidia.com/mig-4g.20gb"
+    assert get_mig_resource_name("7g.40gb") == "nvidia.com/mig-7g.40gb"
+    # Valid A100 80 GB / H100 80 GB profiles
+    assert get_mig_resource_name("1g.10gb") == "nvidia.com/mig-1g.10gb"
+    assert get_mig_resource_name("2g.20gb") == "nvidia.com/mig-2g.20gb"
+    assert get_mig_resource_name("3g.40gb") == "nvidia.com/mig-3g.40gb"
+    assert get_mig_resource_name("4g.40gb") == "nvidia.com/mig-4g.40gb"
+    assert get_mig_resource_name("7g.80gb") == "nvidia.com/mig-7g.80gb"
+    # Invalid profile
+    assert get_mig_resource_name("invalid") is None
+    assert get_mig_resource_name("5g.20gb") is None
+    assert get_mig_resource_name("") is None
+
+
+def test_mig_profiles_set() -> None:
+    assert "1g.5gb" in MIG_PROFILES
+    assert "1g.10gb" in MIG_PROFILES
+    assert "7g.80gb" in MIG_PROFILES
+    assert "invalid" not in MIG_PROFILES
+
+
 @pytest.mark.asyncio
 async def test_add_pod() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
     response = await client.get("/pod/qwenimage")
     assert response.status_code == HTTPStatus.OK
@@ -115,7 +143,7 @@ async def test_add_pod() -> None:
 
 @pytest.mark.asyncio
 async def test_api_add_pod() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     response = await client.post("/api/pod")
@@ -146,8 +174,57 @@ async def test_api_add_pod() -> None:
 
 
 @pytest.mark.asyncio
+async def test_api_add_pod_with_mig() -> None:
+    """Pod creation with a MIG profile should use the MIG resource name."""
+    app = sw.app
+    client = app.test_client()
+
+    form_data = {
+        "container_name": "kokoro",
+        "gpu": "1",
+        "mig_profile": "1g.5gb",
+        "gpu_type": "a100",
+        "memory": "8",
+        "cpu": "2",
+    }
+    response = await client.post(
+        "/api/pod",
+        data=urllib.parse.urlencode(form_data),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert response_json["container_name"] == "kokoro"
+    assert response_json["mig_profile"] == "1g.5gb"
+    # Resource request must use MIG resource name, not nvidia.com/gpu
+    assert "nvidia.com/mig-1g.5gb" in response_json["resource_request"]
+    assert "nvidia.com/gpu" not in response_json["resource_request"]
+
+
+@pytest.mark.asyncio
+async def test_api_add_pod_invalid_mig() -> None:
+    """Pod creation with an invalid MIG profile should be rejected."""
+    app = sw.app
+    client = app.test_client()
+
+    form_data = {
+        "container_name": "kokoro",
+        "gpu": "1",
+        "mig_profile": "bad_profile",
+    }
+    response = await client.post(
+        "/api/pod",
+        data=urllib.parse.urlencode(form_data),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    response_json = await response.get_json()
+    assert "Invalid MIG profile" in response_json["error"]
+
+
+@pytest.mark.asyncio
 async def test_api_add_pod_custom_tag() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     # Custom tag should be reflected in the image_url
@@ -183,7 +260,7 @@ async def test_api_add_pod_custom_tag() -> None:
 
 @pytest.mark.asyncio
 async def test_remove_pod() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     response = await client.delete("/api/pod/fluxkrea")
