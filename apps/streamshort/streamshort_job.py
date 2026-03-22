@@ -72,7 +72,7 @@ class StreamShortJob(StreamWiseJob):
         self,
         job_config: Dict[str, Any],
     ) -> None:
-        video_base64 = job_config.get("video_base64", None)
+        video_base64: Optional[str] = job_config.get("video_base64")
         await self.gen_short(video_base64)
 
     def find_scene_for_frame(
@@ -96,7 +96,7 @@ class StreamShortJob(StreamWiseJob):
 
     async def gen_short(
         self,
-        video_base64: str,
+        video_base64: Optional[str],
     ) -> None:
         """
         Generate the video short.
@@ -260,7 +260,7 @@ class StreamShortJob(StreamWiseJob):
     async def describe_frames(
         self,
         key_frames: List[int]
-    ):
+    ) -> None:
         description_tasks = []
 
         key_frame_batch = []
@@ -287,7 +287,7 @@ class StreamShortJob(StreamWiseJob):
         frame_nums: List[int],
         max_tokens: int = 8192,
         batch_id: int = 0,
-    ) -> str:
+    ) -> None:
         """Describe a list of frames using the LLM."""
         MAX_LOG_TEXT = 80
 
@@ -300,20 +300,21 @@ class StreamShortJob(StreamWiseJob):
             image_base64s.append(frame_base64)
 
         # Send the frames to the LLM
-        message = {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": DESCRIPTION_PROMPT}
-            ],
-        }
+        content: List[Dict[str, Any]] = [
+            {"type": "text", "text": DESCRIPTION_PROMPT}
+        ]
         for image_base64 in image_base64s:
-            message["content"].append({
+            content.append({
                 "type": "image_url",
                 "image_url": {
                     "url": f"data:image/jpeg;base64,{image_base64}"
                 }
             })
-        message["content"].append({"type": "text", "text": "Generate the JSON descriptions now."})
+        content.append({"type": "text", "text": "Generate the JSON descriptions now."})
+        message = {
+            "role": "user",
+            "content": content,
+        }
         messages = [message]
 
         prompt_path = f"{self.job_path}/description_prompt_{batch_id}.json"

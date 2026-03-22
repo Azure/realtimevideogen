@@ -65,7 +65,7 @@ class StreamMovieJob(StreamWiseJob):
         self,
         job_config: Dict[str, Any],
     ) -> None:
-        movie_description = job_config.get("movie_description", None)
+        movie_description: Optional[str] = job_config.get("movie_description")
         await self.gen_movie(movie_description)
 
     @staticmethod
@@ -84,7 +84,7 @@ class StreamMovieJob(StreamWiseJob):
 
     async def gen_movie(
         self,
-        movie_description: str
+        movie_description: Optional[str]
     ) -> None:
         """
         Generate a movie based on the provided description.
@@ -138,7 +138,7 @@ class StreamMovieJob(StreamWiseJob):
             for idx, result in enumerate(results):
                 if isinstance(result, Exception):
                     self.logger.error(f"[{idx}] Shot generation failed: {result}")
-                elif result:
+                elif isinstance(result, str):
                     shot_video_paths.append(result)
                     self.logger.info(f"[{idx}] Shot video saved to '{result}'.")
                 else:
