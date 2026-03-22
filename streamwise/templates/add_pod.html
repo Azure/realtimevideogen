@@ -419,7 +419,31 @@
                 const gpu = document.getElementById('wrapper_gpu').value;
                 const gpu_type = document.getElementById('wrapper_gpu_type').value;
                 const info = document.getElementById('preset-info');
-                info.innerHTML = `CPU: <b>${escapeHtml(cpu)}</b> cores, Memory: <b>${escapeHtml(memory)}</b> GiB, Ephemeral: <b>${escapeHtml(ephemeral)}</b> GiB, GPU: <b>${escapeHtml(gpu)}</b> (${escapeHtml(getFriendlyGpuType(gpu_type))})`;
+
+                const cpuBold = document.createElement('b');
+                cpuBold.textContent = cpu;
+                const memoryBold = document.createElement('b');
+                memoryBold.textContent = memory;
+                const ephemeralBold = document.createElement('b');
+                ephemeralBold.textContent = ephemeral;
+                const gpuBold = document.createElement('b');
+                gpuBold.textContent = gpu;
+                const gpuTypeBold = document.createElement('b');
+                gpuTypeBold.textContent = getFriendlyGpuType(gpu_type);
+
+                info.replaceChildren(
+                    document.createTextNode('CPU: '),
+                    cpuBold,
+                    document.createTextNode(' cores, Memory: '),
+                    memoryBold,
+                    document.createTextNode(' GiB, Ephemeral: '),
+                    ephemeralBold,
+                    document.createTextNode(' GiB, GPU: '),
+                    gpuBold,
+                    document.createTextNode(' ('),
+                    gpuTypeBold,
+                    document.createTextNode(')')
+                );
                 info.style.display = '';
             }
 
