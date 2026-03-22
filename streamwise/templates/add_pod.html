@@ -352,8 +352,8 @@
             </form>
         {% endif %}
 
+        <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
         <script>
-            // Keep aligned with deployment/helm/values.yaml and services.json
             const defaults = {
                 podcasttranscript:   {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
                 slidetranscript:     {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
@@ -401,15 +401,6 @@
                     case 'v100': return 'V100';
                     default: return id;
                 }
-            }
-
-            function escapeHtml(str) {
-                return String(str)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
             }
 
             function updatePresetInfo(val) {
