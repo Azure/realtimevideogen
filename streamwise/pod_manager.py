@@ -313,8 +313,9 @@ async def add_pod(
         if mig_profile:
             # Request a MIG slice: nvidia.com/mig-<profile> (e.g. nvidia.com/mig-1g.5gb)
             mig_resource = get_mig_resource_name(mig_profile)
-            resource_request[mig_resource] = gpu  # type: ignore[index]
-            resource_limit[mig_resource] = gpu  # type: ignore[index]
+            assert mig_resource is not None  # already validated above
+            resource_request[mig_resource] = gpu
+            resource_limit[mig_resource] = gpu
         else:
             resource_request["nvidia.com/gpu"] = gpu
             resource_limit["nvidia.com/gpu"] = gpu

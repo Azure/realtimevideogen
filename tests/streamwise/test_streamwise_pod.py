@@ -11,8 +11,6 @@ from http import HTTPStatus
 
 from unittest.mock import patch
 
-import streamwise  # noqa: F401 - pre-load the package so temp_sys_path resolves it correctly
-
 from tests.test_utils import temp_sys_path
 from tests.k8s_mock import K8sMock
 

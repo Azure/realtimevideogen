@@ -138,7 +138,6 @@ services:
     cpu: 4
     memory: 8Gi
     ephemeralStorage: 16Gi
-    migProfile: 1g.5gb
 
   # --- Text-to-audio ---
   kokoro:
@@ -146,7 +145,6 @@ services:
     cpu: 2
     memory: 8Gi
     ephemeralStorage: 16Gi
-    migProfile: 1g.5gb
 
   # --- Text-to-image / image editing ---
   flux:
