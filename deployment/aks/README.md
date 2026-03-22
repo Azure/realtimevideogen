@@ -239,7 +239,7 @@ NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) int
 
 #### Option A: AKS node pool with `--gpu-instance-profile` (recommended)
 
-For **A100 v4 series** VMs (`Standard_ND96amsr_A100_v4`, `Standard_ND96asr_v4`), AKS can configure MIG partitioning automatically when creating a node pool:
+For some GPU VM types like A100 v4 series (e.g., `Standard_ND96amsr_A100_v4`, `Standard_ND96asr_v4`), AKS can configure MIG partitioning automatically when creating a node pool:
 
 ```bash
 # Create a dedicated node pool where every A100 GPU is split into 1g.5gb slices
@@ -333,7 +333,7 @@ curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
   -d "cpu=4"
 ```
 
-> **Note:** When a `mig_profile` is specified the pod requests `nvidia.com/mig-<profile>` instead of `nvidia.com/gpu`.
+> **Note:** When specifying a `mig_profile`, the pod requests `nvidia.com/mig-<profile>` instead of `nvidia.com/gpu`.
 > The `gpu` parameter then controls the number of MIG slices requested (usually `1`).
 > Pods that request a MIG slice will only be scheduled on nodes where MIG mode is enabled and matching instances exist.
 
