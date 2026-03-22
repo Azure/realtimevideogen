@@ -249,6 +249,8 @@ class StreamDubJob(StreamWiseJob):
         """
         Generate scene with dubbed audio.
         """
+        if lang_code is None:
+            lang_code = "e"  # Default to Spanish (matches the parameter default above)
         scene_id = scene.scene_id
         self.logger.info(
             f"[{scene_id}] Generating dubbed scene into {to_language(lang_code)} ('{lang_code}').")
@@ -390,7 +392,8 @@ class StreamDubJob(StreamWiseJob):
 
         scene_id = scene.scene_id
         video_frames = await self._overlay_subtitles_on_frames(video_binary, scene.translation)
-        video_fps = get_video_file_info(video_binary)["video"]["fps"]
+        _fps = get_video_file_info(video_binary)["video"].get("fps")
+        video_fps: float = _fps if _fps is not None else FANTASYTALKING_FPS
 
         scene_audio_path = f"{self.job_path}/{scene.audio_path}"
         subtitled_path = f"{self.job_path}/scene_{scene_id:03d}_dubbed_subtitled.mp4"
@@ -473,7 +476,8 @@ class StreamDubJob(StreamWiseJob):
         # Convert frames into the right sampling rate
         scene_video_frames = await get_video_frames(scene_video_binary)
         video_info = get_video_file_info(scene_video_binary)
-        scene_video_fps = video_info["video"]["fps"]
+        _scene_fps = video_info["video"].get("fps")
+        scene_video_fps: float = _scene_fps if _scene_fps is not None else FANTASYTALKING_FPS
         if scene_video_fps != FANTASYTALKING_FPS:
             self.logger.info(
                 f"[{scene_id}] Resampling scene video from "

@@ -17,6 +17,7 @@ from typing import Any
 from typing import List
 from typing import Tuple
 from typing import Optional
+from typing import cast
 
 from PIL import Image
 
@@ -144,7 +145,7 @@ class StreamPersonaJob(StreamWiseJob):
         self,
         slide_number: int,
         slide_text: str,
-    ):
+    ) -> Optional[str]:
         """
         Generate the video for one slide.
         """
@@ -236,7 +237,8 @@ class StreamPersonaJob(StreamWiseJob):
         video_frames = await get_video_frames(slide_video_binary)
         video_file_info = get_video_file_info(slide_video_binary)
         video_info = video_file_info.get("video", {})
-        video_fps = video_info.get("fps", FANTASYTALKING_FPS)
+        _video_fps = video_info.get("fps")
+        video_fps: float = _video_fps if _video_fps is not None else FANTASYTALKING_FPS
 
         video_audio_path = f"{self.job_path}/{slide_number:03d}_persona.mp4"
         video_audio_path = await save_video_audio(
@@ -431,18 +433,18 @@ class StreamPersonaJob(StreamWiseJob):
 
                 if slide_num < len(slide_image_paths):
                     slide_image_path = slide_image_paths[slide_num]
-                    slide_image = Image.open(slide_image_path)
+                    slide_image: Image.Image = Image.open(slide_image_path)
                     slide_image = slide_image.resize((self.width, self.height))
                 else:
                     self.logger.warning(f"Slide image for slide {slide_num} not found, generating blank slide.")
-                    slide_image = get_frame_with_text(
+                    slide_image = cast(Image.Image, get_frame_with_text(
                         width=self.width,
                         height=self.height,
                         text=f"Slide {slide_num + 1} not available.",
                         output_type="pil",
                         background_color="white",
                         font_color="black",
-                    )
+                    ))
 
                 if slide_video_path:
                     self.logger.info(f"[{slide_num}] Overlaying persona video on slide.")
@@ -458,7 +460,8 @@ class StreamPersonaJob(StreamWiseJob):
 
                     video_file_info = get_video_file_info(slide_video_binary)
                     video_info = video_file_info.get("video", {})
-                    fps = video_info.get("fps", FANTASYTALKING_FPS)
+                    _fps = video_info.get("fps")
+                    fps: float = _fps if _fps is not None else FANTASYTALKING_FPS
                 else:
                     fps = FANTASYTALKING_FPS  # By default, use FT fps
                     audio_info = get_audio_file_info(audio_path)
@@ -489,7 +492,8 @@ class StreamPersonaJob(StreamWiseJob):
                 slide_video_paths[slide_num] = slide_video_path
                 self.logger.info(f"[{slide_num}] Slide video+audio saved to '{slide_video_path}'.")
 
-            video_binary = await concatenate_videos(slide_video_paths)
+            non_none_video_paths: List[str] = [p for p in slide_video_paths if p is not None]
+            video_binary = await concatenate_videos(non_none_video_paths)
             video_path = f"{self.job_path}/{self.job_id}.mp4"
             async with aiofiles.open(video_path, "wb") as file:
                 await file.write(video_binary)
