@@ -532,7 +532,7 @@ class VibeVoiceProcessor:
             padded_speeches[i, :len(speech)] = speech
             speech_masks[i, :vae_tok_length] = True
 
-        result = {
+        result: Dict[str, Any] = {
             "padded_speeches": padded_speeches,
             "speech_masks": speech_masks,
         }
@@ -669,7 +669,7 @@ class VibeVoiceProcessor:
     def _merge_inputs(self, text_inputs: BatchEncoding, audio_inputs: Dict) -> BatchEncoding:
         """Merge text and audio inputs into a single BatchEncoding."""
         # Start with text inputs
-        merged = BatchEncoding(text_inputs)
+        merged = BatchEncoding(dict(text_inputs))
 
         # Add audio-specific fields
         if "audio" in audio_inputs:

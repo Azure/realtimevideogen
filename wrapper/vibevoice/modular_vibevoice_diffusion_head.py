@@ -1,4 +1,5 @@
 import math
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -247,15 +248,15 @@ class VibeVoiceDiffusionHead(PreTrainedModel):
     def initialize_weights(self) -> None:
         """Initialize the weights of the model."""
         # Initialize timestep embedder
-        nn.init.normal_(self.t_embedder.mlp[0].weight, std=0.02)
-        nn.init.normal_(self.t_embedder.mlp[2].weight, std=0.02)
+        nn.init.normal_(cast(nn.Linear, self.t_embedder.mlp[0]).weight, std=0.02)
+        nn.init.normal_(cast(nn.Linear, self.t_embedder.mlp[2]).weight, std=0.02)
 
         # Zero-out adaLN modulation layers
         for layer in self.layers:
-            nn.init.constant_(layer.adaLN_modulation[-1].weight, 0)
+            nn.init.constant_(cast(nn.Linear, layer.adaLN_modulation[-1]).weight, 0)
 
         # Zero-out output layers
-        nn.init.constant_(self.final_layer.adaLN_modulation[-1].weight, 0)
+        nn.init.constant_(cast(nn.Linear, self.final_layer.adaLN_modulation[-1]).weight, 0)
         nn.init.constant_(self.final_layer.linear.weight, 0)
 
     def forward(

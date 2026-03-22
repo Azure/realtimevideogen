@@ -1,7 +1,9 @@
 """Tokenization classes for vibevoice."""
 
 from typing import Any
+from typing import Dict
 from typing import Optional
+from typing import cast
 
 from transformers.utils import logging
 from transformers.models.qwen2.tokenization_qwen2 import Qwen2Tokenizer
@@ -52,10 +54,10 @@ class VibeVoiceTextTokenizer(Qwen2Tokenizer):
             vocab_file=vocab_file,
             merges_file=merges_file,
             errors=errors,
-            unk_token=unk_token,
+            unk_token=unk_token or "<|endoftext|>",
             bos_token=bos_token,
-            eos_token=eos_token,
-            pad_token=pad_token,
+            eos_token=eos_token or "<|endoftext|>",
+            pad_token=pad_token or "<|endoftext|>",
             add_prefix_space=add_prefix_space,
             add_special_tokens=add_special_tokens,
             **kwargs,
@@ -73,14 +75,14 @@ class VibeVoiceTextTokenizer(Qwen2Tokenizer):
                 "<|vision_pad|>",  # Speech diffusion pad
             ]
         }
-        num_added = self.add_special_tokens(special_tokens)
+        num_added = self.add_special_tokens(cast(Dict[str, Any], special_tokens))
 
         # Cache special token IDs
-        self._speech_start_id = self.convert_tokens_to_ids("<|vision_start|>")
-        self._speech_end_id = self.convert_tokens_to_ids("<|vision_end|>")
-        self._speech_diffusion_id = self.convert_tokens_to_ids("<|vision_pad|>")
+        self._speech_start_id = cast(int, self.convert_tokens_to_ids("<|vision_start|>"))
+        self._speech_end_id = cast(int, self.convert_tokens_to_ids("<|vision_end|>"))
+        self._speech_diffusion_id = cast(int, self.convert_tokens_to_ids("<|vision_pad|>"))
 
-        self._eos_id = self.convert_tokens_to_ids('<|endoftext|>')
+        self._eos_id = cast(int, self.convert_tokens_to_ids('<|endoftext|>'))
 
         return num_added
 
@@ -150,10 +152,10 @@ class VibeVoiceTextTokenizerFast(Qwen2Tokenizer):
             vocab_file=vocab_file,
             merges_file=merges_file,
             tokenizer_file=tokenizer_file,
-            unk_token=unk_token,
+            unk_token=unk_token or "<|endoftext|>",
             bos_token=bos_token,
-            eos_token=eos_token,
-            pad_token=pad_token,
+            eos_token=eos_token or "<|endoftext|>",
+            pad_token=pad_token or "<|endoftext|>",
             add_prefix_space=add_prefix_space,
             **kwargs,
         )
@@ -170,16 +172,16 @@ class VibeVoiceTextTokenizerFast(Qwen2Tokenizer):
                 "<|vision_pad|>",  # Speech diffusion pad
             ]
         }
-        num_added = self.add_special_tokens(special_tokens)
+        num_added = self.add_special_tokens(cast(Dict[str, Any], special_tokens))
 
         # Cache special token IDs
-        self._speech_start_id = self.convert_tokens_to_ids("<|vision_start|>")
-        self._speech_end_id = self.convert_tokens_to_ids("<|vision_end|>")
-        self._speech_diffusion_id = self.convert_tokens_to_ids("<|vision_pad|>")
+        self._speech_start_id = cast(int, self.convert_tokens_to_ids("<|vision_start|>"))
+        self._speech_end_id = cast(int, self.convert_tokens_to_ids("<|vision_end|>"))
+        self._speech_diffusion_id = cast(int, self.convert_tokens_to_ids("<|vision_pad|>"))
 
         # self._eos_id = self.convert_tokens_to_ids('<|endoftext|>')
-        self._eos_id = self.eos_token_id  # qwen2 / qwen3
-        self._pad_id = self.convert_tokens_to_ids('<|image_pad|>')
+        self._eos_id = cast(int, self.eos_token_id)  # qwen2 / qwen3
+        self._pad_id = cast(int, self.convert_tokens_to_ids('<|image_pad|>'))
 
         return num_added
 

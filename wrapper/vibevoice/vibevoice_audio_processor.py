@@ -3,7 +3,7 @@ Processor class for VibeVoice models.
 """
 
 import os
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional, Union, Dict, Any, cast
 
 import numpy as np
 import torch
@@ -227,11 +227,12 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
 
         # Process audio
         if is_batched:
-            processed_audio = [self._process_single_audio(a) for a in audio]
+            processed_audio = [self._process_single_audio(cast(Union[np.ndarray, List[float]], a)) for a in audio]
         else:
-            processed_audio = [self._process_single_audio(audio)]
+            processed_audio = [self._process_single_audio(cast(Union[np.ndarray, List[float]], audio))]
 
         # Convert to tensors if requested
+        input_features: Union[torch.Tensor, np.ndarray, List[np.ndarray]]
         if return_tensors == "pt":
             if len(processed_audio) == 1:
                 # Create a proper batch dimension (B, T)
@@ -365,6 +366,7 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
             )
 
         # Ensure audio is in the right format
+        audio_np: Union[np.ndarray, List[Any]]
         if isinstance(audio, torch.Tensor):
             # Convert PyTorch tensor to numpy
             audio_np = audio.float().detach().cpu().numpy()
@@ -373,7 +375,7 @@ class VibeVoiceTokenizerProcessor(FeatureExtractionMixin):
         elif isinstance(audio, list):
             # Handle list of tensors or arrays
             if all(isinstance(a, torch.Tensor) for a in audio):
-                audio_np = [a.float().detach().cpu().numpy() for a in audio]
+                audio_np = [cast(torch.Tensor, a).float().detach().cpu().numpy() for a in audio]
             else:
                 audio_np = audio
         else:
