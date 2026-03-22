@@ -50,8 +50,37 @@ async def test_wrapper_flux2() -> None:
             height=80,
             prompt="test prompt")
 
+    # Capture the mock Flux2Pipeline and transformer wrapper so we can assert
+    # the new sharding behaviour (device_map="balanced" on the transformer;
+    # individual .to() calls for VAE / text encoders; NO full pipeline.to()).
+    mock_pipeline_cls = mock_modules['diffusers'].Flux2Pipeline
+    mock_transformer_cls = mock_modules[
+        'xfuser.model_executor.models.transformers.transformer_flux2'
+    ].xFuserFlux2Transformer2DWrapper
+
+    # Pre-access mock sub-component attributes so we hold stable references for
+    # assertions after init() calls .to() on each of them.
+    mock_pipeline_instance = mock_pipeline_cls.from_pretrained.return_value
+    vae_mock = mock_pipeline_instance.vae
+    text_encoder_mock = mock_pipeline_instance.text_encoder
+    text_encoder_2_mock = mock_pipeline_instance.text_encoder_2
+
     model.init()
     assert model.status == "ok"
+
+    # Verify transformer was loaded with device_map="balanced"
+    _, transformer_kwargs = mock_transformer_cls.from_pretrained.call_args
+    assert transformer_kwargs.get("device_map") == "balanced", (
+        "Transformer must be loaded with device_map='balanced' to shard across GPUs"
+    )
+
+    # Verify the full pipeline was NOT moved to a single device (would cause OOM)
+    mock_pipeline_instance.to.assert_not_called()
+
+    # Verify non-transformer components were individually moved to the primary device
+    vae_mock.to.assert_called_once()
+    text_encoder_mock.to.assert_called_once()
+    text_encoder_2_mock.to.assert_called_once()
 
     # Mock pipeline return object
     mock_output = MagicMock()

@@ -51,17 +51,25 @@ class Flux2Generation(FluxGeneration):
         assert torch.cuda.is_available()
 
         self.load_timer.start("pipeline")
+        # Use device_map="balanced" to shard the large transformer across all
+        # available GPUs instead of loading it onto a single device (OOM risk).
         transformer = xFuserFlux2Transformer2DWrapper.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
             subfolder="transformer",
+            device_map="balanced",
         )  # nosec B615
         self.pipeline = Flux2Pipeline.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
             transformer=transformer,
         )
-        self.pipeline = self.pipeline.to(self.device)
+        # Move the remaining (smaller) pipeline components to the primary device.
+        # The transformer is already distributed across GPUs via device_map above,
+        # so pipeline.to(device) is intentionally not called here.
+        self.pipeline.vae = self.pipeline.vae.to(self.device)
+        self.pipeline.text_encoder = self.pipeline.text_encoder.to(self.device)
+        self.pipeline.text_encoder_2 = self.pipeline.text_encoder_2.to(self.device)
         self.load_timer.end("pipeline")
 
         logging.info(
