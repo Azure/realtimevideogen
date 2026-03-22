@@ -23,6 +23,7 @@ from xfuser.model_executor.models.transformers.transformer_flux import xFuserFlu
 
 def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
     transformer = getattr(pipe, "transformer")
+    assert transformer is not None, "pipe has no transformer attribute"
     original_forward = transformer.forward
 
     @functools.wraps(transformer.__class__.forward)
@@ -84,7 +85,7 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
             return output.__class__(sample, *output[1:])
         return (sample, *output[1:])
 
-    new_forward = types.MethodType(new_forward, transformer)
-    transformer.forward = new_forward
+    bound_forward: Any = types.MethodType(new_forward, transformer)
+    transformer.forward = bound_forward
 
     return pipe
