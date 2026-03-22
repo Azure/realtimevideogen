@@ -1,9 +1,12 @@
 import os
+import asyncio
 import requests
 import logging
 import random
 import argparse
 import re
+
+from typing import Optional
 
 from benchmark_commons import HEADERS_JSON
 from benchmark_commons import setup_logging
@@ -59,12 +62,13 @@ class ServiceFantasyTalkingRequestInfo(ServiceRequestInfo):
             "torch_compile,num_steps,total_steps_time,avg_steps_time,total_time"
 
 
-def get_server_request_info(container_ip: str, container_port: int) -> ServiceFantasyTalkingRequestInfo:
+def get_server_request_info(container_ip: str, container_port: int) -> Optional[ServiceFantasyTalkingRequestInfo]:
     url_health = f"http://{container_ip}:{container_port}/health"
     response_health = requests.get(url_health, timeout=10)
     if response_health.ok:
         data_json = response_health.json()
         return ServiceFantasyTalkingRequestInfo(data_json)
+    return None
 
 
 RANDOM_PROMPTS = [
@@ -123,14 +127,14 @@ if not os.path.exists("output"):
 
 
 if __name__ == "__main__":
-    argparse = argparse.ArgumentParser(description="Benchmark Fantasy Talking server performance")
-    argparse.add_argument("--container_ip", type=str, default=None)
-    argparse.add_argument("--container_port", type=int, default=-1)
-    argparse.add_argument("--container", type=str, default=None)
-    argparse.add_argument("--input_img", type=str, default=None, help="Path to input image (will be resized)")
-    argparse.add_argument("--input_audio", type=str, default=None, help="Path to input image (will be resized)")
-    argparse.add_argument("--output_csv", type=str, default="fantasytalking.csv", help="Output CSV file for results")
-    args = argparse.parse_args()
+    parser = argparse.ArgumentParser(description="Benchmark Fantasy Talking server performance")
+    parser.add_argument("--container_ip", type=str, default=None)
+    parser.add_argument("--container_port", type=int, default=-1)
+    parser.add_argument("--container", type=str, default=None)
+    parser.add_argument("--input_img", type=str, default=None, help="Path to input image (will be resized)")
+    parser.add_argument("--input_audio", type=str, default=None, help="Path to input image (will be resized)")
+    parser.add_argument("--output_csv", type=str, default="fantasytalking.csv", help="Output CSV file for results")
+    args = parser.parse_args()
 
     container_ip = args.container_ip
     container_port = args.container_port
@@ -151,11 +155,9 @@ if __name__ == "__main__":
     # Use a sample audio
     if not args.input_audio or not os.path.exists(args.input_audio):
         raise ValueError("Please provide a valid input audio path with --input_audio")
-    # audio_base64 = await read_file_base64(args.input_audio)
-    # TODO
-    audio_base64 = read_file_base64(args.input_audio)
+    audio_base64 = asyncio.run(read_file_base64(args.input_audio))
     audio_seconds = get_audio_duration(audio_base64)  # Ensure audio is valid
-    chunk_audio_base64 = chunk_audio_base64(audio_base64, 0, 0.1)
+    warmup_audio_base64 = chunk_audio_base64(audio_base64, 0, 0.1)
 
     # Output CSV file
     output_csv = args.output_csv
@@ -163,7 +165,7 @@ if __name__ == "__main__":
     # Warmup run
     payload_warmup = {
         "img": img_base64,
-        "audio": chunk_audio_base64,
+        "audio": warmup_audio_base64,
         "prompt": "Warmup video",
         "neg_prompt": "",
         "width": 640,
@@ -191,11 +193,11 @@ if __name__ == "__main__":
                         f"Requested {test_frames} frames ({chunk_audio_seconds:.2f}s) exceeds audio length "
                         f"({audio_seconds:.2f}s), using full audio")
                     chunk_audio_seconds = audio_seconds
-                chunk_audio_base64 = chunk_audio_base64(audio_base64, 0, chunk_audio_seconds)
+                chunk_audio_str = chunk_audio_base64(audio_base64, 0, chunk_audio_seconds)
                 for test_w, test_h in TEST_VIDEO_SIZES:
                     payload = {
                         "img": img_base64,  # TODO resize input image?
-                        "audio": chunk_audio_base64,
+                        "audio": chunk_audio_str,
                         "prompt": random.choice(RANDOM_PROMPTS),
                         "neg_prompt": random.choice(RANDOM_NEG_PROMPTS),
                         "width": test_w,
@@ -206,6 +208,9 @@ if __name__ == "__main__":
                     response = requests.post(url, json=payload, headers=HEADERS_JSON, timeout=600)
 
                     server_req_info = get_server_request_info(container_ip, container_port)
+                    if server_req_info is None:
+                        logging.error("Failed to get server request info, skipping run")
+                        continue
                     server_req_info_csv = server_req_info.to_csv_str()
 
                     if response.ok and "video/mp4" in response.headers.get("Content-Type", ""):
@@ -216,6 +221,10 @@ if __name__ == "__main__":
                         video_info = video_file_info["video"]
                         response_w, response_h = video_info["width"], video_info["height"]
                         video_num_frames = video_info["num_frames"]
+                        frame_count_mismatch = (
+                            video_num_frames is not None and
+                            (video_num_frames < test_frames - 1 or video_num_frames > test_frames + 1)
+                        )
 
                         # TODO verify there is some audio
                         # TODO verify there is some video
@@ -230,7 +239,7 @@ if __name__ == "__main__":
                             line_csv = f"{num_run},{test_steps},{test_frames},{test_w},{test_h}," + \
                                 f"{server_req_info_csv},-1"
                             log_and_print(output_csv, line_csv)
-                        elif video_num_frames < test_frames - 1 or video_num_frames > test_frames + 1:
+                        elif frame_count_mismatch:
                             # Add 1 frame margin because of the audio length
                             logging.error(f"Expected {test_frames} frames, but got {video_num_frames} frames")
                             line_csv = f"{num_run},{test_steps},{test_frames},{test_w},{test_h}," + \
