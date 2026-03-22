@@ -431,12 +431,12 @@
             }
 
             function updatePresetInfo(val) {
-                const cpu = document.getElementById('wrapper_cpu').value;
-                const memory = document.getElementById('wrapper_memory').value;
-                const ephemeral = document.getElementById('wrapper_ephemeralStorage').value;
-                const gpu = document.getElementById('wrapper_gpu').value;
-                const gpu_type = document.getElementById('wrapper_gpu_type').value;
-                const mig_profile = document.getElementById('wrapper_mig_profile').value;
+                const cpu = escapeHtml(document.getElementById('wrapper_cpu').value);
+                const memory = escapeHtml(document.getElementById('wrapper_memory').value);
+                const ephemeral = escapeHtml(document.getElementById('wrapper_ephemeralStorage').value);
+                const gpu = escapeHtml(document.getElementById('wrapper_gpu').value);
+                const gpu_type = escapeHtml(document.getElementById('wrapper_gpu_type').value);
+                const mig_profile = escapeHtml(document.getElementById('wrapper_mig_profile').value);
                 const info = document.getElementById('preset-info');
                 let gpuDesc;
                 if (parseInt(gpu) === 0) {
@@ -447,7 +447,7 @@
                         gpuDesc += ` MIG <b>${mig_profile}</b>`;
                     }
                 }
-                info.innerHTML = `CPU: <b>${escapeHtml(cpu)}</b> cores, Memory: <b>${escapeHtml(memory)}</b> GiB, Ephemeral: <b>${escapeHtml(ephemeral)}</b> GiB, GPU: ${gpuDesc}`;
+                info.innerHTML = `CPU: <b>${cpu}</b> cores, Memory: <b>${memory}</b> GiB, Ephemeral: <b>${ephemeral}</b> GiB, GPU: ${gpuDesc}`;
                 info.style.display = '';
             }
 
