@@ -55,6 +55,7 @@
             border: 1px solid #f5c2c7;
         }
     </style>
+    <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
 </head>
 {% endblock %}
 {% block information_card %}{% endblock %}
@@ -336,16 +337,16 @@
                             <div class="d-flex flex-column align-items-end" title="Question">
                                 <div class="chat-label">👤 You</div>
                                 <div class="chat-message chat-user">
-                                    ${line.content}
+                                    ${escapeHtml(line.content)}
                                 </div>
                             </div>
                         `;
                     } else if (line.role === "assistant") {
                         chat.innerHTML += `
-                            <div class="d-flex flex-column align-items-start" title="Reply ${lastReplyId}">
+                            <div class="d-flex flex-column align-items-start" title="Reply ${escapeHtml(lastReplyId)}">
                                 <div class="chat-label">🤖 Assistant</div>
                                 <div class="chat-message chat-assistant">
-                                    ${line.content}
+                                    ${escapeHtml(line.content)}
                                 </div>
                             </div>
                         `;
@@ -357,7 +358,7 @@
                             <div class="d-flex flex-column align-items-start" title="Error">
                                 <div class="chat-label">⚠️ Unknown</div>
                                 <div class="chat-message chat-error">
-                                    ❌ Unknown role: ${line.role}
+                                    ❌ Unknown role: ${escapeHtml(line.role)}
                                 </div>
                             </div>
                         `;
@@ -445,10 +446,10 @@
 
                 // Display user message (right)
                 chat.innerHTML += `
-                    <div class="d-flex flex-column align-items-end title="Question">
+                    <div class="d-flex flex-column align-items-end" title="Question">
                         <div class="chat-label">👤 You</div>
                         <div class="chat-message chat-user">
-                            ${text}
+                            ${escapeHtml(text)}
                         </div>
                     </div>
                 `;
@@ -496,16 +497,16 @@
                     // Assistant bubble (left)
                     if (reply) {
                         chat.innerHTML += `
-                            <div class="d-flex flex-column align-items-start" title="Reply ${replyId} in ${totalTimeMs} ms">
+                            <div class="d-flex flex-column align-items-start" title="Reply ${escapeHtml(replyId)} in ${escapeHtml(totalTimeMs)} ms">
                                 <div class="chat-label">🤖 Assistant</div>
                                 <div class="chat-message chat-assistant">
-                                    ${reply}
+                                    ${escapeHtml(reply)}
                                 </div>
                             </div>
                         `;
                     } else {
                         chat.innerHTML += `
-                            <div class="d-flex flex-column align-items-start" title="Reply ${replyId} with status ${res.status} in ${totalTimeMs} ms">
+                            <div class="d-flex flex-column align-items-start" title="Reply ${escapeHtml(replyId)} with status ${escapeHtml(res.status)} in ${escapeHtml(totalTimeMs)} ms">
                                 <div class="chat-label">⚠️ Assistant</div>
                                 <div class="chat-message chat-error">
                                     ❌ No reply received.
@@ -519,7 +520,7 @@
                         <div class="d-flex flex-column align-items-start">
                             <div class="chat-label">⚠️ Assistant</div>
                             <div class="chat-message chat-error">
-                                ❌ ${err.message || "Something went wrong"}
+                                ❌ ${escapeHtml(err.message || "Something went wrong")}
                             </div>
                         </div>
                     `;
