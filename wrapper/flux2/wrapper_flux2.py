@@ -59,17 +59,16 @@ class Flux2Generation(FluxGeneration):
             subfolder="transformer",
             device_map="balanced",
         )  # nosec B615
+        # device_map="balanced" distributes the remaining pipeline components
+        # (VAE, text encoders) across all available GPUs. The transformer is
+        # already sharded via its own device_map above; providing it here
+        # prevents diffusers from loading it a second time from disk.
         self.pipeline = Flux2Pipeline.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
             transformer=transformer,
+            device_map="balanced",
         )
-        # Move the remaining (smaller) pipeline components to the primary device.
-        # The transformer is already distributed across GPUs via device_map above,
-        # so pipeline.to(device) is intentionally not called here.
-        self.pipeline.vae = self.pipeline.vae.to(self.device)
-        self.pipeline.text_encoder = self.pipeline.text_encoder.to(self.device)
-        self.pipeline.text_encoder_2 = self.pipeline.text_encoder_2.to(self.device)
         self.load_timer.end("pipeline")
 
         logging.info(
