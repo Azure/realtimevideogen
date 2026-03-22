@@ -293,15 +293,10 @@ Common profiles for A100 80 GB / H100 80 GB:
 
 #### Configure the NVIDIA device plugin for MIG
 
-Patch the device plugin ConfigMap to expose MIG instances as Kubernetes resources:
+Apply the ConfigMap ([nvidia-plugin-mig-config.yaml](nvidia-plugin-mig-config.yaml)) to expose MIG instances as Kubernetes resources:
 
 ```bash
-kubectl patch configmap nvidia-plugin-config -n gpu-resources --type merge -p '
-{
-  "data": {
-    "config.toml": "[flags]\n  migStrategy = \"mixed\"\n"
-  }
-}'
+kubectl apply -f nvidia-plugin-mig-config.yaml
 # Restart the device plugin daemon set so it picks up the new config
 kubectl rollout restart daemonset nvidia-device-plugin-daemonset -n gpu-resources
 ```
