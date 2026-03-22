@@ -52,7 +52,7 @@ class ServiceFluxRequestInfo(ServiceRequestInfo):
 def get_server_request_info(container_ip: str, container_port: int) -> Optional[ServiceFluxRequestInfo]:
     """Get server request detailed info from the health endpoint."""
     url_health = f"http://{container_ip}:{container_port}/health"
-    response_health = requests.get(url_health)
+    response_health = requests.get(url_health, timeout=10)
     if response_health.ok:
         data_json = response_health.json()
         return ServiceFluxRequestInfo(data_json)
@@ -143,7 +143,7 @@ if __name__ == "__main__":
         "height": 720,
         "sampling_steps": 1,
     }
-    response_warmup = requests.post(url, json=payload_warmup, headers=HEADERS_JSON)
+    response_warmup = requests.post(url, json=payload_warmup, headers=HEADERS_JSON, timeout=600)
     if not response_warmup.ok:
         raise RuntimeError(f"Warmup request failed: {response_warmup.status_code} {response_warmup.text}")
     logging.info(f"Warmed up in {response_warmup.elapsed.total_seconds()} seconds")
@@ -167,7 +167,7 @@ if __name__ == "__main__":
                 }
 
                 # Actually send the request to the REST Flux endpoint
-                response = requests.post(url, json=payload, headers=HEADERS_JSON)
+                response = requests.post(url, json=payload, headers=HEADERS_JSON, timeout=600)
 
                 server_req_info = get_server_request_info(container_ip, container_port)
                 if server_req_info is None:

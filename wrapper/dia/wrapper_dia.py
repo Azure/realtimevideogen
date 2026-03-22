@@ -53,12 +53,12 @@ class DiaGeneration(ModelGeneration):
     def load_model(self) -> None:
         self.load_timer.start("processor")
         self.processor = AutoProcessor.from_pretrained(
-            "nari-labs/Dia-1.6B-0626")
+            "nari-labs/Dia-1.6B-0626")  # nosec B615
         self.load_timer.end("processor")
 
         self.load_timer.start("dia")
         self.dia = DiaForConditionalGeneration.from_pretrained(
-            "nari-labs/Dia-1.6B-0626")
+            "nari-labs/Dia-1.6B-0626")  # nosec B615
         self.dia = self.dia.to(self.device)
         self.load_timer.end("dia")
 

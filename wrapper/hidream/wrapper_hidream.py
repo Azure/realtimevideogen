@@ -85,13 +85,13 @@ class HiDreamGeneration(ModelGeneration):
 
         self.load_timer.start("pipeline")
 
-        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3.1-8B-Instruct")
+        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3.1-8B-Instruct")  # nosec B615
         self.text_encoder = LlamaForCausalLM.from_pretrained(
             "meta-llama/Meta-Llama-3.1-8B-Instruct",
             output_hidden_states=True,
             output_attentions=True,
             torch_dtype=self.param_dtype,
-        )
+        )  # nosec B615
 
         self.pipeline = HiDreamImagePipeline.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,

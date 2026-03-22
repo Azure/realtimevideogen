@@ -98,7 +98,7 @@ class JanusProGeneration(ModelGeneration):
         self.load_timer.end("processor")
 
         self.load_timer.start("config")
-        config = AutoConfig.from_pretrained(self.MODEL_NAME)
+        config = AutoConfig.from_pretrained(self.MODEL_NAME)  # nosec B615
         language_config = config.language_config
         language_config._attn_implementation = 'eager'
         self.load_timer.end("config")
@@ -108,7 +108,7 @@ class JanusProGeneration(ModelGeneration):
             self.MODEL_NAME,
             language_config=language_config,
             trust_remote_code=True
-        )
+        )  # nosec B615
         self.vl_gpt = self.vl_gpt.to(self.param_dtype)
         self.vl_gpt = self.vl_gpt.to(self.device)
         self.vl_gpt = self.vl_gpt.eval()

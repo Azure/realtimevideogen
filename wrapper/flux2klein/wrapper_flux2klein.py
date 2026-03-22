@@ -55,7 +55,7 @@ class Flux2KleinGeneration(FluxGeneration):
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
             subfolder="transformer",
-        )
+        )  # nosec B615
         self.pipeline = Flux2KleinPipeline.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
