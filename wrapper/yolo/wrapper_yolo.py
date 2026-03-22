@@ -255,8 +255,10 @@ class ImageCharacterExtractor(ModelGeneration):
                     person_zoom_images.append((x_center, obj_conf, person_zoom_image))
 
             # Sort by confidence and take the top NUM_CHARACTERS and sort by x
-            top_images: List[Optional[Image.Image]] = take_top_characters(person_zoom_images, num_characters)
-            return [debug_img] + top_images
+            top_images: List[Image.Image] = take_top_characters(person_zoom_images, num_characters)
+            output: List[Optional[Image.Image]] = [debug_img]
+            output.extend(top_images)
+            return output
         finally:
             self.running = False
             gen_timer.end("total")
