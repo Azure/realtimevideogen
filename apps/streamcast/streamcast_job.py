@@ -17,6 +17,7 @@ from typing import Dict
 from typing import Optional
 from typing import Any
 from typing import Tuple
+from typing import cast
 
 # Local relative imports
 sys.path.append("..")  # noqa: E402
@@ -95,7 +96,7 @@ class StreamCastJob(StreamWiseJob):
         self,
         job_config: Dict[str, Any],
     ) -> None:
-        pdf_base64 = job_config.get("pdf_base64", None)
+        pdf_base64: Optional[str] = job_config.get("pdf_base64")
         await self.gen_podcast(pdf_base64)
 
     async def align_audio(
@@ -279,8 +280,10 @@ class StreamCastJob(StreamWiseJob):
         # Check video vs audio duration
         video_file_info = get_video_file_info(scene_video_binary)
         video_info = video_file_info["video"]
-        video_fps = video_info["fps"]
-        video_duration = video_info["duration_seconds"]
+        _video_fps = video_info.get("fps")
+        video_fps: float = _video_fps if _video_fps is not None else FANTASYTALKING_FPS
+        _video_duration = video_info.get("duration_seconds")
+        video_duration: float = _video_duration if _video_duration is not None else 0.0
         video_num_frames = video_info["num_frames"]
         if len(video_frames) != video_num_frames:
             self.logger.warning(
@@ -368,8 +371,10 @@ class StreamCastJob(StreamWiseJob):
         video_num_frames = len(video_frames)
         video_file_info = get_video_file_info(video_binary)
         video_info = video_file_info["video"]
-        video_fps: float = video_info["fps"]
-        video_duration: float = video_info["duration_seconds"]
+        _video_fps = video_info.get("fps")
+        video_fps: float = _video_fps if _video_fps is not None else FANTASYTALKING_FPS
+        _video_duration = video_info.get("duration_seconds")
+        video_duration: float = _video_duration if _video_duration is not None else 0.0
         if video_num_frames != video_info["num_frames"]:
             self.logger.warning(
                 f"[{scene_id}] Video frames mismatch: {video_num_frames} != {video_info['num_frames']}.")
@@ -389,7 +394,7 @@ class StreamCastJob(StreamWiseJob):
         if self.get_config_bool("debug_image"):
             frame_text = f"{scene_id:03d}"
             video_frames = [
-                add_text_to_frame(frame, text=frame_text, position="top-left")
+                cast(Image.Image, add_text_to_frame(frame, text=frame_text, position="top-left"))
                 for frame in video_frames
             ]
             video_path = f"{self.job_path}/{scene_id:03d}_{width}x{height}_single_debug.mp4"
@@ -486,7 +491,7 @@ class StreamCastJob(StreamWiseJob):
 
     async def gen_podcast(
         self,
-        pdf_base64: str,
+        pdf_base64: Optional[str],
     ) -> None:
         """Generate a podcast."""
         async with self.job_status_handler():
@@ -582,6 +587,7 @@ class StreamCastJob(StreamWiseJob):
             if output_mode is OutputMode.AUDIO_ONLY:
                 self.logger.debug("Audio only mode, skipping image generation.")
             else:
+                assert future_images is not None, "future_images must be set for non-AUDIO_ONLY mode"
                 img_main, img_characters = await future_images
                 self.logger.info(f"Main and {len(img_characters)} character images generated.")
 
@@ -620,11 +626,11 @@ class StreamCastJob(StreamWiseJob):
             for scene_id, result in enumerate(results):
                 if isinstance(result, Exception):
                     self._handle_scene_exception(scene_id, result)
-                elif not result:
-                    self.logger.warning(f"[{scene_id}] No video generated. Skipping...")
-                else:
+                elif isinstance(result, str):
                     scene_video_paths.append(result)
                     self.logger.info(f"[{scene_id}] Video+audio saved to '{result}'.")
+                else:
+                    self.logger.warning(f"[{scene_id}] No video generated. Skipping...")
 
             if not scene_video_paths:
                 raise ValueError("No scene videos generated. Cannot create final podcast video.")
