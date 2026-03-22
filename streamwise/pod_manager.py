@@ -422,8 +422,8 @@ async def add_pod(
             ports=container_ports,
             volume_mounts=volume_mounts,
             resources=V1ResourceRequirements(
-                requests=resource_request,
-                limits=resource_limit
+                requests={k: str(v) for k, v in resource_request.items()},
+                limits={k: str(v) for k, v in resource_limit.items()}
             ),
         )
     ]

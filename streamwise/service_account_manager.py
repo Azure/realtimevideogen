@@ -19,6 +19,7 @@ from kubernetes_asyncio.client import V1ClusterRoleBinding
 from kubernetes_asyncio.client import RbacAuthorizationV1Api
 from kubernetes_asyncio.client import V1ServiceAccount
 from kubernetes_asyncio.client import V1RoleRef
+from kubernetes_asyncio.client import RbacV1Subject
 
 sys.path.append("..")
 from k8s_utils import load_k8s_config
@@ -74,11 +75,11 @@ async def ensure_cluster_role_binding(
                 name=role_name,
                 api_group="rbac.authorization.k8s.io",
             ),
-            subjects=[{
-                "kind": "ServiceAccount",
-                "name": service_account_name,
-                "namespace": namespace,
-            }]
+            subjects=[RbacV1Subject(
+                kind="ServiceAccount",
+                name=service_account_name,
+                namespace=namespace,
+            )]
         )
         await rbac_api.create_cluster_role_binding(body=crb_body)
 

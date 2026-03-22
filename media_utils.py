@@ -95,10 +95,10 @@ def base64_to_video_frames(
     # fmt: imageio.Format = formats[video_format]
     video_frames = imageio.get_reader(
         video_buffer,
-        format=video_format)
+        format=video_format)  # type: ignore[arg-type]
     frames = [
         Image.fromarray(frame_np).convert("RGB")
-        for frame_np in video_frames
+        for frame_np in video_frames  # type: ignore[attr-defined]
     ]
     return frames
 
@@ -117,12 +117,12 @@ def video_frames_to_base64(
     # fmt: imageio.Format = formats[format]
     with imageio.get_writer(
         video_buffer,
-        format=format,
+        format=format,  # type: ignore[arg-type]
         fps=fps
     ) as writer:
         for frame in video_frames:
             frame_np = np.array(frame)
-            writer.append_data(frame_np)
+            writer.append_data(frame_np)  # type: ignore[attr-defined]
     video_bytes = video_buffer.getvalue()
     video_base64 = binary_to_base64(video_bytes)
     return video_base64
@@ -774,7 +774,8 @@ async def get_video_duration(
     """Get video duration in seconds from binary content or file path."""
     video_file_info = get_video_file_info(video_content)
     video_info = video_file_info.get("video", {})
-    return video_info.get("duration_seconds", -1.0)
+    result = video_info.get("duration_seconds", -1.0)
+    return result if result is not None else -1.0
 
 
 def get_video_fps(
@@ -783,7 +784,8 @@ def get_video_fps(
     """Get video frames per second (FPS) from binary content or file path."""
     video_file_info = get_video_file_info(video_content)
     video_info = video_file_info.get("video", {})
-    return video_info.get("fps", -1.0)
+    result = video_info.get("fps", -1.0)
+    return result if result is not None else -1.0
 
 
 async def get_video_num_frames(
@@ -792,7 +794,8 @@ async def get_video_num_frames(
     """Get number of video frames from binary content or file path."""
     video_file_info = get_video_file_info(video_content)
     video_info = video_file_info.get("video", {})
-    return video_info.get("num_frames", -1)
+    result = video_info.get("num_frames", -1)
+    return result if result is not None else -1
 
 
 def save_audio(
@@ -1029,7 +1032,7 @@ def save_diffusers_video(
     ) as writer:
         for frame in video_frames:
             frame_np = np.array(frame)
-            writer.append_data(frame_np)
+            writer.append_data(frame_np)  # type: ignore[attr-defined]
     return out_video_path
 
 
@@ -1055,7 +1058,7 @@ def save_bcthw_as_mp4(
     # torchvision.io.write_video(output_filename, x, fps=fps, video_codec=codec, options={'crf': str(int(crf))})
     with imageio.get_writer(output_filename, fps=fps, codec=video_codec) as writer:
         for frame in x.numpy():
-            writer.append_data(frame)
+            writer.append_data(frame)  # type: ignore[attr-defined]
     return output_filename
 
 
@@ -1182,6 +1185,7 @@ def get_font(
     font_size: int = 32
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load a truetype font, or default if not found."""
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     try:
         font = ImageFont.truetype(font_path, font_size)
     except OSError:

@@ -17,12 +17,18 @@ from azure.identity import get_bearer_token_provider
 from openai import AsyncAzureOpenAI
 from openai import AsyncOpenAI
 
+from typing import TYPE_CHECKING
+from typing import cast
 from typing import override
 from typing import List
 from typing import Dict
 from typing import Optional
 from typing import Any
 from typing import AsyncGenerator
+
+if TYPE_CHECKING:
+    from openai import AsyncStream
+    from openai.types.chat import ChatCompletionChunk
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -163,6 +169,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         self.llm_model = llm_model
         self.llm_url = llm_url
         self.multi_modal = multi_modal
+        self.llm_client: AsyncOpenAI
         if "azure" in llm_url:
             self.llm_client = self._get_azure_openai_client(llm_url)
             self.extra_body = None
@@ -209,7 +216,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         user_prompt_text += f"\n\n{QUESTION_MODIFIER} {QUESTION}"
 
         # Add images to the user prompt
-        user_prompt = [{"type": "text", "text": user_prompt_text}]
+        user_prompt: List[Dict[str, Any]] = [{"type": "text", "text": user_prompt_text}]
         if self.multi_modal:
             for image_url in pdf_images:
                 user_prompt.append({"type": "image_url", "image_url": {"url": image_url}})
@@ -219,7 +226,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         system_prompt += f"\n\n{QUESTION_MODIFIER} {QUESTION}"
 
         # Combine the prompts into a single message
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
@@ -230,7 +237,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         try:
             response = await self.llm_client.beta.chat.completions.parse(
                 model=self.llm_model,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 max_tokens=max_tokens,
                 extra_body=self.extra_body,
@@ -244,8 +251,8 @@ class PodcastTranscriptGenerator(ModelGeneration):
 
         response_message = response.choices[0].message
         if response_message.parsed:
-            script = response_message.parsed
-            return script
+            return response_message.parsed
+        raise ValueError("LLM response did not contain a parsed Script object.")
 
     @retry(stop=stop_after_attempt(3), wait=wait_random_exponential(min=1, max=3))
     async def gen_script_stream(
@@ -314,7 +321,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         )
 
         # Build the messages
-        user_msg = [{
+        user_msg: List[Dict[str, Any]] = [{
             "type": "text",
             "text": user_prompt_text
         }]
@@ -324,7 +331,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
                     "type": "image_url",
                     "image_url": {"url": image_url}})
 
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "system", "content": system_prompt_text},
             {"role": "user", "content": user_msg}
         ]
@@ -332,24 +339,24 @@ class PodcastTranscriptGenerator(ModelGeneration):
         async with aiofiles.open(f"/tmp/{job_id}_prompt.json", "w") as prompt_file:
             await prompt_file.write(json.dumps(messages, indent=2))
 
-        response_stream = await self.llm_client.chat.completions.create(
+        response_stream = cast("AsyncStream[ChatCompletionChunk]", await self.llm_client.chat.completions.create(
             model=self.llm_model,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
             extra_body=self.extra_body,
             stream=True,
-        )
+        ))
 
         it = 0
         buffer_text = ""
         async for chunk in response_stream:
-            if self.interrupted:
+            if self.interrupted:  # type: ignore[has-type]
                 self.interrupted = False
                 logging.info("Generation interrupted.")
                 return
 
-            delta = chunk.choices[0].delta.content
+            delta = chunk.choices[0].delta.content or ""
             buffer_text += delta
             if delta.endswith("\n"):
                 buffer_text = buffer_text.strip()
@@ -382,7 +389,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         system_prompt += "that will be later converted into a video."
 
         # Combine the prompts into a single message
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
@@ -393,7 +400,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         try:
             response = await self.llm_client.beta.chat.completions.parse(
                 model=self.llm_model,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 max_tokens=max_tokens,
                 extra_body=self.extra_body,
@@ -406,11 +413,11 @@ class PodcastTranscriptGenerator(ModelGeneration):
 
         response_message = response.choices[0].message
         if response_message.parsed:
-            podcast = response_message.parsed
-            return podcast
+            return response_message.parsed
+        raise ValueError("LLM response did not contain a parsed Podcast object.")
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         pdf_url: Optional[str] = None,
         pdf_text: Optional[List[str]] = None,
@@ -461,7 +468,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
 
             gen_timer.start("gen_podcast")
             podcast = await self.gen_podcast(
-                script,
+                str(script),
                 max_tokens=max_tokens,
                 temperature=temperature)
             gen_timer.end("gen_podcast")
@@ -568,7 +575,7 @@ class PodcastTranscriptGenerator(ModelGeneration):
         if pdf_url is None and pdf_text is None and pdf_images is None:
             raise ValueError("Either 'pdf_url' or 'doc' must be provided")
 
-        rest_args = {
+        rest_args: Dict[str, Any] = {
             "job_id": job_id,
             "temperature": float(data_json.get("temperature", 0.6)),
             "max_tokens": int(data_json.get("max_tokens", DEFAULT_MAX_TOKENS)),
@@ -698,9 +705,9 @@ async def main() -> None:
 
         # Output podcast transcript in a single pass
         podcast = await podcast_generator.generate(PDF_URL)
-        for scene in podcast.scenes:
-            logging.info(f"Scene with characters: {scene.characters}.")
-            for dialogue in scene.dialogues:
+        for podcast_scene in podcast.scenes:
+            logging.info(f"Scene with characters: {podcast_scene.characters}.")
+            for dialogue in podcast_scene.dialogues:
                 logging.info(f"{dialogue.character}: {dialogue.transcript}.")
         # We can also output the podcast in JSON
         podcast_json = podcast.model_dump_json(indent=2)
