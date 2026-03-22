@@ -438,9 +438,14 @@
                 const gpu_type = document.getElementById('wrapper_gpu_type').value;
                 const mig_profile = document.getElementById('wrapper_mig_profile').value;
                 const info = document.getElementById('preset-info');
-                let gpuDesc = `<b>${gpu}</b> (${getFriendlyGpuType(gpu_type)})`;
-                if (mig_profile) {
-                    gpuDesc += ` MIG <b>${mig_profile}</b>`;
+                let gpuDesc;
+                if (parseInt(gpu) === 0) {
+                    gpuDesc = 'No GPU';
+                } else {
+                    gpuDesc = `<b>${gpu}</b> (${getFriendlyGpuType(gpu_type)})`;
+                    if (mig_profile) {
+                        gpuDesc += ` MIG <b>${mig_profile}</b>`;
+                    }
                 }
                 info.innerHTML = `CPU: <b>${cpu}</b> cores, Memory: <b>${memory}</b> GiB, Ephemeral: <b>${ephemeral}</b> GiB, GPU: ${gpuDesc}`;
                 info.style.display = '';
@@ -474,10 +479,18 @@
                 });
 
                 // Add listeners to sliders to update info box
-                ['wrapper_cpu','wrapper_memory','wrapper_ephemeralStorage','wrapper_gpu','wrapper_gpu_type','wrapper_mig_profile'].forEach(function(id) {
+                ['wrapper_cpu','wrapper_memory','wrapper_ephemeralStorage','wrapper_gpu','wrapper_gpu_type'].forEach(function(id) {
                     document.getElementById(id).addEventListener('input', function() {
+                        // When GPU is set to 0, reset the MIG profile selection
+                        if (id === 'wrapper_gpu' && parseInt(this.value) === 0) {
+                            document.getElementById('wrapper_mig_profile').value = '';
+                        }
                         updatePresetInfo(document.getElementById('wrapper_container_name').value);
                     });
+                });
+                // Use 'change' for the select element (fires on every selection change)
+                document.getElementById('wrapper_mig_profile').addEventListener('change', function() {
+                    updatePresetInfo(document.getElementById('wrapper_container_name').value);
                 });
 
                 // Show info on load

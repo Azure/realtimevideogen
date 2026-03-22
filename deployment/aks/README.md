@@ -237,20 +237,49 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_NAME --instance-ids $INSTANCE
 
 NVIDIA Multi-Instance GPU (MIG) partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources. This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (detection) share a physical GPU instead of occupying a whole one.
 
-#### Enable MIG on the node
+#### Option A: AKS node pool with `--gpu-instance-profile` (recommended)
 
-SSH into the GPU node (via `kubectl node-shell`) and run:
+For **A100 v4 series** VMs (`Standard_ND96amsr_A100_v4`, `Standard_ND96asr_v4`), AKS can configure MIG partitioning automatically when creating a node pool:
+
+```bash
+# Create a dedicated node pool where every A100 GPU is split into 1g.5gb slices
+az aks nodepool add \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --cluster-name $AKS_CLUSTER \
+  --name migpool \
+  --node-count 1 \
+  --node-vm-size Standard_ND96amsr_A100_v4 \
+  --gpu-instance-profile MIG1g
+```
+
+| `--gpu-instance-profile` value | Profile | GPU fraction | Memory |
+|-------------------------------|---------|-------------|--------|
+| `MIG1g` | `1g.5gb` | 1/7 | 5 GB |
+| `MIG2g` | `2g.10gb` | 2/7 | 10 GB |
+| `MIG3g` | `3g.20gb` | 3/7 | 20 GB |
+| `MIG4g` | `4g.20gb` | 4/7 | 20 GB |
+| `MIG7g` | `7g.40gb` | 7/7 | 40 GB |
+
+> **Note:** `--gpu-instance-profile` applies one uniform partition strategy across every GPU in the node pool.
+> It is set at pool creation time and cannot be changed afterwards.
+> Mix MIG and non-MIG workloads by creating separate node pools.
+
+#### Option B: Manual MIG configuration (any GPU node)
+
+For H100 nodes or when you need a custom mix of profiles, SSH into the GPU node (via `kubectl node-shell`) and run:
+
 ```bash
 # Enable MIG mode on all GPUs (requires a node reboot or driver restart)
 sudo nvidia-smi -i 0 -mig 1
 
 # Verify MIG mode is on
 nvidia-smi -L
+
+# Example: partition GPU 0 into 2× 3g.40gb + 1× 1g.10gb on an H100 80 GB
+sudo nvidia-smi mig -cgi 3g.40gb,3g.40gb,1g.10gb -C -i 0
 ```
 
-#### Create MIG instances
-
-Choose a profile that matches your workload.  Common profiles for A100 80 GB / H100 80 GB:
+Common profiles for A100 80 GB / H100 80 GB:
 
 | Profile | GPU fraction | Memory |
 |---------|-------------|--------|
@@ -259,22 +288,6 @@ Choose a profile that matches your workload.  Common profiles for A100 80 GB / H
 | `3g.40gb` | 3/7 | 40 GB |
 | `4g.40gb` | 4/7 | 40 GB |
 | `7g.80gb` | 7/7 | 80 GB |
-
-For A100 40 GB:
-
-| Profile | GPU fraction | Memory |
-|---------|-------------|--------|
-| `1g.5gb` | 1/7 | 5 GB |
-| `2g.10gb` | 2/7 | 10 GB |
-| `3g.20gb` | 3/7 | 20 GB |
-| `4g.20gb` | 4/7 | 20 GB |
-| `7g.40gb` | 7/7 | 40 GB |
-
-Create instances on the first GPU:
-```bash
-# Example: partition GPU 0 into 2× 3g.40gb + 1× 1g.10gb on an H100 80 GB
-sudo nvidia-smi mig -cgi 3g.40gb,3g.40gb,1g.10gb -C -i 0
-```
 
 > **Tip:** A100/H100 also support a *mixed* GPU configuration where some GPUs on a node run in MIG mode and others run in standard (whole-GPU) mode.  Setting `migStrategy = "mixed"` in the device plugin (see below) tells Kubernetes to expose both whole-GPU (`nvidia.com/gpu`) and MIG-slice (`nvidia.com/mig-*`) resources from the same node, so MIG and non-MIG workloads can coexist in the cluster.
 
