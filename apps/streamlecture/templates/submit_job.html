@@ -48,11 +48,11 @@
                     <h4>📐 Structure</h4>
                     <div class="mb-3">
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="structure_mode" id="duration_mode" value="duration" checked>
+                            <input class="form-check-input" type="radio" name="structure_mode" id="duration_mode" value="duration" checked data-target="#duration_section">
                             <label class="form-check-label" for="duration_mode">By Video Duration</label>
                         </div>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="structure_mode" id="dialogue_mode" value="dialogues">
+                            <input class="form-check-input" type="radio" name="structure_mode" id="dialogue_mode" value="dialogues" data-target="#dialogue_section">
                             <label class="form-check-label" for="dialogue_mode">By Dialogues</label>
                         </div>
                     </div>
@@ -222,12 +222,10 @@
 
         // Toggle duration/dialogue sections
         $('input[name="structure_mode"]').on('change', function() {
-            if ($('#duration_mode').is(':checked')) {
-                $('#duration_section').show();
-                $('#dialogue_section').hide();
-            } else {
-                $('#duration_section').hide();
-                $('#dialogue_section').show();
+            const target = $(this).attr("data-target");
+            if (target) {
+                $('#duration_section, #dialogue_section').hide();
+                $(document).find(target).show();
             }
         });
 
