@@ -7,10 +7,12 @@ import aiofiles
 
 from PIL import Image
 
+from typing import Any
 from typing import Optional
 from typing import Dict
 from typing import List
 from typing import AsyncGenerator
+from typing import cast
 
 from unittest.mock import patch
 from unittest.mock import MagicMock
@@ -87,18 +89,20 @@ class LMMGeneratorMock(LMMGenerator):
 
     def __init__(
         self,
-        *_,
-        **__,
+        *_: Any,
+        **__: Any,
     ) -> None:
         self.app_name = "mock"
         self.job_id = "mock"
 
         self.request_executor = MagicMock()
         self.service_manager = MagicMock()
-        self.requests: Dict[str, ServiceRequest] = {}
+        # The mock uses a dict for O(1) lookup, while the base class uses a list for ordered
+        # request tracking. Both serve the same role (request registry) but with different APIs.
+        self.requests: Dict[str, ServiceRequest] = {}  # type: ignore[assignment]
 
     async def gen_podcast_transcript(
-        self, *args, **kwargs
+        self, *args: Any, **kwargs: Any
     ) -> AsyncGenerator[Dict[str, str], None]:
         yield {"type": "image", "content": "Image prompt."}
         yield {"type": "character", "name": "Jane", "gender": "Female"}
@@ -109,30 +113,30 @@ class LMMGeneratorMock(LMMGenerator):
         yield {"type": "dialogue", "content": "No character"}
         yield {"type": "dialogue"}
 
-    async def gen_image(
+    async def gen_image(  # type: ignore[override]
         self,
-        *_,
+        *_: Any,
         width: int,
         height: int,
-        **__,
+        **__: Any,
     ) -> Image.Image:
         return Image.new("RGB", (width, height), color=MOCK_COLORS["gen_image"])
 
-    async def gen_edit_image(
+    async def gen_edit_image(  # type: ignore[override]
         self,
-        *_,
+        *_: Any,
         width: int,
         height: int,
-        **__,
+        **__: Any,
     ) -> Image.Image:
         return Image.new("RGB", (width, height), color=MOCK_COLORS["gen_edit_image"])
 
     async def gen_extract_characters(
         self,
         image: Image.Image,
-        *_,
+        *_: Any,
         num_characters: int = 2,
-        **__,
+        **__: Any,
     ) -> List[Image.Image]:
         width, height = image.size
         return [
@@ -140,7 +144,7 @@ class LMMGeneratorMock(LMMGenerator):
             for _ in range(num_characters)
         ]
 
-    async def gen_audio(self, *args, **kwargs) -> str:
+    async def gen_audio(self, *args: Any, **kwargs: Any) -> str:
         mock_audio_path = "tests/data/audio_4675.wav"
         # TODO cut it to a size?
         return await read_file_base64(mock_audio_path)
@@ -155,14 +159,14 @@ class LMMGeneratorMock(LMMGenerator):
         color: str = MOCK_COLORS["default"],
     ) -> bytes:
         """Synthetic test video."""
-        frames = [
-            get_frame_with_text(
+        frames: List[Image.Image] = [
+            cast(Image.Image, get_frame_with_text(
                 width,
                 height,
                 f"frame{idx:02d}",
                 output_type="pil",
                 background_color=color,
-            )
+            ))
             for idx in range(num_frames)
         ]
 
@@ -183,7 +187,7 @@ class LMMGeneratorMock(LMMGenerator):
 
         return video_binary
 
-    async def gen_video(
+    async def gen_video(  # type: ignore[override]
         self,
         img: Image.Image,
         prompt: str,
@@ -193,7 +197,7 @@ class LMMGeneratorMock(LMMGenerator):
         num_frames: int = 81,
         wait_request: bool = True,
         task_id: Optional[str] = None,
-        **_,
+        **_: Any,
     ) -> ServiceRequest | bytes:
         video_binary = await self._gen_synthetic_video(
             width=width,
@@ -223,13 +227,13 @@ class LMMGeneratorMock(LMMGenerator):
         request.future.set_result(("video/mp4", video_binary))
         return request
 
-    async def gen_video_audio_from_img(
+    async def gen_video_audio_from_img(  # type: ignore[override]
         self,
         *,
         audio_base64: str,
         width: int = 640,
         height: int = 400,
-        **_,
+        **_: Any,
     ) -> bytes:
         audio_path = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
         audio_path = await save_base64_as_binary(audio_path, audio_base64)
@@ -244,7 +248,7 @@ class LMMGeneratorMock(LMMGenerator):
             color=MOCK_COLORS["gen_video_audio_from_img"],
         )
 
-    async def gen_video_audio_from_video(
+    async def gen_video_audio_from_video(  # type: ignore[override]
         self,
         video: List[Image.Image],
         audio_base64: str,
@@ -252,7 +256,7 @@ class LMMGeneratorMock(LMMGenerator):
         neg_prompt: str = "",
         width: int = 640,
         height: int = 400,
-        **_,
+        **_: Any,
     ) -> bytes:
         audio_path = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
         audio_path = await save_base64_as_binary(audio_path, audio_base64)
@@ -265,18 +269,18 @@ class LMMGeneratorMock(LMMGenerator):
             color=MOCK_COLORS["gen_video_audio_from_video"],
         )
 
-    async def gen_video_upscale(
+    async def gen_video_upscale(  # type: ignore[override]
         self,
         *,
         video_binary: bytes,
         width: int = 640,
         height: int = 400,
-        **_,
+        **_: Any,
     ) -> bytes:
         video_file_info = get_video_file_info(video_binary)
         video_info = video_file_info["video"]
-        num_frames = video_info["num_frames"]
-        fps = video_info["fps"]
+        num_frames = video_info["num_frames"] or 81
+        fps = int(video_info["fps"] or FANTASYTALKING_FPS)
         return await self._gen_synthetic_video(
             width=width,
             height=height,
@@ -287,9 +291,9 @@ class LMMGeneratorMock(LMMGenerator):
 
     async def gen_video_from_latents(
         self,
-        *_,
+        *_: Any,
         # latents: torch.Tensor,
-        **__,
+        **__: Any,
     ) -> bytes:
         # TODO guess parameters from latents
         return await self._gen_synthetic_video(
@@ -300,12 +304,13 @@ class LMMGeneratorMock(LMMGenerator):
             color=MOCK_COLORS["gen_video_from_latents"],
         )
 
-    async def gen_intermediate_video_frames(
+    async def gen_intermediate_video_frames(  # type: ignore[override]
         self,
-        *_,
+        *_: Any,
         video_gen_request: ServiceRequest,
-        **__,
+        **__: Any,
     ) -> AsyncGenerator[Image.Image, None]:
+        assert video_gen_request.payload_json is not None
         video_binary = await self._gen_synthetic_video(
             width=video_gen_request.payload_json["width"],
             height=video_gen_request.payload_json["height"],
@@ -319,7 +324,7 @@ class LMMGeneratorMock(LMMGenerator):
     def get_requests(self) -> Dict[str, ServiceRequest]:
         return self.requests
 
-    def get_queued_requests(self) -> List[ServiceRequest]:
+    def get_queued_requests(self) -> List[str]:
         return []  # TODO
 
 

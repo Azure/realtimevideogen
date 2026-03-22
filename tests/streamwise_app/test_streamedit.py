@@ -125,7 +125,7 @@ async def test_streamedit_job_no_video() -> None:
         service_manager=MagicMock(),
     )
     with pytest.raises(ValueError, match="Missing 'video_base64'"):
-        await job.gen_edit(video_base64=None)
+        await job.gen_edit(video_base64=None)  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
