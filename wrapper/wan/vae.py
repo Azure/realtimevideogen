@@ -884,7 +884,7 @@ def _video_vae(
     # load checkpoint
     logging.info(f'loading {pretrained_path}')
     model.load_state_dict(
-        torch.load(pretrained_path, map_location=device, weights_only=False),
+        torch.load(pretrained_path, map_location=device, weights_only=False),  # nosec B614 - trusted model checkpoint
         assign=True)
 
     return model

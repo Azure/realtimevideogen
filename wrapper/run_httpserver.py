@@ -1288,7 +1288,7 @@ async def nccl_worker() -> None:
             torch.cuda.synchronize()
 
             payload_bytes = payload_tensor.cpu().numpy().tobytes()
-            payload = pickle.loads(payload_bytes)
+            payload = pickle.loads(payload_bytes)  # nosec B301 - internal IPC from rank 0
 
             if not isinstance(payload, dict):
                 logging.error(f"[{rank}] Invalid payload received: {payload}.")

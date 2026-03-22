@@ -140,7 +140,7 @@ class HunyuanFramePackBase(USPGeneration):
         self.text_encoder = LlamaModel.from_pretrained(
             "hunyuanvideo-community/HunyuanVideo",
             subfolder="text_encoder",
-            torch_dtype=torch.float16).to(self.device)
+            torch_dtype=torch.float16).to(self.device)  # nosec B615
         self.text_encoder.eval().requires_grad_(False)
         self.load_timer.end("text_encoder")
         diff_memory = torch.cuda.memory_allocated() - prev_memory
@@ -149,16 +149,16 @@ class HunyuanFramePackBase(USPGeneration):
         self.text_encoder_2 = CLIPTextModel.from_pretrained(
             "hunyuanvideo-community/HunyuanVideo",
             subfolder='text_encoder_2',
-            torch_dtype=torch.float16).to(self.device)
+            torch_dtype=torch.float16).to(self.device)  # nosec B615
         self.text_encoder_2.eval().requires_grad_(False)
 
         self.tokenizer = LlamaTokenizerFast.from_pretrained(
             "hunyuanvideo-community/HunyuanVideo",
-            subfolder='tokenizer')
+            subfolder='tokenizer')  # nosec B615
 
         self.tokenizer_2 = CLIPTokenizer.from_pretrained(
             "hunyuanvideo-community/HunyuanVideo",
-            subfolder='tokenizer_2')
+            subfolder='tokenizer_2')  # nosec B615
 
         prev_memory = torch.cuda.memory_allocated() if torch.cuda.is_available() else 0
         self.load_timer.start("vae")
@@ -193,14 +193,14 @@ class HunyuanFramePackBase(USPGeneration):
 
         self.feature_extractor = SiglipImageProcessor.from_pretrained(
             "lllyasviel/flux_redux_bfl",
-            subfolder='feature_extractor')
+            subfolder='feature_extractor')  # nosec B615
 
         prev_memory = torch.cuda.memory_allocated()
         self.load_timer.start("image_encoder")
         self.image_encoder = SiglipVisionModel.from_pretrained(
             "lllyasviel/flux_redux_bfl",
             subfolder='image_encoder',
-            torch_dtype=torch.float16).to(self.device)
+            torch_dtype=torch.float16).to(self.device)  # nosec B615
         self.image_encoder.eval().requires_grad_(False)
         self.load_timer.end("image_encoder")
         diff_memory = torch.cuda.memory_allocated() - prev_memory

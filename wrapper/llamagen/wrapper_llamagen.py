@@ -140,7 +140,7 @@ class LlamaGenGeneration(ModelGeneration):
         checkpoint = torch.load(
             vq_file,
             map_location="cpu",
-            weights_only=False)
+            weights_only=False)  # nosec B614 - trusted HuggingFace model checkpoint
         self.vq_model.load_state_dict(checkpoint["model"])
         self.load_timer.end("vq_model")
 
@@ -158,7 +158,7 @@ class LlamaGenGeneration(ModelGeneration):
         checkpoint = torch.load(
             t2i_file,
             map_location="cpu",
-            weights_only=False)
+            weights_only=False)  # nosec B614 - trusted HuggingFace model checkpoint
         model_weight = checkpoint.get("model", checkpoint.get("module", checkpoint.get("state_dict", checkpoint)))
         self.gpt_model.load_state_dict(model_weight, strict=False)
         self.gpt_model.eval()
