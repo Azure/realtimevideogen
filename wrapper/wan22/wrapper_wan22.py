@@ -96,7 +96,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
         self.load_timer.end("wan_s2v")
 
         diff_memory = torch.cuda.memory_allocated() - prev_memory
-        logging.info("[%d] WanS2V memory allocated: %.2f GB.", self.rank, diff_memory / 1024 / 1024 ** 2)
+        logging.info(f"[{self.rank}] WanS2V memory allocated: {diff_memory / 1024 / 1024 ** 2:.2f} GB.")
 
         # Expose pipeline sub-components for _assert_model_init compatibility
         self.text_encoder = self.wan_s2v.text_encoder
@@ -111,7 +111,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
             return
         if self.wan_s2v is None:
             return
-        logging.info("[%d] Compiling WanS2V DiT with torch.compile().", self.rank)
+        logging.info(f"[{self.rank}] Compiling WanS2V DiT with torch.compile().")
         self.load_timer.start("dit_compile")
         self.wan_s2v.noise_model = torch.compile(
             self.wan_s2v.noise_model,
@@ -126,7 +126,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
 
     @inference_mode()
     async def warmup(self) -> None:
-        logging.info("[%d] Warmup for Wan 2.2 S2V generation.", self.rank)
+        logging.info(f"[{self.rank}] Warmup for Wan 2.2 S2V generation.")
         audio_path: Optional[str] = None
         try:
             audio_path = _empty_audio_file(duration_seconds=1.0)
@@ -198,7 +198,7 @@ class Wan22VideoGeneration(WanVideoGeneration):
         img_path: Optional[str] = None
         try:
             # Save PIL image to a temporary file; WanS2V expects a file path
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                 img_path = tmp.name
             img.save(img_path)
 
