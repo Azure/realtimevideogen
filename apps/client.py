@@ -80,7 +80,7 @@ class ServiceRequest(BaseModel):
     # Non-serializable, exclude from JSON
     payload_json: Optional[Dict] = Field(default=None, exclude=True)
     payload_bytes: Optional[bytes] = Field(default=None, exclude=True)
-    timeout: Optional[ClientTimeout] = Field(default_factory=lambda: SERVICE_TIMEOUT, exclude=True)
+    timeout: Optional[float] = Field(default_factory=lambda: SERVICE_TIMEOUT.total, exclude=True)
     future: Optional[asyncio.Future] = Field(default=None, exclude=True)
     exception: Optional[Exception] = Field(default=None, exclude=True)
     tasks: List[asyncio.Task] = Field(default_factory=list, exclude=True)
@@ -240,7 +240,7 @@ class ServiceRequestWorker:
             limit_per_host=10,
             use_dns_cache=True,
             force_close=True)
-        self.session = ClientSession(
+        self.session: Optional[ClientSession] = ClientSession(
             connector=connector,
             timeout=SERVICE_LONG_TIMEOUT)
 
@@ -441,6 +441,7 @@ class ServiceRequestWorker:
                 }
             post_args["timeout"] = request.timeout
 
+            assert self.session is not None
             async with self.session.post(request.url, **post_args) as response:
                 content_type = response.headers.get("Content-Type", "")
                 if response.status == HTTPStatus.OK:

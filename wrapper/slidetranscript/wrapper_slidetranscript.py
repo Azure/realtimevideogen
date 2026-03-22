@@ -61,9 +61,9 @@ class SlideTranscriptGenerator(ModelGeneration):
     def parse_pptx(
         self,
         pptx_path: str
-    ) -> Tuple[Optional[List[str]], Optional[List[bytes]]]:
+    ) -> Tuple[Optional[List[str]], Optional[List[str]]]:
         pptx_texts = []
-        pptx_images = []
+        pptx_images: List[str] = []
 
         # Add the text from each slide
         presentation = Presentation(pptx_path)
@@ -98,17 +98,17 @@ class SlideTranscriptGenerator(ModelGeneration):
         return pptx_texts, pptx_images
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         pptx_texts: Optional[List[str]] = None,
-        pptx_images: Optional[List[bytes]] = None,
+        pptx_images: Optional[List[str]] = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         llm_model: Optional[str] = None,
         llm_url: Optional[str] = None,
         max_words_per_slide: int = -1,
         job_id: Optional[str] = None,
-    ) -> List[str]:
+    ) -> List[Dict[str, Any]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True  # We can run in parallel but good to know if we are running
@@ -135,7 +135,7 @@ class SlideTranscriptGenerator(ModelGeneration):
     async def generate_stream(
         self,
         pptx_texts: Optional[List[str]] = None,
-        pptx_images: Optional[List[bytes]] = None,
+        pptx_images: Optional[List[str]] = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         llm_model: Optional[str] = None,
@@ -174,7 +174,7 @@ class SlideTranscriptGenerator(ModelGeneration):
     async def gen_script_stream(
         self,
         pptx_texts: Optional[List[str]] = None,
-        pptx_images: Optional[List[bytes]] = None,
+        pptx_images: Optional[List[str]] = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         max_words_per_slide: int = -1,
@@ -200,7 +200,7 @@ class SlideTranscriptGenerator(ModelGeneration):
         )
 
         # Build the messages
-        user_msg = []
+        user_msg: List[Dict[str, Any]] = []
         for slide_num, (slide_text, slide_image) in enumerate(zip(pptx_texts, pptx_images)):
             user_msg.append({
                 "type": "text",
@@ -220,7 +220,7 @@ class SlideTranscriptGenerator(ModelGeneration):
             "text": "Generate the JSONL transcript."
         })
 
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "system", "content": system_prompt_text},
             {"role": "user", "content": user_msg}
         ]
@@ -230,7 +230,7 @@ class SlideTranscriptGenerator(ModelGeneration):
 
         response_stream = await self.llm_client.chat.completions.create(
             model=self.llm_model,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
             extra_body=self.extra_body,
@@ -239,13 +239,13 @@ class SlideTranscriptGenerator(ModelGeneration):
 
         it = 0
         buffer_text = ""
-        async for chunk in response_stream:
-            if self.interrupted:
+        async for chunk in response_stream:  # type: ignore[union-attr]
+            if self.interrupted:  # type: ignore[has-type]
                 self.interrupted = False
                 logging.info("Generation interrupted.")
                 return
 
-            delta = chunk.choices[0].delta.content
+            delta = chunk.choices[0].delta.content or ""
             buffer_text += delta
             if delta.endswith("\n"):
                 buffer_text = buffer_text.strip()
@@ -286,7 +286,7 @@ class SlideTranscriptGenerator(ModelGeneration):
                 await file.write(pptx_binary)
             pptx_texts, pptx_images = self.parse_pptx(output_path)
 
-        rest_args = {
+        rest_args: Dict[str, Any] = {
             "job_id": job_id,
             "llm_url": data_json.get("llm_url", "http://localhost:8000/v1"),
             "llm_model": data_json.get("llm_model", "google/gemma-3-27b-it"),
