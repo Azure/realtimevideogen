@@ -188,10 +188,10 @@ class FantasyTalking(USPGeneration):
         # Load wav2vec models
         self.load_timer.start("wav2vec")
         self.wav2vec_processor = Wav2Vec2Processor.from_pretrained(
-            f"{BASE_MODELS_FOLDER}/wav2vec2-base-960h"
+            f"{BASE_MODELS_FOLDER}/wav2vec2-base-960h"  # nosec B615 - local path
         )
         self.wav2vec = Wav2Vec2Model.from_pretrained(
-            f"{BASE_MODELS_FOLDER}/wav2vec2-base-960h"
+            f"{BASE_MODELS_FOLDER}/wav2vec2-base-960h"  # nosec B615 - local path
         ).to(self.device)
         self.load_timer.end("wav2vec")
 

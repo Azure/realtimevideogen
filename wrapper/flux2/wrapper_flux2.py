@@ -55,7 +55,7 @@ class Flux2Generation(FluxGeneration):
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
             subfolder="transformer",
-        )
+        )  # nosec B615
         self.pipeline = Flux2Pipeline.from_pretrained(
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
@@ -155,7 +155,6 @@ class Flux2Generation(FluxGeneration):
                 height=height,
                 width=width,
                 prompt=prompt,
-                negative_prompt=neg_prompt,
                 num_inference_steps=sampling_steps,
                 output_type="pil",
                 generator=seed_g,

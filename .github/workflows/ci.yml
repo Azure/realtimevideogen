@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Use Python 3.12
       uses: actions/setup-python@v6
@@ -356,7 +356,7 @@ jobs:
     if: always()
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Install cloc
       run: |
