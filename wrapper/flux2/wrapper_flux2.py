@@ -86,6 +86,8 @@ class Flux2Generation(FluxGeneration):
         """Compile the model using torch.compile if enabled."""
         if not self.torch_compile:
             return
+        if self.pipeline is None:
+            return
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
@@ -96,7 +98,7 @@ class Flux2Generation(FluxGeneration):
         self.load_timer.end("dit_compile")
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         width: int,
         height: int,
@@ -119,6 +121,8 @@ class Flux2Generation(FluxGeneration):
         """
         gen_timer = self._new_gen_timer(job_id)
 
+        self._assert_model_init()
+        assert self.pipeline is not None, "FLUX.2 pipeline not initialized."
         height_latent = height // self.pipeline.vae_scale_factor
         width_latent = width // self.pipeline.vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
@@ -145,7 +149,7 @@ class Flux2Generation(FluxGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}.")
                 return callback_kwargs
