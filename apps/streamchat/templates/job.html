@@ -445,18 +445,14 @@
                 input.value = "";
 
                 // Display user message (right)
-                const userContainer = document.createElement("div");
-                userContainer.className = "d-flex flex-column align-items-end";
-                userContainer.title = "Question";
-                const userLabel = document.createElement("div");
-                userLabel.className = "chat-label";
-                userLabel.textContent = "👤 You";
-                const userMessage = document.createElement("div");
-                userMessage.className = "chat-message chat-user";
-                userMessage.textContent = text;
-                userContainer.appendChild(userLabel);
-                userContainer.appendChild(userMessage);
-                chat.appendChild(userContainer);
+                chat.innerHTML += `
+                    <div class="d-flex flex-column align-items-end" title="Question">
+                        <div class="chat-label">👤 You</div>
+                        <div class="chat-message chat-user">
+                            ${escapeHtml(text)}
+                        </div>
+                    </div>
+                `;
                 chat.scrollTop = chat.scrollHeight;
 
                 try {
