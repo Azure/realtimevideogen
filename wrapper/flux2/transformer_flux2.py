@@ -2,7 +2,7 @@
 # https://github.com/xdit-project/xDiT/blob/8f3e28a4f0c94545a1c2b9dfc3bb18b9e6f4c2d1/xfuser/model_executor/models/transformers/transformer_flux2.py
 # See the upstream repository and its LICENSE file for original license and copyright details.
 import torch
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 from diffusers.models.transformers.transformer_flux2 import (
     Flux2Attention,
     Flux2AttnProcessor,
@@ -34,10 +34,10 @@ from xfuser.model_executor.layers import xFuserLayerWrappersRegister
 @xFuserAttentionProcessorRegister.register(Flux2AttnProcessor)
 class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def __call__(
+    def __call__(  # type: ignore[override]
         self,
         attn: "Flux2Attention",
         hidden_states: torch.Tensor,
@@ -86,7 +86,7 @@ class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
-            encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
+            encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(  # type: ignore[assignment]
                 [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             )
             encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
@@ -103,7 +103,7 @@ class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
 @xFuserAttentionProcessorRegister.register(Flux2ParallelSelfAttnProcessor)
 class xFuserFlux2ParallelSelfAttnProcessor(Flux2ParallelSelfAttnProcessor):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def __call__(
@@ -170,7 +170,7 @@ class xFuserFlux2ParallelSelfAttention(xFuserAttentionBaseWrapper):
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
         image_rotary_emb: Optional[torch.Tensor] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> torch.Tensor:
 
         return super().forward(
@@ -218,9 +218,9 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         )
 
         for block in self.transformer_blocks:
-            block.attn.processor = xFuserFlux2AttnProcessor()
+            block.attn.processor = xFuserFlux2AttnProcessor()  # type: ignore[union-attr]
         for block in self.single_transformer_blocks:
-            block.attn.processor = xFuserFlux2ParallelSelfAttnProcessor()
+            block.attn.processor = xFuserFlux2ParallelSelfAttnProcessor()  # type: ignore[union-attr]
 
     def _pad_to_sp_divisible(self, tensor: torch.Tensor, padding_length: int, dim: int) -> torch.Tensor:
         padding = torch.zeros(
@@ -233,11 +233,11 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         self,
         hidden_states: torch.Tensor,
         encoder_hidden_states: Optional[torch.Tensor] = None,
-        *args,
+        *args: Any,
         timestep: Optional[torch.LongTensor] = None,
         img_ids: Optional[torch.Tensor] = None,
         txt_ids: Optional[torch.Tensor] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> torch.Tensor:
 
         sp_world_size = get_sequence_parallel_world_size()
@@ -245,6 +245,7 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         padding_length = (sp_world_size - (sequence_length % sp_world_size)) % sp_world_size
         if padding_length > 0:
             hidden_states = self._pad_to_sp_divisible(hidden_states, padding_length, dim=1)
+            assert img_ids is not None, "img_ids is required when padding"
             img_ids = self._pad_to_sp_divisible(img_ids, padding_length, dim=1)
 
         if (
@@ -291,4 +292,4 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
             sample = sample[:, :-padding_length, :]
         if return_dict:
             return output.__class__(sample, *output[1:])
-        return (sample, *output[1:])
+        return (sample, *output[1:])  # type: ignore[return-value]

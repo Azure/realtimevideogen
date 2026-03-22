@@ -43,7 +43,7 @@ class ModelGeneration(ABC):
         torch_compile: bool = True,
     ) -> None:
         self.running = False
-        self.interrupted = False
+        self.interrupted: bool = False
         self.status = "initializing"
         self.model_name = model_name
 

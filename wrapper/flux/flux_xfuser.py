@@ -21,7 +21,7 @@ from xfuser.model_executor.models.transformers.transformer_flux import xFuserFlu
 
 
 def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
-    transformer = pipe.transformer
+    transformer = pipe.transformer  # type: ignore[attr-defined]
     original_forward = transformer.forward
 
     @functools.wraps(transformer.__class__.forward)
@@ -56,8 +56,10 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
         encoder_hidden_states = torch.chunk(encoder_hidden_states, cfg_world, dim=0)[cfg_rank]
         if get_runtime_state().split_text_embed_in_sp:
             encoder_hidden_states = torch.chunk(encoder_hidden_states, sp_world, dim=-2)[sp_rank]
+        assert img_ids is not None, "img_ids must not be None"
         img_ids = torch.chunk(img_ids, sp_world, dim=-2)[sp_rank]
         if get_runtime_state().split_text_embed_in_sp:
+            assert txt_ids is not None, "txt_ids must not be None when split_text_embed_in_sp is True"
             txt_ids = torch.chunk(txt_ids, sp_world, dim=-2)[sp_rank]
 
         for block in transformer.transformer_blocks + transformer.single_transformer_blocks:

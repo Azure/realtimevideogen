@@ -158,7 +158,7 @@ class FluxGeneration(USPGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         height: int,
         width: int,
@@ -173,6 +173,7 @@ class FluxGeneration(USPGeneration):
 
         self._assert_model_init()
         self._assert_args(height, width)
+        assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls
 
@@ -196,16 +197,17 @@ class FluxGeneration(USPGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
                 return callback_kwargs
 
             logging.info(
                 f"[{self.rank}] Generating image with {width}x{height} and '{prompt[:self.MAX_LOG_TEXT_LEN]}'...")
+            pipeline = self.pipeline
             gen_timer.start(f"step_{0:03d}")
             output = await asyncio.to_thread(
-                self.pipeline,
+                pipeline,
                 width=width,
                 height=height,
                 prompt=prompt,
@@ -228,7 +230,7 @@ class FluxGeneration(USPGeneration):
     def get_health(self) -> Dict[str, Any]:
         ret = super().get_health()
         ret.update({
-            "device_map": self.pipeline.hf_device_map if self.pipeline else None,
+            "device_map": getattr(self.pipeline, "hf_device_map", None) if self.pipeline else None,
         })
         return ret
 
@@ -250,7 +252,7 @@ class FluxGeneration(USPGeneration):
         width = int(data_json.get("width", 640))
         steps = int(data_json.get("sampling_steps", 20))
 
-        rest_args = {
+        rest_args: Dict[str, Any] = {
             "task": self.model_name,
             "args": {
                 "job_id": job_id,
