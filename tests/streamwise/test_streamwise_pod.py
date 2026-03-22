@@ -22,7 +22,7 @@ mock_modules = {}
 mock_modules.update(mock_k8s.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
-        from streamwise import streamwise  # noqa: F811
+        from streamwise import streamwise as sw
 
         from streamwise.pod_manager import get_gpu_type_affinity
         from streamwise.pod_manager import get_container_port
@@ -35,7 +35,7 @@ with patch.dict(sys.modules, mock_modules):
 @pytest.fixture(scope="function", autouse=True)
 def setup_k8s_cluster() -> None:
     # for some reason k8s_config.load_kube_config() is not async mocked
-    streamwise.k8s_cluster = "unittest"
+    sw.k8s_cluster = "unittest"
 
 
 def test_get_gpu_type_affinity() -> None:
@@ -134,7 +134,7 @@ def test_mig_profiles_set() -> None:
 
 @pytest.mark.asyncio
 async def test_add_pod() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
     response = await client.get("/pod/qwenimage")
     assert response.status_code == HTTPStatus.OK
@@ -145,7 +145,7 @@ async def test_add_pod() -> None:
 
 @pytest.mark.asyncio
 async def test_api_add_pod() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     response = await client.post("/api/pod")
@@ -178,7 +178,7 @@ async def test_api_add_pod() -> None:
 @pytest.mark.asyncio
 async def test_api_add_pod_with_mig() -> None:
     """Pod creation with a MIG profile should use the MIG resource name."""
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     form_data = {
@@ -206,7 +206,7 @@ async def test_api_add_pod_with_mig() -> None:
 @pytest.mark.asyncio
 async def test_api_add_pod_invalid_mig() -> None:
     """Pod creation with an invalid MIG profile should be rejected."""
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     form_data = {
@@ -226,7 +226,7 @@ async def test_api_add_pod_invalid_mig() -> None:
 
 @pytest.mark.asyncio
 async def test_api_add_pod_custom_tag() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     # Custom tag should be reflected in the image_url
@@ -262,7 +262,7 @@ async def test_api_add_pod_custom_tag() -> None:
 
 @pytest.mark.asyncio
 async def test_remove_pod() -> None:
-    app = streamwise.app
+    app = sw.app
     client = app.test_client()
 
     response = await client.delete("/api/pod/fluxkrea")
