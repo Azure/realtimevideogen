@@ -113,7 +113,7 @@ class HunyuanImageGeneration(ModelGeneration):
             moe_impl="eager",  # Use "flashinfer" if FlashInfer is installed
             # low_cpu_mem_usage=True, # TODO ?
             moe_drop_tokens=True,
-        )
+        )  # nosec B615 - local path
         self.model.load_tokenizer(self.HF_MODEL_NAME)
         self.pipeline = self.model.pipeline
         self.load_timer.end("model")
