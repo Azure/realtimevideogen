@@ -235,7 +235,7 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_NAME --instance-ids $INSTANCE
 
 ### 5.1 Partial GPU Support (MIG)
 
-NVIDIA Multi-Instance GPU (MIG) partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources. This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (detection) share a physical GPU instead of occupying a whole one.
+NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources. This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
 #### Option A: AKS node pool with `--gpu-instance-profile` (recommended)
 
