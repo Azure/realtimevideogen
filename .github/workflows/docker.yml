@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 90
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -74,7 +74,7 @@ jobs:
     timeout-minutes: 90
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -221,7 +221,7 @@ jobs:
         - streamshort
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -293,7 +293,7 @@ jobs:
     timeout-minutes: 90
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
