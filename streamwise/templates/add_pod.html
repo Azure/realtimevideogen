@@ -447,7 +447,7 @@
                         gpuDesc += ` MIG <b>${mig_profile}</b>`;
                     }
                 }
-                info.innerHTML = `CPU: <b>${escapeHtml(cpu)}</b> cores, Memory: <b>${escapeHtml(memory)}</b> GiB, Ephemeral: <b>${escapeHtml(ephemeral)}</b> GiB, GPU: <b>${escapeHtml(gpuDesc)}</b> (${escapeHtml(getFriendlyGpuType(gpu_type))})`;
+                info.innerHTML = `CPU: <b>${escapeHtml(cpu)}</b> cores, Memory: <b>${escapeHtml(memory)}</b> GiB, Ephemeral: <b>${escapeHtml(ephemeral)}</b> GiB, GPU: ${gpuDesc}`;
                 info.style.display = '';
             }
 
