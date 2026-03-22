@@ -3,6 +3,7 @@
 
 import torch
 import functools
+import types
 
 from typing import Optional
 from typing import Any
@@ -21,7 +22,7 @@ from xfuser.model_executor.models.transformers.transformer_flux import xFuserFlu
 
 
 def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
-    transformer = pipe.transformer  # type: ignore[attr-defined]
+    transformer = getattr(pipe, "transformer")
     original_forward = transformer.forward
 
     @functools.wraps(transformer.__class__.forward)
@@ -83,7 +84,7 @@ def parallelize_transformer(pipe: DiffusionPipeline) -> DiffusionPipeline:
             return output.__class__(sample, *output[1:])
         return (sample, *output[1:])
 
-    new_forward = new_forward.__get__(transformer)  # type: ignore[attr-defined]
+    new_forward = types.MethodType(new_forward, transformer)
     transformer.forward = new_forward
 
     return pipe

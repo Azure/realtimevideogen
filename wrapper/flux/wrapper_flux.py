@@ -204,10 +204,9 @@ class FluxGeneration(USPGeneration):
 
             logging.info(
                 f"[{self.rank}] Generating image with {width}x{height} and '{prompt[:self.MAX_LOG_TEXT_LEN]}'...")
-            pipeline = self.pipeline
             gen_timer.start(f"step_{0:03d}")
             output = await asyncio.to_thread(
-                pipeline,
+                self.pipeline,
                 width=width,
                 height=height,
                 prompt=prompt,

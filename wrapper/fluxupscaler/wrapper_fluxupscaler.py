@@ -311,9 +311,8 @@ class FluxUpscalerGeneration(USPGeneration):
             return callback_kwargs
 
         assert self.pipeline is not None, "Flux pipeline not initialized."
-        pipeline = self.pipeline
         gen_timer.start(f"step_{img_id:03d}_{0:03d}")
-        output = pipeline(
+        output = self.pipeline(
             control_image=img,
             height=height,
             width=width,

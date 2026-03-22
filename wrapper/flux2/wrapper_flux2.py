@@ -154,9 +154,8 @@ class Flux2Generation(FluxGeneration):
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}.")
                 return callback_kwargs
 
-            pipeline = self.pipeline
             gen_timer.start(f"step_{0:03d}")
-            output = pipeline(
+            output = self.pipeline(
                 height=height,
                 width=width,
                 prompt=prompt,

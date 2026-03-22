@@ -42,25 +42,25 @@ class ModelGeneration(ABC):
         model_name: str,
         torch_compile: bool = True,
     ) -> None:
-        self.running = False
+        self.running: bool = False
         self.interrupted: bool = False
-        self.status = "initializing"
-        self.model_name = model_name
+        self.status: str = "initializing"
+        self.model_name: str = model_name
 
         # Parallelism
-        self.rank = 0
-        self.local_rank = 0
-        self.world_size = 1
+        self.rank: int = 0
+        self.local_rank: int = 0
+        self.world_size: int = 1
         self.device_id: Union[int, str] = 0
         self.device: Optional[torch.device] = None
 
-        self.torch_compile = torch_compile
+        self.torch_compile: bool = torch_compile
 
         # Timing
-        self.load_timer = LoadTimer()
+        self.load_timer: LoadTimer = LoadTimer()
         self.gen_timers: Dict[str, GenTimer] = {}  # id -> GenTimer
 
-        self.gpu_setup = True
+        self.gpu_setup: bool = True
 
     def __del__(self) -> None:
         if torch.cuda.is_available():

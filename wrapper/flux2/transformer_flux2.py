@@ -2,7 +2,7 @@
 # https://github.com/xdit-project/xDiT/blob/8f3e28a4f0c94545a1c2b9dfc3bb18b9e6f4c2d1/xfuser/model_executor/models/transformers/transformer_flux2.py
 # See the upstream repository and its LICENSE file for original license and copyright details.
 import torch
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Tuple
 from diffusers.models.transformers.transformer_flux2 import (
     Flux2Attention,
     Flux2AttnProcessor,
@@ -37,14 +37,14 @@ class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(  # type: ignore[override]
+    def __call__(
         self,
         attn: "Flux2Attention",
         hidden_states: torch.Tensor,
         encoder_hidden_states: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         image_rotary_emb: Optional[torch.Tensor] = None,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+    ) -> Any:
         query, key, value, encoder_query, encoder_key, encoder_value = _get_qkv_projections(
             attn, hidden_states, encoder_hidden_states
         )
@@ -86,9 +86,11 @@ class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
-            encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(  # type: ignore[assignment]
+            splits = hidden_states.split_with_sizes(
                 [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             )
+            encoder_hidden_states = splits[0]
+            hidden_states = splits[1]
             encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
 
         hidden_states = attn.to_out[0](hidden_states)
@@ -218,9 +220,11 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         )
 
         for block in self.transformer_blocks:
-            block.attn.processor = xFuserFlux2AttnProcessor()  # type: ignore[union-attr]
+            block_any: Any = block
+            block_any.attn.processor = xFuserFlux2AttnProcessor()
         for block in self.single_transformer_blocks:
-            block.attn.processor = xFuserFlux2ParallelSelfAttnProcessor()  # type: ignore[union-attr]
+            block_any = block
+            block_any.attn.processor = xFuserFlux2ParallelSelfAttnProcessor()
 
     def _pad_to_sp_divisible(self, tensor: torch.Tensor, padding_length: int, dim: int) -> torch.Tensor:
         padding = torch.zeros(
@@ -238,7 +242,7 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
         img_ids: Optional[torch.Tensor] = None,
         txt_ids: Optional[torch.Tensor] = None,
         **kwargs: Any,
-    ) -> torch.Tensor:
+    ) -> Any:
 
         sp_world_size = get_sequence_parallel_world_size()
         sequence_length = hidden_states.shape[1]
@@ -292,4 +296,4 @@ class xFuserFlux2Transformer2DWrapper(Flux2Transformer2DModel):
             sample = sample[:, :-padding_length, :]
         if return_dict:
             return output.__class__(sample, *output[1:])
-        return (sample, *output[1:])  # type: ignore[return-value]
+        return (sample, *output[1:])
