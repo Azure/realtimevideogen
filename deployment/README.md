@@ -56,8 +56,10 @@ Follow these steps in order:
 1. **[Create ACR](acr/README.md)** (if not already created)
 2. **[Login to ACR](acr/README.md#login-and-configuration)** - Authenticate to ACR before building
 3. **[Build & Push Docker Images](#building-and-pushing-docker-images)** - Build wrapper and app images, push to ACR
-4. **[Deploy AKS Cluster](aks/README.md)** - Follow the complete AKS deployment guide (includes namespace, storage, secrets, GPU setup)
-5. **Deploy Services** - Choose one of two approaches:
+4. **[Deploy AKS Cluster](aks/README.md#step-1-deploy-aks-cluster)** - Provision the AKS cluster
+5. **[Setup K8s Prerequisites](aks/README.md#step-2-setup-kubernetes-prerequisites)** - Configure namespace, storage, and secrets
+6. **[GPU Setup](aks/README.md#step-5-gpu-setup)** - Install NVIDIA device plugin (and optional MIG configuration)
+7. **Deploy Services** - Choose one of two approaches:
    - **[Deploy with Helm](helm/README.md)** (command-line approach)
    - **[Deploy with StreamWise Web UI](#deploy-with-streamwise-cluster-manager-web-ui)** (visual interface approach - recommended for beginners)
 
