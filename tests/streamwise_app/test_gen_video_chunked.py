@@ -223,11 +223,13 @@ async def test_gen_slide_video_chunks() -> None:
     frame = video_frames[0]
     assert frame.size == (1280, 800)
     pixel_color = frame.convert("RGB").getpixel((0, 0))
-    assert is_pixel_color(pixel_color, expected_color), f"Frame 0: {pixel_color}!={expected_color}"
+    assert is_pixel_color(pixel_color, expected_color), (  # type: ignore[arg-type]
+        f"Frame 0: {pixel_color}!={expected_color}")
     for ix, frame in enumerate(video_frames):
         assert frame.size == (1280, 800)
         pixel_color = frame.convert("RGB").getpixel((0, 0))
-        assert is_pixel_color(pixel_color, expected_color), f"Frame {ix}: {pixel_color}!={expected_color}"
+        assert is_pixel_color(pixel_color, expected_color), (  # type: ignore[arg-type]
+            f"Frame {ix}: {pixel_color}!={expected_color}")
 
     # TODO test with upscaling
     # TODO test with debug

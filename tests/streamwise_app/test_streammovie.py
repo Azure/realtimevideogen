@@ -84,7 +84,7 @@ MOCK_SHOT_1 = {
 }
 
 
-def _make_mock_script_chunks():
+def _make_mock_script_chunks() -> Any:
     """Yield JSONL lines as streaming chunks."""
     lines = [
         json.dumps({"type": "movie_metadata", "title": "Test Movie"}),
@@ -95,7 +95,7 @@ def _make_mock_script_chunks():
         yield line + "\n"
 
 
-def _make_mock_script_chunks_with_noise():
+def _make_mock_script_chunks_with_noise() -> Any:
     """Yield a mix of valid JSONL and prose/noise lines."""
     items = [
         "Okay, here's the Movie Bible for a test film.",  # prose noise
@@ -120,8 +120,8 @@ class LMMGeneratorMovieMock(LMMGeneratorMock):
 
     async def gen_text_stream(
         self,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         self.last_messages = kwargs.get("messages", [])
         for chunk in _make_mock_script_chunks():
@@ -129,8 +129,8 @@ class LMMGeneratorMovieMock(LMMGeneratorMock):
 
     async def gen_text(
         self,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> str:
         return ""
 
@@ -143,16 +143,16 @@ class LMMGeneratorMovieNoisyMock(LMMGeneratorMock):
 
     async def gen_text_stream(
         self,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         for chunk in _make_mock_script_chunks_with_noise():
             yield chunk
 
     async def gen_text(
         self,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> str:
         return ""
 
@@ -410,7 +410,7 @@ async def test_gen_movie_missing_description() -> None:
     job = _make_job("test_gen_movie_no_desc")
 
     with pytest.raises(ValueError, match="Missing 'movie_description'"):
-        await job.gen_movie(None)
+        await job.gen_movie(None)  # type: ignore[arg-type]
 
     job_status = await job.get_status()
     assert job_status == JobStatus.FAILED
@@ -554,7 +554,7 @@ async def test_stream_movie_script_filters_noise() -> None:
 async def test_stream_movie_script_max_shots_instruction() -> None:
     """When max_shots is set, the LLM receives an exact shot-count instruction."""
     job = _make_job("test_max_shots_instruction", config={"max_shots": 3})
-    mock_gen = job.gen  # type: ignore[assignment]
+    mock_gen = job.gen
 
     await job._stream_movie_script("A thriller.", max_shots=3)
 
@@ -571,7 +571,7 @@ async def test_stream_movie_script_max_shots_instruction() -> None:
 async def test_stream_movie_script_no_shot_instruction_when_unset() -> None:
     """When max_shots is not set, the LLM message has no exact-count instruction."""
     job = _make_job("test_no_shot_instruction")
-    mock_gen = job.gen  # type: ignore[assignment]
+    mock_gen = job.gen
 
     await job._stream_movie_script("A comedy.", max_shots=-1)
 
