@@ -61,7 +61,7 @@ class ServiceFantasyTalkingRequestInfo(ServiceRequestInfo):
 
 def get_server_request_info(container_ip: str, container_port: int) -> ServiceFantasyTalkingRequestInfo:
     url_health = f"http://{container_ip}:{container_port}/health"
-    response_health = requests.get(url_health)
+    response_health = requests.get(url_health, timeout=10)
     if response_health.ok:
         data_json = response_health.json()
         return ServiceFantasyTalkingRequestInfo(data_json)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
         "height": 480,
         "sampling_steps": 2,
     }
-    response_warmup = requests.post(url, json=payload_warmup, headers=HEADERS_JSON)
+    response_warmup = requests.post(url, json=payload_warmup, headers=HEADERS_JSON, timeout=600)
     if not response_warmup.ok:
         raise RuntimeError(f"Warmup request failed: {response_warmup.status_code} {response_warmup.text}")
     logging.info(f"Warmed up in {response_warmup.elapsed.total_seconds():.2f} seconds")
@@ -203,7 +203,7 @@ if __name__ == "__main__":
                         "sampling_steps": test_steps,
                     }
 
-                    response = requests.post(url, json=payload, headers=HEADERS_JSON)
+                    response = requests.post(url, json=payload, headers=HEADERS_JSON, timeout=600)
 
                     server_req_info = get_server_request_info(container_ip, container_port)
                     server_req_info_csv = server_req_info.to_csv_str()

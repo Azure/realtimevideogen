@@ -69,7 +69,7 @@ def bytes_to_tensor(binary_data: bytes) -> torch.Tensor:
         raise TypeError(f"Expected bytes for binary_data, got {type(binary_data)}")
     buffer = BytesIO(binary_data)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    tensor = torch.load(buffer, map_location=device)
+    tensor = torch.load(buffer, map_location=device, weights_only=True)
     return tensor
 
 
@@ -484,7 +484,7 @@ def get_tensor_file_info(
         raise TypeError(f"Expected str for tensor_path, got {type(tensor_path)}")
     if not os.path.exists(tensor_path):
         raise FileNotFoundError(f"Tensor file does not exist: {tensor_path}")
-    tensor = torch.load(tensor_path)
+    tensor = torch.load(tensor_path, weights_only=True)
     return {
         "dtype": str(tensor.dtype),
         "shape": str(tensor.shape),

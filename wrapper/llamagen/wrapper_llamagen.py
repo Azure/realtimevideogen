@@ -139,7 +139,8 @@ class LlamaGenGeneration(ModelGeneration):
         vq_file = f"{self.REPO_ID}/vq_ds16_t2i.pt"
         checkpoint = torch.load(
             vq_file,
-            map_location="cpu")
+            map_location="cpu",
+            weights_only=False)
         self.vq_model.load_state_dict(checkpoint["model"])
         self.load_timer.end("vq_model")
 
@@ -156,7 +157,8 @@ class LlamaGenGeneration(ModelGeneration):
         t2i_file = f"{self.REPO_ID}/t2i_XL_stage2_{self.image_size}.pt"
         checkpoint = torch.load(
             t2i_file,
-            map_location="cpu")
+            map_location="cpu",
+            weights_only=False)
         model_weight = checkpoint.get("model", checkpoint.get("module", checkpoint.get("state_dict", checkpoint)))
         self.gpt_model.load_state_dict(model_weight, strict=False)
         self.gpt_model.eval()

@@ -943,7 +943,7 @@ async def hunyuanframepack_vae_binary(job_id: str) -> QuartReturn:
             decompressed_len = len(data_decompressed)
         else:
             decompressed_len = len(data)
-        latents = torch.load(data_bytes)
+        latents = torch.load(data_bytes, weights_only=True)
 
         logging.info(
             f"Process latent for '{job_id}' with {decompressed_len} bytes (HTTP:{len(data)}) "
