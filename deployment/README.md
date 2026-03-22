@@ -286,6 +286,42 @@ kubectl get nodes -o jsonpath="{range .items[*]}{.metadata.name}{':\t'}{.status.
 
 Expected output should show nvidia device plugin pods running and nodes showing GPU resources (e.g., `nvidia.com/gpu`).
 
+#### Partial GPU Support (MIG)
+
+NVIDIA Multi-Instance GPU (MIG) partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources. This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
+
+Enable MIG mode on the GPU node (requires a node reboot or driver restart):
+```bash
+sudo nvidia-smi -i 0 -mig 1
+
+# Verify MIG mode is on
+nvidia-smi -L
+
+# Example: partition GPU 0 into 2× 3g.40gb + 1× 1g.10gb on an H100 80 GB
+sudo nvidia-smi mig -cgi 3g.40gb,3g.40gb,1g.10gb -C -i 0
+```
+
+Then configure the NVIDIA device plugin for MIG by applying the ConfigMap from `aks/nvidia-plugin-mig-config.yaml`:
+```bash
+kubectl apply -f aks/nvidia-plugin-mig-config.yaml
+# Restart the device plugin daemon set so it picks up the new config
+kubectl rollout restart daemonset nvidia-device-plugin-daemonset -n gpu-resources
+```
+
+With `migStrategy = "mixed"`, the device plugin advertises each MIG instance as a separate Kubernetes resource (e.g. `nvidia.com/mig-1g.10gb`).
+
+> **Note:** When specifying a `mig_profile`, the pod requests `nvidia.com/mig-<profile>` instead of `nvidia.com/gpu`.
+
+Common MIG profiles:
+
+| Profile | GPU fraction | Memory |
+|---------|-------------|--------|
+| `1g.5gb` | 1/7 | 5 GB (A100 40 GB) |
+| `1g.10gb` | 1/7 | 10 GB (A100/H100 80 GB) |
+| `2g.20gb` | 2/7 | 20 GB (A100/H100 80 GB) |
+| `3g.40gb` | 3/7 | 40 GB (A100/H100 80 GB) |
+| `7g.80gb` | 7/7 | 80 GB (A100/H100 80 GB — full GPU) |
+
 
 #### Kubernetes Namespace Setup
 
