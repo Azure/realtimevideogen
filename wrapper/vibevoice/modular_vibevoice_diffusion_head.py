@@ -253,7 +253,8 @@ class VibeVoiceDiffusionHead(PreTrainedModel):
 
         # Zero-out adaLN modulation layers
         for layer in self.layers:
-            nn.init.constant_(cast(nn.Linear, layer.adaLN_modulation[-1]).weight, 0)
+            head_layer = cast(HeadLayer, layer)
+            nn.init.constant_(cast(nn.Linear, head_layer.adaLN_modulation[-1]).weight, 0)
 
         # Zero-out output layers
         nn.init.constant_(cast(nn.Linear, self.final_layer.adaLN_modulation[-1]).weight, 0)

@@ -296,7 +296,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         else:
             assert tokenizer is not None, "tokenizer must be provided"
             generation_config = GenerationConfig(
-                **dict(generation_config),
+                **generation_config.to_dict(),
                 bos_token_id=tokenizer.bos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id
@@ -363,7 +363,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             return generation_config, model_kwargs, input_ids
 
     @torch.no_grad()
-    def generate(
+    def generate(  # type: ignore[override]
         self,
         inputs: Optional[torch.Tensor] = None,
         generation_config: Optional[GenerationConfig] = None,

@@ -361,7 +361,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError("Cannot use `timesteps` with `config.use_lu_lambdas = True`")
 
         if timesteps is not None:
-            timesteps = np.array(timesteps).astype(np.int64)
+            ts: np.ndarray = np.array(timesteps).astype(np.int64)
         else:
             # Clipping the minimum of all lambda(t) for numerical stability.
             # This is critical for cosine (squaredcos_cap_v2) noise schedule.
@@ -372,7 +372,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             # Table 2. of https://arxiv.org/abs/2305.08891
             assert num_inference_steps is not None
             if self.config.timestep_spacing == "linspace":
-                timesteps = (
+                ts = (
                     np.linspace(0, last_timestep - 1, num_inference_steps + 1)
                     .round()[::-1][:-1]
                     .copy()
@@ -385,15 +385,15 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 _ts_leading = (
                     (np.arange(0, num_inference_steps + 1) * step_ratio).round()[::-1][:-1].copy().astype(np.int64)
                 )
-                _ts_leading += self.config.steps_offset
-                timesteps = _ts_leading
+                _ts_leading += self.config.steps_offset  # type: ignore[attr-defined]
+                ts = _ts_leading
             elif self.config.timestep_spacing == "trailing":
                 step_ratio = self.config.num_train_timesteps / num_inference_steps
                 # creates integer timesteps by multiplying by ratio
                 # casting to int to avoid issues when num_inference_step is power of 3
                 _ts_trailing = np.arange(last_timestep, 0, -step_ratio).round().copy().astype(np.int64)
                 _ts_trailing -= 1
-                timesteps = _ts_trailing
+                ts = _ts_trailing
             else:
                 raise ValueError(
                     f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of "
@@ -407,15 +407,15 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             assert num_inference_steps is not None
             sigmas = np.flip(sigmas).copy()
             sigmas = self._convert_to_karras(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
-            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
+            ts = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
         elif self.config.use_lu_lambdas:
             assert num_inference_steps is not None
             lambdas = np.flip(log_sigmas.copy())
             lambdas = self._convert_to_lu(in_lambdas=lambdas, num_inference_steps=num_inference_steps)
             sigmas = np.exp(lambdas)
-            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
+            ts = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
         else:
-            sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
+            sigmas = np.interp(ts, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.final_sigmas_type == "sigma_min":
             sigma_last = ((1 - self.alphas_cumprod[0]) / self.alphas_cumprod[0]) ** 0.5
@@ -429,9 +429,9 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
         self.sigmas = torch.from_numpy(sigmas)
-        self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=torch.int64)
+        self.timesteps = torch.from_numpy(ts).to(device=device, dtype=torch.int64)
 
-        self.num_inference_steps = len(timesteps)
+        self.num_inference_steps = len(ts)
 
         self.model_outputs = [
             None,
