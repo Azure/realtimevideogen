@@ -153,17 +153,19 @@ class ImageCharacterExtractor(ModelGeneration):
         self.load_timer.start("torch_dist")
         # No real parallelism as it runs with a single GPU or CPU
         self.gpu: Optional[str] = None
+        device_id: Union[int, str]
         if torch.cuda.is_available():
             self.rank = int(os.getenv("RANK", 0))
             self.local_rank = int(os.getenv("LOCAL_RANK", 0))
             self.world_size = int(os.getenv("WORLD_SIZE", 1))
-            self.device_id = self.local_rank
-            self.device = torch.device(f"cuda:{self.device_id}")
-            self.gpu = torch.cuda.get_device_name(self.device_id)
+            device_id = self.local_rank
+            self.device = torch.device(f"cuda:{device_id}")
+            self.gpu = torch.cuda.get_device_name(device_id)
             torch.cuda.set_device(self.local_rank)
         else:
-            self.device_id = "cpu"
-            self.device = torch.device(self.device_id)
+            device_id = "cpu"
+            self.device = torch.device(device_id)
+        self.device_id = device_id
         self.load_timer.end("torch_dist")
 
     def load_model(self) -> None:
@@ -209,10 +211,11 @@ class ImageCharacterExtractor(ModelGeneration):
         num_characters: int = 2,
         zoom_factor: float = 1.6,
         job_id: Optional[str] = None,
-    ) -> List[Image.Image]:
+    ) -> List[Optional[Image.Image]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
+        assert self.obj_recognition is not None
 
         self.running = True  # We can run in parallel but good to know if we are running
 
@@ -252,21 +255,23 @@ class ImageCharacterExtractor(ModelGeneration):
                     person_zoom_images.append((x_center, obj_conf, person_zoom_image))
 
             # Sort by confidence and take the top NUM_CHARACTERS and sort by x
-            person_zoom_images = take_top_characters(person_zoom_images, num_characters)
-            return [debug_img] + person_zoom_images
+            top_images: List[Image.Image] = take_top_characters(person_zoom_images, num_characters)
+            output: List[Optional[Image.Image]] = [debug_img]
+            output.extend(top_images)
+            return output
         finally:
             self.running = False
             gen_timer.end("total")
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         num_characters: int = 2,
         zoom_factor: float = 1.6,
         job_id: Optional[str] = None,
-    ) -> List[Image.Image]:
+    ) -> List[Optional[Image.Image]]:
         return self.extract_characters(
             img=img,
             num_characters=num_characters,
@@ -290,6 +295,8 @@ class ImageCharacterExtractor(ModelGeneration):
         img_base64 = data_json.get("img", None)
         if img_base64 is None:
             raise ValueError("Missing 'img' parameter")
+        if not isinstance(img_base64, str):
+            raise ValueError("'img' parameter must be a base64 string")
         img = base64_to_img(img_base64)
         num_characters = int(data_json.get("num_characters", 2))
         zoom_factor = float(data_json.get("zoom_factor", 1.6))

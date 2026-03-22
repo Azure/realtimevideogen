@@ -23,7 +23,7 @@ import logging
 import soundfile
 import numpy as np
 
-from typing import List
+from typing import Iterator
 from typing import Tuple
 
 from np.typing import NDArray
@@ -38,22 +38,23 @@ def chunk_text(
     text: str,
     audio_prompt_text: str,
     max_words: int = 50,
-) -> List[Tuple[str, bool]]:
+    overlap_speakers: bool = False,
+) -> Iterator[Tuple[str, bool]]:
     """Split text into speaker-aware chunks.
     Args:
         text (str): The input text to chunk
         audio_prompt_text (str): The audio prompt text to prepend to each chunk for the voice prompt fragment
         max_words (int): Maximum words per chunk
+        overlap_speakers (bool): Whether to overlap speakers across chunks
 
-    Returns:
-        list: List of tuples (text chunk, silence flag)
+    Yields:
+        Tuple[str, bool]: (text chunk, silence flag)
         silence flag is True if the dialogue chunk has not been cut due to the max_words limit,
         otherwise False to stitch both dialogue split fragments with no pause.
     """
     lines = text.split('\n')
     # remove empty lines
     lines = [line for line in lines if len(line) > 0]
-    chunks = []
     word_count = 0
     last_speaker = None
 
@@ -80,8 +81,9 @@ def chunk_text(
             # concatenate the audio prompt fragment with the split dialogue sequence
             # End sequence with the next speaker tag to prevent audio shortening
             next_speaker = [c for c in ["S1", "S2"] if c != last_speaker][0]
-            prompted_sequence = audio_prompt_text + "\n" + shorten_sequence + f"\n[{next_speaker}]"
-            chunks.append((prompted_sequence, False))
+            first_prompted_sequence = audio_prompt_text + "\n" + shorten_sequence + f"\n[{next_speaker}]"
+            # yield the first (shortened) chunk immediately — no silence between split fragments
+            yield (first_prompted_sequence, False)
 
             sequence = residual_words
             if last_speaker == "S1":

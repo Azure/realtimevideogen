@@ -1,6 +1,8 @@
 import os
 import torch
 
+from typing import List
+
 from PIL import Image
 from PIL.Image import Resampling
 
@@ -29,8 +31,7 @@ def main() -> None:
     height = 544
     width = 720
 
-    input_images = [
-        Image.open("generated_image_20250415T165700.png"),
+    input_images: List[Image.Image] = [
         Image.open("generated_image_20250415T165936.png"),
         Image.open("generated_image_20250416T162934.png"),
         Image.open("generated_image_flux_20250416T190517.png"),

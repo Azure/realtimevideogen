@@ -71,7 +71,7 @@ async def test_wrapper_fluxupscaler() -> None:
     })
 
     with pytest.raises(ValueError):
-        await model.get_rest_args(None)  # type: ignore[arg-type]
+        await model.get_rest_args(None)
 
     # Success case
     await model.get_rest_args({

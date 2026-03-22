@@ -20,7 +20,7 @@ class MockGeneration(ModelGeneration):
         self,
         job_id: Optional[str] = None,
         *args: Any,
-        **kwargs: Dict[str, Any]
+        **kwargs: Any
     ) -> Any:
         gen_timer = self._new_gen_timer(job_id)
 

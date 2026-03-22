@@ -7,6 +7,7 @@ from typing import Union
 from typing import Callable
 from typing import Any
 from typing import Dict
+from typing import cast
 
 from tqdm import tqdm
 
@@ -55,7 +56,7 @@ class VibeVoiceGenerationOutput(ModelOutput):
         speech_outputs (`List[torch.FloatTensor]`, *optional*):
             List of generated speech waveforms or latents for each speech segment.
     """
-    sequences: torch.LongTensor = None
+    sequences: Optional[torch.LongTensor] = None
     speech_outputs: Optional[List[torch.FloatTensor]] = None
     reach_max_step_sample: Optional[torch.BoolTensor] = None
 
@@ -81,7 +82,7 @@ class VibeVoiceTokenConstraintProcessor(LogitsProcessor):
 
         # Apply mask to scores
         scores = scores + mask
-        return scores
+        return cast(torch.FloatTensor, scores)
 
 
 class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, GenerationMixin):
@@ -165,13 +166,13 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         self,
         new_embeddings: nn.Module
     ) -> None:
-        self.lm_head = new_embeddings
+        self.lm_head = cast(nn.Linear, new_embeddings)
 
     def set_speech_tokenizers(
         self,
         acoustic_tokenizer: Optional[Any] = None,
         semantic_tokenizer: Optional[Any] = None,
-    ):
+    ) -> None:
         """Set the speech tokenizers used for encoding and decoding speech."""
         self.model.set_speech_tokenizers(acoustic_tokenizer, semantic_tokenizer)
 
@@ -203,7 +204,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
     # @can_return_tuple
     def forward(
         self,
-        input_ids: torch.LongTensor = None,
+        input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
@@ -218,7 +219,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         speech_masks: Optional[torch.BoolTensor] = None,
         speech_input_mask: Optional[torch.BoolTensor] = None,
         logits_to_keep: Union[int, slice] = 0,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Tuple, VibeVoiceCausalLMOutputWithPast]:
         """
         Args:
@@ -244,7 +245,8 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
 
         # Process speech inputs if provided
         if speech_tensors is not None and speech_masks is not None:
-            acoustic_features, speech_embeds = self._process_speech_inputs(speech_tensors.to(self.dtype), speech_masks)
+            acoustic_features, speech_embeds = self._process_speech_inputs(
+                cast(torch.FloatTensor, speech_tensors.to(self.dtype)), speech_masks)
             if speech_input_mask is not None:
                 inputs_embeds[speech_input_mask] = speech_embeds
 
@@ -285,20 +287,22 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         **kwargs: Dict[str, Any]
     ) -> Any:
         if generation_config is None:
+            assert tokenizer is not None, "tokenizer must be provided when generation_config is None"
             generation_config = GenerationConfig(
                 bos_token_id=tokenizer.bos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id
             )
         else:
+            assert tokenizer is not None, "tokenizer must be provided"
             generation_config = GenerationConfig(
-                **generation_config,
+                **generation_config.to_dict(),
                 bos_token_id=tokenizer.bos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id
             )
 
-        generation_config, model_kwargs = self._prepare_generation_config(
+        generation_config, model_kwargs = self._prepare_generation_config(  # type: ignore[call-arg, unused-ignore]
             generation_config,
             True,
             speech_start_id=tokenizer.speech_start_id,
@@ -306,9 +310,9 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             speech_diffusion_id=tokenizer.speech_diffusion_id,
             **kwargs
         )
-        generation_config.speech_start_id = tokenizer.speech_start_id
-        generation_config.speech_end_id = tokenizer.speech_end_id
-        generation_config.speech_diffusion_id = tokenizer.speech_diffusion_id
+        setattr(generation_config, 'speech_start_id', tokenizer.speech_start_id)
+        setattr(generation_config, 'speech_end_id', tokenizer.speech_end_id)
+        setattr(generation_config, 'speech_diffusion_id', tokenizer.speech_diffusion_id)
 
         inputs_tensor, model_input_name, model_kwargs = self._prepare_model_inputs(
             inputs, generation_config.bos_token_id, model_kwargs)
@@ -377,7 +381,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         return_speech: bool = True,
         cfg_scale: float = 1.0,
         stop_check_fn: Optional[Callable[[], bool]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[torch.LongTensor, VibeVoiceGenerationOutput]:
         """
         Generates sequences of token ids and optionally speech outputs.
@@ -441,7 +445,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
         verbose = kwargs.get("verbose", False)
 
         # Initialize audio chunks storage for each sample
-        audio_chunks = [[] for _ in range(batch_size)]
+        audio_chunks: List[List[Any]] = [[] for _ in range(batch_size)]
 
         initial_length = input_ids.shape[-1]
         initial_length_per_sample = model_kwargs['attention_mask'].sum(dim=-1)
@@ -514,6 +518,9 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
             if is_prefill:
                 # we process the speech inputs only during the first generation step
+                assert speech_tensors is not None
+                assert speech_masks is not None
+                assert speech_input_mask is not None
                 prefill_inputs = {
                     "speech_tensors": speech_tensors.to(device=device),
                     "speech_masks": speech_masks.to(device),

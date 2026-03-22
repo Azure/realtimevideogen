@@ -75,7 +75,9 @@ class USPGeneration(ModelGeneration):
         if dist.is_initialized():
             global_base_seed: list[int | None] = [self.base_seed] if self.rank == 0 else [None]
             dist.broadcast_object_list(global_base_seed, src=0)
-            self.base_seed = global_base_seed[0]
+            seed_value = global_base_seed[0]
+            assert seed_value is not None
+            self.base_seed = seed_value
         logging.info(f"[{self.rank}] Using base seed: {self.base_seed}")
 
     def reset_seed(self) -> None:

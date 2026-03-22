@@ -9,6 +9,7 @@ from typing import Union
 from typing import Dict
 from typing import Any
 from typing import Tuple
+from typing import cast
 
 import numpy as np
 import torch
@@ -51,7 +52,7 @@ class VibeVoiceProcessor:
         audio_processor: Optional[Any] = None,
         speech_tok_compress_ratio: int = 3200,
         db_normalize: bool = True,
-        **kwargs
+        **kwargs: Any
     ) -> None:
         self.tokenizer = tokenizer
         self.audio_processor = audio_processor
@@ -66,8 +67,8 @@ class VibeVoiceProcessor:
     @classmethod
     def from_pretrained(
         cls,
-        pretrained_model_name_or_path,
-        **kwargs
+        pretrained_model_name_or_path: Union[str, os.PathLike],
+        **kwargs: Any
     ) -> "VibeVoiceProcessor":
         """
         Instantiate a VibeVoiceProcessor from a pretrained VibeVoice processor.
@@ -213,7 +214,7 @@ class VibeVoiceProcessor:
                 - **speech_input_mask** -- Boolean masks indicating speech token positions
         """
         # Handle single vs batch input
-        texts = []
+        texts: List[Any] = []
         is_batched = False
         if isinstance(text, str) or (isinstance(text, list) and len(text) > 0 and not isinstance(text[0], str)):
             # Single input
@@ -221,17 +222,18 @@ class VibeVoiceProcessor:
             is_batched = False
         else:
             # Batch input
-            texts = text
+            texts = cast(List[Any], text)
             is_batched = True
 
         # Handle voice samples
+        voice_samples_list: List[Optional[List[Union[str, np.ndarray]]]] = []
         if voice_samples is not None:
             if not is_batched or (isinstance(voice_samples[0], (str, np.ndarray))):
                 # Single set of voice samples
-                voice_samples_list = [voice_samples]
+                voice_samples_list = [cast(List[Union[str, np.ndarray]], voice_samples)]
             else:
                 # Batch of voice samples
-                voice_samples_list = voice_samples
+                voice_samples_list = cast(List[Optional[List[Union[str, np.ndarray]]]], voice_samples)
         else:
             voice_samples_list = [None] * len(texts)
 
@@ -357,7 +359,7 @@ class VibeVoiceProcessor:
 
             # Pad sequences
             padded_input_ids = []
-            attention_masks = []
+            padded_attention_masks: List[List[int]] = []
             padded_speech_input_masks = []
 
             for input_ids, speech_mask in zip(input_ids_list, speech_input_masks_list):
@@ -374,9 +376,10 @@ class VibeVoiceProcessor:
                 padded_speech_mask = [False] * padding_length + speech_mask
 
                 padded_input_ids.append(padded_ids)
-                attention_masks.append(attention_mask)
+                padded_attention_masks.append(attention_mask)
                 padded_speech_input_masks.append(padded_speech_mask)
 
+            attention_masks: Optional[List[List[int]]] = padded_attention_masks
             input_ids_list = padded_input_ids
             speech_input_masks_list = padded_speech_input_masks
         else:
@@ -449,6 +452,7 @@ class VibeVoiceProcessor:
             # Process audio
             if isinstance(speaker_audio, str):
                 # Load audio from file
+                assert self.audio_processor is not None
                 wav = self.audio_processor._load_audio_from_path(speaker_audio)
             else:
                 wav = np.array(speaker_audio, dtype=np.float32)
@@ -528,7 +532,7 @@ class VibeVoiceProcessor:
             padded_speeches[i, :len(speech)] = speech
             speech_masks[i, :vae_tok_length] = True
 
-        result = {
+        result: Dict[str, Any] = {
             "padded_speeches": padded_speeches,
             "speech_masks": speech_masks,
         }
@@ -665,7 +669,7 @@ class VibeVoiceProcessor:
     def _merge_inputs(self, text_inputs: BatchEncoding, audio_inputs: Dict) -> BatchEncoding:
         """Merge text and audio inputs into a single BatchEncoding."""
         # Start with text inputs
-        merged = BatchEncoding(text_inputs)
+        merged = BatchEncoding(dict(text_inputs))
 
         # Add audio-specific fields
         if "audio" in audio_inputs:
@@ -675,7 +679,7 @@ class VibeVoiceProcessor:
 
         return merged
 
-    def batch_decode(self, *args, **kwargs):
+    def batch_decode(self, *args: Any, **kwargs: Any) -> Any:
         """
         This method forwards all its arguments to VibeVoiceTextTokenizer's [`~PreTrainedTokenizer.batch_decode`].
         Please refer to the docstring of this method for more information.
@@ -684,7 +688,7 @@ class VibeVoiceProcessor:
             raise ValueError("Tokenizer is not initialized.")
         return self.tokenizer.batch_decode(*args, **kwargs)
 
-    def decode(self, *args, **kwargs):
+    def decode(self, *args: Any, **kwargs: Any) -> Any:
         """
         This method forwards all its arguments to VibeVoiceTextTokenizer's [`~PreTrainedTokenizer.decode`].
         Please refer to the docstring of this method for more information.
@@ -694,7 +698,7 @@ class VibeVoiceProcessor:
         return self.tokenizer.decode(*args, **kwargs)
 
     @property
-    def model_input_names(self):
+    def model_input_names(self) -> List[str]:
         """
         Return the list of inputs accepted by the model.
         """

@@ -31,7 +31,7 @@ class LogitNormalSampler:
 
     def sample(
         self,
-        batch_size,
-        device
+        batch_size: int,
+        device: torch.device
     ) -> torch.Tensor:
         return torch.multinomial(self.prob, batch_size, replacement=True).to(device)

@@ -7,7 +7,10 @@ from wan.utils.utils import cache_video
 from wan.modules.vae import WanVAE
 
 from typing import Any
+from typing import Iterator
+from typing import Optional
 from typing import Tuple
+from typing import Union
 
 import os
 import time
@@ -17,15 +20,19 @@ import torch.amp as amp
 import torch.distributed as dist
 
 
+ScalePair = Tuple[Union[float, torch.Tensor], Union[float, torch.Tensor]]
+
+
 # Original
 def decode_old(
     vae_model: Any,
     z: torch.Tensor,
-    scale: Tuple[float, float]
+    scale: ScalePair
 ) -> torch.Tensor:
     vae_model.clear_cache()
     # z: [b,c,t,h,w]
     if isinstance(scale[0], torch.Tensor):
+        assert isinstance(scale[1], torch.Tensor)
         z = z / scale[1].view(1, vae_model.z_dim, 1, 1, 1) + scale[0].view(
             1, vae_model.z_dim, 1, 1, 1)
     else:
@@ -51,14 +58,15 @@ def decode_old(
 
 # New version of decode
 def decode(
-    vae_model,
+    vae_model: Any,
     z: torch.Tensor,
-    scale: Tuple[float, float],
+    scale: ScalePair,
 ) -> torch.Tensor:
     rank = dist.get_rank()
     vae_model.clear_cache()
     # z: [b,c,t,h,w]
     if isinstance(scale[0], torch.Tensor):
+        assert isinstance(scale[1], torch.Tensor)
         scale_0 = scale[0].view(1, vae_model.z_dim, 1, 1, 1)
         scale_1 = scale[1].view(1, vae_model.z_dim, 1, 1, 1)
         z = z / scale_1 + scale_0
@@ -85,16 +93,17 @@ def decode(
 # Distributed version
 # TODO need to remove the hard coding and clean it up
 def decode_parallel(
-    vae_model,
+    vae_model: Any,
     z: torch.Tensor,
-    scale: Tuple[float, float],
-) -> torch.Tensor:
+    scale: ScalePair,
+) -> Optional[torch.Tensor]:
     rank = dist.get_rank()
     world_size = dist.get_world_size()
 
     vae_model.clear_cache()
     # z: [b,c,t,h,w]
     if isinstance(scale[0], torch.Tensor):
+        assert isinstance(scale[1], torch.Tensor)
         scale_0 = scale[0].view(1, vae_model.z_dim, 1, 1, 1)
         scale_1 = scale[1].view(1, vae_model.z_dim, 1, 1, 1)
         z = z / scale_1 + scale_0
@@ -155,6 +164,7 @@ def decode_parallel(
 
     final = None  # TODO return something empty at least
     if rank == 0:
+        assert gather_list is not None
         # TODO avoid concatenating the 0s for padding
         for gather_rank in range(len(gather_list)):
             # TODO avoid the hardcoding
@@ -174,15 +184,16 @@ def decode_parallel(
 
 
 def decode_stream(
-    vae_model,
+    vae_model: Any,
     z: torch.Tensor,
-    scale: Tuple[float, float],
+    scale: ScalePair,
     start_frame: int = 0
-) -> torch.Tensor:
+) -> Iterator[torch.Tensor]:
     # TODO start_frame
     vae_model.clear_cache()
     # z: [b, c, #lat_frames, lat_h, lat_w]
     if isinstance(scale[0], torch.Tensor):
+        assert isinstance(scale[1], torch.Tensor)
         scale_0 = scale[0].view(1, vae_model.z_dim, 1, 1, 1)
         scale_1 = scale[1].view(1, vae_model.z_dim, 1, 1, 1)
         z = z / scale_1 + scale_0
@@ -289,6 +300,7 @@ def main() -> None:
                 video = decode_parallel(vae.model, u, vae.scale)
                 # video = decode(vae.model, u, vae.scale)
                 if rank == 0:
+                    assert video is not None
                     videos.append(video.float().clamp_(-1, 1).squeeze(0))
         print(f"[{rank}] Parallelized inner decode in {time.time() - t0:.3f} seconds")  # ~4.4 seconds
         if rank == 0:
