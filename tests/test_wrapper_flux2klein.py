@@ -44,7 +44,7 @@ async def test_wrapper_flux2klein() -> None:
     assert model.model_name == "flux2klein"
     assert model.status == "initializing"
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             width=128,
             height=80,

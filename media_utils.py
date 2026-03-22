@@ -22,6 +22,7 @@ from contextlib import asynccontextmanager
 import numpy as np
 
 from typing import List
+from typing import Sequence
 from typing import TypedDict
 from typing import Optional
 from typing import Union
@@ -829,7 +830,7 @@ def save_audio_np(
 
 
 async def save_video_frames(
-    video_frames: Union[List[Union[Image.Image, np.ndarray, torch.Tensor]], np.ndarray],
+    video_frames: Union[Sequence[Union[Image.Image, np.ndarray, torch.Tensor]], np.ndarray],
     out_video_path: Optional[str] = None,
     fps: float = 30.0,
     video_codec: str = DEFAULT_VIDEO_CODEC,

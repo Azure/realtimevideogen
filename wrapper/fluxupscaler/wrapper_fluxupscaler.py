@@ -119,6 +119,8 @@ class FluxUpscalerGeneration(USPGeneration):
     def model_compile(self) -> None:
         if not self.torch_compile:
             return
+        if self.pipeline is None:
+            return
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
@@ -140,6 +142,7 @@ class FluxUpscalerGeneration(USPGeneration):
     ) -> None:
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
+        assert self.pipeline is not None
         height_latent = height // self.pipeline.vae_scale_factor
         width_latent = width // self.pipeline.vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
@@ -159,7 +162,7 @@ class FluxUpscalerGeneration(USPGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Optional[Image.Image] = None,
         video: Optional[List[Image.Image]] = None,
@@ -173,7 +176,7 @@ class FluxUpscalerGeneration(USPGeneration):
         video_fps: int = 30,
         job_id: Optional[str] = None,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Image.Image:
+    ) -> Any:  # returns Image for images, or List[Image]/str/bytes for video
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
@@ -184,7 +187,7 @@ class FluxUpscalerGeneration(USPGeneration):
         try:
             # Video upscaling
             if video is not None:
-                ret = []
+                ret: List[Optional[Image.Image]] = []
                 video_frames = video
                 for it, video_frame in enumerate(video_frames):
                     if video_frame is None:
@@ -227,7 +230,7 @@ class FluxUpscalerGeneration(USPGeneration):
                     sampling_steps=sampling_steps,
                     controlnet_conditioning_scale=controlnet_conditioning_scale,
                     guidance_scale=guidance_scale)
-                return [out_image]
+                return out_image
 
             # Missing inputs
             raise ValueError("Image or video required for Flux Upscaling generation.")
@@ -239,10 +242,10 @@ class FluxUpscalerGeneration(USPGeneration):
         self,
         job_id: Optional[str],
         gen_timer: GenTimer,
-        video_frames: List[Image.Image],
+        video_frames: List[Optional[Image.Image]],
         video_fps: int = 30,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes, None]:
+    ) -> Union[List[Optional[Image.Image]], str, bytes, None]:
         gen_timer.start("output")
         try:
             if output_type == "pil":
@@ -253,7 +256,7 @@ class FluxUpscalerGeneration(USPGeneration):
                 if job_id:
                     video_path = f"/tmp/{job_id}.mp4"
                 video_path = await save_video_frames(
-                    video_frames,
+                    [f for f in video_frames if f is not None],
                     out_video_path=video_path,
                     fps=video_fps)
                 if output_type == "video_path":
@@ -286,7 +289,8 @@ class FluxUpscalerGeneration(USPGeneration):
         """
         Upscale one image from a prompt using the Flux model.
         """
-        img = img.resize((width, height), Image.LANCZOS)
+        assert img is not None, "Image is required for Flux Upscaling."
+        img = img.resize((width, height), Image.Resampling.LANCZOS)
 
         seed = self.base_seed if self.base_seed >= 0 else random.randint(0, sys.maxsize)
         seed_g = torch.Generator(device=self.device)
@@ -301,11 +305,12 @@ class FluxUpscalerGeneration(USPGeneration):
             gen_timer.end(f"step_{img_id:03d}_{step:03d}")
             if step < sampling_steps - 1:
                 gen_timer.start(f"step_{img_id:03d}_{step + 1:03d}")
-            if self.interrupted:
+            if self.interrupted:  # type: ignore[has-type]
                 self.interrupted = False
                 raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}.")
             return callback_kwargs
 
+        assert self.pipeline is not None, "Flux pipeline not initialized."
         gen_timer.start(f"step_{img_id:03d}_{0:03d}")
         output = self.pipeline(
             control_image=img,
@@ -329,7 +334,7 @@ class FluxUpscalerGeneration(USPGeneration):
     def get_health(self) -> Dict[str, Any]:
         ret = super().get_health()
         ret.update({
-            "device_map": self.pipeline.hf_device_map if self.pipeline else None,
+            "device_map": getattr(self.pipeline, "hf_device_map", None) if self.pipeline else None,
         })
         return ret
 
@@ -345,20 +350,20 @@ class FluxUpscalerGeneration(USPGeneration):
         img_base64 = data_json.get("img", None)
         img = None
         if img_base64 is not None:
-            img = base64_to_img(img_base64)
+            img = base64_to_img(str(img_base64))
 
         video_base64 = data_json.get("video", None)
         video_frames = None
-        video_fps = -1
+        video_fps: float = -1
         if video_base64 is not None:
-            video_frames = base64_to_video_frames(video_base64)
-            video_binary = base64_to_binary(video_base64)
+            video_frames = base64_to_video_frames(str(video_base64))
+            video_binary = base64_to_binary(str(video_base64))
             video_fps = get_video_fps(video_binary)
 
         prompt = data_json.get("prompt", "")
         neg_prompt = data_json.get("neg_prompt", "")
 
-        rest_args = {
+        rest_args: Dict[str, Any] = {
             "task": self.model_name,
             "args": {
                 "job_id": job_id,

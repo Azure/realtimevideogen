@@ -112,7 +112,7 @@ class FluxKontextGeneration(FluxGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         height: int,
@@ -144,7 +144,7 @@ class FluxKontextGeneration(FluxGeneration):
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
 
         gen_timer.start("image_preprocess")
-        img = img.resize((width, height), Image.LANCZOS)
+        img = img.resize((width, height), Image.Resampling.LANCZOS)
         gen_timer.end("image_preprocess")
 
         self.running = True  # Mark running to avoid concurrent calls
@@ -165,7 +165,7 @@ class FluxKontextGeneration(FluxGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}.")
                 return callback_kwargs
