@@ -155,12 +155,15 @@ async def test_find_scene_for_frame() -> None:
         SceneSegment(scene_id=2, start_frame=20, end_frame=30, start_sec=2.0, end_sec=3.0),
     ]
     scene = job.find_scene_for_frame(15)
+    assert scene is not None
     assert scene.scene_id == 1
 
     scene = job.find_scene_for_frame(0)
+    assert scene is not None
     assert scene.scene_id == 0
 
     scene = job.find_scene_for_frame(25)
+    assert scene is not None
     assert scene.scene_id == 2
 
     scene = job.find_scene_for_frame(-10)

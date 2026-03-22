@@ -135,10 +135,11 @@ async def _mock_generation(
     )
     job.gen.gen_audio = AsyncMock(return_value=audio_base64)
     loop = asyncio.get_running_loop()
-    job.image_task = loop.create_future()
-    job.image_task.set_result(Image.new("RGB", (640, 480), color="blue"))
+    image_future: asyncio.Future[Image.Image] = loop.create_future()
+    image_future.set_result(Image.new("RGB", (640, 480), color="blue"))
+    job.image_task = image_future  # type: ignore[assignment]
 
-    video_frames = [
+    video_frames: List[Image.Image] = [
         Image.new("RGB", (640, 480), color=color)
         for color in ["blue", "green", "red", "yellow"]
     ]
@@ -146,7 +147,7 @@ async def _mock_generation(
     video_binary = await read_file_bytes(video_path)
     job.gen.gen_video_audio_from_img = AsyncMock(return_value=video_binary)
 
-    async def gen_video_mock(*args, **kwargs) -> Any:
+    async def gen_video_mock(*args: Any, **kwargs: Any) -> Any:
         if kwargs.get("wait_request", None):
             return video_binary
         req = ServiceRequest(

@@ -454,7 +454,7 @@ async def test_gen_podcast_all() -> None:
         # Wrong type
         assert len(job.characters) == 0
         with pytest.raises(TypeError, match="Expected str for base64_str"):
-            await job.gen_podcast(pdf_base64=b"AAAAA")
+            await job.gen_podcast(pdf_base64=b"AAAAA")  # type: ignore[arg-type]
         job_status = await job.get_status()
         assert job_status == JobStatus.FAILED
         assert len(job.characters) == 0
@@ -498,7 +498,7 @@ async def test_gen_podcast_nopdf() -> None:
     job.config["output_mode"] = OutputMode.VIDEO_AUDIO_SYNCED
 
     with pytest.raises(ValueError, match="Missing 'pdf_base64' in request"):
-        await job.gen_podcast(pdf_base64=None)
+        await job.gen_podcast(pdf_base64=None)  # type: ignore[arg-type]
     job_status = await job.get_status()
     assert job_status == JobStatus.FAILED
 
@@ -652,6 +652,7 @@ async def test_video_audio() -> None:
     video_fps = video_info["fps"]
     assert video_fps == 23
     video_duration_secs = video_info["duration_seconds"]
+    assert video_duration_secs is not None
     assert_approx(video_duration_secs, 3.522, tol=0.01)
     video_num_frames = video_info["num_frames"]
     assert video_num_frames == 81
