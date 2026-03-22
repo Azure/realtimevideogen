@@ -209,7 +209,8 @@ class StreamAnimateJob(StreamWiseJob):
                 video_frames = await get_video_frames(scene_video_binary)
                 video_file_info = get_video_file_info(scene_video_binary)
                 video_info = video_file_info.get("video", {})
-                video_fps = video_info.get("fps", FANTASYTALKING_FPS)
+                _video_fps = video_info.get("fps")
+                video_fps: float = _video_fps if _video_fps is not None else FANTASYTALKING_FPS
 
                 out_path = await save_video_audio(
                     video_content=video_frames,

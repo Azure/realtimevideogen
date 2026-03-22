@@ -72,7 +72,7 @@ class StreamLectureJob(StreamWiseJob):
         self,
         job_config: Dict[str, Any],
     ) -> None:
-        pdf_base64 = job_config.get("pdf_base64", None)
+        pdf_base64: Optional[str] = job_config.get("pdf_base64")
         await self.gen_lecture(pdf_base64)
 
     async def gen_scene(
@@ -166,7 +166,8 @@ class StreamLectureJob(StreamWiseJob):
         video_frames = await get_video_frames(scene_video_binary)
         video_file_info = get_video_file_info(scene_video_binary)
         video_info = video_file_info.get("video", {})
-        video_fps = video_info.get("fps", FANTASYTALKING_FPS)
+        _video_fps = video_info.get("fps")
+        video_fps: float = _video_fps if _video_fps is not None else FANTASYTALKING_FPS
 
         video_audio_path = f"{self.job_path}/{scene_id:03d}.mp4"
         video_audio_path = await save_video_audio(
@@ -180,7 +181,7 @@ class StreamLectureJob(StreamWiseJob):
 
     async def gen_lecture(
         self,
-        pdf_base64: str,
+        pdf_base64: Optional[str],
     ) -> None:
         """
         Generate a lecture video from a PDF.
@@ -281,11 +282,11 @@ class StreamLectureJob(StreamWiseJob):
             for scene_id, result in enumerate(results):
                 if isinstance(result, Exception):
                     self._handle_scene_exception(scene_id, result)
-                elif not result:
-                    self.logger.warning(f"[{scene_id}] No video generated. Skipping.")
-                else:
+                elif isinstance(result, str):
                     scene_video_paths.append(result)
                     self.logger.info(f"[{scene_id}] Scene saved to '{result}'.")
+                else:
+                    self.logger.warning(f"[{scene_id}] No video generated. Skipping.")
 
             if not scene_video_paths:
                 raise ValueError("No scene videos generated. Cannot create final lecture video.")
