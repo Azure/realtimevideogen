@@ -4,6 +4,9 @@
 {% block submit_button_title %}Submit Short Generation{% endblock %}
 {% block submit_button_aria %}Submit Short Generation{% endblock %}
 {% block heading %}Short Generation 📽️🎬{% endblock %}
+{% block extra_head %}
+    <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
+{% endblock %}
 {% block source_link %}
                 <p class="mb-2">
                     <strong>Video:</strong>
@@ -266,10 +269,10 @@
                     const titleText = titleEl ? titleEl.innerText : `Scene ${sceneId}`;
                     refCard.innerHTML = imgSrc
                         ? `<div class="d-flex gap-3 align-items-start">
-                               <img src="${imgSrc}" width="160" class="img-fluid rounded shadow-sm">
-                               <span class="text-success fw-bold">${titleText}</span>
+                               <img src="${escapeHtml(imgSrc)}" width="160" class="img-fluid rounded shadow-sm">
+                               <span class="text-success fw-bold">${escapeHtml(titleText)}</span>
                            </div>`
-                        : `<span class="text-success fw-bold">${titleText}</span>`;
+                        : `<span class="text-success fw-bold">${escapeHtml(titleText)}</span>`;
                     selectedScenesContent.appendChild(refCard);
                 }
             }
