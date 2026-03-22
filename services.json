@@ -459,7 +459,8 @@
         "class": "textimage2video",
         "inputs": [
             "text",
-            "image"
+            "image",
+            "audio"
         ],
         "outputs": [
             "video"
