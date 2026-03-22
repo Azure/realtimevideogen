@@ -203,6 +203,17 @@ def get_gpu_type_affinity(gpu_type: Optional[str]) -> List[str]:
             "NVIDIA-H200-SXM5-141GB",
             "NVIDIA-H200"
         ]
+    if gpu_type == "gb200":
+        return [
+            "NVIDIA-GB200-NVL",
+            "NVIDIA-GB200-SXM6-192GB",
+            "NVIDIA-GB200",
+        ]
+    if gpu_type == "gb300":
+        return [
+            "NVIDIA-GB300-NVL",
+            "NVIDIA-GB300",
+        ]
     if gpu_type == "v100":
         return [
             "Tesla-V100-PCIE-16GB",

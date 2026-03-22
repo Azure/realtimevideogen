@@ -239,7 +239,7 @@ NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) int
 
 #### Option A: AKS node pool with `--gpu-instance-profile` (recommended)
 
-For some GPU VM types like A100 v4 series (e.g., `Standard_ND96amsr_A100_v4`, `Standard_ND96asr_v4`), AKS can configure MIG partitioning automatically when creating a node pool:
+For some GPU VM types like A100 v4 series (e.g., `Standard_ND96amsr_A100_v4`, `Standard_ND96asr_v4`), AKS can configure MIG partitioning automatically when creating a node pool. See the [Azure AKS GPU multi-instance documentation](https://learn.microsoft.com/en-us/azure/aks/gpu-multi-instance) for full details and supported VM sizes.
 
 ```bash
 # Create a dedicated node pool where every A100 GPU is split into 1g.5gb slices
