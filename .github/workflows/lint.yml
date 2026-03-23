@@ -125,43 +125,53 @@ jobs:
     - name: Lint summary
       if: always()
       run: |
-        echo "## Lint Results" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        if [ -s flake8-results.txt ]; then
-          FLAKE8_COUNT=$(wc -l < flake8-results.txt)
-          echo "**flake8:** ${FLAKE8_COUNT} issue(s)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          head -20 flake8-results.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-        else
-          echo "**flake8:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
-        fi
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        if [ -s shellcheck-results.txt ]; then
-          SC_COUNT=$(wc -l < shellcheck-results.txt)
-          echo "**shellcheck:** ${SC_COUNT} issue(s)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          head -20 shellcheck-results.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-        else
-          echo "**shellcheck:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
-        fi
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        if [ -s yamllint-results.txt ] && grep -q '\[error\]' yamllint-results.txt; then
-          YL_COUNT=$(grep -c '\[error\]' yamllint-results.txt || true)
-          echo "**yamllint:** ${YL_COUNT} error(s)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          head -20 yamllint-results.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-        else
-          echo "**yamllint:** No errors found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
-        fi
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        if grep -q 'INVALID' jsonlint-results.txt 2>/dev/null; then
-          echo "**jsonlint:** Invalid JSON files found" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat jsonlint-results.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-        else
-          echo "**jsonlint:** No issues found :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
-        fi
+        {
+          echo "## Lint Results"
+          echo ""
+          if [ -s flake8-results.txt ]; then
+            FLAKE8_COUNT=$(wc -l < flake8-results.txt)
+            echo "**flake8:** ${FLAKE8_COUNT} issue(s)"
+            echo '```'
+            head -20 flake8-results.txt
+            echo '```'
+          else
+            echo "**flake8:** No issues found :white_check_mark:"
+          fi
+          echo ""
+          if [ -s shellcheck-results.txt ]; then
+            SC_COUNT=$(wc -l < shellcheck-results.txt)
+            echo "**shellcheck:** ${SC_COUNT} issue(s)"
+            echo '```'
+            head -20 shellcheck-results.txt
+            echo '```'
+          else
+            echo "**shellcheck:** No issues found :white_check_mark:"
+          fi
+          echo ""
+          if [ -s yamllint-results.txt ] && grep -q '\[error\]' yamllint-results.txt; then
+            YL_COUNT=$(grep -c '\[error\]' yamllint-results.txt || true)
+            echo "**yamllint:** ${YL_COUNT} error(s)"
+            echo '```'
+            head -20 yamllint-results.txt
+            echo '```'
+          else
+            echo "**yamllint:** No errors found :white_check_mark:"
+          fi
+          echo ""
+          if grep -q 'INVALID' jsonlint-results.txt 2>/dev/null; then
+            echo "**jsonlint:** Invalid JSON files found"
+            echo '```'
+            cat jsonlint-results.txt
+            echo '```'
+          else
+            echo "**jsonlint:** No issues found :white_check_mark:"
+          fi
+        } | tee lint-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Add lint PR comment
+      if: always() && github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v3
+      with:
+        header: lint
+        recreate: true
+        path: lint-summary.md
