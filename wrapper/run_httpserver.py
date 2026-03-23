@@ -1148,14 +1148,13 @@ def setup_dist_environment() -> None:
 
     if world_size > num_visible_devices:
         logging.warning(
-            "world_size=%d but only %d visible CUDA device(s). "
+            f"world_size={world_size} but only {num_visible_devices} visible CUDA device(s). "
             "This usually means the container is running on a MIG partition and "
             "torchrun was invoked with too many processes. "
-            "Fix: ensure run_httpserver.bash counts only physical GPUs with "
-            "'nvidia-smi -L | grep -c \"^GPU \"' so that MIG partitions run as a "
-            "single process.",
-            world_size, num_visible_devices,
+            "Clamping world_size to the number of visible devices."
         )
+        world_size = num_visible_devices
+        local_world_size = num_visible_devices
 
     logging.info(f"[{rank}] Initializing distributed: "
                  f"rank={rank}, local_rank={local_rank}, node_rank={node_rank}, "

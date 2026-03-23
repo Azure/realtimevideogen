@@ -380,7 +380,7 @@ async def test_gen_audio() -> None:
 def test_setup_dist_environment_mig_warning(caplog: pytest.LogCaptureFixture) -> None:
     """
     When world_size > visible CUDA devices (MIG partition case), setup_dist_environment
-    must log a warning explaining the misconfiguration so operators can fix it.
+    must log a warning and clamp world_size to the number of visible devices.
     The TorchMock returns device_count=1, so setting WORLD_SIZE=2 triggers the path.
     """
     import os
@@ -402,9 +402,10 @@ def test_setup_dist_environment_mig_warning(caplog: pytest.LogCaptureFixture) ->
         with caplog.at_level(logging.WARNING):
             setup_dist_environment()
 
-        # Function must read WORLD_SIZE=2 from the environment
-        assert _run_httpserver.world_size == 2
-        # And emit a MIG-related warning so operators know how to fix it
+        # world_size must be clamped down to the number of visible CUDA devices (1)
+        assert _run_httpserver.world_size == 1
+        assert _run_httpserver.local_world_size == 1
+        # And a MIG-related warning must have been logged
         assert any(
             "world_size=2" in record.message and "MIG" in record.message
             for record in caplog.records
@@ -418,3 +419,4 @@ def test_setup_dist_environment_mig_warning(caplog: pytest.LogCaptureFixture) ->
                 os.environ[k] = v
         _run_httpserver.rank = 0
         _run_httpserver.world_size = 1
+        _run_httpserver.local_world_size = 1
