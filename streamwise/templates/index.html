@@ -1,3 +1,4 @@
+{%- from "macros.html" import render_gpu -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -216,14 +217,7 @@
                             {{ svc.memory | format_bytes | safe }}
                         </td>
                         <td class="text-end">
-                            {% if svc.gpu == 0 %}
-                                <span class="text-muted">-</span>
-                            {% else %}
-                                {{ svc.gpu }}
-                                {% if svc.health and svc.health.gpu %}
-                                    &times;{{ svc.health.gpu | format_gpu_model | safe }}
-                                {% endif %}
-                            {% endif %}
+                            {{ render_gpu(svc.gpu, svc.mig_profile, svc.health) }}
                         </td>
                         <td class="text-end">
                             {% if svc.health and svc.health.world_size and svc.health.world_size > 0 %}
@@ -406,7 +400,30 @@
                             {{ node.capacity_resources.storage | format_bytes | safe }}
                         </td>
                         <td>
-                            {% if node.capacity_resources.gpu == 0 or node.capacity_resources.gpu == "N/A" %}
+                            {% if node.mig_enabled %}
+                                {# MIG node: show physical GPUs (non-MIG pods only) and MIG partitions separately #}
+                                {% if node.capacity_resources.gpu and node.capacity_resources.gpu != "N/A" and node.capacity_resources.gpu | int > 0 %}
+                                    {% set ns = namespace(total_allocated_gpu=0) %}
+                                    {% for pod in pods %}
+                                        {% if pod.gpu and pod.node == node.node_name and not pod.mig_profile %}
+                                            {% set pod_gpu = pod.gpu | int %}
+                                            {% set ns.total_allocated_gpu = ns.total_allocated_gpu + pod_gpu %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {{ ns.total_allocated_gpu }}/{{ node.allocatable_resources.gpu }}/{{ node.capacity_resources.gpu }} &times; {{ node.gpu_model | format_gpu_model | safe }}
+                                {% else %}
+                                    {{ node.gpu_model | format_gpu_model | safe }}
+                                {% endif %}
+                                {% for profile, counts in node.mig_resources.items() %}
+                                    {% set ns_mig = namespace(total_allocated_mig=0) %}
+                                    {% for pod in pods %}
+                                        {% if pod.mig_profile == profile and pod.node == node.node_name %}
+                                            {% set ns_mig.total_allocated_mig = ns_mig.total_allocated_mig + pod.gpu | int %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    <br><span class="badge bg-info">{{ profile }}</span>: {{ ns_mig.total_allocated_mig }}/{{ counts.allocatable }}/{{ counts.capacity }}
+                                {% endfor %}
+                            {% elif node.capacity_resources.gpu == 0 or node.capacity_resources.gpu == "N/A" %}
                                 <span class="text-muted">-</span>
                             {% else %}
                                 {% set ns = namespace(total_allocated_gpu=0) %}

@@ -5,6 +5,7 @@ Unit tests for streamwise.py HTTP server routes.
 
 import sys
 import pytest
+from datetime import datetime, timezone
 
 from http import HTTPStatus
 
@@ -386,3 +387,180 @@ async def test_get_service_files() -> None:
         container_name="gemma",
         url="http://10.2.2.2:8080")
     assert files == []
+
+
+# ---------------------------------------------------------------------------
+# MIG-related UI fix tests
+# ---------------------------------------------------------------------------
+
+_MOCK_MIG_SERVICE_WITH_HEALTH = {
+    **_MOCK_MIG_SERVICE,
+    "health": {"gpu": "NVIDIA A100-SXM4-80GB MIG 1g.10gb", "world_size": 0},
+}
+
+_MOCK_MIG_NODE = {
+    "node_name": "mig-node",
+    "region": "eastus",
+    "resource_group": "rg1",
+    "addresses": [],
+    "is_ready": True,
+    "capacity_resources": {
+        "cpu": 96,
+        "memory": 900 * 1024 * 1024 * 1024,
+        "storage": 500 * 1024 * 1024 * 1024,
+        "gpu": "N/A",
+    },
+    "allocatable_resources": {
+        "cpu": 96,
+        "memory": 900 * 1024 * 1024 * 1024,
+        "storage": 500 * 1024 * 1024 * 1024,
+        "gpu": "N/A",
+    },
+    "architecture": "amd64",
+    "kernel_version": "5.15.0",
+    "os_image": "Ubuntu 22.04",
+    "creation_timestamp": datetime(2024, 1, 1, tzinfo=timezone.utc),
+    "labels": {},
+    "images": [],
+    "gpu_model": "NVIDIA A100-SXM4-80GB",
+    "mig_enabled": True,
+    "mig_resources": {
+        "1g.10gb": {"capacity": 7, "allocatable": 5},
+    },
+}
+
+_MOCK_MIG_POD = {
+    "namespace": "rtgen",
+    "pod_name": "realesrgan-pod",
+    "status": "Running",
+    "pod_ip": "10.0.0.6",
+    "container_name": "realesrgan",
+    "url": "http://10.0.0.6:8080",
+    "node": "mig-node",
+    "cpu": 1,
+    "memory": 2 * 1024 * 1024 * 1024,
+    "gpu": 1,
+    "mig_profile": "1g.10gb",
+}
+
+_MOCK_FULL_GPU_NODE = {
+    **_MOCK_MIG_NODE,
+    "node_name": "gpu-node",
+    "gpu_model": "NVIDIA A100-SXM4-80GB",
+    "mig_enabled": False,
+    "mig_resources": {},
+    "capacity_resources": {
+        "cpu": 96,
+        "memory": 900 * 1024 * 1024 * 1024,
+        "storage": 500 * 1024 * 1024 * 1024,
+        "gpu": "8",
+    },
+    "allocatable_resources": {
+        "cpu": 96,
+        "memory": 900 * 1024 * 1024 * 1024,
+        "storage": 500 * 1024 * 1024 * 1024,
+        "gpu": "8",
+    },
+}
+
+_MOCK_FULL_GPU_POD = {
+    **_MOCK_MIG_POD,
+    "node": "gpu-node",
+    "mig_profile": None,
+    "gpu": 2,
+}
+
+
+@pytest.mark.asyncio
+async def test_service_shows_mig_with_gpu_model() -> None:
+    """Service page shows GPU model alongside MIG profile badge when health.gpu is available."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[_MOCK_MIG_SERVICE_WITH_HEALTH])):
+        with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+            response = await client.get("/service/realesrgan")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "1g.10gb" in response_text
+    assert "MIG slice" in response_text
+    # GPU model should appear alongside the MIG profile
+    assert "A100" in response_text
+
+
+@pytest.mark.asyncio
+async def test_index_shows_mig_profile_in_wrappers() -> None:
+    """Index page wrappers table shows MIG profile badge instead of full GPU model for MIG services."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[_MOCK_MIG_SERVICE])):
+        with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=[])):
+            with patch("streamwise.streamwise.get_k8s_pods", new=AsyncMock(return_value=[])):
+                with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+                    response = await client.get("/")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    # MIG profile badge must appear in the wrappers table
+    assert "1g.10gb" in response_text
+    assert "MIG slice" in response_text
+
+
+@pytest.mark.asyncio
+async def test_index_shows_mig_profile_with_gpu_model_in_wrappers() -> None:
+    """Index page wrappers table shows GPU model alongside MIG profile when health.gpu is available."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[_MOCK_MIG_SERVICE_WITH_HEALTH])):
+        with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=[])):
+            with patch("streamwise.streamwise.get_k8s_pods", new=AsyncMock(return_value=[])):
+                with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+                    response = await client.get("/")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "1g.10gb" in response_text
+    assert "MIG slice" in response_text
+    assert "A100" in response_text
+
+
+@pytest.mark.asyncio
+async def test_index_mig_node_shows_partitions() -> None:
+    """Index page nodes table shows MIG partitions (alloc/allocatable/capacity) for MIG-enabled nodes."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[])):
+        with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=[_MOCK_MIG_NODE])):
+            with patch("streamwise.streamwise.get_k8s_pods", new=AsyncMock(return_value=[_MOCK_MIG_POD])):
+                with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+                    response = await client.get("/")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    # MIG partition profile must appear in the nodes table
+    assert "1g.10gb" in response_text
+    # MIG badge class should be present
+    assert "badge bg-info" in response_text
+
+
+@pytest.mark.asyncio
+async def test_index_mig_pods_excluded_from_full_gpu_count() -> None:
+    """Index page nodes table does not count MIG pods toward the full GPU allocated total."""
+    client = _get_client()
+    _cpu = 96
+    _memory = 900 * 1024 * 1024 * 1024
+    _storage = 500 * 1024 * 1024 * 1024
+    # Mixed node: has both full GPUs and MIG resources
+    mixed_node = {
+        **_MOCK_FULL_GPU_NODE,
+        "node_name": "mixed-node",
+        "mig_enabled": True,
+        "mig_resources": {"1g.10gb": {"capacity": 7, "allocatable": 6}},
+        "capacity_resources": {"cpu": _cpu, "memory": _memory, "storage": _storage, "gpu": "7"},
+        "allocatable_resources": {"cpu": _cpu, "memory": _memory, "storage": _storage, "gpu": "7"},
+    }
+    # Two pods: one full-GPU pod (gpu=2, no mig_profile) and one MIG pod
+    full_pod = {**_MOCK_FULL_GPU_POD, "node": "mixed-node", "gpu": 2}
+    mig_pod = {**_MOCK_MIG_POD, "node": "mixed-node"}
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[])):
+        with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=[mixed_node])):
+            with patch("streamwise.streamwise.get_k8s_pods", new=AsyncMock(return_value=[full_pod, mig_pod])):
+                with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+                    response = await client.get("/")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    # The full GPU count should be 2 (only the non-MIG pod), not 3 (2+1 counting MIG pod)
+    assert "2/7/7" in response_text
+    assert "3/7/7" not in response_text
