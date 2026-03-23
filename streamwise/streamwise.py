@@ -26,7 +26,6 @@ from quart import Quart
 from quart import request
 from quart import jsonify
 from quart import render_template
-from quart import abort
 
 from http import HTTPStatus
 
