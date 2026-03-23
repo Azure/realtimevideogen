@@ -180,6 +180,7 @@ class LongCatVideoGeneration(ModelGeneration):
         img_base64 = data_json.get("img", None)
         if img_base64 is None:
             raise ValueError("Missing 'img' parameter.")
+        assert isinstance(img_base64, str), f"Expected 'img' to be a string, got {type(img_base64)}"
         img = base64_to_img(img_base64)
 
         prompt = data_json.get("prompt", None)

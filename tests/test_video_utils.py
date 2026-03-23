@@ -248,7 +248,7 @@ async def test_concatenate() -> None:
     with pytest.raises(ValueError):
         await concatenate_videos([])
     with pytest.raises(TypeError, match="Video input 0 is not bytes or str"):
-        await concatenate_videos([video_frames1, video_frames2])
+        await concatenate_videos([video_frames1, video_frames2])  # type: ignore[arg-type]
     with pytest.raises(FileNotFoundError):
         await concatenate_videos(["abc", "def"])
     with pytest.raises(ValueError, match="One of the inputs is corrupted"):
@@ -276,7 +276,7 @@ async def test_get_video_frames_empty() -> None:
     video_frames = await get_video_frames(b"")
     assert video_frames == []
 
-    video_frames = await get_video_frames([])
+    video_frames = await get_video_frames([])  # type: ignore[arg-type]
     assert video_frames == []
 
 
@@ -314,7 +314,9 @@ async def test_get_video_frames(num_frames: int, fps: float) -> None:
     assert video_info["video"]["num_frames"] == num_frames
     assert video_info["video"]["num_frames"] == len(video_frames_out)
     assert video_info["video"]["fps"] == fps
-    assert abs(video_info["video"]["duration_seconds"] - (num_frames / fps)) < 0.01
+    duration_seconds = video_info["video"]["duration_seconds"]
+    assert duration_seconds is not None
+    assert abs(duration_seconds - (num_frames / fps)) < 0.01
     assert video_info["overall"]["num_bytes"] > 1000
 
     os.remove(video_path)
@@ -413,7 +415,9 @@ async def test_save_video_frames_audio() -> None:
     assert video_info["num_frames"] == 113, f"Video info: {video_file_info}"
     assert video_info["width"] == 180, f"Video info: {video_file_info}"
     assert video_info["height"] == 100, f"Video info: {video_file_info}"
-    assert_approx(video_info["duration_seconds"], 4.913)  # 113 / 23
+    duration_seconds = video_info["duration_seconds"]
+    assert duration_seconds is not None
+    assert_approx(duration_seconds, 4.913)  # 113 / 23
 
     assert "audio" not in video_file_info
 
@@ -439,12 +443,12 @@ async def test_save_video_frames_audio() -> None:
         msg=f"Video info: {video_file_info}")
     """
     logging.warning(f"Video info: {video_file_info}")
-    assert video_info["num_frames"] > 100
-    assert video_info["duration_seconds"] > 4.0
+    assert video_info["num_frames"] is not None and video_info["num_frames"] > 100
+    assert video_info["duration_seconds"] is not None and video_info["duration_seconds"] > 4.0
 
     assert "audio" in video_file_info
     audio_info = video_file_info["audio"]
-    assert audio_info["duration_seconds"] > 0
+    assert audio_info["duration_seconds"] is not None and audio_info["duration_seconds"] > 0
     """
     # assert_approx(audio_info["duration_seconds"], 4.913)
     assert_approx(
@@ -452,7 +456,7 @@ async def test_save_video_frames_audio() -> None:
         msg=f"Video info: {video_file_info}")  # TODO this is not good
     """
     logging.info(f"Audio info: {audio_info}")
-    assert audio_info["duration_seconds"] > 4.0
+    assert audio_info["duration_seconds"] is not None and audio_info["duration_seconds"] > 4.0
 
     os.remove(video_path)
 

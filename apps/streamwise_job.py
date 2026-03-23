@@ -192,7 +192,7 @@ class StreamWiseJob:
 
     def _handle_file_not_found(
         self,
-        fnfe: FileNotFoundError
+        fnfe: Exception
     ) -> None:
         self.logger.error(f"File not found for {self.job_id}: {fnfe}")
 
@@ -423,6 +423,7 @@ class StreamWiseJob:
         video_info = get_video_file_info(video_binary)["video"]
         width = video_info["width"]
         height = video_info["height"]
+        assert width is not None and height is not None, "Video info missing width/height"
         font_size = get_font_size(width, height)
         font_size = font_size * 2 // 3  # Smaller font for subtitles
         return [

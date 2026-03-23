@@ -7,6 +7,7 @@ import base64
 import inspect
 import tempfile
 import pytest
+from typing import Any, Callable
 
 import torch
 
@@ -50,7 +51,7 @@ class DummyPretrainedConfig:
     """Minimal stand-in for transformers.PretrainedConfig."""
     model_type = ""
     is_composition = False
-    sub_configs = {}
+    sub_configs: dict[str, Any] = {}
 
     def __init__(self, **kwargs: object) -> None:
         for k, v in kwargs.items():
@@ -86,11 +87,11 @@ class DummyLlamaRMSNorm(torch.nn.Module):
         return x
 
 
-def passthrough_register_to_config(func):
+def passthrough_register_to_config(func: Callable[..., Any]) -> Callable[..., Any]:
     """Mimics @register_to_config: wraps __init__ to store kwargs as self.config."""
     sig = inspect.signature(func)
 
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         bound = sig.bind(self, *args, **kwargs)
         bound.apply_defaults()
         cfg = {k: v for k, v in bound.arguments.items() if k != "self"}
@@ -101,13 +102,13 @@ def passthrough_register_to_config(func):
 
 
 diffusers_sched = ModuleType("diffusers.schedulers.scheduling_utils")
-diffusers_sched.SchedulerMixin = DummySchedulerMixin
-diffusers_sched.SchedulerOutput = DummySchedulerOutput
-diffusers_sched.KarrasDiffusionSchedulers = MagicMock()
+diffusers_sched.SchedulerMixin = DummySchedulerMixin  # type: ignore[attr-defined]
+diffusers_sched.SchedulerOutput = DummySchedulerOutput  # type: ignore[attr-defined]
+diffusers_sched.KarrasDiffusionSchedulers = MagicMock()  # type: ignore[attr-defined]
 
 diffusers_conf = ModuleType("diffusers.configuration_utils")
-diffusers_conf.ConfigMixin = DummyConfigMixin
-diffusers_conf.register_to_config = passthrough_register_to_config
+diffusers_conf.ConfigMixin = DummyConfigMixin  # type: ignore[attr-defined]
+diffusers_conf.register_to_config = passthrough_register_to_config  # type: ignore[attr-defined]
 
 # Build transformers mock modules with real classes where needed for inheritance
 mock_transformers = MagicMock()
@@ -123,7 +124,7 @@ mock_llama_modeling = MagicMock()
 mock_llama_modeling.LlamaRMSNorm = DummyLlamaRMSNorm
 
 mock_transformers_config = ModuleType("transformers.configuration_utils")
-mock_transformers_config.PretrainedConfig = DummyPretrainedConfig
+mock_transformers_config.PretrainedConfig = DummyPretrainedConfig  # type: ignore[attr-defined]
 
 mock_modules = {
     "modeling_vibevoice_inference": MagicMock(),

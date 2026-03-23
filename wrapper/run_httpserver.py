@@ -189,7 +189,7 @@ async def get_friendly_container_name_template(container_name: str) -> str:
 
 
 @template_filter("format_string")
-def format_string_template(value: Any) -> str:
+def format_string_template(value: Any) -> Optional[str]:
     return format_string(value)
 
 
@@ -222,7 +222,7 @@ async def health() -> Response:
 
 
 @route("/<service_name>/health", methods=["GET"])
-async def model_health(service_name: str) -> Dict[str, Any]:
+async def model_health(service_name: str) -> QuartReturn:
     """Get health status of a specific model."""
     model = get_model(service_name)
     if model is None:

@@ -185,7 +185,7 @@ class BagelGeneration(ModelGeneration):
         self.load_timer.end("dit_compile")
 
     @inference_mode()
-    def update_context_text(self, text, gen_context):
+    def update_context_text(self, text: Any, gen_context: Dict[str, Any]) -> Dict[str, Any]:
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
@@ -211,7 +211,7 @@ class BagelGeneration(ModelGeneration):
         return gen_context
 
     @inference_mode()
-    def update_context_images(self, images, gen_context, vae=True, vit=True):
+    def update_context_images(self, images: Any, gen_context: Dict[str, Any], vae: bool = True, vit: bool = True) -> Dict[str, Any]:
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
@@ -244,7 +244,7 @@ class BagelGeneration(ModelGeneration):
 
         return gen_context
 
-    def decode_image(self, latent, image_shape):
+    def decode_image(self, latent: Any, image_shape: Any) -> Image.Image:
         H, W = image_shape
         h, w = H // self.model.latent_downsample, W // self.model.latent_downsample
         latent = latent.reshape(1, h, w, self.model.latent_patch_size,

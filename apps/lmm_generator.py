@@ -32,6 +32,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Dict
 from typing import Union
+from typing import Any
 from typing import AsyncGenerator
 
 from lmm_service_manager import LMMServiceManager
@@ -201,7 +202,7 @@ class LMMGenerator:
         self,
         base_url: str,
         timeout: ClientTimeout = SERVICE_TIMEOUT,
-    ) -> Optional[List[str]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         """Get the list of files available from the service at the given base URL."""
         t0 = time.time()
         url = f"{base_url}/files"
@@ -552,7 +553,7 @@ class LMMGenerator:
         """Generate a video from an input image and a text prompt using the HunyuanFramePackF1 service."""
         service_name = get_service_name(TaskClass.TXTIMG2VIDEO)
         img_base64 = img_to_base64(img)
-        payload_json = {
+        payload_json: Dict[str, Any] = {
             "job_id": f"{self.job_id}_{task_id}",
             "img": img_base64,
             "prompt": prompt,

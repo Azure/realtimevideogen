@@ -92,11 +92,11 @@ def usp_fantasytalking_forward(
     # Context Parallel
     sp_world = get_sequence_parallel_world_size()
     sp_rank = get_sequence_parallel_rank()
-    if x.shape[1] % sp_world != 0:
-        raise ValueError(f"Input sequence length {x.shape} is not divisible by sequence parallel {sp_world}")
-    logging.debug(f"Input sequence length {x.shape} and sequence parallel {sp_world}.")
+    if x.shape[1] % sp_world != 0:  # type: ignore[attr-defined]
+        raise ValueError(f"Input sequence length {x.shape} is not divisible by sequence parallel {sp_world}")  # type: ignore[attr-defined]
+    logging.debug(f"Input sequence length {x.shape} and sequence parallel {sp_world}.")  # type: ignore[attr-defined]
     x = torch.chunk(x, sp_world, dim=1)[sp_rank]
-    logging.debug(f"Input sequence length after chunking {x.shape}.")
+    logging.debug(f"Input sequence length after chunking {x.shape}.")  # type: ignore[attr-defined]
 
     """
     # https://github.com/Fantasy-AMAP/fantasy-talking/issues/52
