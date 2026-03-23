@@ -12,6 +12,7 @@ from aiohttp.client_exceptions import InvalidUrlClientError
 
 from k8s_utils import NoRunnableContainerError
 from k8s_utils import parse_k8s_resource_quantity
+from k8s_utils import parse_mig_resources
 from k8s_utils import get_k8s_nodes
 from k8s_utils import get_k8s_pods
 from k8s_utils import get_k8s_services
@@ -34,6 +35,31 @@ def test_parse_k8s_resource_quantity() -> None:
     assert parse_k8s_resource_quantity("4Gi") == 4 * (1024 ** 3)
     assert parse_k8s_resource_quantity("0.2") == 0.2
     assert parse_k8s_resource_quantity("bogus") == 0
+
+
+def test_parse_mig_resources() -> None:
+    assert parse_mig_resources(None) == {}
+
+    resources = {"cpu": "4", "nvidia.com/gpu": "2"}
+    assert parse_mig_resources(resources) == {}
+
+    resources = {
+        "cpu": "4",
+        "memory": "8Gi",
+        "nvidia.com/gpu": "0",
+        "nvidia.com/mig-1g.5gb": "7",
+        "nvidia.com/mig-2g.10gb": "3",
+    }
+    assert parse_mig_resources(resources) == {"1g.5gb": 7, "2g.10gb": 3}
+
+    resources = {
+        "cpu": "4",
+        "memory": "8Gi",
+        "nvidia.com/gpu": "7",
+        "nvidia.com/mig-1g.10gb": "3",
+        "nvidia.com/mig-2g.20gb": "2",
+    }
+    assert parse_mig_resources(resources) == {"1g.10gb": 3, "2g.20gb": 2}
 
 
 @pytest.mark.asyncio

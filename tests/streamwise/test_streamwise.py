@@ -133,6 +133,57 @@ async def test_service_info_has_submit_job_button() -> None:
     assert 'title="Submit Job"' in response_text
 
 
+_MOCK_MIG_SERVICE = {
+    "namespace": "rtgen",
+    "pod_name": "realesrgan-pod",
+    "pod_ip": "10.0.0.6",
+    "container_port": 8080,
+    "container_name": "realesrgan",
+    "pod_status": "Running",
+    "start_time": None,
+    "url": "http://10.0.0.6:8080",
+    "node_name": "testnode",
+    "cpu": 1,
+    "memory": 2147483648,
+    "gpu": 1,
+    "mig_profile": "1g.10gb",
+    "ephemeral_storage": 0,
+    "events": [],
+    "image": "myacr.azurecr.io/realesrgan:latest",
+    "logs": None,
+    "health": None,
+    "files": None,
+}
+
+
+@pytest.mark.asyncio
+async def test_service_shows_mig_profile() -> None:
+    """Service page shows MIG profile badge for MIG pods."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[_MOCK_MIG_SERVICE])):
+        with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+            response = await client.get("/service/realesrgan")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "1g.10gb" in response_text
+    assert "MIG slice" in response_text
+
+
+@pytest.mark.asyncio
+async def test_service_shows_full_gpu() -> None:
+    """Service page shows plain GPU count for full-GPU pods (no MIG)."""
+    client = _get_client()
+    full_gpu_svc = dict(_MOCK_MIG_SERVICE)
+    full_gpu_svc["mig_profile"] = None
+    full_gpu_svc["container_name"] = "flux"
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[full_gpu_svc])):
+        with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+            response = await client.get("/service/flux")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "MIG slice" not in response_text
+
+
 @pytest.mark.asyncio
 async def test_container_info() -> None:
     app = sw.app

@@ -174,7 +174,9 @@
                         {{ svc.memory | format_bytes | safe }}
                     </td>
                     <td class="text-end">
-                        {% if svc.gpu == 0 %}
+                        {% if svc.mig_profile %}
+                            <span title="MIG slice: {{ svc.mig_profile }}">{{ svc.gpu }} &times; <span class="badge bg-info" aria-label="MIG profile {{ svc.mig_profile }}">{{ svc.mig_profile }}</span></span>
+                        {% elif svc.gpu == 0 %}
                             <span class="text-muted">-</span>
                         {% else %}
                             {{ svc.gpu }}
@@ -363,7 +365,9 @@
             <tr><th scope="row">⚙️ CPU</th><td>{{ svc.cpu }}</td></tr>
             <tr><th scope="row">🗄️ Memory</th><td>{{ svc.memory | format_bytes | safe }} </td></tr>
             <tr><th scope="row">🧮 GPU</th><td>
-                {% if svc.gpu and svc.gpu > 0 %}
+                {% if svc.mig_profile %}
+                    <span title="MIG slice: {{ svc.mig_profile }}">{{ svc.gpu }} &times; <span class="badge bg-info" aria-label="MIG profile {{ svc.mig_profile }}">{{ svc.mig_profile }}</span></span>
+                {% elif svc.gpu and svc.gpu > 0 %}
                     {{ svc.gpu }}
                     {% if svc.gpu and svc.health and svc.health.gpu %}
                         &times; {{ svc.health.gpu | format_gpu_model | safe }}
