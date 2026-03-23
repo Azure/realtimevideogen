@@ -146,7 +146,7 @@ class ModelGeneration(ABC):
         try:
             return fn(*args)
         except NVMLError as ex:
-            logging.debug("NVML call not supported: %s.", ex)
+            logging.info("NVML call not supported: %s.", ex)
             return None
 
     def get_gpu_info(self) -> Optional[List[Dict[str, Any]]]:
