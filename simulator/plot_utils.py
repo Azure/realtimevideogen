@@ -94,7 +94,7 @@ def plot_x_vs_y(
     plt.rcParams.update({'font.size': 12})
 
     # Define color map
-    tab10 = cast(ListedColormap, plt.get_cmap("tab10")).colors
+    tab10 = get_color_map()
     colors = tab10
     markers = ["o", "^", "s", "D", "P", "X"]  # circle, triangle_up, square, diamond, plus, x
 
