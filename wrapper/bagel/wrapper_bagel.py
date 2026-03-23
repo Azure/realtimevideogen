@@ -251,17 +251,17 @@ class BagelGeneration(ModelGeneration):
 
     def decode_image(self, latent: Any, image_shape: Any) -> Image.Image:
         H, W = image_shape
-        model = self.model  # type: ignore[union-attr]
-        vae = self.vae_model  # type: ignore[union-attr]
-        h, w = H // model.latent_downsample, W // model.latent_downsample
-        latent = latent.reshape(1, h, w, model.latent_patch_size,
-                                model.latent_patch_size, model.latent_channel)
+        model = self.model
+        vae = self.vae_model
+        h, w = H // model.latent_downsample, W // model.latent_downsample  # type: ignore[union-attr]
+        latent = latent.reshape(1, h, w, model.latent_patch_size,  # type: ignore[union-attr]
+                                model.latent_patch_size, model.latent_channel)  # type: ignore[union-attr]
         latent = torch.einsum("nhwpqc->nchpwq", latent)
-        latent = latent.reshape(1, model.latent_channel, h
-                                * model.latent_patch_size, w * model.latent_patch_size)
+        latent = latent.reshape(1, model.latent_channel, h  # type: ignore[union-attr]
+                                * model.latent_patch_size, w * model.latent_patch_size)  # type: ignore[union-attr]
         # TODO do this right away instead of float32 to bfloat16
         latent = latent.to(self.param_dtype).to(self.device)  # Ensure dtype matches model
-        image = vae.decode(latent)
+        image = vae.decode(latent)  # type: ignore[union-attr]
         image = (image * 0.5 + 0.5).clamp(0, 1)[0].permute(1, 2, 0) * 255
         image = Image.fromarray((image).to(torch.uint8).cpu().numpy())
         return image
