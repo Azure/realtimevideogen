@@ -134,24 +134,24 @@ jobs:
             FLAKE8_COUNT=$(wc -l < flake8-results.txt)
             echo "| Python | :x: ${FLAKE8_COUNT} issue(s) |"
           else
-            echo "| Python | :white_check_mark: No issues found |"
+            echo "| Python | :white_check_mark: |"
           fi
           if [ -s shellcheck-results.txt ]; then
             SC_COUNT=$(wc -l < shellcheck-results.txt)
             echo "| Shell | :x: ${SC_COUNT} issue(s) |"
           else
-            echo "| Shell | :white_check_mark: No issues found |"
+            echo "| Shell | :white_check_mark: |"
           fi
           if [ -s yamllint-results.txt ] && grep -q '\[error\]' yamllint-results.txt; then
             YL_COUNT=$(grep -c '\[error\]' yamllint-results.txt || true)
             echo "| YAML | :x: ${YL_COUNT} error(s) |"
           else
-            echo "| YAML | :white_check_mark: No errors found |"
+            echo "| YAML | :white_check_mark: |"
           fi
           if grep -q 'INVALID' jsonlint-results.txt 2>/dev/null; then
             echo "| JSON | :x: Invalid files found |"
           else
-            echo "| JSON | :white_check_mark: No issues found |"
+            echo "| JSON | :white_check_mark: |"
           fi
           echo ""
           if [ -s flake8-results.txt ]; then
