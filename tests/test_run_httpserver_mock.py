@@ -75,6 +75,8 @@ with patch.dict(sys.modules, mock_modules):
     from run_httpserver import gen_video
     from run_httpserver import gen_audio
     from run_httpserver import get_service_names
+    from run_httpserver import setup_dist_environment
+    import run_httpserver as _run_httpserver
 
 
 def test_get_service_names() -> None:
@@ -373,3 +375,48 @@ async def test_gen_audio() -> None:
     response = await gen_audio(mock_model)
     assert response is not None
     assert response == "mocked_file"  # send_file() returns this
+
+
+def test_setup_dist_environment_mig_warning(caplog: pytest.LogCaptureFixture) -> None:
+    """
+    When world_size > visible CUDA devices (MIG partition case), setup_dist_environment
+    must log a warning and clamp world_size to the number of visible devices.
+    The TorchMock returns device_count=1, so setting WORLD_SIZE=2 triggers the path.
+    """
+    import os
+
+    saved_env = {
+        k: os.environ.get(k)
+        for k in ("MASTER_ADDR", "MASTER_PORT", "RANK", "LOCAL_RANK",
+                  "NODE_RANK", "WORLD_SIZE", "LOCAL_WORLD_SIZE", "NPROC_PER_NODE")
+    }
+    try:
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "12355"
+        os.environ["RANK"] = "1"
+        os.environ["LOCAL_RANK"] = "1"
+        os.environ["NODE_RANK"] = "0"
+        os.environ["WORLD_SIZE"] = "2"       # 2 processes, but only 1 visible device
+        os.environ["LOCAL_WORLD_SIZE"] = "2"
+
+        with caplog.at_level(logging.WARNING):
+            setup_dist_environment()
+
+        # world_size must be clamped down to the number of visible CUDA devices (1)
+        assert _run_httpserver.world_size == 1
+        assert _run_httpserver.local_world_size == 1
+        # And a MIG-related warning must have been logged
+        assert any(
+            "world_size=2" in record.message and "MIG" in record.message
+            for record in caplog.records
+        ), f"Expected MIG warning, got: {[r.message for r in caplog.records]}"
+    finally:
+        # Restore original env and module globals
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        _run_httpserver.rank = 0
+        _run_httpserver.world_size = 1
+        _run_httpserver.local_world_size = 1
