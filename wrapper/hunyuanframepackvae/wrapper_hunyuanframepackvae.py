@@ -53,7 +53,7 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
         self.FPS = 30  # This is technically a constant for the model
 
         # Model components
-        self.vae = None
+        self.vae: Optional[AutoencoderKLHunyuanVideo] = None
 
     def __del__(self) -> None:
         # Clean models
@@ -124,6 +124,7 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
 
         logging.info(f"[{self.rank}] Compiling VAE with torch.compile().")
         self.load_timer.start("vae_compile")
+        assert self.vae is not None
         self.vae = torch.compile(
             self.vae,
             mode="max-autotune-no-cudagraphs",
@@ -161,7 +162,7 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         latents: torch.Tensor,
         job_id: Optional[str] = None,
@@ -185,6 +186,7 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
+        assert self.vae is not None
         self._assert_args(latents)
 
         self.running = True
@@ -255,6 +257,7 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
+        assert self.vae is not None
         assert pixels is not None
         assert isinstance(pixels, torch.Tensor)
         assert pixels.ndim == 5  # B, C, T, H, W
