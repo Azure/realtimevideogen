@@ -281,6 +281,21 @@ async def get_k8s_nodes(
             if "network-resourcegroup" in labels:
                 resource_group = labels.get("network-resourcegroup", "N/A")
 
+            mig_enabled = any(k.startswith("nvidia.com/mig-") for k in allocatable_resources)
+
+            # Collect per-profile MIG resource counts (capacity and allocatable).
+            # These map directly to the Kubernetes resource names (nvidia.com/mig-<profile>)
+            # and let operators diagnose scheduling errors such as
+            # "Insufficient nvidia.com/mig-1g.5gb".
+            mig_resources: Dict[str, Dict[str, int]] = {}
+            for resource_key in sorted(capacity_resources):
+                if resource_key.startswith("nvidia.com/mig-"):
+                    profile = resource_key[len("nvidia.com/mig-"):]
+                    mig_resources[profile] = {
+                        "capacity": int(capacity_resources.get(resource_key, 0)),
+                        "allocatable": int(allocatable_resources.get(resource_key, 0)),
+                    }
+
             info = {
                 "node_name": node_name,
                 "region": region,
@@ -308,6 +323,8 @@ async def get_k8s_nodes(
                 "labels": labels,
                 "images": images,
                 "gpu_model": gpu_model,
+                "mig_enabled": mig_enabled,
+                "mig_resources": mig_resources,
             }
             ret.append(info)
         return ret
@@ -340,10 +357,12 @@ async def get_k8s_pods(
                     cpu = parse_k8s_resource_quantity(resources.get("cpu", "0"))
                     memory = parse_k8s_resource_quantity(resources.get("memory", "0"))
                     gpu = int(resources.get("nvidia.com/gpu", 0))
-                    mig_resources = extract_mig_resources(resources)
+
+                    mig_resources = parse_mig_resources(resources)
                     if mig_resources:
                         mig_profile = next(iter(mig_resources))
                         gpu = mig_resources[mig_profile]
+
                 if container.ports:
                     for container_port in container.ports:
                         if pod_ip and container_port and container_port.container_port:

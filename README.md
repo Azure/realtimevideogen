@@ -38,16 +38,19 @@ It consists of:
 ![Architecture](docs/assets/architecture.png)
 
 
-### 📦 Model on-boarding
+### 📦 Model wrapper and on-boarding
 We package each model as a Docker container, based on an [NVIDIA image](https://hub.docker.com/layers/nvidia/cuda/12.9.1-cudnn-devel-ubuntu24.04/images/) with GPU drivers and runtime tools.
 Each container embeds our _Instance Manager_, which standardizes the interface for executing inference requests.
 We adapt existing inference code (typically from [Hugging Face](https://huggingface.co/models)) to this interface and bundle it with the model weights.
+A Python wrapper exposes an HTTP endpoint for existing multi-modal generation models (e.g., [Flux](https://github.com/black-forest-labs/flux) or [Wan](https://github.com/Wan-Video/Wan2.1)).
+It allows triggering multi-modal generations (e.g., video from text) and collect statistics.
+The manager also handles request batching and adjusts GPU frequencies to optimize resource usage.
 
 For the complete list of wrapped models with full details and classification, see [Model Wrapper documentation](docs/model_wrapper.md#models).
 
 The characteristics for each model are in ([services.json](services.json)).
 These characteristics include quality ([Elo ranking](https://huggingface.co/spaces/ArtificialAnalysis/Text-to-Image-Leaderboard)), frame rate (FPS), maximum number of frames (video length), number of attention heads, VAE compression ratios, supported resolutions, and other relevant attributes.
-More details [here](docs/model_onboarding.md).
+More details [here](docs/model_wrapper.md).
 
 
 ### ⚙️ Provisioning hardware and models
@@ -58,12 +61,6 @@ More details [here](docs/provisioning.md).
 ### 📅 Request scheduler
 The request scheduler orchestrates execution using a live, iterative version of our greedy algorithm informed by the request DAG.
 More details [here](docs/scheduler.md).
-
-### 📦 Model wrapper
-A Python wrapper that exposes an HTTP endpoint for existing multi-modal generation models (e.g., [Flux](https://github.com/black-forest-labs/flux) or [Wan](https://github.com/Wan-Video/Wan2.1)).
-It allows triggering multi-modal generations (e.g., video from text) and collect statistics.
-The manager also handles request batching and adjusts GPU frequencies to optimize resource usage.
-More details [here](docs/model_wrapper.md).
 
 
 ### ⚙️ Applications
