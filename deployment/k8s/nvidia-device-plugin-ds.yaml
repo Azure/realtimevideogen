@@ -34,10 +34,10 @@ spec:
         env:
         - name: FAIL_ON_INIT_ERROR
           value: "false"
+        - name: MIG_STRATEGY
+          value: "mixed"
         securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop: ["ALL"]
+          privileged: true
         volumeMounts:
         - name: device-plugin
           mountPath: /var/lib/kubelet/device-plugins
