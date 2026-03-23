@@ -324,6 +324,7 @@ class HunyuanFramePackBase(USPGeneration):
                 self.tokenizer_2)
         llama_vec, llama_attention_mask = crop_or_pad_yield_mask(llama_vec, length=512)
         llama_vec_n, llama_attention_mask_n = crop_or_pad_yield_mask(llama_vec_n, length=512)
+        assert self.transformer is not None
         llama_vec = llama_vec.to(self.transformer.dtype)
         llama_vec_n = llama_vec_n.to(self.transformer.dtype)
         clip_l_pooler = clip_l_pooler.to(self.transformer.dtype)
@@ -372,6 +373,7 @@ class HunyuanFramePackBase(USPGeneration):
         t0_clip = time.time()
         image_encoder_output = hf_clip_vision_encode(input_image_np, self.feature_extractor, self.image_encoder)
         image_encoder_last_hidden_state = image_encoder_output.last_hidden_state
+        assert self.transformer is not None
         image_encoder_last_hidden_state = image_encoder_last_hidden_state.to(self.transformer.dtype)
         gen_timer.end("image_encoder")
         if self.rank == 0:
@@ -379,7 +381,7 @@ class HunyuanFramePackBase(USPGeneration):
         return image_encoder_last_hidden_state
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -458,35 +460,37 @@ class HunyuanFramePackBase(USPGeneration):
     @inference_mode()
     def _sample_hunyuan(
         self,
-        it0,
+        it0: int,
         gen_timer: GenTimer,
-        initial_latent=None,
-        concat_latent=None,
-        strength=1.0,
-        width=512,
-        height=512,
-        frames=16,
-        real_guidance_scale=1.0,
-        distilled_guidance_scale=6.0,
-        guidance_rescale=0.0,
-        num_inference_steps=25,
-        batch_size=None,
-        generator=None,
-        prompt_embeds=None,
-        prompt_embeds_mask=None,
-        prompt_poolers=None,
-        negative_prompt_embeds=None,
-        negative_prompt_embeds_mask=None,
-        negative_prompt_poolers=None,
-        negative_kwargs=None,
-        **kwargs,
+        initial_latent: Optional[torch.Tensor] = None,
+        concat_latent: Optional[torch.Tensor] = None,
+        strength: float = 1.0,
+        width: int = 512,
+        height: int = 512,
+        frames: int = 16,
+        real_guidance_scale: float = 1.0,
+        distilled_guidance_scale: float = 6.0,
+        guidance_rescale: float = 0.0,
+        num_inference_steps: int = 25,
+        batch_size: Optional[int] = None,
+        generator: Optional[Any] = None,
+        prompt_embeds: Optional[torch.Tensor] = None,
+        prompt_embeds_mask: Optional[torch.Tensor] = None,
+        prompt_poolers: Optional[torch.Tensor] = None,
+        negative_prompt_embeds: Optional[torch.Tensor] = None,
+        negative_prompt_embeds_mask: Optional[torch.Tensor] = None,
+        negative_prompt_poolers: Optional[torch.Tensor] = None,
+        negative_kwargs: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ) -> torch.Tensor:
         if batch_size is None:
+            assert prompt_embeds is not None
             batch_size = int(prompt_embeds.shape[0])
 
         # Random noise
         # B, C, T, H, W (1, 16, X, 8, 8)
         LAT_CHANNELS = 16
+        assert generator is not None
         latents = torch.randn(
             (
                 batch_size,

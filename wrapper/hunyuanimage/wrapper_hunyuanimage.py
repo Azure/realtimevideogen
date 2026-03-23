@@ -139,6 +139,7 @@ class HunyuanImageGeneration(ModelGeneration):
         # height_latent = height // self.pipeline.vae_scale_factor
         # width_latent = width // self.pipeline.vae_scale_factor
         # self.model.vae is AutoencoderKLConv3D
+        assert self.model is not None
         vae_config = self.model.vae.config
         if width % vae_config.ffactor_spatial != 0:
             raise ValueError(f"Width {width} not supported. Must be multiple of {vae_config.ffactor_spatial}.")
@@ -173,7 +174,7 @@ class HunyuanImageGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         height: int,
         width: int,
@@ -213,13 +214,13 @@ class HunyuanImageGeneration(ModelGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
                 return callback_kwargs
 
             image = await asyncio.to_thread(
-                self.model.generate_image,
+                self.model.generate_image,  # type: ignore[union-attr]
                 prompt=prompt,
                 # image_size="auto",
                 # image_size=f"{height}x{width}",
