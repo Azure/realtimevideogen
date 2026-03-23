@@ -75,7 +75,7 @@ async def test_video() -> None:
 async def test_base64() -> None:
     """Test video frames to/from base64 conversion."""
     video_frames: List[np.ndarray] = [
-        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[misc]
+        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[list-item]
         for frame_id in range(12)
     ]
     video_base64 = video_frames_to_base64(video_frames)  # type: ignore[arg-type]

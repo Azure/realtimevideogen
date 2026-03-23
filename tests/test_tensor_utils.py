@@ -64,7 +64,7 @@ def test_base64_invalid() -> None:
     with pytest.raises(TypeError):
         base64_to_tensor(12345)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        tensor_to_base64("12345")
+        tensor_to_base64("12345")  # type: ignore[arg-type]
     with pytest.raises(binascii.Error):
         base64_to_tensor("NOTBASE64")
     with pytest.raises(TypeError):

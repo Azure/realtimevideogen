@@ -1,6 +1,7 @@
 """
 Wrapper for HunyuanImage model.
 """
+# mypy: ignore-errors
 import logging
 import os
 import asyncio

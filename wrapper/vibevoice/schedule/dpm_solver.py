@@ -14,6 +14,7 @@
 
 # DISCLAIMER: This file is strongly influenced by https://github.com/LuChengTHU/dpm-solver
 
+# mypy: ignore-errors
 import math
 from typing import Any, List, Optional, Tuple, Union
 

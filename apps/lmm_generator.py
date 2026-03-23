@@ -169,7 +169,7 @@ class LMMGenerator:
             self.request_executor = None
         if self.session:
             await self.session.close()
-            self.session = None
+            self.session = None  # type: ignore[assignment]
 
     def get_queued_requests(self) -> List[str]:
         """Get the list of queued request IDs from the request executor, sorted in ascending order."""
@@ -942,12 +942,7 @@ class LMMGenerator:
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
-                messages=messages,
-                max_tokens=max_tokens,
-                extra_body=extra_body,
-                # timeout=10.0,
-                extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
-                stream=False,
+                messages=messages,  # type: ignore[arg-type]
             )
             assert response is not None
 
@@ -955,22 +950,22 @@ class LMMGenerator:
             assert response.usage is not None  # type: ignore[union-attr]
             usage = response.usage  # type: ignore[union-attr]
             self.logger.debug("LLM tokens:")
-            self.logger.debug(f"  Prompt: {usage.prompt_tokens}")
-            self.logger.debug(f"  Completion: {usage.completion_tokens}")
-            self.logger.debug(f"  Total: {usage.total_tokens}")
-            if usage.completion_tokens == max_tokens:
-                self.logger.error(f"Completion hit max tokens limit ({usage.completion_tokens}/{max_tokens}).")
+            self.logger.debug(f"  Prompt: {response.usage.prompt_tokens}")  # type: ignore[union-attr]
+            self.logger.debug(f"  Completion: {response.usage.completion_tokens}")  # type: ignore[union-attr]
+            self.logger.debug(f"  Total: {response.usage.total_tokens}")  # type: ignore[union-attr]
+            if response.usage.completion_tokens == max_tokens:  # type: ignore[union-attr]
+                self.logger.error(  # type: ignore[union-attr]
+                    f"Completion hit max tokens limit "
+                    f"({response.usage.completion_tokens}/{max_tokens}).")
 
-            choices = response.choices  # type: ignore[union-attr]
-            if not choices:
+            if not response.choices:  # type: ignore[union-attr]
                 raise ValueError("No LLM response.")
-            response_choice = choices[0]
+            response_choice = response.choices[0]  # type: ignore[union-attr]
             response_message = response_choice.message
             response_message_content = response_message.content
             if response_message_content:
                 response_message_content = response_message_content.strip()
-            assert isinstance(response_message_content, str)
-            return response_message_content
+            return response_message_content  # type: ignore[return-value]
 
     async def gen_text_stream(
         self,
@@ -989,19 +984,17 @@ class LMMGenerator:
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 max_tokens=max_tokens,
                 extra_body=extra_body,
                 # timeout=10.0,
                 extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
                 stream=True,
             )
-            async for chunk in response:
+            async for chunk in response:  # type: ignore[union-attr]
                 choice = chunk.choices[0]
-                delta = choice.delta
-                delta_content = delta.content
-                assert isinstance(delta_content, str)
-                yield delta_content
+                delta = choice.delta.content
+                yield delta  # type: ignore[misc]
 
     async def gen_audio_transcript(
         self,

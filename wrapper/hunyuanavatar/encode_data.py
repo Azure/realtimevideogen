@@ -30,8 +30,8 @@ def get_audio_feature(
                                           ).input_features
         audio_features.append(audio_feature)
 
-    audio_features = torch.cat(audio_features, dim=-1)
-    return audio_features, len(audio_input) // 640
+    audio_features = torch.cat(audio_features, dim=-1)  # type: ignore[assignment]
+    return audio_features, len(audio_input) // 640  # type: ignore[return-value]
 
 
 class VideoAudioTextLoaderVal():
@@ -96,7 +96,7 @@ class VideoAudioTextLoaderVal():
             new_w = round(w * scale / 64) * 64
             new_h = round(h * scale / 64) * 64
 
-        ref_image = ref_image.resize((new_w, new_h), Image.LANCZOS)
+        ref_image = ref_image.resize((new_w, new_h), Image.LANCZOS)  # type: ignore[attr-defined]
 
         ref_image = np.array(ref_image)
         ref_image = torch.from_numpy(ref_image)
@@ -106,17 +106,18 @@ class VideoAudioTextLoaderVal():
 
         motion_bucket_id_heads = np.array([25] * 4)
         motion_bucket_id_exps = np.array([30] * 4)
-        motion_bucket_id_heads = torch.from_numpy(motion_bucket_id_heads)
-        motion_bucket_id_exps = torch.from_numpy(motion_bucket_id_exps)
+        motion_bucket_id_heads = torch.from_numpy(motion_bucket_id_heads)  # type: ignore[assignment]
+        motion_bucket_id_exps = torch.from_numpy(motion_bucket_id_exps)  # type: ignore[assignment]
         fps_tensor = torch.from_numpy(np.array(fps))
 
         to_pil = ToPILImage()
         pixel_value_ref = rearrange(ref_image.clone().unsqueeze(0), "b h w c -> b c h w")   # (b c h w)
 
         pixel_value_ref_llava = [self.llava_transform(to_pil(image)) for image in pixel_value_ref]
-        pixel_value_ref_llava = torch.stack(pixel_value_ref_llava, dim=0)
+        pixel_value_ref_llava = torch.stack(pixel_value_ref_llava, dim=0)  # type: ignore[assignment]
         pixel_value_ref_clip = self.clip_image_processor(
-            images=Image.fromarray((pixel_value_ref[0].permute(1, 2, 0)).data.cpu().numpy().astype(np.uint8)),
+            images=Image.fromarray(
+                (pixel_value_ref[0].permute(1, 2, 0)).data.cpu().numpy().astype(np.uint8)),  # type: ignore[union-attr]
             return_tensors="pt"
         ).pixel_values[0]
         pixel_value_ref_clip = pixel_value_ref_clip.unsqueeze(0)
@@ -128,10 +129,11 @@ class VideoAudioTextLoaderVal():
         # Output
         return {
             "text_prompt": prompt,
-            "pixel_value_ref": pixel_value_ref.to(dtype=torch.float16),                 # for vae (1, 3, h, w)
-            "pixel_value_ref_llava": pixel_value_ref_llava.to(dtype=torch.float16),     # for llava (1, 3, 336, 336)
+            "pixel_value_ref": pixel_value_ref.to(dtype=torch.float16),  # type: ignore[union-attr]
+            "pixel_value_ref_llava": pixel_value_ref_llava.to(  # type: ignore[union-attr]
+                dtype=torch.float16),
             # for clip_image_encoder (1, 3, 244, 244)
-            "pixel_value_ref_clip": pixel_value_ref_clip.to(dtype=torch.float16),
+            "pixel_value_ref_clip": pixel_value_ref_clip.to(dtype=torch.float16),  # type: ignore[union-attr]
             "audio_prompts": audio_prompts.to(dtype=torch.float16),
             "motion_bucket_id_heads": motion_bucket_id_heads.to(dtype=text_ids.dtype),
             "motion_bucket_id_exps": motion_bucket_id_exps.to(dtype=text_ids.dtype),
