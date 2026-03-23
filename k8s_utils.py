@@ -266,6 +266,19 @@ async def get_k8s_nodes(
 
             mig_enabled = any(k.startswith("nvidia.com/mig-") for k in allocatable_resources)
 
+            # Collect per-profile MIG resource counts (capacity and allocatable).
+            # These map directly to the Kubernetes resource names (nvidia.com/mig-<profile>)
+            # and let operators diagnose scheduling errors such as
+            # "Insufficient nvidia.com/mig-1g.5gb".
+            mig_resources: Dict[str, Dict[str, int]] = {}
+            for resource_key in sorted(capacity_resources):
+                if resource_key.startswith("nvidia.com/mig-"):
+                    profile = resource_key[len("nvidia.com/mig-"):]
+                    mig_resources[profile] = {
+                        "capacity": int(capacity_resources.get(resource_key, 0)),
+                        "allocatable": int(allocatable_resources.get(resource_key, 0)),
+                    }
+
             info = {
                 "node_name": node_name,
                 "region": region,
@@ -292,6 +305,7 @@ async def get_k8s_nodes(
                 "images": images,
                 "gpu_model": gpu_model,
                 "mig_enabled": mig_enabled,
+                "mig_resources": mig_resources,
             }
             ret.append(info)
         return ret

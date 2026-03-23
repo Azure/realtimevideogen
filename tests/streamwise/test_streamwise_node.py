@@ -91,6 +91,7 @@ _MOCK_NODE = {
     "images": None,
     "gpu_model": "N/A",
     "mig_enabled": False,
+    "mig_resources": {},
 }
 
 
@@ -120,6 +121,7 @@ async def test_node_shows_mig_enabled() -> None:
     mig_node["capacity_resources"]["gpu"] = 7
     mig_node["allocatable_resources"] = dict(mig_node["allocatable_resources"])
     mig_node["allocatable_resources"]["gpu"] = "N/A"
+    mig_node["mig_resources"] = {"1g.10gb": {"capacity": 7, "allocatable": 7}}
     with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[mig_node])):
         with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
             response = await client.get("/nodes")
@@ -127,6 +129,31 @@ async def test_node_shows_mig_enabled() -> None:
     response_text = await response.get_data(as_text=True)
     assert "MIG" in response_text
     assert "Enabled" in response_text
+
+
+@pytest.mark.asyncio
+async def test_node_shows_mig_resources() -> None:
+    """Node page shows per-profile MIG resource counts in the Resources table."""
+    app = streamwise.app
+    client = app.test_client()
+    mock: Dict[str, Any] = dict(_MOCK_NODE)
+    mig_node: Dict[str, Any] = mock
+    mig_node["mig_enabled"] = True
+    mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
+    mig_node["mig_resources"] = {
+        "1g.5gb": {"capacity": 7, "allocatable": 5},
+        "2g.10gb": {"capacity": 3, "allocatable": 2},
+    }
+    with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[mig_node])):
+        with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
+            response = await client.get("/nodes")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "1g.5gb" in response_text
+    assert "2g.10gb" in response_text
+    # Allocatable and capacity counts visible
+    assert "5" in response_text
+    assert "2" in response_text
 
 
 @pytest.mark.asyncio

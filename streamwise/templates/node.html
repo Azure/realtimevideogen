@@ -142,6 +142,13 @@
                         <td>
                             {% if node.mig_enabled %}
                                 <span class="text-success" title="Multi-Instance GPU is enabled on this node" aria-label="MIG enabled">✅ Enabled</span>
+                                {% if node.mig_resources %}
+                                    <ul class="mb-0 mt-1">
+                                    {% for profile, counts in node.mig_resources.items() %}
+                                        <li><code>{{ profile }}</code>: {{ counts.allocatable }} allocatable / {{ counts.capacity }} total</li>
+                                    {% endfor %}
+                                    </ul>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -302,10 +309,36 @@
                         </div>
                     </td>
                 </tr>
+                {% for profile, counts in node.mig_resources.items() %}
+                <tr>
+                    <th scope="row">MIG <code>{{ profile }}</code></th>
+                    <td>
+                        {% set ns_mig = namespace(total_allocated_mig=0) %}
+                        {% for pod in node.pods %}
+                            {% if pod.mig_profile == profile %}
+                                {% set ns_mig.total_allocated_mig = ns_mig.total_allocated_mig + pod.gpu %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ ns_mig.total_allocated_mig }}
+                    </td>
+                    <td>{{ counts.allocatable }}</td>
+                    <td>{{ counts.capacity }}</td>
+                    <td>
+                        {% set percent_used_mig = (ns_mig.total_allocated_mig / counts.allocatable * 100) if counts.allocatable > 0 else 0 %}
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar bg-info" role="progressbar"
+                                style="width: {{ percent_used_mig }}%;"
+                                aria-valuenow="{{ ns_mig.total_allocated_mig }}"
+                                aria-valuemin="0"
+                                aria-valuemax="{{ counts.allocatable }}">
+                                {{ ns_mig.total_allocated_mig }} / {{ counts.allocatable }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
                 </tbody>
             </table>
-
-            <h3 class="mt-5 mb-1">🫛 Pods</h3>
             <table id="pods-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
                 <thead class="table-dark">
                     <tr>
