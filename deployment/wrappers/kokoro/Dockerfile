@@ -26,6 +26,7 @@ COPY docker_files/*.py .
 COPY docker_files/*.bash .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
+COPY docker_files/data ./data
 
 SHELL ["/bin/bash", "-c"]
 RUN echo "source activate streamwise" >> ~/.bashrc
