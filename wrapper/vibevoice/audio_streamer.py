@@ -6,8 +6,7 @@ import asyncio
 
 from queue import Queue
 
-from typing import Optional
-from typing import Any
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from transformers.generation import BaseStreamer
 
@@ -37,11 +36,11 @@ class AudioStreamer(BaseStreamer):
         self.timeout = timeout
 
         # Create a queue for each sample in the batch
-        self.audio_queues: list[Queue] = [Queue() for _ in range(batch_size)]
+        self.audio_queues: List[Any] = [Queue() for _ in range(batch_size)]
         self.finished_flags: list[bool] = [False for _ in range(batch_size)]
-        self.sample_indices_map: dict[int, int] = {}  # Maps from sample index to queue index
+        self.sample_indices_map: Dict[int, int] = {}  # Maps from sample index to queue index
 
-    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:  # type: ignore[override]
+    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:
         """
         Receives audio chunks and puts them in the appropriate queues.
 
@@ -166,7 +165,7 @@ class AsyncAudioStreamer(AudioStreamer):
         ]
         self.loop = asyncio.get_running_loop()
 
-    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:  # type: ignore[override]
+    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:
         """Put audio chunks in the appropriate async queues."""
         for i, sample_idx in enumerate(sample_indices):
             idx = sample_idx.item()
@@ -179,7 +178,7 @@ class AsyncAudioStreamer(AudioStreamer):
     def end(self, sample_indices: Optional[torch.Tensor] = None) -> None:
         """Signal the end of generation for specified samples."""
         if sample_indices is None:
-            indices_to_end = range(self.batch_size)
+            indices_to_end: list[Any] = list(range(self.batch_size))
         else:
             indices_to_end = [s.item() if torch.is_tensor(s) else s for s in sample_indices]  # type: ignore[assignment]
 
@@ -190,7 +189,7 @@ class AsyncAudioStreamer(AudioStreamer):
                 )
                 self.finished_flags[idx] = True
 
-    async def get_stream(self, sample_idx: int) -> Any:
+    async def get_stream(self, sample_idx: int) -> AsyncGenerator[Any, None]:  # type: ignore[override]
         """Get async iterator for a specific sample's audio stream."""
         if sample_idx >= self.batch_size:
             raise ValueError(f"Sample index {sample_idx} exceeds batch size {self.batch_size}")
