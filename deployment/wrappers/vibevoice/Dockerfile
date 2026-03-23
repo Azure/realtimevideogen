@@ -27,7 +27,6 @@ COPY docker_files/*.bash .
 COPY docker_files/*.json .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
-COPY docker_files/services.json .
 
 # VibeVoice files
 COPY docker_files/schedule /vibevoice/schedule
