@@ -5,7 +5,7 @@ import torch
 
 import asyncio
 from queue import Queue
-from typing import Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from transformers.generation import BaseStreamer
 
@@ -27,7 +27,7 @@ class AudioStreamer(BaseStreamer):
     def __init__(
         self,
         batch_size: int,
-        stop_signal: Optional[any] = None,
+        stop_signal: Optional[Any] = None,
         timeout: Optional[float] = None,
     ):
         self.batch_size = batch_size
@@ -35,11 +35,11 @@ class AudioStreamer(BaseStreamer):
         self.timeout = timeout
 
         # Create a queue for each sample in the batch
-        self.audio_queues = [Queue() for _ in range(batch_size)]
+        self.audio_queues: List[Any] = [Queue() for _ in range(batch_size)]
         self.finished_flags = [False for _ in range(batch_size)]
-        self.sample_indices_map = {}  # Maps from sample index to queue index
+        self.sample_indices_map: Dict[int, int] = {}  # Maps from sample index to queue index
 
-    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor):
+    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:
         """
         Receives audio chunks and puts them in the appropriate queues.
 
@@ -54,7 +54,7 @@ class AudioStreamer(BaseStreamer):
                 audio_chunk = audio_chunks[i].detach().cpu()
                 self.audio_queues[idx].put(audio_chunk, timeout=self.timeout)
 
-    def end(self, sample_indices: Optional[torch.Tensor] = None):
+    def end(self, sample_indices: Optional[torch.Tensor] = None) -> None:
         """
         Signals the end of generation for specified samples or all samples.
 
@@ -75,11 +75,11 @@ class AudioStreamer(BaseStreamer):
                     self.audio_queues[idx].put(self.stop_signal, timeout=self.timeout)
                     self.finished_flags[idx] = True
 
-    def __iter__(self):
+    def __iter__(self) -> AudioBatchIterator:
         """Returns an iterator over the batch of audio streams."""
         return AudioBatchIterator(self)
 
-    def get_stream(self, sample_idx: int):
+    def get_stream(self, sample_idx: int) -> AudioSampleIterator:
         """Get the audio stream for a specific sample."""
         if sample_idx >= self.batch_size:
             raise ValueError(f"Sample index {sample_idx} exceeds batch size {self.batch_size}")
@@ -93,10 +93,10 @@ class AudioSampleIterator:
         self.streamer = streamer
         self.sample_idx = sample_idx
 
-    def __iter__(self):
+    def __iter__(self) -> AudioSampleIterator:
         return self
 
-    def __next__(self):
+    def __next__(self) -> Any:
         value = self.streamer.audio_queues[self.sample_idx].get(timeout=self.streamer.timeout)
         if value == self.streamer.stop_signal:
             raise StopIteration()
@@ -110,10 +110,10 @@ class AudioBatchIterator:
         self.streamer = streamer
         self.active_samples = set(range(streamer.batch_size))
 
-    def __iter__(self):
+    def __iter__(self) -> AudioBatchIterator:
         return self
 
-    def __next__(self):
+    def __next__(self) -> dict[int, Any]:
         if not self.active_samples:
             raise StopIteration()
 
@@ -154,7 +154,7 @@ class AsyncAudioStreamer(AudioStreamer):
     def __init__(
         self,
         batch_size: int,
-        stop_signal: Optional[any] = None,
+        stop_signal: Optional[Any] = None,
         timeout: Optional[float] = None,
     ):
         super().__init__(batch_size, stop_signal, timeout)
@@ -162,7 +162,7 @@ class AsyncAudioStreamer(AudioStreamer):
         self.audio_queues = [asyncio.Queue() for _ in range(batch_size)]
         self.loop = asyncio.get_running_loop()
 
-    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor):
+    def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:
         """Put audio chunks in the appropriate async queues."""
         for i, sample_idx in enumerate(sample_indices):
             idx = sample_idx.item()
@@ -172,10 +172,10 @@ class AsyncAudioStreamer(AudioStreamer):
                     self.audio_queues[idx].put_nowait, audio_chunk
                 )
 
-    def end(self, sample_indices: Optional[torch.Tensor] = None):
+    def end(self, sample_indices: Optional[torch.Tensor] = None) -> None:
         """Signal the end of generation for specified samples."""
         if sample_indices is None:
-            indices_to_end = range(self.batch_size)
+            indices_to_end: list[Any] = list(range(self.batch_size))
         else:
             indices_to_end = [s.item() if torch.is_tensor(s) else s for s in sample_indices]
 
@@ -186,7 +186,7 @@ class AsyncAudioStreamer(AudioStreamer):
                 )
                 self.finished_flags[idx] = True
 
-    async def get_stream(self, sample_idx: int):
+    async def get_stream(self, sample_idx: int) -> AsyncGenerator[Any, None]:  # type: ignore[override]
         """Get async iterator for a specific sample's audio stream."""
         if sample_idx >= self.batch_size:
             raise ValueError(f"Sample index {sample_idx} exceeds batch size {self.batch_size}")
@@ -197,7 +197,7 @@ class AsyncAudioStreamer(AudioStreamer):
                 break
             yield value
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncAudioBatchIterator:
         """Returns an async iterator over all audio streams."""
         return AsyncAudioBatchIterator(self)
 
@@ -209,10 +209,10 @@ class AsyncAudioBatchIterator:
         self.streamer = streamer
         self.active_samples = set(range(streamer.batch_size))
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncAudioBatchIterator:
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> dict[int, Any]:
         if not self.active_samples:
             raise StopAsyncIteration()
 
@@ -258,6 +258,6 @@ class AsyncAudioBatchIterator:
         else:
             raise StopAsyncIteration()
 
-    async def _get_chunk(self, idx):
+    async def _get_chunk(self, idx: int) -> Any:
         """Helper to get a chunk from a specific queue."""
         return await self.streamer.audio_queues[idx].get()
