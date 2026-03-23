@@ -81,6 +81,9 @@
                                     <span class="text-muted">-</span>
                                 {% else %}
                                     {{ node.allocatable_resources.gpu }} &times; {{ node.gpu_model | format_gpu_model | safe }}
+                                    {% if node.mig_enabled %}
+                                        <span class="badge bg-info ms-1" title="Multi-Instance GPU enabled">MIG</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>
@@ -129,6 +132,16 @@
                             {% if node.gpu_model and node.gpu_model != "N/A" %}
                                 {{ node.gpu_model | format_gpu_model | safe }}
                                 ({{ node.gpu_model }})
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">MIG</th>
+                        <td>
+                            {% if node.mig_enabled %}
+                                <span class="text-success" title="Multi-Instance GPU is enabled on this node" aria-label="MIG enabled">✅ Enabled</span>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -357,7 +370,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if pod.gpu %}
+                            {% if pod.mig_profile %}
+                                <span title="MIG slice: {{ pod.mig_profile }}">{{ pod.gpu }} &times; <span class="badge bg-info" aria-label="MIG profile {{ pod.mig_profile }}">{{ pod.mig_profile }}</span></span>
+                            {% elif pod.gpu %}
                                 {{ pod.gpu }}
                             {% else %}
                                 -
