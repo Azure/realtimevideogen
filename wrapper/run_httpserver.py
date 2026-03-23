@@ -1139,7 +1139,11 @@ def setup_dist_environment() -> None:
     local_world_size = int(os.environ.get("LOCAL_WORLD_SIZE") or os.environ.get(
         "NPROC_PER_NODE") or torch.cuda.device_count())
 
-    device_id = local_rank
+    # With MIG, the device plugin restricts CUDA_VISIBLE_DEVICES to only the allocated
+    # MIG instance(s) for this process, so the valid device indices start at 0.
+    # Use the number of visible devices to clamp local_rank to a valid index.
+    num_visible_devices = torch.cuda.device_count()
+    device_id = local_rank if local_rank < num_visible_devices else 0
     torch.cuda.set_device(device_id)
 
     logging.info(f"[{rank}] Initializing distributed: "
