@@ -290,6 +290,8 @@ def get_k8s_service_emoji(container_name: Optional[str]) -> str:
         return "📄"
     if "mdsdmgr" in container_name:
         return "📊"
+    if "debug" in container_name:
+        return "🐞"
     return f"<span class='text-muted' title='{container_name}'>❓</span>"
 
 
