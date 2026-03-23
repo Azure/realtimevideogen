@@ -26,6 +26,7 @@ import http_session_manager
 sys.path.append("..")
 from k8s_utils import load_k8s_config
 from k8s_utils import parse_k8s_resource_quantity
+from k8s_utils import parse_mig_resources
 from quart_utils import get_friendly_container_name
 from quart_utils import get_class_emoji
 from streamwise_apps import VLLM_SERVICES
@@ -275,11 +276,17 @@ async def get_services_ns(
                 memory: int | float = 0
                 ephemeral_storage: int | float = 0
                 gpu: int = 0
+                mig_profile: Optional[str] = None
                 if resources is not None:
                     cpu = parse_k8s_resource_quantity(resources.get("cpu", "0"))
                     memory = parse_k8s_resource_quantity(resources.get("memory", "0"))
                     ephemeral_storage = parse_k8s_resource_quantity(resources.get("ephemeral-storage", "0"))
                     gpu = int(resources.get("nvidia.com/gpu", 0))
+
+                    mig_resources = parse_mig_resources(resources)
+                    if mig_resources:
+                        mig_profile = next(iter(mig_resources))
+                        gpu = mig_resources[mig_profile]
 
                 # Logs
                 logs = await get_k8s_container_logs(
@@ -303,6 +310,7 @@ async def get_services_ns(
                         "cpu": cpu,
                         "memory": memory,
                         "gpu": gpu,
+                        "mig_profile": mig_profile,
                         "ephemeral_storage": ephemeral_storage,
                         "events": events_list,
                         "image": image,
@@ -327,6 +335,7 @@ async def get_services_ns(
                             "cpu": cpu,
                             "memory": memory,
                             "gpu": gpu,
+                            "mig_profile": mig_profile,
                             "ephemeral_storage": ephemeral_storage,
                             "events": events_list,
                             "image": image,
