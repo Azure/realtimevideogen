@@ -5,7 +5,7 @@ import logging
 import random
 import argparse
 
-from typing import Dict
+from typing import Any, Dict, Optional
 
 from benchmark_commons import HEADERS_JSON
 from benchmark_commons import setup_logging
@@ -19,7 +19,7 @@ from PIL import Image
 
 
 class ServiceWanRequestInfo(ServiceRequestInfo):
-    def __init__(self, data_json: Dict[str, str]) -> None:
+    def __init__(self, data_json: Dict[str, Any]) -> None:
         if "wan" not in data_json:
             logging.error("Missing 'wan' key in JSON response")
             return
@@ -52,12 +52,13 @@ class ServiceWanRequestInfo(ServiceRequestInfo):
             "torch_compile,num_steps,total_steps_time,avg_steps_time,total_time"
 
 
-def get_server_request_info(container_ip: str, container_port: int) -> ServiceWanRequestInfo:
+def get_server_request_info(container_ip: str, container_port: int) -> Optional[ServiceWanRequestInfo]:
     url_health = f"http://{container_ip}:{container_port}/health"
     response_health = requests.get(url_health, timeout=10)
     if response_health.ok:
         data_json = response_health.json()
         return ServiceWanRequestInfo(data_json)
+    return None
 
 
 RANDOM_PROMPTS = [
@@ -110,13 +111,13 @@ if not os.path.exists("output"):
 
 
 if __name__ == "__main__":
-    argparse = argparse.ArgumentParser(description="Benchmark Wan server performance")
-    argparse.add_argument("--container_ip", type=str, default=None)
-    argparse.add_argument("--container_port", type=int, default=-1)
-    argparse.add_argument("--container", type=str, default=None)
-    argparse.add_argument("--input_img", type=str, default=None, help="Path to input image (will be resized)")
-    argparse.add_argument("--output_csv", type=str, default="wan.csv", help="Output CSV file for results")
-    args = argparse.parse_args()
+    parser = argparse.ArgumentParser(description="Benchmark Wan server performance")
+    parser.add_argument("--container_ip", type=str, default=None)
+    parser.add_argument("--container_port", type=int, default=-1)
+    parser.add_argument("--container", type=str, default=None)
+    parser.add_argument("--input_img", type=str, default=None, help="Path to input image (will be resized)")
+    parser.add_argument("--output_csv", type=str, default="wan.csv", help="Output CSV file for results")
+    args = parser.parse_args()
 
     container_ip = args.container_ip
     container_port = args.container_port
@@ -175,6 +176,9 @@ if __name__ == "__main__":
                     response = requests.post(url, json=payload, headers=HEADERS_JSON, timeout=600)
 
                     server_req_info = get_server_request_info(container_ip, container_port)
+                    if server_req_info is None:
+                        logging.error("Failed to get server request info, skipping run")
+                        continue
                     server_req_info_csv = server_req_info.to_csv_str()
 
                     if response.ok and "video/mp4" in response.headers.get("Content-Type", ""):
