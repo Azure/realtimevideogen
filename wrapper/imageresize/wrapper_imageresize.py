@@ -42,12 +42,12 @@ class ImageResize(ModelGeneration):
             # Video
             if video is not None:
                 return [
-                    frame.resize((width, height), Image.LANCZOS)
+                    frame.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
                     for frame in video
                 ]
             # Image
             if image is not None:
-                return image.resize((width, height), Image.LANCZOS)
+                return image.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
             # Missing inputs
             raise ValueError("Image is required for resizing generation.")
         finally:

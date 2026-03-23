@@ -378,7 +378,7 @@ class FantasyTalking(USPGeneration):
 
             if video is not None and len(video) > 0:
                 gen_timer.start("video_preprocess")
-                video = [frame.resize((width, height), Image.LANCZOS) for frame in video]
+                video = [frame.resize((width, height), Image.LANCZOS) for frame in video]  # type: ignore[attr-defined]
 
                 # We assume the input video has the same FPS
                 video_num_frames = len(video)
@@ -410,7 +410,7 @@ class FantasyTalking(USPGeneration):
                 gen_timer.start("img_preprocess")
                 if self.rank == 0:
                     logging.info(f"[{self.rank}] Image:{img.size}->{(width, height)}.")
-                img = img.resize((width, height), Image.LANCZOS)
+                img = img.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
                 gen_timer.end("img_preprocess")
 
             gen_timer.start("audio_encoder")
@@ -679,7 +679,7 @@ class CustomWanVideoPipeline(WanVideoPipeline):
                 for frame in input_video
             ]
             input_video = self.preprocess_images(input_video)
-            input_video = torch.stack(input_video, dim=2)
+            input_video = torch.stack(input_video, dim=2)  # type: ignore[arg-type]
             latents = self.encode_video(input_video, **tiler_kwargs).to(
                 dtype=noise.dtype,
                 device=noise.device)

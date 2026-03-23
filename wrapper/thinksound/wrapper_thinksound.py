@@ -262,7 +262,7 @@ class ThinkSoundGeneration(ModelGeneration):
 
             caption_cot_list = [data['caption_cot']]
             t5_features = self.feature_extractor.encode_t5_text(caption_cot_list)
-            output['t5_features'] = t5_features
+            output['t5_features'] = t5_features  # type: ignore[assignment]
 
             # Convert tensors to numpy and save
             sample_output = {
@@ -372,7 +372,7 @@ class ThinkSoundGeneration(ModelGeneration):
         dummy_video_bytes = dummy_video  # Placeholder
 
         await self.generate(
-            video_binary=dummy_video_bytes,
+            video_binary=dummy_video_bytes,  # type: ignore[arg-type]
             caption="A warmup audio generation",
             caption_cot="This is a warmup to initialize the model components"
         )

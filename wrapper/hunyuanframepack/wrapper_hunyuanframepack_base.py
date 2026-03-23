@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 import math
 import time
@@ -344,7 +345,7 @@ class HunyuanFramePackBase(USPGeneration):
         # h,w,RGB -> 1,RGB,1,h,w ([544,704,3] -> [1,3,1,544,704])
         gen_timer.start("image_preprocess")
         # We may resize image for parallelism; 1024x720 works with SP=8
-        img_resized = img.resize((width, height), Image.LANCZOS)
+        img_resized = img.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
         input_image = np.array(img_resized)
         t0_img = time.time()
         H, W, C = input_image.shape

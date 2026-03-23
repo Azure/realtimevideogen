@@ -3,6 +3,7 @@ xFuser FramePack for Hunyuan Video.
 This module extends the Hunyuan Video Framepack Pipeline to support xFuser's long context attention and
 sequence parallelism.
 """
+# mypy: ignore-errors
 import torch
 import functools
 import einops

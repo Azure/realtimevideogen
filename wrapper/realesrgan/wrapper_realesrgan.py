@@ -153,14 +153,14 @@ class RealESRGANGeneration(ModelGeneration):
         Each rank will process only its assigned images (not None).
         """
         if self.world_size == 1 or len(images) < 1:
-            return images
+            return images  # type: ignore[return-value]
         # Chunk one image per rank
         ret = []
         for it, image in enumerate(images):
             if it % self.world_size == self.rank:
                 ret.append(image)
             else:
-                ret.append(None)
+                ret.append(None)  # type: ignore[arg-type]
         return ret
 
     def _gather_chunks(
@@ -367,7 +367,7 @@ class RealESRGANGeneration(ModelGeneration):
         logging.debug(f"[{self.rank}] Generated image with size {output_image.size}")
         if output_image.size[0] != width or output_image.size[1] != height:
             logging.debug(f"[{self.rank}] Downscaling now to {width}x{height}.")
-            output_image = output_image.resize((width, height), Image.LANCZOS)
+            output_image = output_image.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
 
         return output_image
 

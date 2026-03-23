@@ -109,7 +109,7 @@ class CogViewGeneration(ModelGeneration):
             pretrained_model_name_or_path=self.MODEL_NAME,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
 
         # Enable memory optimizations
         """
@@ -209,7 +209,7 @@ class CogViewGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(  # type: ignore[misc]
+            output: Any = self.pipeline(  # type: ignore[operator]
                 prompt=prompt,
                 height=height,
                 width=width,
