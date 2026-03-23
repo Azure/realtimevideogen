@@ -264,6 +264,21 @@ async def get_k8s_nodes(
             if "network-resourcegroup" in labels:
                 resource_group = labels.get("network-resourcegroup", "N/A")
 
+            mig_enabled = any(k.startswith("nvidia.com/mig-") for k in allocatable_resources)
+
+            # Collect per-profile MIG resource counts (capacity and allocatable).
+            # These map directly to the Kubernetes resource names (nvidia.com/mig-<profile>)
+            # and let operators diagnose scheduling errors such as
+            # "Insufficient nvidia.com/mig-1g.5gb".
+            mig_resources: Dict[str, Dict[str, int]] = {}
+            for resource_key in sorted(capacity_resources):
+                if resource_key.startswith("nvidia.com/mig-"):
+                    profile = resource_key[len("nvidia.com/mig-"):]
+                    mig_resources[profile] = {
+                        "capacity": int(capacity_resources.get(resource_key, 0)),
+                        "allocatable": int(allocatable_resources.get(resource_key, 0)),
+                    }
+
             info = {
                 "node_name": node_name,
                 "region": region,
@@ -289,6 +304,8 @@ async def get_k8s_nodes(
                 "labels": labels,
                 "images": images,
                 "gpu_model": gpu_model,
+                "mig_enabled": mig_enabled,
+                "mig_resources": mig_resources,
             }
             ret.append(info)
         return ret
@@ -316,10 +333,19 @@ async def get_k8s_pods(
                 cpu: float = 0.0
                 memory: float = 0.0
                 gpu: int = 0
+                mig_profile: Optional[str] = None
                 if resources is not None:
                     cpu = parse_k8s_resource_quantity(resources.get("cpu", "0"))
                     memory = parse_k8s_resource_quantity(resources.get("memory", "0"))
                     gpu = int(resources.get("nvidia.com/gpu", 0))
+                    # A pod using MIG requests nvidia.com/mig-<profile> instead of
+                    # nvidia.com/gpu; the two resource types are mutually exclusive.
+                    if gpu == 0:
+                        for resource_key, resource_val in resources.items():
+                            if resource_key.startswith("nvidia.com/mig-"):
+                                mig_profile = resource_key[len("nvidia.com/mig-"):]
+                                gpu = int(resource_val)
+                                break
                 if container.ports:
                     for container_port in container.ports:
                         if pod_ip and container_port and container_port.container_port:
@@ -336,6 +362,7 @@ async def get_k8s_pods(
                     "cpu": cpu,
                     "memory": memory,
                     "gpu": gpu,
+                    "mig_profile": mig_profile,
                 })
     return ret
 
