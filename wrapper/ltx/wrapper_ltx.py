@@ -102,8 +102,8 @@ class LTXVideoGeneration(ModelGeneration):
             return
         logging.info("Compiling transformer with torch.compile().")
         self.load_timer.start("dit_compile")
-        self.pipeline.transformer = torch.compile(
-            self.pipeline.transformer,
+        self.pipeline.transformer = torch.compile(  # type: ignore[union-attr]
+            self.pipeline.transformer,  # type: ignore[union-attr]
             mode="max-autotune-no-cudagraphs",
         )
         self.load_timer.end("dit_compile")
@@ -113,8 +113,8 @@ class LTXVideoGeneration(ModelGeneration):
         height: int,
         width: int
     ) -> Tuple[int, int]:
-        height = height - (height % self.pipeline.vae_spatial_compression_ratio)
-        width = width - (width % self.pipeline.vae_spatial_compression_ratio)
+        height = height - (height % self.pipeline.vae_spatial_compression_ratio)  # type: ignore[union-attr]
+        width = width - (width % self.pipeline.vae_spatial_compression_ratio)  # type: ignore[union-attr]
         return height, width
 
     def __del__(self) -> None:
@@ -199,7 +199,7 @@ class LTXVideoGeneration(ModelGeneration):
                 downscaled_width)
             seed = torch.Generator()
             seed.manual_seed(0)
-            latents = self.pipeline(
+            latents = self.pipeline(  # type: ignore[misc]
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=neg_prompt,
@@ -214,7 +214,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 2. Upscale generated video using latent up-sampler with fewer inference steps
             # The available latent up-sampler up-scales the height/width by 2x
             upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
-            upscaled_latents = self.pipe_upsample(
+            upscaled_latents = self.pipe_upsample(  # type: ignore[misc]
                 latents=latents,
                 output_type="latent"
             ).frames
@@ -222,7 +222,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 3. De-noise the upscaled video with few steps to improve texture (optional, but recommended)
             seed = torch.Generator()
             seed.manual_seed(0)
-            video_frames = self.pipeline(
+            video_frames = self.pipeline(  # type: ignore[misc]
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=negative_prompt,

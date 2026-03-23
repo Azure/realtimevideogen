@@ -186,6 +186,7 @@ class BagelGeneration(ModelGeneration):
 
     @inference_mode()
     def update_context_text(self, text: Any, gen_context: Dict[str, Any]) -> Dict[str, Any]:
+        assert self.model is not None
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
@@ -214,6 +215,7 @@ class BagelGeneration(ModelGeneration):
     def update_context_images(
         self, images: Any, gen_context: Dict[str, Any], vae: bool = True, vit: bool = True
     ) -> Dict[str, Any]:
+        assert self.model is not None
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
@@ -247,6 +249,8 @@ class BagelGeneration(ModelGeneration):
         return gen_context
 
     def decode_image(self, latent: Any, image_shape: Any) -> Image.Image:
+        assert self.model is not None
+        assert self.vae_model is not None
         H, W = image_shape
         h, w = H // self.model.latent_downsample, W // self.model.latent_downsample
         latent = latent.reshape(1, h, w, self.model.latent_patch_size,
@@ -290,6 +294,8 @@ class BagelGeneration(ModelGeneration):
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True  # Mark running to avoid concurrent calls
+        assert self.model is not None
+        assert self.vae_transform is not None
 
         try:
             # Other arguments

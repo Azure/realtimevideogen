@@ -224,7 +224,7 @@ class LlamaGenGeneration(ModelGeneration):
         """
         Prepare text embeddings using T5 model.
         """
-        caption_embs, emb_masks = self.t5_model.get_text_embeddings(prompts)
+        caption_embs, emb_masks = self.t5_model.get_text_embeddings(prompts)  # type: ignore[union-attr]
 
         if not no_left_padding:
             # Implement left-padding as in the original code
@@ -318,7 +318,7 @@ class LlamaGenGeneration(ModelGeneration):
             # Prepare text embeddings
             gen_timer.start("text_embeddings")
             prompts = [prompt]  # LlamaGen expects a list
-            c_indices, c_emb_masks = self._prepare_text_embeddings(gen_timer, prompts, no_left_padding)
+            c_indices, c_emb_masks = self._prepare_text_embeddings(prompts, no_left_padding)
             gen_timer.end("text_embeddings")
 
             # Generate token indices
@@ -340,7 +340,7 @@ class LlamaGenGeneration(ModelGeneration):
 
             # Decode to image
             gen_timer.start("decoding")
-            samples = self.vq_model.decode_code(index_sample, qzshape)  # output in [-1, 1]
+            samples = self.vq_model.decode_code(index_sample, qzshape)  # type: ignore[union-attr]  # output in [-1, 1]
             sample = samples[0]
             gen_timer.end("decoding")
 

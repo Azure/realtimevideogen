@@ -201,6 +201,10 @@ class JanusProGeneration(ModelGeneration):
         assert self.tokenizer is not None
         self._assert_args(img_size, patch_size)
 
+        assert self.vl_chat_processor is not None
+        assert self.vl_gpt is not None
+        assert self.tokenizer is not None
+
         width = img_size // patch_size * patch_size
         height = img_size // patch_size * patch_size
 
