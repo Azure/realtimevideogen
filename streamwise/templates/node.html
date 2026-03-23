@@ -292,6 +292,55 @@
                 </tbody>
             </table>
 
+            {% set mig_alloc = node.allocatable_resources.mig %}
+            {% set mig_cap   = node.capacity_resources.mig %}
+            {% set all_mig_profiles = (mig_alloc.keys() | list + mig_cap.keys() | list) | unique | sort %}
+            {% if all_mig_profiles | list | length > 0 %}
+            <h3 class="mt-5 mb-1">🧩 MIG Partitions</h3>
+            <table id="mig-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Profile</th>
+                        <th>Allocated</th>
+                        <th>Allocatable</th>
+                        <th>Capacity</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for profile in all_mig_profiles %}
+                    <tr>
+                        <th scope="row">{{ profile }}</th>
+                        <td>
+                            {% set ns_mig = namespace(alloc=0) %}
+                            {% for pod in node.pods %}
+                                {% if pod.mig_profile == profile and pod.gpu %}
+                                    {% set ns_mig.alloc = ns_mig.alloc + pod.gpu | int %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ ns_mig.alloc }}
+                        </td>
+                        <td>{{ mig_alloc.get(profile, 0) }}</td>
+                        <td>{{ mig_cap.get(profile, 0) }}</td>
+                        <td>
+                            {% set allocatable_mig = mig_alloc.get(profile, 0) | float %}
+                            {% set pct = (ns_mig.alloc / allocatable_mig * 100) if allocatable_mig > 0 else 0 %}
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar" role="progressbar"
+                                    style="width: {{ pct }}%;"
+                                    aria-valuenow="{{ ns_mig.alloc }}"
+                                    aria-valuemin="0"
+                                    aria-valuemax="{{ allocatable_mig }}">
+                                    {{ ns_mig.alloc }} / {{ allocatable_mig | int }}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
             <h3 class="mt-5 mb-1">🫛 Pods</h3>
             <table id="pods-table-{{ loop.index }}" class="table table-bordered table-hover table-striped">
                 <thead class="table-dark">
@@ -305,6 +354,7 @@
                         <th>CPU</th>
                         <th>Memory</th>
                         <th>GPU</th>
+                        <th>MIG</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -359,6 +409,13 @@
                         <td>
                             {% if pod.gpu %}
                                 {{ pod.gpu }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pod.mig_profile %}
+                                {{ pod.mig_profile }}
                             {% else %}
                                 -
                             {% endif %}
@@ -443,6 +500,11 @@
     <script>
         $(document).ready(function () {
             $('[id^="resources-table-"]').each(function() {
+                $(this).DataTable({
+                    paging: false
+                });
+            });
+            $('[id^="mig-table-"]').each(function() {
                 $(this).DataTable({
                     paging: false
                 });

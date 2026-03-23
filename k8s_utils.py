@@ -180,6 +180,23 @@ class K8sService:
         return f"K8sService(name={self.name}, containers={len(self.containers)})"
 
 
+def parse_mig_resources(resources: Optional[Dict[str, str]]) -> Dict[str, int]:
+    """Extract MIG partition resources from a Kubernetes resource dict.
+
+    Scans for keys matching ``nvidia.com/mig-<profile>`` and returns a mapping
+    of profile name to count, e.g. ``{"1g.5gb": 7, "2g.10gb": 3}``.
+    """
+    mig: Dict[str, int] = {}
+    if resources is None:
+        return mig
+    MIG_RESOURCE_PREFIX = "nvidia.com/mig-"
+    for key, value in resources.items():
+        if key.startswith(MIG_RESOURCE_PREFIX):
+            profile = key[len(MIG_RESOURCE_PREFIX):]
+            mig[profile] = int(value)
+    return mig
+
+
 def parse_k8s_resource_quantity(quantity: str) -> Union[int, float]:
     """Parse Kubernetes resource quantity strings into numeric values."""
     try:
@@ -275,12 +292,14 @@ async def get_k8s_nodes(
                     "memory": parse_k8s_resource_quantity(capacity_resources.get("memory", "N/A")),
                     "storage": parse_k8s_resource_quantity(capacity_resources.get("ephemeral-storage", "N/A")),
                     "gpu": capacity_resources.get("nvidia.com/gpu", "N/A"),
+                    "mig": parse_mig_resources(capacity_resources),
                 },
                 "allocatable_resources": {
                     "cpu": parse_k8s_resource_quantity(allocatable_resources.get("cpu", "N/A")),
                     "memory": parse_k8s_resource_quantity(allocatable_resources.get("memory", "N/A")),
                     "storage": parse_k8s_resource_quantity(allocatable_resources.get("ephemeral-storage", "N/A")),
                     "gpu": allocatable_resources.get("nvidia.com/gpu", "N/A"),
+                    "mig": parse_mig_resources(allocatable_resources),
                 },
                 "architecture": node.status.node_info.architecture,
                 "kernel_version": node.status.node_info.kernel_version,
@@ -316,10 +335,15 @@ async def get_k8s_pods(
                 cpu: float = 0.0
                 memory: float = 0.0
                 gpu: int = 0
+                mig_profile: Optional[str] = None
                 if resources is not None:
                     cpu = parse_k8s_resource_quantity(resources.get("cpu", "0"))
                     memory = parse_k8s_resource_quantity(resources.get("memory", "0"))
                     gpu = int(resources.get("nvidia.com/gpu", 0))
+                    mig_resources = extract_mig_resources(resources)
+                    if mig_resources:
+                        mig_profile = next(iter(mig_resources))
+                        gpu = mig_resources[mig_profile]
                 if container.ports:
                     for container_port in container.ports:
                         if pod_ip and container_port and container_port.container_port:
@@ -336,6 +360,7 @@ async def get_k8s_pods(
                     "cpu": cpu,
                     "memory": memory,
                     "gpu": gpu,
+                    "mig_profile": mig_profile,
                 })
     return ret
 
