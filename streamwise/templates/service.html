@@ -545,13 +545,13 @@
             <tr>
                 <th>SM utilization</th>
                 {% for gpu_info in svc.health.gpu_info %}
-                <td>{{ gpu_info.sm_util }}%</td>
+                <td>{{ gpu_info.sm_util if gpu_info.sm_util is not none else 'N/A' }}{% if gpu_info.sm_util is not none %}%{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <th>Memory utilization</th>
                 {% for gpu_info in svc.health.gpu_info %}
-                <td>{{ gpu_info.mem_util }}%</td>
+                <td>{{ gpu_info.mem_util if gpu_info.mem_util is not none else 'N/A' }}{% if gpu_info.mem_util is not none %}%{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
@@ -567,33 +567,37 @@
                 <th>Power</th>
                 {% for gpu_info in svc.health.gpu_info %}
                 <td>
-                    {{ gpu_info.power_draw_watts | default(0) | round(2) }} W /
-                    {{ gpu_info.power_limit_watts | default(0) | round(2) }} W
+                    {% if gpu_info.power_draw_watts is not none and gpu_info.power_limit_watts is not none %}
+                        {{ gpu_info.power_draw_watts | round(2) }} W /
+                        {{ gpu_info.power_limit_watts | round(2) }} W
+                    {% else %}
+                        N/A
+                    {% endif %}
                 </td>
                 {% endfor %}
             </tr>
             <tr>
                 <th>Temperature</th>
                 {% for gpu_info in svc.health.gpu_info %}
-                <td>{{ gpu_info.temp }} °C</td>
+                <td>{{ gpu_info.temp ~ ' °C' if gpu_info.temp is not none else 'N/A' }}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <th>Graphics clock</th>
                 {% for gpu_info in svc.health.gpu_info %}
-                <td>{{ gpu_info.graphics_clock }} MHz</td>
+                <td>{{ gpu_info.graphics_clock ~ ' MHz' if gpu_info.graphics_clock is not none else 'N/A' }}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <th>SM clock</th>
                 {% for gpu_info in svc.health.gpu_info %}
-                <td>{{ gpu_info.sm_clock }} MHz</td>
+                <td>{{ gpu_info.sm_clock ~ ' MHz' if gpu_info.sm_clock is not none else 'N/A' }}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <th>Memory clock</th>
                 {% for gpu_info in svc.health.gpu_info %}
-                <td>{{ gpu_info.mem_clock }} MHz</td>
+                <td>{{ gpu_info.mem_clock ~ ' MHz' if gpu_info.mem_clock is not none else 'N/A' }}</td>
                 {% endfor %}
             </tr>
         </tbody>
