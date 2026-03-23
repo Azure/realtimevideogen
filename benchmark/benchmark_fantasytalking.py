@@ -222,8 +222,8 @@ if __name__ == "__main__":
                         response_w, response_h = video_info["width"], video_info["height"]
                         video_num_frames = video_info["num_frames"]
                         frame_count_mismatch = (
-                            video_num_frames is not None and
-                            (video_num_frames < test_frames - 1 or video_num_frames > test_frames + 1)
+                            video_num_frames is not None
+                            and (video_num_frames < test_frames - 1 or video_num_frames > test_frames + 1)
                         )
 
                         # TODO verify there is some audio
