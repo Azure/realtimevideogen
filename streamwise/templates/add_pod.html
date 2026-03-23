@@ -180,19 +180,19 @@
                             </label>
                             <select class="form-select" id="wrapper_mig_profile" name="mig_profile">
                                 <option value="">None (full GPU)</option>
-                                <optgroup label="40 GB GPU profiles (e.g. A100 40 GB)">
-                                    <option value="1g.5gb">1g.5gb — 1/7 GPU, 5 GB</option>
-                                    <option value="2g.10gb">2g.10gb — 2/7 GPU, 10 GB</option>
-                                    <option value="3g.20gb">3g.20gb — 3/7 GPU, 20 GB</option>
-                                    <option value="4g.20gb">4g.20gb — 4/7 GPU, 20 GB</option>
-                                    <option value="7g.40gb">7g.40gb — full GPU, 40 GB</option>
-                                </optgroup>
                                 <optgroup label="80 GB GPU profiles (e.g. A100 80 GB, H100 80 GB)">
                                     <option value="1g.10gb">1g.10gb — 1/7 GPU, 10 GB</option>
                                     <option value="2g.20gb">2g.20gb — 2/7 GPU, 20 GB</option>
                                     <option value="3g.40gb">3g.40gb — 3/7 GPU, 40 GB</option>
                                     <option value="4g.40gb">4g.40gb — 4/7 GPU, 40 GB</option>
                                     <option value="7g.80gb">7g.80gb — full GPU, 80 GB</option>
+                                </optgroup>
+                                <optgroup label="40 GB GPU profiles (e.g. A100 40 GB)">
+                                    <option value="1g.5gb">1g.5gb — 1/7 GPU, 5 GB</option>
+                                    <option value="2g.10gb">2g.10gb — 2/7 GPU, 10 GB</option>
+                                    <option value="3g.20gb">3g.20gb — 3/7 GPU, 20 GB</option>
+                                    <option value="4g.20gb">4g.20gb — 4/7 GPU, 20 GB</option>
+                                    <option value="7g.40gb">7g.40gb — full GPU, 40 GB</option>
                                 </optgroup>
                             </select>
                         </div>
@@ -381,12 +381,13 @@
             </form>
         {% endif %}
 
+        <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
         <script>
             // Keep aligned with deployment/helm/values.yaml and services.json
             const defaults = {
                 podcasttranscript:   {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
                 slidetranscript:     {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
-                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.5gb'},
+                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.10gb'},
                 xtts:                {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1},
                 thinksound:          {cpu:2,  memory:8,   ephemeralStorage:32, gpu:1},
                 vibevoice:           {cpu:4,  memory:8,   ephemeralStorage:32, gpu:1},
@@ -404,7 +405,7 @@
                 flux2klein:          {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
                 imageresize:         {cpu:4,  memory:8,   ephemeralStorage:16, gpu:0},
                 realesrgan:          {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
-                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.5gb'},
+                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.10gb'},
                 bagel:               {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 gemma:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
                 llama32:             {cpu:12, memory:192, ephemeralStorage:96, gpu:4},
@@ -653,7 +654,6 @@
                 });
             }
         </script>
-        <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq"
             crossorigin="anonymous"></script>
