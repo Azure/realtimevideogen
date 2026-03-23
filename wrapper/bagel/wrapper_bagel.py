@@ -186,11 +186,10 @@ class BagelGeneration(ModelGeneration):
 
     @inference_mode()
     def update_context_text(self, text: Any, gen_context: Dict[str, Any]) -> Dict[str, Any]:
-        assert self.model is not None
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
-        generation_input, kv_lens, ropes = self.model.prepare_prompts(
+        generation_input, kv_lens, ropes = self.model.prepare_prompts(  # type: ignore[union-attr]
             curr_kvlens=kv_lens,
             curr_rope=ropes,
             prompts=[text],
@@ -205,7 +204,8 @@ class BagelGeneration(ModelGeneration):
         generation_input["packed_key_value_indexes"] = generation_input["packed_key_value_indexes"].to(self.device)
         generation_input["key_values_lens"] = generation_input["key_values_lens"].to(self.device)
 
-        past_key_values = self.model.forward_cache_update_text(past_key_values, **generation_input)
+        past_key_values = self.model.forward_cache_update_text(  # type: ignore[union-attr]
+            past_key_values, **generation_input)
         gen_context['kv_lens'] = kv_lens
         gen_context['ropes'] = ropes
         gen_context['past_key_values'] = past_key_values
@@ -215,13 +215,12 @@ class BagelGeneration(ModelGeneration):
     def update_context_images(
         self, images: Any, gen_context: Dict[str, Any], vae: bool = True, vit: bool = True
     ) -> Dict[str, Any]:
-        assert self.model is not None
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
 
         # VAE
-        generation_input, kv_lens, ropes = self.model.prepare_vae_images(
+        generation_input, kv_lens, ropes = self.model.prepare_vae_images(  # type: ignore[union-attr]
             curr_kvlens=kv_lens,
             curr_rope=ropes,
             images=images,
@@ -229,17 +228,19 @@ class BagelGeneration(ModelGeneration):
             new_token_ids=self.new_token_ids,
         )
         generation_input["padded_images"] = generation_input["padded_images"].to(self.device)
-        past_key_values = self.model.forward_cache_update_vae(self.vae_model, past_key_values, **generation_input)
+        past_key_values = self.model.forward_cache_update_vae(  # type: ignore[union-attr]
+            self.vae_model, past_key_values, **generation_input)
 
         # ViT
-        generation_input, kv_lens, ropes = self.model.prepare_vit_images(
+        generation_input, kv_lens, ropes = self.model.prepare_vit_images(  # type: ignore[union-attr]
             curr_kvlens=kv_lens,
             curr_rope=ropes,
             images=images,
             transforms=self.vit_transform,
             new_token_ids=self.new_token_ids,
         )
-        past_key_values = self.model.forward_cache_update_vit(past_key_values, **generation_input)
+        past_key_values = self.model.forward_cache_update_vit(  # type: ignore[union-attr]
+            past_key_values, **generation_input)
 
         # Output
         gen_context['past_key_values'] = past_key_values
@@ -249,18 +250,18 @@ class BagelGeneration(ModelGeneration):
         return gen_context
 
     def decode_image(self, latent: Any, image_shape: Any) -> Image.Image:
-        assert self.model is not None
-        assert self.vae_model is not None
         H, W = image_shape
-        h, w = H // self.model.latent_downsample, W // self.model.latent_downsample
-        latent = latent.reshape(1, h, w, self.model.latent_patch_size,
-                                self.model.latent_patch_size, self.model.latent_channel)
+        model = self.model  # type: ignore[union-attr]
+        vae = self.vae_model  # type: ignore[union-attr]
+        h, w = H // model.latent_downsample, W // model.latent_downsample
+        latent = latent.reshape(1, h, w, model.latent_patch_size,
+                                model.latent_patch_size, model.latent_channel)
         latent = torch.einsum("nhwpqc->nchpwq", latent)
-        latent = latent.reshape(1, self.model.latent_channel, h
-                                * self.model.latent_patch_size, w * self.model.latent_patch_size)
+        latent = latent.reshape(1, model.latent_channel, h
+                                * model.latent_patch_size, w * model.latent_patch_size)
         # TODO do this right away instead of float32 to bfloat16
         latent = latent.to(self.param_dtype).to(self.device)  # Ensure dtype matches model
-        image = self.vae_model.decode(latent)
+        image = vae.decode(latent)
         image = (image * 0.5 + 0.5).clamp(0, 1)[0].permute(1, 2, 0) * 255
         image = Image.fromarray((image).to(torch.uint8).cpu().numpy())
         return image
@@ -294,8 +295,6 @@ class BagelGeneration(ModelGeneration):
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True  # Mark running to avoid concurrent calls
-        assert self.model is not None
-        assert self.vae_transform is not None
 
         try:
             # Other arguments
@@ -310,7 +309,7 @@ class BagelGeneration(ModelGeneration):
             image_shape = (height, width)
 
             # https://github.com/ByteDance-Seed/Bagel/blob/main/inferencer.py#L119
-            num_hidden_layers = self.model.config.llm_config.num_hidden_layers
+            num_hidden_layers = self.model.config.llm_config.num_hidden_layers  # type: ignore[union-attr]
             # num_hidden_layers = 32  # Set this up properly
             gen_context = {
                 'kv_lens': [0],
@@ -325,7 +324,7 @@ class BagelGeneration(ModelGeneration):
                     img_latents = []
                     for img in imgs:
                         img_rgb = img.convert("RGB")
-                        img_latent = self.vae_transform.resize_transform(img_rgb)
+                        img_latent = self.vae_transform.resize_transform(img_rgb)  # type: ignore[union-attr]
                         img_latents.append(img_latent)
                     gen_context = self.update_context_images(img_latents, gen_context, vae=not understanding_output)
                     # image_shapes = img_latent.size[::-1]
@@ -342,7 +341,7 @@ class BagelGeneration(ModelGeneration):
                 past_key_values = gen_context['past_key_values']
                 kv_lens = gen_context['kv_lens']
                 ropes = gen_context['ropes']
-                generation_input = self.model.prepare_vae_latent(
+                generation_input = self.model.prepare_vae_latent(  # type: ignore[union-attr]
                     curr_kvlens=kv_lens,
                     curr_rope=ropes,
                     image_sizes=[image_shape],
@@ -364,7 +363,7 @@ class BagelGeneration(ModelGeneration):
                 cfg_text_past_key_values = cfg_text_context['past_key_values']
                 kv_lens_cfg = cfg_text_context['kv_lens']
                 ropes_cfg = cfg_text_context['ropes']
-                generation_input_cfg_text = self.model.prepare_vae_latent_cfg(
+                generation_input_cfg_text = self.model.prepare_vae_latent_cfg(  # type: ignore[union-attr]
                     curr_kvlens=kv_lens_cfg,
                     curr_rope=ropes_cfg,
                     image_sizes=[image_shape],
@@ -376,7 +375,7 @@ class BagelGeneration(ModelGeneration):
                 cfg_img_past_key_values = cfg_img_context['past_key_values']
                 kv_lens_cfg = cfg_img_context['kv_lens']
                 ropes_cfg = cfg_img_context['ropes']
-                generation_input_cfg_img = self.model.prepare_vae_latent_cfg(
+                generation_input_cfg_img = self.model.prepare_vae_latent_cfg(  # type: ignore[union-attr]
                     curr_kvlens=kv_lens_cfg,
                     curr_rope=ropes_cfg,
                     image_sizes=[image_shape],
@@ -403,7 +402,7 @@ class BagelGeneration(ModelGeneration):
                     else:
                         cfg_text_scale_ = 1.0
                         cfg_img_scale_ = 1.0
-                    v_t = self.model._forward_flow(
+                    v_t = self.model._forward_flow(  # type: ignore[union-attr]
                         x_t=x_t,
                         timestep=timestep_tensor,
                         packed_vae_token_indexes=packed_vae_token_indexes,
