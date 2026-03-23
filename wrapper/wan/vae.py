@@ -594,9 +594,9 @@ class WanVAE_(nn.Module):
         self,
         x: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        mu, log_var = self.encode(x)
+        mu, log_var = self.encode(x)  # type: ignore[call-arg]
         z = self.reparameterize(mu, log_var)
-        x_recon = self.decode(z)
+        x_recon = self.decode(z)  # type: ignore[call-arg]
         return x_recon, mu, log_var
 
     def encode_1frame(
@@ -721,7 +721,9 @@ class WanVAE_(nn.Module):
         self.clear_cache()
         return mu
 
-    def decode(self, z, scale, start_frames=1, end_frames=0) -> torch.Tensor:
+    def decode(
+        self, z: torch.Tensor, scale: Tuple[Any, Any], start_frames: int = 1, end_frames: int = 0
+    ) -> torch.Tensor:
         self.clear_cache()
         # z: [b,c,t,h,w]
         if isinstance(scale[0], torch.Tensor):
@@ -841,7 +843,7 @@ class WanVAE_(nn.Module):
         imgs: torch.Tensor,
         deterministic: bool = False
     ) -> torch.Tensor:
-        mu, log_var = self.encode(imgs)
+        mu, log_var = self.encode(imgs)  # type: ignore[call-arg]
         if deterministic:
             return mu
         std = torch.exp(0.5 * log_var.clamp(-30.0, 20.0))
@@ -879,7 +881,7 @@ def _video_vae(
 
     # init model
     with torch.device('meta'):
-        model = WanVAE_(**cfg)
+        model = WanVAE_(**cfg)  # type: ignore[arg-type]
 
     # load checkpoint
     logging.info(f'loading {pretrained_path}')

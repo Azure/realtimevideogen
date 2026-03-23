@@ -277,6 +277,7 @@ class HunyuanAvatarGeneration(USPGeneration):
             self.args.cfg_scale = cfg_scale
             self.args.infer_steps = sampling_steps
             gen_timer.start("hunyuanavatar_generation")
+            assert self.hunyuan_video_sampler is not None
             samples = self.hunyuan_video_sampler.predict(
                 self.args,
                 results,
@@ -300,7 +301,7 @@ class HunyuanAvatarGeneration(USPGeneration):
                 final_frames.append(frame)
             final_frames = np.stack(final_frames, axis=0)
 
-            return await self._output_video(
+            return await self._output_video(  # type: ignore[return-value]
                 job_id,
                 gen_timer,
                 audio_path,
@@ -342,7 +343,7 @@ class HunyuanAvatarGeneration(USPGeneration):
                 return video_binary
 
             logging.error(f"Unknown output type: {output_type}")
-            return None
+            return None  # type: ignore[return-value]
         finally:
             gen_timer.end("output")
 

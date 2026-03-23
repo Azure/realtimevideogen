@@ -134,8 +134,8 @@ class CogViewGeneration(ModelGeneration):
         self.load_timer.start("compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
         if hasattr(self.pipeline, 'transformer'):
-            self.pipeline.transformer = torch.compile(
-                self.pipeline.transformer,
+            self.pipeline.transformer = torch.compile(  # type: ignore[union-attr]
+                self.pipeline.transformer,  # type: ignore[union-attr]
                 mode="max-autotune-no-cudagraphs"
             )
         self.load_timer.end("compile")
@@ -209,7 +209,7 @@ class CogViewGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(
+            output = self.pipeline(  # type: ignore[misc]
                 prompt=prompt,
                 height=height,
                 width=width,
