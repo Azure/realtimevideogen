@@ -6,9 +6,11 @@ from __future__ import annotations
 import numpy as np
 
 from matplotlib import pyplot as plt
+from matplotlib.colors import ListedColormap
 from matplotlib.markers import MarkerStyle
 
 from typing import Optional
+from typing import cast
 
 from utils import get_pareto_frontier
 
@@ -22,7 +24,7 @@ FIG_SIZE = (7, 5)
 
 
 def get_color_map() -> list[tuple[float, float, float]]:
-    return plt.get_cmap('tab10').colors
+    return cast(ListedColormap, plt.get_cmap('tab10')).colors
 
 
 def _get_time_ticklabels(
@@ -92,7 +94,7 @@ def plot_x_vs_y(
     plt.rcParams.update({'font.size': 12})
 
     # Define color map
-    tab10 = plt.get_cmap("tab10").colors
+    tab10 = cast(ListedColormap, plt.get_cmap("tab10")).colors
     colors = tab10
     markers = ["o", "^", "s", "D", "P", "X"]  # circle, triangle_up, square, diamond, plus, x
 
