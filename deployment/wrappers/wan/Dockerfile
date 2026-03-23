@@ -24,6 +24,7 @@ RUN conda run -n streamwise hf download Wan-AI/Wan2.1-I2V-14B-480P --local-dir /
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
+COPY docker_files/*.json .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
 
