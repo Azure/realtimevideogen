@@ -269,8 +269,8 @@ Deploy model services through the StreamWise web UI or REST API.
 
 > **Capacity planning:** A single `Standard_ND96isrf_H100_v5` node provides 8 GPUs.
 > The recommended setup is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services.
-> With the [MIG layout above](#option-b-manual-mig-configuration-any-gpu-node--recommended) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), kokoro, yolo, and similar services each consume only a single MIG slice, leaving 7 whole GPUs available for Gemma, Flux, Wan, HunyuanFramePack, etc.
-> For parallel execution of all services, add a second GPU node.
+> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice, leaving 7 whole GPUs available for Gemma, Flux, Wan, HunyuanFramePack, etc.
+> For parallel execution of all services, add more GPU nodes.
 
 The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
 Use the REST API to deploy all services at once:
