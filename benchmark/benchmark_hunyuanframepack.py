@@ -5,6 +5,8 @@ import random
 import argparse
 import re
 
+from typing import Optional
+
 from benchmark_commons import HEADERS_JSON
 from benchmark_commons import setup_logging
 from benchmark_commons import log_and_print
@@ -59,12 +61,13 @@ class ServiceHunyuanFramePackRequestInfo(ServiceRequestInfo):
         #    "torch_compile,num_steps,total_steps_time,avg_steps_time,total_time"
 
 
-def get_server_request_info(container_ip: str, container_port: int) -> ServiceHunyuanFramePackRequestInfo:
+def get_server_request_info(container_ip: str, container_port: int) -> Optional[ServiceHunyuanFramePackRequestInfo]:
     url_health = f"http://{container_ip}:{container_port}/health"
     response_health = requests.get(url_health, timeout=10)
     if response_health.ok:
         data_json = response_health.json()
         return ServiceHunyuanFramePackRequestInfo(data_json)
+    return None
 
 
 RANDOM_PROMPTS = [
@@ -128,14 +131,14 @@ if not os.path.exists("output"):
 
 
 if __name__ == "__main__":
-    argparse = argparse.ArgumentParser(description="Benchmark Hunyuan FramePack server performance")
-    argparse.add_argument("--container_ip", type=str, default=None)
-    argparse.add_argument("--container_port", type=int, default=-1)
-    argparse.add_argument("--container", type=str, default=None)
-    argparse.add_argument("--input_img", type=str, default=None, help="Path to input image (will be resized)")
-    argparse.add_argument("--output_csv", type=str, default="hunyuanframepack.csv",
-                          help="Output CSV file for results")
-    args = argparse.parse_args()
+    parser = argparse.ArgumentParser(description="Benchmark Hunyuan FramePack server performance")
+    parser.add_argument("--container_ip", type=str, default=None)
+    parser.add_argument("--container_port", type=int, default=-1)
+    parser.add_argument("--container", type=str, default=None)
+    parser.add_argument("--input_img", type=str, default=None, help="Path to input image (will be resized)")
+    parser.add_argument("--output_csv", type=str, default="hunyuanframepack.csv",
+                        help="Output CSV file for results")
+    args = parser.parse_args()
 
     container_ip = args.container_ip
     container_port = args.container_port
@@ -194,6 +197,9 @@ if __name__ == "__main__":
                     response = requests.post(url, json=payload, headers=HEADERS_JSON, timeout=600)
 
                     server_req_info = get_server_request_info(container_ip, container_port)
+                    if server_req_info is None:
+                        logging.error("Failed to get server request info, skipping run")
+                        continue
                     server_req_info_csv = server_req_info.to_csv_str()
 
                     if response.ok and "video/mp4" in response.headers.get("Content-Type", ""):
@@ -221,6 +227,10 @@ if __name__ == "__main__":
                         video_info = video_file_info["video"]
                         response_w, response_h = video_info["width"], video_info["height"]
                         video_num_frames = video_info["num_frames"]
+                        frame_count_mismatch = (
+                            video_num_frames is not None
+                            and (video_num_frames < test_frames - 1 or video_num_frames > test_frames + 1)
+                        )
 
                         # TODO verify there is some audio
                         # TODO verify there is some video
@@ -235,7 +245,7 @@ if __name__ == "__main__":
                             line_csv = f"{num_run},{test_steps},{test_frames},{test_w},{test_h}," + \
                                        f"{server_req_info_csv},-1"
                             log_and_print(output_csv, line_csv)
-                        elif video_num_frames < test_frames - 1 or video_num_frames > test_frames + 1:
+                        elif frame_count_mismatch:
                             # Add some margin because of the audio length
                             logging.error(f"Expected {test_frames} frames, but got {video_num_frames} frames")
                             line_csv = f"{num_run},{test_steps},{test_frames},{test_w},{test_h}," + \
