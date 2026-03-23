@@ -101,7 +101,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         super().__del__()
 
     def init_parallelism(self) -> None:
-        self.load_timer.start("torch_dist")
+        self.load_timer.start("torch_dist")  # type: ignore[has-type]
 
         logging.info("Initializing distributed environment...")
 
@@ -120,7 +120,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
         if self.world_size <= 1:
             logging.info("World size is 1, skipping distributed initialization.")
-            self.load_timer.end("torch_dist")
+            self.load_timer.end("torch_dist")  # type: ignore[has-type]
             return
 
         if not dist.is_initialized():
@@ -143,7 +143,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
         initialize_sequence_parallel_state(self.world_size)
 
-        self.load_timer.end("torch_dist")
+        self.load_timer.end("torch_dist")  # type: ignore[has-type]
 
     def load_model(self) -> None:
         self.rank = 0

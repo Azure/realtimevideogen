@@ -22,7 +22,7 @@ FIG_SIZE = (7, 5)
 
 
 def get_color_map() -> list[tuple[float, float, float]]:
-    return plt.get_cmap('tab10').colors  # type: ignore[attr-defined]
+    return plt.get_cmap('tab10').colors
 
 
 def _get_time_ticklabels(
@@ -92,7 +92,7 @@ def plot_x_vs_y(
     plt.rcParams.update({'font.size': 12})
 
     # Define color map
-    tab10 = plt.get_cmap("tab10").colors  # type: ignore[attr-defined]
+    tab10 = plt.get_cmap("tab10").colors
     colors = tab10
     markers = ["o", "^", "s", "D", "P", "X"]  # circle, triangle_up, square, diamond, plus, x
 

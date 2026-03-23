@@ -363,7 +363,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             return generation_config, model_kwargs, input_ids
 
     @torch.no_grad()
-    def generate(  # type: ignore[override]
+    def generate(
         self,
         inputs: Optional[torch.Tensor] = None,
         generation_config: Optional[GenerationConfig] = None,

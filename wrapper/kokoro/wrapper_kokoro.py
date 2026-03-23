@@ -220,6 +220,7 @@ class KokoroGeneration(ModelGeneration):
             return None
         finally:
             gen_timer.end("output_audio")
+        raise ValueError("No audio was generated.")
 
     def get_health(self) -> Dict[str, Any]:
         ret = super().get_health()

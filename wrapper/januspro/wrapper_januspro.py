@@ -170,7 +170,7 @@ class JanusProGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         prompt: str,
         temperature: float = 1.0,

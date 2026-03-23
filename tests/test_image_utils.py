@@ -22,6 +22,7 @@ class TestImageUtils(TestCase):
 
         base64_str = img_to_base64(image)
         self.assertIsInstance(base64_str, str)
+        assert base64_str is not None
 
         image_from_base64 = base64_to_img(base64_str)
         self.assertIsInstance(image_from_base64, Image.Image)
@@ -44,13 +45,13 @@ class TestImageUtils(TestCase):
         self.assertAlmostEqual(image_info['aspect_ratio'], 4.0 / 3.0, delta=0.1)
 
         with self.assertRaises(TypeError):
-            img_to_base64(12345)  # type: ignore[arg-type]
+            img_to_base64(12345)
         with self.assertRaises(TypeError):
             base64_to_img(12345)  # type: ignore[arg-type]
         with self.assertRaises(Exception):
             base64_to_img("not-a-real-base64-string")
         with self.assertRaises(TypeError):
-            img_to_bytesio(12345)  # type: ignore[arg-type]
+            img_to_bytesio(12345)
         with self.assertRaises(FileNotFoundError):
             get_image_file_info("non_existent_file.png")
         with self.assertRaises(TypeError):

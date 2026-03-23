@@ -440,7 +440,7 @@ async def slidetranscript_stream() -> QuartReturn:
         async def slide_transcript_generate() -> AsyncIterable[str]:
             try:
                 async with aiofiles.open(f"{TMP_DIR}/{job_id}_slides.jsonl", "w") as f_out:
-                    async for scene in model.generate_stream(**args):  # type: ignore[attr-defined]
+                    async for scene in model.generate_stream(**args):
                         line = json.dumps(scene) + "\n"
                         await f_out.write(line)
                         await f_out.flush()
@@ -487,7 +487,7 @@ async def podcasttranscript_stream() -> QuartReturn:
         async def podcast_transcript_generate() -> AsyncIterable[str]:
             try:
                 async with aiofiles.open(f"{TMP_DIR}/{job_id}_podcast.jsonl", "w") as f_out:
-                    async for scene in model.generate_stream(**args):  # type: ignore[attr-defined]
+                    async for scene in model.generate_stream(**args):
                         line = json.dumps(scene) + "\n"
                         await f_out.write(line)
                         await f_out.flush()
@@ -909,7 +909,7 @@ async def hunyuanframepackf1_e2e() -> QuartReturn:
 async def hunyuanframepack_vae() -> QuartReturn:
     """Hunyuan FramePack VAE decode endpoint."""
     model = get_model("hunyuanframepack", "vae")
-    if model is None or model.vae is None:  # type: ignore[attr-defined]
+    if model is None or model.vae is None:
         return jsonify({"error": "Hunyuan FramePack VAE not available"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return await gen_video(model)
 
@@ -926,7 +926,7 @@ async def hunyuanframepackvae() -> QuartReturn:
 async def hunyuanframepack_vae_binary(job_id: str) -> QuartReturn:
     """Hunyuan FramePack VAE decode binary endpoint."""
     model = get_model("hunyuanframepack", "vae")
-    if model is None or model.vae is None:  # type: ignore[attr-defined]
+    if model is None or model.vae is None:
         return jsonify({"error": "Hunyuan FramePack VAE not available"}), HTTPStatus.INTERNAL_SERVER_ERROR
     if job_id is None:
         return jsonify({"error": "Missing 'job_id' parameter"}), HTTPStatus.BAD_REQUEST
@@ -1004,7 +1004,7 @@ async def wan_vae() -> QuartReturn:
     """Wan VAE decode endpoint."""
     # TODO this is not tested
     model = get_model("wanvae")
-    if model is None or model.vae is None:  # type: ignore[attr-defined]
+    if model is None or model.vae is None:
         return jsonify({"error": "Wan VAE not available"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     try:
@@ -1020,7 +1020,7 @@ async def wan_vae() -> QuartReturn:
         latents = base64_to_tensor(latents_base64)
 
         # Run locally in a single GPU
-        pixels = await asyncio.to_thread(model.vae_decode, latents)  # type: ignore[attr-defined]
+        pixels = await asyncio.to_thread(model.vae_decode, latents)
 
         # Save the pixels to a file
         file_path = f"{TMP_DIR}/{job_id}_pixels.pt"

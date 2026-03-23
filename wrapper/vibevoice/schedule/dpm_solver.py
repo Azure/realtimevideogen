@@ -385,7 +385,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 _ts_leading = (
                     (np.arange(0, num_inference_steps + 1) * step_ratio).round()[::-1][:-1].copy().astype(np.int64)
                 )
-                _ts_leading += self.config.steps_offset  # type: ignore[attr-defined]
+                _ts_leading += self.config.steps_offset
                 ts = _ts_leading
             elif self.config.timestep_spacing == "trailing":
                 step_ratio = self.config.num_train_timesteps / num_inference_steps

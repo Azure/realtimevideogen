@@ -42,7 +42,7 @@ class HunyuanFramepackF1Generation(HunyuanFramePackBase):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -142,7 +142,7 @@ class HunyuanFramepackF1Generation(HunyuanFramePackBase):
             for it in range(total_latent_sections):
                 logging.debug(f"Running step {it + 1}.")
 
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(
                         f"Generation interrupted at step {it + 1} of {total_latent_sections}.")

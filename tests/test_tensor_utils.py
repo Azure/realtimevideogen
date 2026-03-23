@@ -52,7 +52,7 @@ def test_tensor_file() -> None:
     os.remove("test_tensor.pt")
 
     with pytest.raises(TypeError):
-        get_tensor_file_info(None)
+        get_tensor_file_info(None)  # type: ignore[arg-type]
     with pytest.raises(FileNotFoundError):
         get_tensor_file_info("nonexisting.pt")
 
@@ -64,7 +64,7 @@ def test_base64_invalid() -> None:
     with pytest.raises(TypeError):
         base64_to_tensor(12345)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        tensor_to_base64("12345")  # type: ignore[arg-type]
+        tensor_to_base64("12345")
     with pytest.raises(binascii.Error):
         base64_to_tensor("NOTBASE64")
     with pytest.raises(TypeError):

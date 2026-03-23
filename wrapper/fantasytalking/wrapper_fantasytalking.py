@@ -311,7 +311,7 @@ class FantasyTalking(USPGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         video: Optional[List[Image.Image]],
