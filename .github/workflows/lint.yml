@@ -49,12 +49,12 @@ jobs:
       if: always()
       uses: reviewdog/action-setup@v1
 
-    - name: Flake8 reviewdog
+    - name: Python reviewdog
       if: always()
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cat flake8-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="flake8" -reporter=github-check -level=warning || true
+        cat flake8-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="Python" -reporter=github-check -level=warning || true
 
     - name: Run shell lint
       if: always()
@@ -64,12 +64,12 @@ jobs:
         cat shellcheck-results.txt
         exit $SC_EXIT
 
-    - name: Shellcheck reviewdog
+    - name: Shell reviewdog
       if: always()
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cat shellcheck-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="shellcheck" -reporter=github-check -level=warning || true
+        cat shellcheck-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="Shell" -reporter=github-check -level=warning || true
 
     - name: Run HTML/Jinja lint
       if: always()
@@ -91,7 +91,7 @@ jobs:
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cat yamllint-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="yamllint" -reporter=github-check -level=warning || true
+        cat yamllint-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="YAML" -reporter=github-check -level=warning || true
 
     - name: Run JSON lint
       if: always()
@@ -120,7 +120,7 @@ jobs:
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cat jsonlint-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="jsonlint" -reporter=github-check -level=error || true
+        cat jsonlint-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="JSON" -reporter=github-check -level=error || true
 
     - name: Lint summary
       if: always()
@@ -130,41 +130,41 @@ jobs:
           echo ""
           if [ -s flake8-results.txt ]; then
             FLAKE8_COUNT=$(wc -l < flake8-results.txt)
-            echo "**flake8:** ${FLAKE8_COUNT} issue(s)"
+            echo "**Python:** ${FLAKE8_COUNT} issue(s)"
             echo '```'
             head -20 flake8-results.txt
             echo '```'
           else
-            echo "**flake8:** No issues found :white_check_mark:"
+            echo "**Python:** No issues found :white_check_mark:"
           fi
           echo ""
           if [ -s shellcheck-results.txt ]; then
             SC_COUNT=$(wc -l < shellcheck-results.txt)
-            echo "**shellcheck:** ${SC_COUNT} issue(s)"
+            echo "**Shell:** ${SC_COUNT} issue(s)"
             echo '```'
             head -20 shellcheck-results.txt
             echo '```'
           else
-            echo "**shellcheck:** No issues found :white_check_mark:"
+            echo "**Shell:** No issues found :white_check_mark:"
           fi
           echo ""
           if [ -s yamllint-results.txt ] && grep -q '\[error\]' yamllint-results.txt; then
             YL_COUNT=$(grep -c '\[error\]' yamllint-results.txt || true)
-            echo "**yamllint:** ${YL_COUNT} error(s)"
+            echo "**YAML:** ${YL_COUNT} error(s)"
             echo '```'
             head -20 yamllint-results.txt
             echo '```'
           else
-            echo "**yamllint:** No errors found :white_check_mark:"
+            echo "**YAML:** No errors found :white_check_mark:"
           fi
           echo ""
           if grep -q 'INVALID' jsonlint-results.txt 2>/dev/null; then
-            echo "**jsonlint:** Invalid JSON files found"
+            echo "**JSON:** Invalid JSON files found"
             echo '```'
             cat jsonlint-results.txt
             echo '```'
           else
-            echo "**jsonlint:** No issues found :white_check_mark:"
+            echo "**JSON:** No issues found :white_check_mark:"
           fi
         } | tee lint-summary.md >> "$GITHUB_STEP_SUMMARY"
 
