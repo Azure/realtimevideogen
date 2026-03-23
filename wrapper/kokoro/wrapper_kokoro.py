@@ -158,7 +158,7 @@ class KokoroGeneration(ModelGeneration):
         lang_code: str = Language.AMERICAN_ENGLISH.value,
         job_id: Optional[str] = None,
         output_type: str = "audio_path",
-    ) -> Union[str, Tensor]:
+    ) -> Optional[Union[str, Tensor]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True  # We can run in parallel but good to know if we are running
@@ -199,7 +199,7 @@ class KokoroGeneration(ModelGeneration):
         gen_timer: GenTimer,
         audios: List[Tensor],
         output_type: str = "audio_path",  # "audio_path"
-    ) -> Union[str, Tensor]:
+    ) -> Optional[Union[str, Tensor]]:
         gen_timer.start("output_audio")
         if len(audios) > 1:
             logging.warning("Multiple audio chunks generated, returning the first one.")
@@ -217,9 +217,9 @@ class KokoroGeneration(ModelGeneration):
                     audio=audio,
                     audio_path=audio_path)
                 return audio_path
+            return None
         finally:
             gen_timer.end("output_audio")
-        raise ValueError("No audio was generated.")
 
     def get_health(self) -> Dict[str, Any]:
         ret = super().get_health()
