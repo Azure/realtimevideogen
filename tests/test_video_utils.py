@@ -319,23 +319,16 @@ async def test_get_video_frames(num_frames: int, fps: float) -> None:
     video_frames_out = await get_video_frames(video_binary)
     assert len(video_frames_out) == num_frames
 
-    video_file_info = get_video_file_info(video_binary)
-    assert "video" in video_file_info
-    video_info = video_file_info["video"]
-    assert video_info is not None
-    assert video_info.get("width") == width
-    assert video_info.get("height") == height
-    assert video_info.get("num_frames") == num_frames
-    assert video_info.get("num_frames") == len(video_frames_out)
-    assert video_info.get("fps") == fps
-    duration_seconds = video_info.get("duration_seconds")
+    video_info = get_video_file_info(video_binary)
+    assert video_info["video"]["width"] == width
+    assert video_info["video"]["height"] == height
+    assert video_info["video"]["num_frames"] == num_frames
+    assert video_info["video"]["num_frames"] == len(video_frames_out)
+    assert video_info["video"]["fps"] == fps
+    duration_seconds = video_info["video"]["duration_seconds"]
     assert duration_seconds is not None
     assert abs(duration_seconds - (num_frames / fps)) < 0.01
-    video_overall_info = video_file_info.get("overall")
-    assert video_overall_info is not None
-    num_bytes = video_overall_info.get("num_bytes")
-    assert num_bytes is not None
-    assert num_bytes > 1000
+    assert video_info["overall"]["num_bytes"] > 1000
 
     os.remove(video_path)
     del video_frames
@@ -437,14 +430,13 @@ async def test_save_video_frames_audio() -> None:
 
     assert "video" in video_file_info
     video_info = video_file_info["video"]
-    assert video_info is not None
-    assert video_info.get("fps") == FPS, f"Video info: {video_file_info}"
-    assert video_info.get("num_frames") == 113, f"Video info: {video_file_info}"
-    assert video_info.get("width") == 180, f"Video info: {video_file_info}"
-    assert video_info.get("height") == 100, f"Video info: {video_file_info}"
-    video_duration_seconds = video_info.get("duration_seconds")
-    assert video_duration_seconds is not None
-    assert_approx(video_duration_seconds, 4.913)  # 113 / 23
+    assert video_info["fps"] == FPS, f"Video info: {video_file_info}"
+    assert video_info["num_frames"] == 113, f"Video info: {video_file_info}"
+    assert video_info["width"] == 180, f"Video info: {video_file_info}"
+    assert video_info["height"] == 100, f"Video info: {video_file_info}"
+    duration_seconds = video_info["duration_seconds"]
+    assert duration_seconds is not None
+    assert_approx(duration_seconds, 4.913)  # 113 / 23
 
     assert "audio" not in video_file_info
 
@@ -478,19 +470,12 @@ async def test_save_video_frames_audio() -> None:
         msg=f"Video info: {video_file_info}")
     """
     logging.warning(f"Video info: {video_file_info}")
-    num_frames = video_info.get("num_frames")
-    assert num_frames is not None
-    assert num_frames > 100
-    video_duration_seconds = video_info.get("duration_seconds")
-    assert video_duration_seconds is not None
-    assert video_duration_seconds > 4.0
+    assert video_info["num_frames"] is not None and video_info["num_frames"] > 100
+    assert video_info["duration_seconds"] is not None and video_info["duration_seconds"] > 4.0
 
     assert "audio" in video_file_info
     audio_info = video_file_info["audio"]
-    assert audio_info is not None
-    audio_duration_seconds = audio_info.get("duration_seconds")
-    assert audio_duration_seconds is not None
-    assert audio_duration_seconds > 0
+    assert audio_info["duration_seconds"] is not None and audio_info["duration_seconds"] > 0
     """
     # assert_approx(audio_info["duration_seconds"], 4.913)
     assert_approx(
@@ -498,7 +483,7 @@ async def test_save_video_frames_audio() -> None:
         msg=f"Video info: {video_file_info}")  # TODO this is not good
     """
     logging.info(f"Audio info: {audio_info}")
-    assert audio_duration_seconds > 4.0
+    assert audio_info["duration_seconds"] is not None and audio_info["duration_seconds"] > 4.0
 
     os.remove(video_path)
 

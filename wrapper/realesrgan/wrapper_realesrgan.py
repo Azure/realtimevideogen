@@ -21,6 +21,7 @@ from typing import Optional
 from typing import Union
 from typing import Dict
 from typing import Any
+from typing import Any
 
 from model_timing import GenTimer
 from wrapper_model import ModelGeneration
@@ -196,7 +197,7 @@ class RealESRGANGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         job_id: Optional[str] = None,
         image: Optional[Image.Image] = None,
@@ -223,7 +224,7 @@ class RealESRGANGeneration(ModelGeneration):
                     video_len = get_video_size(video)
                     logging.info(
                         f"[{self.rank}] Upscaling video with {len(video)} frames and {bytes_to_human(video_len)}.")
-                ret = []
+                ret: list[Any] = []
                 video_frames = video
                 chunked_video_frames = self._chunk_list_image(video_frames)
                 for it, frame in enumerate(chunked_video_frames):

@@ -200,7 +200,7 @@ class StreamWiseApp(ABC):
 
     def get_http_status_from_exception(
         self,
-        ex: Exception
+        ex: BaseException
     ) -> HTTPStatus:
         """Map exceptions to HTTP status codes."""
         if isinstance(ex, ValueError):

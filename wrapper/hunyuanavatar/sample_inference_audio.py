@@ -3,6 +3,8 @@ import time
 import torch
 from typing import Tuple
 from typing import Dict
+from typing import Any
+from typing import Optional
 from loguru import logger
 from einops import rearrange
 from hymm_sp.diffusion import load_diffusion_pipeline
@@ -12,13 +14,14 @@ from hymm_sp.data_kits.audio_preprocessor import encode_audio, get_facemask
 import logging
 
 
-def align_to(value, alignment):
+def align_to(value: float, alignment: float) -> int:
     return int(math.ceil(value / alignment) * alignment)
 
 
 class HunyuanVideoSampler(Inference):
-    def __init__(self, args, vae, vae_kwargs, text_encoder, model, text_encoder_2=None, pipeline=None,
-                 device=0, logger=None):
+    def __init__(self, args: Any, vae: Any, vae_kwargs: Any, text_encoder: Any, model: Any,
+                 text_encoder_2: Any = None, pipeline: Any = None,
+                 device: Any = 0, logger: Any = None) -> None:
         super().__init__(args, vae, vae_kwargs, text_encoder, model, text_encoder_2=text_encoder_2,
                          pipeline=pipeline, device=device, logger=logger)
 
@@ -71,9 +74,9 @@ class HunyuanVideoSampler(Inference):
 
     @torch.no_grad()
     def predict(self,
-                args,
-                batch, wav2vec, feature_extractor, align_instance,
-                **kwargs):
+                args: Any,
+                batch: Any, wav2vec: Any, feature_extractor: Any, align_instance: Any,
+                **kwargs: Any) -> Optional[Dict[str, Any]]:
         """
         Predict the image from the given text.
 
