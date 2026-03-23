@@ -180,6 +180,23 @@ class K8sService:
         return f"K8sService(name={self.name}, containers={len(self.containers)})"
 
 
+def parse_mig_resources(resources: Optional[Dict[str, str]]) -> Dict[str, int]:
+    """Extract MIG partition resources from a Kubernetes resource dict.
+
+    Scans for keys matching ``nvidia.com/mig-<profile>`` and returns a mapping
+    of profile name to count, e.g. ``{"1g.5gb": 7, "2g.10gb": 3}``.
+    """
+    mig: Dict[str, int] = {}
+    if resources is None:
+        return mig
+    MIG_RESOURCE_PREFIX = "nvidia.com/mig-"
+    for key, value in resources.items():
+        if key.startswith(MIG_RESOURCE_PREFIX):
+            profile = key[len(MIG_RESOURCE_PREFIX):]
+            mig[profile] = int(value)
+    return mig
+
+
 def parse_k8s_resource_quantity(quantity: str) -> Union[int, float]:
     """Parse Kubernetes resource quantity strings into numeric values."""
     try:
@@ -338,14 +355,12 @@ async def get_k8s_pods(
                     cpu = parse_k8s_resource_quantity(resources.get("cpu", "0"))
                     memory = parse_k8s_resource_quantity(resources.get("memory", "0"))
                     gpu = int(resources.get("nvidia.com/gpu", 0))
-                    # A pod using MIG requests nvidia.com/mig-<profile> instead of
-                    # nvidia.com/gpu; the two resource types are mutually exclusive.
-                    if gpu == 0:
-                        for resource_key, resource_val in resources.items():
-                            if resource_key.startswith("nvidia.com/mig-"):
-                                mig_profile = resource_key[len("nvidia.com/mig-"):]
-                                gpu = int(resource_val)
-                                break
+
+                    mig_resources = parse_mig_resources(resources)
+                    if mig_resources:
+                        mig_profile = next(iter(mig_resources))
+                        gpu = mig_resources[mig_profile]
+
                 if container.ports:
                     for container_port in container.ports:
                         if pod_ip and container_port and container_port.container_port:
