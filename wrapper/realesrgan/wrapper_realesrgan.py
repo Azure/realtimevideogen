@@ -21,7 +21,6 @@ from typing import Optional
 from typing import Union
 from typing import Dict
 from typing import Any
-from typing import Any
 
 from model_timing import GenTimer
 from wrapper_model import ModelGeneration

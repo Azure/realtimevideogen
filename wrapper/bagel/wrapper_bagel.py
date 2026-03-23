@@ -211,7 +211,9 @@ class BagelGeneration(ModelGeneration):
         return gen_context
 
     @inference_mode()
-    def update_context_images(self, images: Any, gen_context: Dict[str, Any], vae: bool = True, vit: bool = True) -> Dict[str, Any]:
+    def update_context_images(
+        self, images: Any, gen_context: Dict[str, Any], vae: bool = True, vit: bool = True
+    ) -> Dict[str, Any]:
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
