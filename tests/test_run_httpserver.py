@@ -296,3 +296,39 @@ async def test_health() -> None:
     health = await response.json
     assert health is not None
     assert "mockmodel" in health
+
+
+def test_setup_dist_environment_non_mig() -> None:
+    """setup_dist_environment uses local_rank as device_id when multiple GPUs are visible (non-MIG)."""
+    env = {
+        "MASTER_ADDR": "localhost",
+        "MASTER_PORT": "12355",
+        "RANK": "1",
+        "LOCAL_RANK": "1",
+        "WORLD_SIZE": "2",
+        "LOCAL_WORLD_SIZE": "2",
+    }
+    with patch.dict(os.environ, env, clear=False):
+        mock_torch.cuda.is_available.return_value = True
+        mock_torch.cuda.device_count.return_value = 2
+        run_httpserver.setup_dist_environment()
+        mock_torch.cuda.set_device.assert_called_with(1)
+
+
+def test_setup_dist_environment_mig() -> None:
+    """setup_dist_environment uses device 0 when MIG restricts container to a single visible device."""
+    env = {
+        "MASTER_ADDR": "localhost",
+        "MASTER_PORT": "12355",
+        "RANK": "1",
+        "LOCAL_RANK": "1",
+        "WORLD_SIZE": "2",
+        "LOCAL_WORLD_SIZE": "2",
+    }
+    with patch.dict(os.environ, env, clear=False):
+        mock_torch.cuda.is_available.return_value = True
+        # MIG: each process sees only its own MIG instance (device_count=1)
+        mock_torch.cuda.device_count.return_value = 1
+        run_httpserver.setup_dist_environment()
+        # local_rank=1 is out of range; should fall back to device 0
+        mock_torch.cuda.set_device.assert_called_with(0)

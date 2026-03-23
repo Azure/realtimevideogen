@@ -67,6 +67,7 @@ class TorchMock(MagicMock):
         # Mock torch.cuda.memory_allocated
         self.cuda = MagicMock()
         self.cuda.memory_allocated.return_value = 0
+        self.cuda.device_count.return_value = 1
         self.cuda.get_device_name.side_effect = lambda device=None: f"MockDevice:{device if device is not None else 0}"
         self.cuda.synchronize = lambda device=None: None
 
