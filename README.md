@@ -4,7 +4,7 @@ It dynamically balances latency, cost, and quality, and supports both streaming 
 
 It uses a cluster manager called StreamWise.
 We have implemented [multiple applications](apps/README.md) that run on top of StreamWise.
-For example, [StreamCast](apps/README.md) is a service that generates real-time video podcasts from input documents (e.g., PDFs).
+For example, [StreamCast](apps/README.md) is an application that generates real-time video podcasts from input documents (e.g., PDFs).
 
 ---
 
@@ -55,11 +55,11 @@ We frame hardware and model selection for a workload (e.g., a 10-minute medium-q
 After selecting a configuration, the hardware and model provisioners handle setup accordingly.
 More details [here](docs/provisioning.md).
 
-### Request scheduler
+### 📅 Request scheduler
 The request scheduler orchestrates execution using a live, iterative version of our greedy algorithm informed by the request DAG.
 More details [here](docs/scheduler.md).
 
-### Model wrapper
+### 📦 Model wrapper
 A Python wrapper that exposes an HTTP endpoint for existing multi-modal generation models (e.g., [Flux](https://github.com/black-forest-labs/flux) or [Wan](https://github.com/Wan-Video/Wan2.1)).
 It allows triggering multi-modal generations (e.g., video from text) and collect statistics.
 The manager also handles request batching and adjusts GPU frequencies to optimize resource usage.
@@ -71,15 +71,15 @@ We implemented multiple workflows for multi-modal generation.
 More details [here](apps/README.md).
 
 
-## 📦 Deployment
+## 🚀 Deployment
 We build StreamWise on top of a [Kubernetes (K8s)](https://kubernetes.io/) cluster:
 a widely adopted cluster manager that enables modular deployment, auto-scaling, service discovery, and fault tolerance.
 More details [here](deployment/README.md).
 
-### Kubernetes
+### ☸️ Kubernetes
 Our Docker containers to run on [K8s](https://kubernetes.io/).
 
-#### Azure Kubernetes Service (AKS)
+#### ☁️ Azure Kubernetes Service (AKS)
 To deploy on [Azure Kubernetes Service (AKS)](https://learn.microsoft.com/en-us/azure/aks/what-is-aks) follow the instructions [here](deployment/aks/README.md).
 
 
