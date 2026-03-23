@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-debug
+  namespace: default
+spec:
+  nodeName: ${GPU_NODE}
+  hostPID: true
+  tolerations:
+  - operator: Exists
+  containers:
+  - name: debug
+    image: mcr.microsoft.com/azurelinux/base/core:3.0
+    command: ["sleep", "3600"]
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: host
+      mountPath: /host
+  volumes:
+  - name: host
+    hostPath:
+      path: /
+  restartPolicy: Never
