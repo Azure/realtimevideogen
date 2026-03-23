@@ -297,3 +297,54 @@ async def test_gpu_row_excludes_mig_pods() -> None:
     # not "2.0" (which would include the MIG pod).
     # Check the MIG row shows 1 allocated for 1g.10gb
     assert "1g.10gb" in response_text
+
+
+@pytest.mark.asyncio
+async def test_mixed_full_gpu_and_mig() -> None:
+    """Nodes table shows both the full GPU count and MIG profiles (7 full + 1 MIG-partitioned)."""
+    app = streamwise.app
+    client = app.test_client()
+    mig_node: Dict[str, Any] = dict(_MOCK_NODE)
+    mig_node["mig_enabled"] = True
+    mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
+    mig_node["capacity_resources"] = dict(mig_node["capacity_resources"])
+    mig_node["capacity_resources"]["gpu"] = 7
+    mig_node["allocatable_resources"] = dict(mig_node["allocatable_resources"])
+    mig_node["allocatable_resources"]["gpu"] = 7
+    mig_node["mig_resources"] = {
+        "1g.10gb": {"capacity": 3, "allocatable": 3},
+        "2g.20gb": {"capacity": 2, "allocatable": 2},
+    }
+    with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[mig_node])):
+        with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
+            response = await client.get("/nodes")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    # Full GPU count visible
+    assert "7" in response_text
+    # MIG badge and profiles visible
+    assert "MIG" in response_text
+    assert "1g.10gb" in response_text
+    assert "2g.20gb" in response_text
+
+
+@pytest.mark.asyncio
+async def test_pure_mig_node_gpu_na() -> None:
+    """Resources table handles gpu=N/A without error on pure-MIG nodes."""
+    app = streamwise.app
+    client = app.test_client()
+    mig_node: Dict[str, Any] = dict(_MOCK_NODE)
+    mig_node["mig_enabled"] = True
+    mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
+    mig_node["capacity_resources"] = dict(mig_node["capacity_resources"])
+    mig_node["capacity_resources"]["gpu"] = "N/A"
+    mig_node["allocatable_resources"] = dict(mig_node["allocatable_resources"])
+    mig_node["allocatable_resources"]["gpu"] = "N/A"
+    mig_node["mig_resources"] = {"1g.10gb": {"capacity": 7, "allocatable": 7}}
+    with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[mig_node])):
+        with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
+            response = await client.get("/node/testnode")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "1g.10gb" in response_text
+    assert "MIG" in response_text

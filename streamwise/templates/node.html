@@ -77,8 +77,13 @@
                                 {{ node.allocatable_resources.storage | format_bytes | safe }}
                             </td>
                             <td>
+                                {% set gpu_count = node.allocatable_resources.gpu %}
+                                {% set has_full_gpus = gpu_count and gpu_count != "N/A" and gpu_count | int > 0 %}
+                                {% if has_full_gpus %}
+                                    {{ gpu_count }} &times; {{ node.gpu_model | format_gpu_model | safe }}
+                                {% endif %}
                                 {% if node.mig_enabled %}
-                                    {% if node.gpu_model and node.gpu_model != "N/A" %}
+                                    {% if not has_full_gpus and node.gpu_model and node.gpu_model != "N/A" %}
                                         {{ node.gpu_model | format_gpu_model | safe }}
                                     {% endif %}
                                     <span class="badge bg-info ms-1" title="Multi-Instance GPU enabled">MIG</span>
@@ -89,10 +94,8 @@
                                         {% endfor %}
                                         </ul>
                                     {% endif %}
-                                {% elif node.capacity_resources.gpu == 0 or node.capacity_resources.gpu == "N/A" %}
+                                {% elif not has_full_gpus %}
                                     <span class="text-muted">-</span>
-                                {% else %}
-                                    {{ node.allocatable_resources.gpu }} &times; {{ node.gpu_model | format_gpu_model | safe }}
                                 {% endif %}
                             </td>
                         </tr>
@@ -304,7 +307,8 @@
                     <td>{{ node.allocatable_resources.gpu }}</td>
                     <td>{{ node.capacity_resources.gpu }}</td>
                     <td>
-                        {% set allocatable_gpu = node.allocatable_resources.gpu | float %}
+                        {% set raw_gpu = node.allocatable_resources.gpu %}
+                        {% set allocatable_gpu = raw_gpu | float if raw_gpu and raw_gpu != "N/A" else 0 %}
                         {% set percent_used = (ns.total_allocated_gpu / allocatable_gpu * 100) if allocatable_gpu > 0 else 0 %}
 
                         <div class="progress" style="height: 30px;">
