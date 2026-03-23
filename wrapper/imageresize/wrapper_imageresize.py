@@ -26,7 +26,7 @@ class ImageResize(ModelGeneration):
         await self.generate(image=dummy_image)
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         image: Image.Image,
         video: Optional[List[Image.Image]] = None,

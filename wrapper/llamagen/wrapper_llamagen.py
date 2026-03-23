@@ -267,7 +267,7 @@ class LlamaGenGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         prompt: str,
         image_size: int = 512,  # pixels (512 x 512)

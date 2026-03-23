@@ -152,7 +152,7 @@ class HiDreamGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         height: int,
         width: int,
@@ -195,7 +195,7 @@ class HiDreamGeneration(ModelGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
                 return callback_kwargs

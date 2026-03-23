@@ -175,7 +175,7 @@ class AsyncAudioStreamer(AudioStreamer):
     def end(self, sample_indices: Optional[torch.Tensor] = None) -> None:
         """Signal the end of generation for specified samples."""
         if sample_indices is None:
-            indices_to_end: list[Any] = list(range(self.batch_size))
+            indices_to_end: list[int] = list(range(self.batch_size))
         else:
             indices_to_end = [s.item() if torch.is_tensor(s) else s for s in sample_indices]
 

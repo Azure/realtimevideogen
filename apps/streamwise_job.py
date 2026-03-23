@@ -173,7 +173,7 @@ class StreamWiseJob:
 
     async def generate(
         self,
-        job_config: Dict[str, Any],  # type: ignore
+        job_config: Dict[str, Any],
     ) -> None:
         """Generate the video based on the job configuration."""
         raise NotImplementedError("Subclasses must implement generate.")

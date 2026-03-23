@@ -498,7 +498,7 @@ async def test_gen_podcast_nopdf() -> None:
     job.config["output_mode"] = OutputMode.VIDEO_AUDIO_SYNCED
 
     with pytest.raises(ValueError, match="Missing 'pdf_base64' in request"):
-        await job.gen_podcast(pdf_base64=None)  # type: ignore[arg-type]
+        await job.gen_podcast(pdf_base64=None)
     job_status = await job.get_status()
     assert job_status == JobStatus.FAILED
 

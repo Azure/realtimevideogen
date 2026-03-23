@@ -362,7 +362,7 @@ async def test_save_video_frames() -> None:
     with pytest.raises(ValueError):
         await save_video_frames([], fps=FPS)
     with pytest.raises(TypeError):
-        await save_video_frames(b"BLAH", fps=FPS)  # type: ignore[arg-type]
+        await save_video_frames(b"BLAH", fps=FPS)
 
 
 def assert_approx(

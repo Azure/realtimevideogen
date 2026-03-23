@@ -119,7 +119,7 @@ class ThinkSoundGeneration(ModelGeneration):
         self.load_timer.start("diffusion_model")
         # https://github.com/FunAudioLLM/ThinkSound/blob/master/ThinkSound/configs/model_configs/thinksound.json
         duration = 9.0  # TODO fix harcoding
-        model_config = {}
+        model_config: Dict[str, Any] = {}
         model_config["sample_size"] = duration * model_config["sample_rate"]
         model_config["model"]["diffusion"]["config"]["sync_seq_len"] = 24 * int(duration)
         model_config["model"]["diffusion"]["config"]["clip_seq_len"] = 8 * int(duration)
@@ -143,7 +143,7 @@ class ThinkSoundGeneration(ModelGeneration):
         if not self.torch_compile:
             return
         self.load_timer.start("compile")
-        self.model = torch.compile(self.model)
+        self.model = torch.compile(self.model)  # type: ignore[has-type]
         self.load_timer.end("compile")
 
     def _assert_model_init(self) -> None:
@@ -151,7 +151,7 @@ class ThinkSoundGeneration(ModelGeneration):
         assert self.feature_extractor is not None
         # assert self.diffusion_model is not None
 
-    def _assert_args(self, duration_sec: float):
+    def _assert_args(self, duration_sec: float) -> None:
         if duration_sec <= 0:
             raise ValueError(f"Duration must be positive, got {duration_sec}")
         if duration_sec > 60:  # Reasonable limit
@@ -211,8 +211,7 @@ class ThinkSoundGeneration(ModelGeneration):
         session_dir: str
     ) -> str:
         """Extract features from video and text using the feature extractor."""
-
-        # Create CSV file for ThinkSound format
+        assert self.feature_extractor is not None, "Feature extractor is not initialized"
         cot_dir = os.path.join(session_dir, "cot_coarse")
         os.makedirs(cot_dir, exist_ok=True)
         csv_path = os.path.join(cot_dir, "cot.csv")
@@ -380,7 +379,7 @@ class ThinkSoundGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         video_binary: bytes,
         caption: str = "",
@@ -463,9 +462,10 @@ class ThinkSoundGeneration(ModelGeneration):
 
         caption = data_json.get("caption", "")
         caption_cot = data_json.get("caption_cot", "")
-        max_duration_sec = data_json.get("max_duration_sec", None)
-        if max_duration_sec is not None:
-            max_duration_sec = float(max_duration_sec)
+        max_duration_sec: Optional[float] = None
+        raw_duration = data_json.get("max_duration_sec", None)
+        if raw_duration is not None:
+            max_duration_sec = float(raw_duration)
 
         return {
             "task": self.model_name,
@@ -483,10 +483,10 @@ class OptimizedFeaturesUtils(FeaturesUtils):
 
     def __init__(
         self,
-        parent_instance,
-        *args,
+        parent_instance: Any,
+        *args: Any,
         use_half: bool = True,
-        **kwargs
+        **kwargs: Any
     ) -> None:
         self.parent = parent_instance
         _prev_device = torch.device("cpu")
@@ -502,28 +502,28 @@ class OptimizedFeaturesUtils(FeaturesUtils):
             logging.info("Using half precision for models to save memory")
 
         # Load models to CUDA
-        if self.clip_model is not None:
-            self.clip_model = self._load_to_cuda(self.clip_model)
+        if self.clip_model is not None:  # type: ignore[has-type]
+            self.clip_model = self._load_to_cuda(self.clip_model)  # type: ignore[has-type]
 
-        if hasattr(self, 't5_model') and self.t5_model is not None:
-            self.t5_model = self._load_to_cuda(self.t5_model)
+        if hasattr(self, 't5_model') and self.t5_model is not None:  # type: ignore[has-type]
+            self.t5_model = self._load_to_cuda(self.t5_model)  # type: ignore[has-type]
 
-        if self.synchformer is not None:
-            self.synchformer = self._load_to_cuda(self.synchformer)
+        if self.synchformer is not None:  # type: ignore[has-type]
+            self.synchformer = self._load_to_cuda(self.synchformer)  # type: ignore[has-type]
 
-    def _load_to_cuda(self, model):
+    def _load_to_cuda(self, model: Any) -> Any:
         if self.use_half:
             model = model.half()
         return model.to(self.parent.device)
 
     @inference_mode()
-    def encode_video_with_clip(self, x, batch_size=-1):
+    def encode_video_with_clip(self, x: Any, batch_size: int = -1) -> Any:
         out = super().encode_video_with_clip(x.to(self.parent.device), batch_size)
         torch.cuda.empty_cache()
         return out
 
     @inference_mode()
-    def encode_video_with_sync(self, x, batch_size=-1):
+    def encode_video_with_sync(self, x: Any, batch_size: int = -1) -> Any:
         x = x.to(self.parent.device)
         if self.use_half:
             x = x.half()
@@ -532,7 +532,7 @@ class OptimizedFeaturesUtils(FeaturesUtils):
         return out
 
     @inference_mode()
-    def encode_text(self, text_list):
+    def encode_text(self, text_list: Any) -> Any:
         out = super().encode_text(text_list)
         torch.cuda.empty_cache()
         return out

@@ -31,12 +31,12 @@ class CausalConv3d(nn.Conv3d):
         **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self._padding: Tuple[int, int, int, int, int] = (
-            self.padding[2],
-            self.padding[2],
-            self.padding[1],
-            self.padding[1],
-            2 * self.padding[0], 0
+        self._padding: Tuple[int, int, int, int, int, int] = (
+            self.padding[2],  # type: ignore[has-type]
+            self.padding[2],  # type: ignore[has-type]
+            self.padding[1],  # type: ignore[has-type]
+            self.padding[1],  # type: ignore[has-type]
+            2 * self.padding[0], 0  # type: ignore[has-type]
         )
         self.padding = (0, 0, 0)
 
