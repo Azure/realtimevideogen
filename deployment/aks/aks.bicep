@@ -17,11 +17,20 @@ param systemNodeCount int = 1
 @description('VM size for the GPU spot node pool.')
 param gpuNodeVmSize string = 'Standard_ND96ams_A100_v4'
 
-@description('Initial number of nodes in the GPU spot node pool.')
+@description('Initial number of nodes in the GPU spot node pool (full GPUs, no MIG).')
 param gpuNodeCount int = 0
 
-@description('Name of the GPU spot node pool.')
+@description('Name of the GPU spot node pool (full GPUs).')
 param gpuNodePoolName string = 'spoth100'
+
+@description('VM size for the GPU MIG spot node pool. Defaults to the same size as the full-GPU pool.')
+param gpuMigNodeVmSize string = gpuNodeVmSize
+
+@description('Initial number of nodes in the GPU MIG spot node pool.')
+param gpuMigNodeCount int = 0
+
+@description('Name of the GPU MIG spot node pool.')
+param gpuMigNodePoolName string = 'spoth100mig'
 
 @description('Name of an existing ACR to attach to the AKS cluster. Leave empty to skip.')
 param acrName string = ''
@@ -173,7 +182,7 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
 
 
 // ---------------------------------------------------------------------------
-// GPU Spot Node Pool
+// GPU Spot Node Pool – full GPUs (no MIG)
 // ---------------------------------------------------------------------------
 resource gpuNodePool 'Microsoft.ContainerService/managedClusters/agentPools@2024-09-01' = {
   parent: aksCluster
@@ -193,6 +202,31 @@ resource gpuNodePool 'Microsoft.ContainerService/managedClusters/agentPools@2024
       'kubernetes.azure.com/scalesetpriority': 'spot'
     }
     vnetSubnetID: nodeSubnetId
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GPU MIG Spot Node Pool – nodes where MIG is manually configured
+// (e.g. 7 full GPUs + 1 MIG-partitioned GPU for lightweight services)
+// ---------------------------------------------------------------------------
+resource gpuMigNodePool 'Microsoft.ContainerService/managedClusters/agentPools@2024-09-01' = {
+  parent: aksCluster
+  name: gpuMigNodePoolName
+  properties: {
+    count: gpuMigNodeCount
+    vmSize: gpuMigNodeVmSize
+    osType: 'Linux'
+    mode: 'User'
+    scaleSetPriority: 'Spot'
+    scaleSetEvictionPolicy: 'Delete'
+    spotMaxPrice: -1
+    nodeTaints: [
+      'kubernetes.azure.com/scalesetpriority=spot:NoSchedule'
+    ]
+    nodeLabels: {
+      'kubernetes.azure.com/scalesetpriority': 'spot'
+      'gpu-config': 'mig'
+    }
   }
 }
 
@@ -240,3 +274,4 @@ output clusterName string = aksCluster.name
 output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
 output gpuNodePoolName string = gpuNodePool.name
+output gpuMigNodePoolName string = gpuMigNodePool.name
