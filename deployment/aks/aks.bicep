@@ -41,6 +41,18 @@ param acrResourceGroup string = resourceGroup().name
 @description('DNS prefix for the AKS cluster. Defaults to the cluster name.')
 param dnsPrefix string = clusterName
 
+// [S360 - SFI-NS2.6.1] Disable default outbound access for all node VMs.
+// When true a NAT gateway and dedicated VNet are provisioned for controlled
+// outbound connectivity instead of unrestricted default access.
+// Set to false to opt out (e.g. for quick testing).
+param disableDefaultOutboundAccess bool = true
+
+@description('Address prefix for the AKS VNet. Only used when disableDefaultOutboundAccess is true.')
+param vnetAddressPrefix string = '10.0.0.0/16'
+
+@description('Address prefix for the AKS node subnet. Only used when disableDefaultOutboundAccess is true.')
+param subnetAddressPrefix string = '10.0.0.0/24'
+
 
 // ---------------------------------------------------------------------------
 // Public IP – used by Kubernetes LoadBalancer services (StreamWise, StreamCast)
@@ -64,6 +76,91 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
 
 
 // ---------------------------------------------------------------------------
+// NAT Gateway resources – only provisioned when disableDefaultOutboundAccess = true
+// ---------------------------------------------------------------------------
+resource natPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (disableDefaultOutboundAccess) {
+  name: 'aks-nat-public-ip'
+  location: location
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+    ipTags: [
+      {
+        ipTagType: 'FirstPartyUsage'
+        tag: '/NonProd'
+      }
+    ]
+  }
+}
+
+resource natGateway 'Microsoft.Network/natGateways@2023-11-01' = if (disableDefaultOutboundAccess) {
+  name: 'aks-nat-gateway'
+  location: location
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIpAddresses: [
+      {
+        id: natPublicIp.id
+      }
+    ]
+    idleTimeoutInMinutes: 4
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Custom VNet – only provisioned when disableDefaultOutboundAccess = true.
+// The node subnet has defaultOutboundAccess disabled and uses the NAT gateway
+// for controlled outbound connectivity.
+// ---------------------------------------------------------------------------
+resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDefaultOutboundAccess) {
+  name: 'aks-vnet'
+  location: location
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        vnetAddressPrefix
+      ]
+    }
+    subnets: [
+      {
+        name: 'aks-node-subnet'
+        properties: {
+          addressPrefix: subnetAddressPrefix
+          // [S360 - SFI-NS2.6.1] disable default outbound access for all subnets
+          defaultOutboundAccess: false
+          natGateway: {
+            id: natGateway.id
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Subnet ID used by node pools when disableDefaultOutboundAccess is true.
+// ---------------------------------------------------------------------------
+var nodeSubnetId = disableDefaultOutboundAccess
+  ? resourceId('Microsoft.Network/virtualNetworks/subnets', aksVnet.name, 'aks-node-subnet')
+  : null
+// Subnet ID used by both node pools when disableDefaultOutboundAccess is true.
+// Evaluates to null (property omitted) when the custom VNet is not provisioned.
+var nodeSubnetId = disableDefaultOutboundAccess ? aksVnet.properties.subnets[0].id : null
+
+// When disableDefaultOutboundAccess is false, networkProfile is null so it is
+// omitted from the ARM template and AKS uses its default settings
+// (kubenet plugin, loadBalancer outbound type).
+var networkProfile = disableDefaultOutboundAccess ? {
+  outboundType: 'userAssignedNATGateway'
+} : null
+
+
+// ---------------------------------------------------------------------------
 // AKS Cluster
 // ---------------------------------------------------------------------------
 resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
@@ -81,8 +178,10 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
         vmSize: systemNodeVmSize
         osType: 'Linux'
         mode: 'System'
+        vnetSubnetID: nodeSubnetId
       }
     ]
+    networkProfile: networkProfile
   }
 }
 
@@ -107,6 +206,7 @@ resource gpuNodePool 'Microsoft.ContainerService/managedClusters/agentPools@2024
     nodeLabels: {
       'kubernetes.azure.com/scalesetpriority': 'spot'
     }
+    vnetSubnetID: nodeSubnetId
   }
 }
 
