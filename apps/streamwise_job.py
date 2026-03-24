@@ -1,6 +1,8 @@
 """
 StreamWise job to generate a video.
 """
+from __future__ import annotations
+
 import os
 import sys
 import time
@@ -173,7 +175,7 @@ class StreamWiseJob:
 
     async def generate(
         self,
-        job_config: Dict[str, Any],  # type: ignore
+        job_config: Dict[str, Any],
     ) -> None:
         """Generate the video based on the job configuration."""
         raise NotImplementedError("Subclasses must implement generate.")
@@ -423,6 +425,7 @@ class StreamWiseJob:
         video_info = get_video_file_info(video_binary)["video"]
         width = video_info["width"]
         height = video_info["height"]
+        assert width is not None and height is not None, "Video dimensions must be available."
         font_size = get_font_size(width, height)
         font_size = font_size * 2 // 3  # Smaller font for subtitles
         return [

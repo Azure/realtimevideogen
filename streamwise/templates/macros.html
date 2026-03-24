@@ -3,7 +3,7 @@
         <span title="MIG slice: {{ mig_profile }}">
             {{ gpu }}&times;
             {%- if health and health.gpu %}
-                {{ health.gpu | format_gpu_model | safe }} /
+                {{ health.gpu | format_gpu_model | safe }}
             {% endif %}
             {{ mig_profile }}
         </span>

@@ -220,7 +220,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         audio_path: str,
@@ -277,6 +277,7 @@ class HunyuanAvatarGeneration(USPGeneration):
             self.args.cfg_scale = cfg_scale
             self.args.infer_steps = sampling_steps
             gen_timer.start("hunyuanavatar_generation")
+            assert self.hunyuan_video_sampler is not None
             samples = self.hunyuan_video_sampler.predict(
                 self.args,
                 results,
@@ -317,7 +318,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         audio_path: str,
         video_frames: np.ndarray,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes]:
+    ) -> Union[List[Image.Image], str, bytes, None]:
         gen_timer.start("output")
         try:
             if output_type == "pil":

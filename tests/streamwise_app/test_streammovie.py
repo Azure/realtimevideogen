@@ -8,6 +8,7 @@ import sys
 import json
 import pytest
 import aiofiles
+import aiofiles.os
 
 from PIL import Image  # noqa: F401 - import before patch.dict to keep PIL in sys.modules
 
