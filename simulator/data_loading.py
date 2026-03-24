@@ -60,12 +60,11 @@ def load_latency_data(
             df_hf["world_size"],
             df_hf["avg_steps_time"]))
 
-        # Hunyuan Framepack VAE time -> per step and per frame
-        csv_hf_vae_path = data_path / f"latency_hf_vae_{gpu_type.value.lower()}.csv"
-        df_hf_vae = pd.read_csv(csv_hf_vae_path, comment='#')
+        # Hunyuan Framepack VAE time -> per inference iteration
+        # Derived: steps * avg_step_time * vae_pct(vae_time / total_time)
         data[gpu_type].hf_vae = dict(zip(
-            df_hf_vae["world_size"],
-            df_hf_vae["avg_steps_time"]))
+            df_hf["world_size"],
+            df_hf["vae_time"]))
 
         # Fantasy Talking per step time -> [9, 21, 41, 61, 77] frames generation
         csv_ft_path = data_path / f"latency_ft_mapping_{gpu_type.value.lower()}.csv"
@@ -74,12 +73,11 @@ def load_latency_data(
             df_ft["world_size"],
             df_ft["avg_steps_time"]))
 
-        # Fantasy Talking VAE time -> per step and per frame
-        csv_ft_vae_path = data_path / f"latency_ft_vae_mapping_{gpu_type.value.lower()}.csv"
-        df_ft_vae = pd.read_csv(csv_ft_vae_path, comment='#')
+        # Fantasy Talking VAE time -> per inference iteration
+        # Derived: steps * avg_step_time * vae_pct(vae_time / total_time)
         data[gpu_type].ft_vae = dict(zip(
-            df_ft_vae["world_size"],
-            df_ft_vae["avg_steps_time"]))
+            df_ft["world_size"],
+            df_ft["vae_time"]))
 
         # Upscaler time -> per image frame
         csv_upscaler_path = data_path / f"latency_upscaler_{gpu_type.value.lower()}.csv"
