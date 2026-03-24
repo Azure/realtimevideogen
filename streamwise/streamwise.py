@@ -16,6 +16,8 @@ from typing import List
 from typing import Dict
 from typing import Optional
 from typing import Any
+from typing import Tuple
+from typing import Union
 
 from kubernetes_asyncio.client.exceptions import ApiException
 
@@ -561,6 +563,21 @@ async def api_get_nodes() -> QuartReturn:
     return jsonify(nodes), HTTPStatus.OK
 
 
+def parse_gpu_info(
+    gpu_info: Optional[Union[int, str]]
+) -> Tuple[int, Optional[str]]:
+    num_gpus = 1
+    mig_profile = None
+    if isinstance(gpu_info, int):
+        num_gpus = gpu_info
+    elif isinstance(gpu_info, str):
+        num_gpus = 1
+        mig_profile = gpu_info
+    else:
+        num_gpus = 0
+    return num_gpus, mig_profile
+
+
 @route("/api/service", methods=["POST"])
 async def api_add_service(
     max_gpus: int = 1
@@ -581,18 +598,20 @@ async def api_add_service(
             "fluxkontext": (12, 128, 64, 1),
             # "fantasytalking": (16, 256, 64, min(2, max_gpus)),
             "fantasytalking": (12, 192, 64, min(2, max_gpus)),
-            "realesrgan": (4, 32, 16, 1),
-            "yolo": (4, 8, 16, 1),
-            "kokoro": (2, 8, 16, 1),
+            "realesrgan": (4, 32, 16, "1g.10gb"),
+            "yolo": (4, 8, 16, "1g.10gb"),
+            "kokoro": (2, 8, 16, "1g.10gb"),
             "whisper": (2, 8, 16, 1),
         }
-        for container_name, (cpu, mem_gib, sotrage_gib, gpu) in container_dict.items():
+        for container_name, (cpu, mem_gib, sotrage_gib, gpu_info) in container_dict.items():
+            num_gpus, mig_profile = parse_gpu_info(gpu_info)
             await pod_manager.add_pod(
                 container_name,
                 cpu,
                 mem_gib,
                 ephemeral_storage_gib=sotrage_gib,
-                gpu=gpu,
+                gpu=num_gpus,
+                mig_profile=mig_profile,
                 namespace=NAMESPACE,
                 k8s_cluster=k8s_cluster)
         return jsonify({"message": "Services added successfully"}), HTTPStatus.OK

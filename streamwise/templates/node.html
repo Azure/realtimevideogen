@@ -153,11 +153,11 @@
                         <th scope="row">MIG</th>
                         <td>
                             {% if node.mig_enabled %}
-                                <span class="text-success" title="Multi-Instance GPU is enabled on this node" aria-label="MIG enabled">✅ Enabled</span>
+                                <span class="text-success" title="Multi-Instance GPU" aria-label="MIG enabled">✅</span>
                                 {% if node.mig_resources %}
                                     <ul class="mb-0 mt-1">
-                                    {% for profile, counts in node.mig_resources.items() %}
-                                        <li><code>{{ profile }}</code>: {{ counts.allocatable }} allocatable / {{ counts.capacity }} total</li>
+                                    {% for mig_profile, counts in node.mig_resources.items() %}
+                                        <li>{{ mig_profile }}: {{ counts.allocatable }} allocatable / {{ counts.capacity }} total</li>
                                     {% endfor %}
                                     </ul>
                                 {% endif %}
@@ -310,7 +310,6 @@
                         {% set raw_gpu = node.allocatable_resources.gpu %}
                         {% set allocatable_gpu = raw_gpu | float if raw_gpu and raw_gpu != "N/A" else 0 %}
                         {% set percent_used = (ns.total_allocated_gpu / allocatable_gpu * 100) if allocatable_gpu > 0 else 0 %}
-
                         <div class="progress" style="height: 30px;">
                             <div class="progress-bar" role="progressbar"
                                 style="width: {{ percent_used }}%;"
@@ -322,13 +321,13 @@
                         </div>
                     </td>
                 </tr>
-                {% for profile, counts in node.mig_resources.items() %}
+                {% for mig_profile, counts in node.mig_resources.items() %}
                 <tr>
-                    <th scope="row">MIG <code>{{ profile }}</code></th>
+                    <th scope="row">MIG {{ mig_profile }}</th>
                     <td>
                         {% set ns_mig = namespace(total_allocated_mig=0) %}
                         {% for pod in node.pods %}
-                            {% if pod.mig_profile == profile %}
+                            {% if pod.mig_profile == mig_profile %}
                                 {% set ns_mig.total_allocated_mig = ns_mig.total_allocated_mig + pod.gpu %}
                             {% endif %}
                         {% endfor %}
@@ -339,7 +338,7 @@
                     <td>
                         {% set percent_used_mig = (ns_mig.total_allocated_mig / counts.allocatable * 100) if counts.allocatable > 0 else 0 %}
                         <div class="progress" style="height: 30px;">
-                            <div class="progress-bar bg-info" role="progressbar"
+                            <div class="progress-bar" role="progressbar"
                                 style="width: {{ percent_used_mig }}%;"
                                 aria-valuenow="{{ ns_mig.total_allocated_mig }}"
                                 aria-valuemin="0"
@@ -419,7 +418,7 @@
                         </td>
                         <td>
                             {% if pod.mig_profile %}
-                                <span title="MIG slice: {{ pod.mig_profile }}">{{ pod.gpu }} &times; <span class="badge bg-info" aria-label="MIG profile {{ pod.mig_profile }}">{{ pod.mig_profile }}</span></span>
+                                <span title="MIG slice: {{ pod.mig_profile }}">{{ pod.gpu }} &times; {{ pod.mig_profile }}</span>
                             {% elif pod.gpu %}
                                 {{ pod.gpu }}
                             {% else %}
