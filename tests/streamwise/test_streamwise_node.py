@@ -12,6 +12,8 @@ from typing import Dict
 from unittest.mock import patch
 from unittest.mock import AsyncMock
 
+from quart.typing import TestClientProtocol
+
 from http import HTTPStatus
 
 from tests.test_utils import temp_sys_path
@@ -23,22 +25,27 @@ mock_modules = {}
 mock_modules.update(mock_k8s.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
-        from streamwise import streamwise
+        from streamwise import streamwise as sw
         # node_manager is imported by streamwise.py at module level;
         # access it via the module attribute so we get the exact same object
-        node_manager = streamwise.node_manager
+        node_manager = sw.node_manager
+
+
+def _get_client() -> TestClientProtocol:
+    app = sw.app
+    client = app.test_client()
+    return client
 
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_k8s_cluster() -> None:
     # for some reason k8s_config.load_kube_config() is not async mocked
-    streamwise.k8s_cluster = "unittest"
+    sw.k8s_cluster = "unittest"
 
 
 @pytest.mark.asyncio
 async def test_nodes() -> None:
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     response = await client.get("/nodes")
     assert response.status_code == HTTPStatus.NOT_FOUND
     response_json = await response.get_json()
@@ -47,8 +54,7 @@ async def test_nodes() -> None:
 
 @pytest.mark.asyncio
 async def test_api_nodes() -> None:
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     response = await client.get("/api/nodes")
     assert response.status_code == HTTPStatus.OK
     response_json = await response.get_json()
@@ -57,8 +63,7 @@ async def test_api_nodes() -> None:
 
 @pytest.mark.asyncio
 async def test_remove_node() -> None:
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     response = await client.delete("/api/node/testnode")
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     response_json = await response.get_json()
@@ -67,8 +72,7 @@ async def test_remove_node() -> None:
 
 @pytest.mark.asyncio
 async def test_node_info() -> None:
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     response = await client.get("/node/testnode")
     assert response.status_code == HTTPStatus.NOT_FOUND
     response_json = await response.get_json()
@@ -110,8 +114,7 @@ _MOCK_NODE = {
 
 @pytest.mark.asyncio
 async def test_nodes_has_submit_job_button() -> None:
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[_MOCK_NODE])):
         with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
             response = await client.get("/nodes")
@@ -124,8 +127,7 @@ async def test_nodes_has_submit_job_button() -> None:
 @pytest.mark.asyncio
 async def test_node_shows_mig_enabled() -> None:
     """Node page shows MIG enabled badge when mig_enabled is True."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mig_node: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node["mig_enabled"] = True
     mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
@@ -151,8 +153,7 @@ async def test_node_shows_mig_enabled() -> None:
 @pytest.mark.asyncio
 async def test_node_shows_mig_resources() -> None:
     """Node page shows per-profile MIG resource counts in the Resources table."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mock: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node: Dict[str, Any] = mock
     mig_node["mig_enabled"] = True
@@ -176,8 +177,7 @@ async def test_node_shows_mig_resources() -> None:
 @pytest.mark.asyncio
 async def test_node_shows_mig_disabled() -> None:
     """Node page shows no MIG indicator when mig_enabled is False."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[_MOCK_NODE])):
         with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
             response = await client.get("/nodes")
@@ -190,8 +190,7 @@ async def test_node_shows_mig_disabled() -> None:
 @pytest.mark.asyncio
 async def test_pod_shows_mig_profile() -> None:
     """Node page shows MIG profile badge in the pods table for MIG pods."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mig_pod = {
         "namespace": "rtgen",
         "pod_name": "flux-pod",
@@ -217,8 +216,7 @@ async def test_pod_shows_mig_profile() -> None:
 @pytest.mark.asyncio
 async def test_pod_shows_no_mig_profile_for_full_gpu() -> None:
     """Node page shows plain GPU count for full-GPU pods (no MIG profile)."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     full_gpu_pod = {
         "namespace": "rtgen",
         "pod_name": "flux-pod",
@@ -243,8 +241,7 @@ async def test_pod_shows_no_mig_profile_for_full_gpu() -> None:
 @pytest.mark.asyncio
 async def test_mig_visible_when_gpu_capacity_zero() -> None:
     """Nodes table shows MIG profiles even when capacity_resources.gpu is 0 (single strategy)."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mig_node: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node["mig_enabled"] = True
     mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
@@ -269,8 +266,7 @@ async def test_mig_visible_when_gpu_capacity_zero() -> None:
 @pytest.mark.asyncio
 async def test_gpu_row_excludes_mig_pods() -> None:
     """Resources table GPU row does not count MIG pods — they go in their own MIG rows."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mig_node: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node["mig_enabled"] = True
     mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
@@ -319,8 +315,7 @@ async def test_gpu_row_excludes_mig_pods() -> None:
 @pytest.mark.asyncio
 async def test_mixed_full_gpu_and_mig() -> None:
     """Nodes table shows both the full GPU count and MIG profiles (7 full + 1 MIG-partitioned)."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mig_node: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node["mig_enabled"] = True
     mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
@@ -348,8 +343,7 @@ async def test_mixed_full_gpu_and_mig() -> None:
 @pytest.mark.asyncio
 async def test_pure_mig_node_gpu_na() -> None:
     """Resources table handles gpu=N/A without error on pure-MIG nodes."""
-    app = streamwise.app
-    client = app.test_client()
+    client = _get_client()
     mig_node: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node["mig_enabled"] = True
     mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
