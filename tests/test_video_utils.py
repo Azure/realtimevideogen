@@ -442,9 +442,9 @@ async def test_save_video_frames_audio() -> None:
     assert video_info.get("num_frames") == 113, f"Video info: {video_file_info}"
     assert video_info.get("width") == 180, f"Video info: {video_file_info}"
     assert video_info.get("height") == 100, f"Video info: {video_file_info}"
-    duration_seconds = video_info.get("duration_seconds")
-    assert duration_seconds is not None
-    assert_approx(duration_seconds, 4.913)  # 113 / 23
+    video_duration_seconds = video_info.get("duration_seconds")
+    assert video_duration_seconds is not None
+    assert_approx(video_duration_seconds, 4.913)  # 113 / 23
 
     assert "audio" not in video_file_info
 
@@ -481,24 +481,24 @@ async def test_save_video_frames_audio() -> None:
     num_frames = video_info.get("num_frames")
     assert num_frames is not None
     assert num_frames > 100
-    duration_seconds = video_info.get("duration_seconds")
-    assert duration_seconds is not None
-    assert duration_seconds > 4.0
+    video_duration_seconds = video_info.get("duration_seconds")
+    assert video_duration_seconds is not None
+    assert video_duration_seconds > 4.0
 
     assert "audio" in video_file_info
     audio_info = video_file_info["audio"]
     assert audio_info is not None
-    duration_seconds = audio_info.get("duration_seconds")
-    assert duration_seconds is not None
-    assert duration_seconds > 0
+    audio_duration_seconds = audio_info.get("duration_seconds")
+    assert audio_duration_seconds is not None
+    assert audio_duration_seconds > 0
     """
     # assert_approx(audio_info["duration_seconds"], 4.913)
     assert_approx(
-        duration_seconds, 4.864,
+        audio_duration_seconds, 4.864,
         msg=f"Video info: {video_file_info}")  # TODO this is not good
     """
     logging.info(f"Audio info: {audio_info}")
-    assert duration_seconds > 4.0
+    assert audio_duration_seconds > 4.0
 
     os.remove(video_path)
 
