@@ -93,7 +93,11 @@ def passthrough_register_to_config(func: Callable[..., Any]) -> Callable[..., An
     """Mimics @register_to_config: wraps __init__ to store kwargs as self.config."""
     sig = inspect.signature(func)
 
-    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+    def wrapper(
+        self: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         bound = sig.bind(self, *args, **kwargs)
         bound.apply_defaults()
         cfg = {k: v for k, v in bound.arguments.items() if k != "self"}

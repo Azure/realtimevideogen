@@ -34,7 +34,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Dict
 from typing import Union
-from typing import Any
 from typing import AsyncGenerator
 
 from lmm_service_manager import LMMServiceManager
@@ -207,7 +206,7 @@ class LMMGenerator:
         self,
         base_url: str,
         timeout: ClientTimeout = SERVICE_TIMEOUT,
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> Optional[list[dict[str, str]]]:
         """Get the list of files available from the service at the given base URL."""
         t0 = time.time()
         url = f"{base_url}/files"
@@ -562,7 +561,7 @@ class LMMGenerator:
         """Generate a video from an input image and a text prompt using the HunyuanFramePackF1 service."""
         service_name = get_service_name(TaskClass.TXTIMG2VIDEO)
         img_base64 = img_to_base64(img)
-        payload_json: Dict[str, Any] = {
+        payload_json: dict[str, str | float | int | None] = {
             "job_id": f"{self.job_id}_{task_id}",
             "img": img_base64,
             "prompt": prompt,
@@ -952,23 +951,25 @@ class LMMGenerator:
             assert response is not None
 
             # Process LLM response
+            assert response.usage is not None  # type: ignore[union-attr]
+            usage = response.usage  # type: ignore[union-attr]
             self.logger.debug("LLM tokens:")
-            self.logger.debug(f"  Prompt: {response.usage.prompt_tokens}")  # type: ignore[union-attr]
-            self.logger.debug(f"  Completion: {response.usage.completion_tokens}")  # type: ignore[union-attr]
-            self.logger.debug(f"  Total: {response.usage.total_tokens}")  # type: ignore[union-attr]
-            if response.usage.completion_tokens == max_tokens:  # type: ignore[union-attr]
-                self.logger.error(
-                    f"Completion hit max tokens limit "
-                    f"({response.usage.completion_tokens}/{max_tokens}).")  # type: ignore[union-attr]
+            self.logger.debug(f"  Prompt: {usage.prompt_tokens}")
+            self.logger.debug(f"  Completion: {usage.completion_tokens}")
+            self.logger.debug(f"  Total: {usage.total_tokens}")
+            if usage.completion_tokens == max_tokens:
+                self.logger.error(f"Completion hit max tokens limit ({usage.completion_tokens}/{max_tokens}).")
 
-            if not response.choices:  # type: ignore[union-attr]
+            choices = response.choices  # type: ignore[union-attr]
+            if not choices:
                 raise ValueError("No LLM response.")
-            response_choice = response.choices[0]  # type: ignore[union-attr]
+            response_choice = choices[0]
             response_message = response_choice.message
             response_message_content = response_message.content
             if response_message_content:
                 response_message_content = response_message_content.strip()
-            return response_message_content  # type: ignore[return-value]
+            assert isinstance(response_message_content, str)
+            return response_message_content
 
     async def gen_text_stream(
         self,
