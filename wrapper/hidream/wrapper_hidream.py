@@ -182,8 +182,8 @@ class HiDreamGeneration(ModelGeneration):
         """
         gen_timer = self._new_gen_timer(job_id)
 
-        self._assert_args(height, width)
         self._assert_model_init()
+        self._assert_args(height, width)
         assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls
