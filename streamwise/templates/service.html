@@ -565,8 +565,12 @@
                 <th>Memory</th>
                 {% for gpu_info in svc.health.gpu_info %}
                 <td>
-                    {{ gpu_info.mem_gib_used | default(0) | round(2) }} GiB /
-                    {{ gpu_info.mem_gib_total | default(0) | round(2) }} GiB
+                    {% if gpu_info.mem_gib_used is not none and gpu_info.mem_gib_total is not none %}
+                        {{ gpu_info.mem_gib_used | round(2) }} GiB /
+                        {{ gpu_info.mem_gib_total | round(2) }} GiB
+                    {% else %}
+                        N/A
+                    {% endif %}
                 </td>
                 {% endfor %}
             </tr>

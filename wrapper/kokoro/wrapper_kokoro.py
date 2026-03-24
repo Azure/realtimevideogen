@@ -77,7 +77,7 @@ class KokoroGeneration(ModelGeneration):
             self.rank = 0
             self.local_rank = 0
             self.world_size = 1
-            self.device_id = self.local_rank
+            self.device_id: Union[int, str] = self.local_rank
             self.device = torch.device(f"cuda:{self.device_id}")
             torch.cuda.set_device(self.local_rank)
         else:
@@ -150,7 +150,7 @@ class KokoroGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         text: str,
         voice: str = "af_heart",
@@ -158,7 +158,7 @@ class KokoroGeneration(ModelGeneration):
         lang_code: str = Language.AMERICAN_ENGLISH.value,
         job_id: Optional[str] = None,
         output_type: str = "audio_path",
-    ) -> Union[str, Tensor]:
+    ) -> Optional[Union[str, Tensor]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True  # We can run in parallel but good to know if we are running
@@ -199,7 +199,7 @@ class KokoroGeneration(ModelGeneration):
         gen_timer: GenTimer,
         audios: List[Tensor],
         output_type: str = "audio_path",  # "audio_path"
-    ) -> Union[str, Tensor]:
+    ) -> Optional[Union[str, Tensor]]:
         gen_timer.start("output_audio")
         if len(audios) > 1:
             logging.warning("Multiple audio chunks generated, returning the first one.")
@@ -217,6 +217,7 @@ class KokoroGeneration(ModelGeneration):
                     audio=audio,
                     audio_path=audio_path)
                 return audio_path
+            return None
         finally:
             gen_timer.end("output_audio")
 

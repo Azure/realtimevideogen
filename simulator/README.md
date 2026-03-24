@@ -14,7 +14,7 @@ The simulator operates on profiled data (latency and power measurements) from di
 
 ## Directory Structure
 
-```
+```text
 simulator/
 ├── README.md                          # This file
 ├── algorithms.py                      # Core resource allocation and scheduling algorithms

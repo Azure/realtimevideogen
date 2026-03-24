@@ -29,9 +29,13 @@ source set_properties.sh
 
 The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - An AKS cluster with a system node pool (for StreamWise, StreamCast, and system pods)
-- A GPU spot node pool (starts at 0 nodes, scale up when needed)
+- A GPU spot node pool for full-GPU workloads (starts at 0 nodes, scale up when needed)
+- A GPU MIG spot node pool for nodes with MIG-partitioned GPUs (starts at 0 nodes)
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
 - ACR attachment via role assignment
+
+Having separate node pools for full-GPU and MIG nodes avoids the problem of MIG
+configuration from one VMSS instance affecting all instances in the same pool.
 
 Review the Bicep parameters in [aks.bicep](aks.bicep) (cluster name, GPU VM size, ACR name), then deploy:
 
@@ -51,11 +55,14 @@ az deployment group create \
   --parameters \
     clusterName=my-cluster \
     gpuNodeVmSize=Standard_ND96isrf_H100_v5 \
+    gpuNodePoolName=spoth100 \
+    gpuMigNodePoolName=spoth100mig \
     acrName=myacr \
     acrResourceGroup=my-acr-rg
 ```
 
 Some available GPU VM sizes:
+
 | VM Size | GPU |
 |---------|-----|
 | `Standard_NC96ads_A100_v4` | NVIDIA A100 |
@@ -200,24 +207,34 @@ kubectl apply -f ../k8s/nvidia-device-plugin-ds.yaml
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
 ```bash
+# Scale the full-GPU node pool (no MIG)
 az aks nodepool scale \
   --resource-group $AZ_RESOURCE_GROUP \
   --cluster-name $AKS_CLUSTER \
   --name spoth100 \
+  --node-count 1
+
+# Scale the MIG node pool
+az aks nodepool scale \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --cluster-name $AKS_CLUSTER \
+  --name spoth100mig \
   --node-count 1
 ```
 
 If these fails, scale the VMSS directly:
 ```bash
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
-NODEPOOL_NAME=$(az aks nodepool list \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --cluster-name $AKS_CLUSTER \
-  --query "[?starts_with(vmSize, 'Standard_N')].name | [0]" -o tsv)
-VMSS_NAME=$(az vmss list \
-  -g $MC_RESOURCE_GROUP \
-  --query "[?contains(name, 'aks-${NODEPOOL_NAME}-')].name | [0]" -o tsv)
-az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_NAME --new-capacity 1
+
+# Scale the full-GPU VMSS
+VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100-') && !contains(name, 'mig')].name | [0]" -o tsv)
+az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_FULL --new-capacity 1
+
+# Scale the MIG VMSS
+VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100mig-')].name | [0]" -o tsv)
+az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_MIG --new-capacity 1
 ```
 
 Log into a node using `node-shell`:
@@ -229,15 +246,18 @@ kubectl node-shell <node-name>
 Sometimes the NVIDIA setup with torch is not correct and we need to restart the VM:
 ```bash
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
-NODEPOOL_NAME=$(az aks nodepool list \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --cluster-name $AKS_CLUSTER \
-  --query "[?starts_with(vmSize, 'Standard_N')].name | [0]" -o tsv)
-VMSS_NAME=$(az vmss list \
-  -g $MC_RESOURCE_GROUP \
-  --query "[?contains(name, 'aks-${NODEPOOL_NAME}-')].name | [0]" -o tsv)
+
+# Restart a specific instance in the full-GPU pool
+VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100-') && !contains(name, 'mig')].name | [0]" -o tsv)
 INSTANCE_ID=0
-az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_NAME --instance-ids $INSTANCE_ID
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_FULL --instance-ids $INSTANCE_ID
+
+# Restart a specific instance in the MIG pool
+VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100mig-')].name | [0]" -o tsv)
+INSTANCE_ID=0
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_ID
 ```
 
 ### 5.1 Partial GPU Support (MIG)
@@ -256,6 +276,7 @@ For the full step-by-step setup (enabling MIG, creating instances, configuring t
 Deploy model services through the StreamWise web UI or REST API.
 
 **GPU requirements per service:**
+
 | Service | GPUs | MIG Profile (recommended) | Purpose |
 |---------|------|--------------------------|---------|
 | `gemma` | 2–4 | — (full GPUs) | LLM (screenplay generation) |
@@ -267,10 +288,13 @@ Deploy model services through the StreamWise web UI or REST API.
 | `realesrgan` | 1 | `2g.20gb` (80 GB) or `2g.10gb` (40 GB) | Video upscaling |
 | `podcasttranscript` | 0 | — | Transcript orchestration (CPU-only) |
 
-> **Capacity planning:** A single `Standard_ND96isrf_H100_v5` node provides 8 GPUs.
-> The recommended setup is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services.
-> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice, leaving 7 whole GPUs available for Gemma, Flux, Wan, HunyuanFramePack, etc.
-> For parallel execution of all services, add more GPU nodes.
+> **Capacity planning:** The Bicep template creates two GPU node pools:
+> - **Full-GPU pool** (`spoth100`): all 8 GPUs available as whole devices for heavy models (Gemma, Flux, HunyuanFramePack, etc.).
+> - **MIG pool** (`spoth100mig`): nodes where MIG is manually configured — typically 7 full GPUs + 1 MIG-partitioned GPU for lightweight services.
+>
+> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice.
+> MIG nodes are labelled `gpu-config=mig` for easy identification and scheduling.
+> For parallel execution of all services, add more GPU nodes to either pool.
 
 The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
 Use the REST API to deploy all services at once:

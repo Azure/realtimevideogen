@@ -9,7 +9,8 @@ from tests.torch_mock import TorchMock
 
 mock_torch = TorchMock()
 
-sys.path.append("hidream")
+sys.path.append("wrapper")
+sys.path.append("wrapper/hidream")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
