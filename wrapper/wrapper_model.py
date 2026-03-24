@@ -173,7 +173,7 @@ class ModelGeneration(ABC):
                     gpu_name = gpu_name_raw.decode("utf-8")
                 else:
                     gpu_name = gpu_name_raw
-                gpu_mem_info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+                gpu_mem_info = self._safe_nvml_call(nvidia_smi.nvmlDeviceGetMemoryInfo, handle)
 
                 # Some metrics are not supported on MIG instances; use _safe_nvml_call to
                 # return None for those fields rather than failing the entire GPU info query.
@@ -195,8 +195,8 @@ class ModelGeneration(ABC):
                     "name": gpu_name,
                     "sm_util": gpu_util.gpu if gpu_util is not None else None,
                     "mem_util": gpu_util.memory if gpu_util is not None else None,
-                    "mem_gib_used": gpu_mem_info.used / (1024 ** 3),
-                    "mem_gib_total": gpu_mem_info.total / (1024 ** 3),
+                    "mem_gib_used": gpu_mem_info.used / (1024 ** 3) if gpu_mem_info is not None else None,
+                    "mem_gib_total": gpu_mem_info.total / (1024 ** 3) if gpu_mem_info is not None else None,
                     "temp": temp,
                     # Power in Watts (None if not supported by this device)
                     "power_draw_watts": power_draw_raw / 1000.0 if power_draw_raw is not None else None,
