@@ -41,8 +41,11 @@ param acrResourceGroup string = resourceGroup().name
 @description('DNS prefix for the AKS cluster. Defaults to the cluster name.')
 param dnsPrefix string = clusterName
 
-@description('Disable default outbound access for VMs in the AKS cluster. When true, a NAT gateway and dedicated VNet are provisioned for controlled outbound connectivity. Defaults to false.')
-param disableDefaultOutboundAccess bool = false
+// [S360 - SFI-NS2.6.1] Disable default outbound access for all node VMs.
+// When true a NAT gateway and dedicated VNet are provisioned for controlled
+// outbound connectivity instead of unrestricted default access.
+// Set to false to opt out (e.g. for quick testing).
+param disableDefaultOutboundAccess bool = true
 
 @description('Address prefix for the AKS VNet. Only used when disableDefaultOutboundAccess is true.')
 param vnetAddressPrefix string = '10.0.0.0/16'
