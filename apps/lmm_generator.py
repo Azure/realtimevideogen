@@ -952,8 +952,6 @@ class LMMGenerator:
             assert response is not None
 
             # Process LLM response
-            assert response.usage is not None  # type: ignore[union-attr]
-            usage = response.usage  # type: ignore[union-attr]
             self.logger.debug("LLM tokens:")
             self.logger.debug(f"  Prompt: {response.usage.prompt_tokens}")  # type: ignore[union-attr]
             self.logger.debug(f"  Completion: {response.usage.completion_tokens}")  # type: ignore[union-attr]

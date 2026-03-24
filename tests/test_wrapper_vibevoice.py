@@ -13,8 +13,6 @@ from typing import Any, Callable
 
 import torch
 
-from typing import Any
-
 from types import ModuleType
 
 from unittest.mock import patch
