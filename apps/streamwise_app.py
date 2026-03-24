@@ -25,6 +25,7 @@ from typing import Any
 from typing import List
 from typing import Tuple
 from typing import Type
+from typing import Union
 
 from http import HTTPStatus
 
@@ -152,6 +153,7 @@ class StreamWiseApp(ABC):
             await asyncio.sleep(0.1)
             if task.done() and task.exception():
                 ex = task.exception()
+                assert ex is not None
                 return {
                     "status": "error",
                     "error": str(ex),
@@ -260,7 +262,7 @@ class StreamWiseApp(ABC):
 
         await serve(self.app, config)
 
-    def register_filters(self):
+    def register_filters(self) -> None:
         """Register template filters."""
         app = self.app
         app.template_filter("format_string")(lambda s: format_string(s))
@@ -446,7 +448,7 @@ class StreamWiseApp(ABC):
         ret["jobs"] = [job for job in jobs if job is not None]
         return ret
 
-    def register_routes(self):
+    def register_routes(self) -> None:
         """Register HTTP routes."""
         route = self.app.route
 
@@ -634,7 +636,7 @@ class StreamWiseApp(ABC):
             """Get the status of a job asynchronously."""
             job_dir = f"{self.tmp_dir}/{job_id}"
             status_file = f"{job_dir}/status.txt"
-            ret = {}
+            ret: Dict[float, JobStatus] = {}
             if not await aiofiles.os.path.exists(status_file):
                 return ret
 
@@ -809,6 +811,7 @@ class StreamWiseAppFileManager:
                 file_info.update(file_tensor_info)
 
             content_type = mimetype
+            content_str: Union[str, bytes]
             if content_type.startswith("text/") or content_type in ("application/json", "application/x-ndjson"):
                 content_str = content_bytes.decode("utf-8", errors="replace")
             else:

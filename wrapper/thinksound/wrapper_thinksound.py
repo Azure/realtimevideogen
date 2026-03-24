@@ -6,6 +6,8 @@ https://github.com/FunAudioLLM/ThinkSound/blob/master/extract_latents.py
 https://github.com/FunAudioLLM/ThinkSound/blob/master/predict.py
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import tempfile
@@ -151,7 +153,7 @@ class ThinkSoundGeneration(ModelGeneration):
         assert self.feature_extractor is not None
         # assert self.diffusion_model is not None
 
-    def _assert_args(self, duration_sec: float):
+    def _assert_args(self, duration_sec: float) -> None:
         if duration_sec <= 0:
             raise ValueError(f"Duration must be positive, got {duration_sec}")
         if duration_sec > 60:  # Reasonable limit
@@ -211,6 +213,7 @@ class ThinkSoundGeneration(ModelGeneration):
         session_dir: str
     ) -> str:
         """Extract features from video and text using the feature extractor."""
+        assert self.feature_extractor is not None
 
         # Create CSV file for ThinkSound format
         cot_dir = os.path.join(session_dir, "cot_coarse")
@@ -380,7 +383,7 @@ class ThinkSoundGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         video_binary: bytes,
         caption: str = "",
@@ -463,9 +466,10 @@ class ThinkSoundGeneration(ModelGeneration):
 
         caption = data_json.get("caption", "")
         caption_cot = data_json.get("caption_cot", "")
-        max_duration_sec = data_json.get("max_duration_sec", None)
-        if max_duration_sec is not None:
-            max_duration_sec = float(max_duration_sec)
+        max_duration_sec: Optional[float] = None
+        raw_duration = data_json.get("max_duration_sec", None)
+        if raw_duration is not None:
+            max_duration_sec = float(raw_duration)
 
         return {
             "task": self.model_name,
@@ -483,10 +487,10 @@ class OptimizedFeaturesUtils(FeaturesUtils):
 
     def __init__(
         self,
-        parent_instance,
-        *args,
+        parent_instance: ThinkSoundGeneration,
+        *args: Any,
         use_half: bool = True,
-        **kwargs
+        **kwargs: Any
     ) -> None:
         self.parent = parent_instance
         _prev_device = torch.device("cpu")
@@ -502,28 +506,39 @@ class OptimizedFeaturesUtils(FeaturesUtils):
             logging.info("Using half precision for models to save memory")
 
         # Load models to CUDA
-        if self.clip_model is not None:
-            self.clip_model = self._load_to_cuda(self.clip_model)
+        if self.clip_model is not None:  # type: ignore[has-type]
+            self.clip_model = self._load_to_cuda(self.clip_model)  # type: ignore[has-type]
 
-        if hasattr(self, 't5_model') and self.t5_model is not None:
-            self.t5_model = self._load_to_cuda(self.t5_model)
+        if hasattr(self, 't5_model') and self.t5_model is not None:  # type: ignore[has-type]
+            self.t5_model = self._load_to_cuda(self.t5_model)  # type: ignore[has-type]
 
-        if self.synchformer is not None:
+        if self.synchformer is not None:  # type: ignore[has-type]
             self.synchformer = self._load_to_cuda(self.synchformer)
 
-    def _load_to_cuda(self, model):
+    def _load_to_cuda(
+        self,
+        model: torch.nn.Module
+    ) -> torch.nn.Module:
         if self.use_half:
             model = model.half()
         return model.to(self.parent.device)
 
     @inference_mode()
-    def encode_video_with_clip(self, x, batch_size=-1):
+    def encode_video_with_clip(
+        self,
+        x: torch.Tensor,
+        batch_size: int = -1
+    ) -> torch.Tensor:
         out = super().encode_video_with_clip(x.to(self.parent.device), batch_size)
         torch.cuda.empty_cache()
         return out
 
     @inference_mode()
-    def encode_video_with_sync(self, x, batch_size=-1):
+    def encode_video_with_sync(
+        self,
+        x: torch.Tensor,
+        batch_size: int = -1
+    ) -> torch.Tensor:
         x = x.to(self.parent.device)
         if self.use_half:
             x = x.half()
@@ -532,13 +547,19 @@ class OptimizedFeaturesUtils(FeaturesUtils):
         return out
 
     @inference_mode()
-    def encode_text(self, text_list):
+    def encode_text(
+        self,
+        text_list: list[str]
+    ) -> torch.Tensor:
         out = super().encode_text(text_list)
         torch.cuda.empty_cache()
         return out
 
     @inference_mode()
-    def encode_t5_text(self, text: list[str]) -> torch.Tensor:
+    def encode_t5_text(
+        self,
+        text: list[str]
+    ) -> torch.Tensor:
         assert self.t5_model is not None, 'T5 model is not loaded'
         assert self.t5_tokenizer is not None, 'T5 Tokenizer is not loaded'
 

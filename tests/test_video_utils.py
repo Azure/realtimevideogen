@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import os
 import logging
 import pytest
@@ -10,6 +12,8 @@ import numpy as np
 
 from typing import List
 from typing import Optional
+
+from PIL import Image
 
 from media_utils import get_frame_with_text
 from media_utils import video_frames_to_base64
@@ -31,14 +35,15 @@ from media_utils import get_video_frames_at_fps
 from media_utils import get_video_size
 from media_utils import get_font_size
 from media_utils import get_audio_duration
-from file_utils import read_file_base64
 from media_utils import get_ffmpeg_version
+
+from file_utils import read_file_base64
 
 
 @pytest.mark.asyncio
 async def test_video() -> None:
     video_frames: List[np.ndarray] = [
-        get_frame_with_text(100, 60, f"frame{frame_id:02d}", output_type="numpy")
+        get_frame_with_text(100, 60, f"frame{frame_id:02d}", output_type="numpy")  # type: ignore[misc]
         for frame_id in range(24)
     ]
     video_path = await save_video_frames(video_frames, fps=24)
@@ -64,10 +69,10 @@ async def test_video() -> None:
 async def test_base64() -> None:
     """Test video frames to/from base64 conversion."""
     video_frames: List[np.ndarray] = [
-        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")
+        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[misc]
         for frame_id in range(12)
     ]
-    video_base64 = video_frames_to_base64(video_frames)
+    video_base64 = video_frames_to_base64(video_frames)  # type: ignore[arg-type]
     video_frames_2 = base64_to_video_frames(video_base64)
     assert len(video_frames) == len(video_frames_2)
     for frame1, frame2 in zip(video_frames, video_frames_2):
@@ -90,8 +95,8 @@ async def test_base64() -> None:
 
 def test_get_video_frames_at_fps() -> None:
     """Test getting a video frames at a specific FPS."""
-    video_frames = [
-        get_frame_with_text(128, 64, f"frame{frame_id:02d}", output_type="numpy")
+    video_frames: list[Image.Image] = [
+        get_frame_with_text(128, 64, f"frame{frame_id:02d}", output_type="pil")
         for frame_id in range(10)
     ]
     new_video_frames = get_video_frames_at_fps(video_frames, src_fps=30, dst_fps=30)
@@ -248,7 +253,7 @@ async def test_concatenate() -> None:
     with pytest.raises(ValueError):
         await concatenate_videos([])
     with pytest.raises(TypeError, match="Video input 0 is not bytes or str"):
-        await concatenate_videos([video_frames1, video_frames2])
+        await concatenate_videos([video_frames1, video_frames2])  # type: ignore[arg-type]
     with pytest.raises(FileNotFoundError):
         await concatenate_videos(["abc", "def"])
     with pytest.raises(ValueError, match="One of the inputs is corrupted"):
@@ -276,7 +281,7 @@ async def test_get_video_frames_empty() -> None:
     video_frames = await get_video_frames(b"")
     assert video_frames == []
 
-    video_frames = await get_video_frames([])
+    video_frames = await get_video_frames([])  # type: ignore[arg-type]
     assert video_frames == []
 
 
@@ -308,14 +313,23 @@ async def test_get_video_frames(num_frames: int, fps: float) -> None:
     video_frames_out = await get_video_frames(video_binary)
     assert len(video_frames_out) == num_frames
 
-    video_info = get_video_file_info(video_binary)
-    assert video_info["video"]["width"] == width
-    assert video_info["video"]["height"] == height
-    assert video_info["video"]["num_frames"] == num_frames
-    assert video_info["video"]["num_frames"] == len(video_frames_out)
-    assert video_info["video"]["fps"] == fps
-    assert abs(video_info["video"]["duration_seconds"] - (num_frames / fps)) < 0.01
-    assert video_info["overall"]["num_bytes"] > 1000
+    video_file_info = get_video_file_info(video_binary)
+    assert "video" in video_file_info
+    video_info = video_file_info["video"]
+    assert video_info is not None
+    assert video_info.get("width") == width
+    assert video_info.get("height") == height
+    assert video_info.get("num_frames") == num_frames
+    assert video_info.get("num_frames") == len(video_frames_out)
+    assert video_info.get("fps") == fps
+    duration_seconds = video_info.get("duration_seconds")
+    assert duration_seconds is not None
+    assert abs(duration_seconds - (num_frames / fps)) < 0.01
+    video_overall_info = video_file_info.get("overall")
+    assert video_overall_info is not None
+    num_bytes = video_overall_info.get("num_bytes")
+    assert num_bytes is not None
+    assert num_bytes > 1000
 
     os.remove(video_path)
     del video_frames
@@ -358,7 +372,7 @@ async def test_save_video_frames() -> None:
     """
 
     with pytest.raises(ValueError):
-        await save_video_frames(None, fps=FPS)
+        await save_video_frames(None, fps=FPS)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         await save_video_frames([], fps=FPS)
     with pytest.raises(TypeError):
@@ -409,11 +423,14 @@ async def test_save_video_frames_audio() -> None:
 
     assert "video" in video_file_info
     video_info = video_file_info["video"]
-    assert video_info["fps"] == FPS, f"Video info: {video_file_info}"
-    assert video_info["num_frames"] == 113, f"Video info: {video_file_info}"
-    assert video_info["width"] == 180, f"Video info: {video_file_info}"
-    assert video_info["height"] == 100, f"Video info: {video_file_info}"
-    assert_approx(video_info["duration_seconds"], 4.913)  # 113 / 23
+    assert video_info is not None
+    assert video_info.get("fps") == FPS, f"Video info: {video_file_info}"
+    assert video_info.get("num_frames") == 113, f"Video info: {video_file_info}"
+    assert video_info.get("width") == 180, f"Video info: {video_file_info}"
+    assert video_info.get("height") == 100, f"Video info: {video_file_info}"
+    duration_seconds = video_info.get("duration_seconds")
+    assert duration_seconds is not None
+    assert_approx(duration_seconds, 4.913)  # 113 / 23
 
     assert "audio" not in video_file_info
 
@@ -425,34 +442,49 @@ async def test_save_video_frames_audio() -> None:
         audio_path=audio_path,
         fps=FPS)
     video_file_info = get_video_file_info(video_path)
-    assert video_file_info["overall"]["num_bytes"] > 1000
-    assert_approx(video_file_info["overall"]["duration_seconds"], 4.913)
+    assert video_file_info is not None
+    video_overall_info = video_file_info.get("overall")
+    assert video_overall_info is not None
+    num_bytes = video_overall_info.get("num_bytes")
+    assert num_bytes is not None
+    assert num_bytes > 1000
+    duration_seconds = video_overall_info.get("duration_seconds")
+    assert duration_seconds is not None
+    assert_approx(duration_seconds, 4.913)
 
     assert "video" in video_file_info
     video_info = video_file_info["video"]
-    assert video_info["fps"] == FPS, f"Video info: {video_file_info}"
+    assert video_info is not None
+    assert video_info.get("fps") == FPS, f"Video info: {video_file_info}"
     # TODO the following works with ffmpeg 4.2 but not with 6.0
     """
-    assert video_info["num_frames"] == 113, f"Video info: {video_file_info}"
+    assert video_info.get("num_frames") == 113, f"Video info: {video_file_info}"
     assert_approx(
-        video_info["duration_seconds"], 4.913,
+        video_info.get("duration_seconds"), 4.913,
         msg=f"Video info: {video_file_info}")
     """
     logging.warning(f"Video info: {video_file_info}")
-    assert video_info["num_frames"] > 100
-    assert video_info["duration_seconds"] > 4.0
+    num_frames = video_info.get("num_frames")
+    assert num_frames is not None
+    assert num_frames > 100
+    duration_seconds = video_info.get("duration_seconds")
+    assert duration_seconds is not None
+    assert duration_seconds > 4.0
 
     assert "audio" in video_file_info
     audio_info = video_file_info["audio"]
-    assert audio_info["duration_seconds"] > 0
+    assert audio_info is not None
+    duration_seconds = audio_info.get("duration_seconds")
+    assert duration_seconds is not None
+    assert duration_seconds > 0
     """
     # assert_approx(audio_info["duration_seconds"], 4.913)
     assert_approx(
-        audio_info["duration_seconds"], 4.864,
+        duration_seconds, 4.864,
         msg=f"Video info: {video_file_info}")  # TODO this is not good
     """
     logging.info(f"Audio info: {audio_info}")
-    assert audio_info["duration_seconds"] > 4.0
+    assert duration_seconds > 4.0
 
     os.remove(video_path)
 
@@ -507,7 +539,7 @@ async def test_change_fps() -> None:
         await save_video_frames([], fps=30)
 
     with pytest.raises(ValueError, match="No video frames provided."):
-        await save_video_frames(None, fps=30)
+        await save_video_frames(None, fps=30)  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
         get_video_fps(12345)  # type: ignore[arg-type]

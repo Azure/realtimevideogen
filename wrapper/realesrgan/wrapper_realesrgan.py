@@ -395,7 +395,7 @@ class RealESRGANGeneration(ModelGeneration):
 
         video_base64 = data_json.get("video", None)
         video_frames = None
-        video_fps = -1
+        video_fps: float = -1.0
         if video_base64 is not None:
             video_frames = base64_to_video_frames(video_base64)
             video_binary = base64_to_binary(video_base64)
