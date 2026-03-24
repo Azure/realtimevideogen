@@ -163,6 +163,9 @@ def format_url(url: Optional[str]) -> Optional[str]:
 
 _AZURE_VM_SKU_RE = re.compile(r'^Standard_(?:NC|ND|NV)\d+[a-zA-Z]*_([A-Za-z0-9]+)_v\d+$', re.IGNORECASE)
 
+# Matches a trailing MIG profile like "MIG 1g.10gb" or "MIG 3g.40gb"
+_MIG_PROFILE_RE = re.compile(r'\bMIG\s+(\d+g\.\d+gb)\b', re.IGNORECASE)
+
 _AZURE_VM_GPU_MAP: Dict[str, str] = {
     "A100": "A100 80GB",
     "GB200": "GB200",
@@ -199,6 +202,8 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
 
     Handles Azure VM SKU names (e.g. Standard_ND96ams_A100_v4) and raw GPU
     model strings reported by nvidia-smi (e.g. NVIDIA A100-SXM4-80GB).
+    MIG instance names (e.g. NVIDIA A100-SXM4-80GB MIG 1g.10gb) are formatted
+    with the MIG profile appended (e.g. A100 80GB MIG 1g.10gb).
 
     Azure GPU VM sizes reference:
     https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nd-family
@@ -216,12 +221,19 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
         gpu_part = azure_match.group(1).upper()
         return _AZURE_VM_GPU_MAP.get(gpu_part, gpu_part)
 
+    # Extract and strip the MIG profile before matching the base GPU model,
+    # then re-append it so the profile is preserved in the display name.
+    # e.g. "NVIDIA A100-SXM4-80GB MIG 1g.10gb" -> "A100 80GB MIG 1g.10gb"
+    mig_match = _MIG_PROFILE_RE.search(gpu_model)
+    mig_suffix = " " + mig_match.group(0) if mig_match else ""
+    base_model = _MIG_PROFILE_RE.sub("", gpu_model).strip() if mig_match else gpu_model
+
     # Normalize hyphens to spaces for pattern matching
-    normalized = gpu_model.replace("-", " ")
+    normalized = base_model.replace("-", " ")
 
     for pattern, display_name in _GPU_MODEL_PATTERNS:
         if re.search(pattern, normalized, re.IGNORECASE):
-            return display_name
+            return display_name + mig_suffix
 
     return gpu_model
 
@@ -290,6 +302,8 @@ def get_k8s_service_emoji(container_name: Optional[str]) -> str:
         return "📄"
     if "mdsdmgr" in container_name:
         return "📊"
+    if "debug" in container_name:
+        return "🐞"
     return f"<span class='text-muted' title='{container_name}'>❓</span>"
 
 

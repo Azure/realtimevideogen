@@ -20,6 +20,7 @@ RUN conda run -n streamwise hf download nari-labs/Dia-1.6B --local-dir nari-labs
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
+COPY docker_files/*.json .
 COPY docker_files/*.sh .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static

@@ -56,9 +56,9 @@ jobs:
       run: |
         mypy --install-types --non-interactive --ignore-missing-imports . \
           2>&1 | tee mypy-results.txt || true
-        ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null || echo 0)
-        WARNING_COUNT=$(grep -c ": warning:" mypy-results.txt 2>/dev/null || echo 0)
-        NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null || echo 0)
+        ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null) || ERROR_COUNT=0
+        WARNING_COUNT=$(grep -c ": warning:" mypy-results.txt 2>/dev/null) || WARNING_COUNT=0
+        NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null) || NOTE_COUNT=0
         {
           echo "## Mypy Type Checking"
           echo ""
