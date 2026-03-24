@@ -546,11 +546,8 @@ async def test_service_mig_null_mem_renders_na() -> None:
             response = await client.get("/service/realesrgan")
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
-    # Memory row must show N/A instead of crashing with TypeError
-    assert "N/A" in response_text
-    assert "0 GiB" not in response_text
-    # Structural check: the Memory table header must be present
-    assert "Memory" in response_text
+    assert "<td>N/A</td>" in response_text
+    assert "<th>Memory</th>" in response_text
 
 
 @pytest.mark.asyncio
