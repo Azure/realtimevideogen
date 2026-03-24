@@ -145,7 +145,7 @@ _MOCK_MIG_SERVICE = {
     "url": "http://10.0.0.6:8080",
     "node_name": "testnode",
     "cpu": 1,
-    "memory": 2147483648,
+    "memory": 2 * 1024 * 1024 * 1024,
     "gpu": 1,
     "mig_profile": "1g.10gb",
     "ephemeral_storage": 0,
@@ -415,7 +415,10 @@ async def test_get_service_files() -> None:
 
 _MOCK_MIG_SERVICE_WITH_HEALTH = {
     **_MOCK_MIG_SERVICE,
-    "health": {"gpu": "NVIDIA A100-SXM4-80GB MIG 1g.10gb", "world_size": 0},
+    "health": {
+        "gpu": "NVIDIA A100-SXM4-80GB MIG 1g.10gb",
+        "world_size": 0
+    },
 }
 
 _MOCK_MIG_NODE = {
@@ -557,9 +560,7 @@ async def test_index_mig_node_shows_partitions() -> None:
 async def test_index_mig_pods_excluded_from_full_gpu_count() -> None:
     """Index page nodes table does not count MIG pods toward the full GPU allocated total."""
     client = _get_client()
-    _cpu = 96
-    _memory = 900 * 1024 * 1024 * 1024
-    _storage = 500 * 1024 * 1024 * 1024
+
     # Mixed node: has both full GPUs and MIG resources
     mixed_node = {
         **_MOCK_FULL_GPU_NODE,
@@ -572,15 +573,15 @@ async def test_index_mig_pods_excluded_from_full_gpu_count() -> None:
             }
         },
         "capacity_resources": {
-            "cpu": _cpu,
-            "memory": _memory,
-            "storage": _storage,
+            "cpu": 96,
+            "memory": 900 * 1024 * 1024 * 1024,
+            "storage": 500 * 1024 * 1024 * 1024,
             "gpu": "7"
         },
         "allocatable_resources": {
-            "cpu": _cpu,
-            "memory": _memory,
-            "storage": _storage,
+            "cpu": 96,
+            "memory": 900 * 1024 * 1024 * 1024,
+            "storage": 500 * 1024 * 1024 * 1024,
             "gpu": "7"
         },
     }
