@@ -167,7 +167,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
         # Load the wav2vec model
         self.load_timer.start("wav2vec")
-        self.wav2vec = WhisperModel.from_pretrained(
+        self.wav2vec = WhisperModel.from_pretrained(  # type: ignore[call-arg]
             f"{self.models_root_path}/whisper-tiny/"  # nosec B615 - local path
         ).to(device=self.device, dtype=torch.float32)
         self.wav2vec.requires_grad_(False)
@@ -322,7 +322,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         gen_timer.start("output")
         try:
             if output_type == "pil":
-                return video_frames
+                return video_frames  # type: ignore[return-value]
 
             if output_type in ("video_binary", "video_path"):
                 if not job_id:
@@ -343,7 +343,7 @@ class HunyuanAvatarGeneration(USPGeneration):
                 return video_binary
 
             logging.error(f"Unknown output type: {output_type}")
-            return None  # type: ignore[return-value]
+            return None
         finally:
             gen_timer.end("output")
 

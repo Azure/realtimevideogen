@@ -169,7 +169,7 @@ class LMMGenerator:
             self.request_executor = None
         if self.session:
             await self.session.close()
-            self.session = None  # type: ignore[assignment]
+            self.session = None
 
     def get_queued_requests(self) -> List[str]:
         """Get the list of queued request IDs from the request executor, sorted in ascending order."""

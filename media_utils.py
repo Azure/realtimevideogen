@@ -93,9 +93,9 @@ def base64_to_video_frames(
     video_bytes = base64_to_binary(video_base64)
     video_buffer = BytesIO(video_bytes)
     # fmt: imageio.Format = formats[video_format]
-    video_frames = imageio.get_reader(  # type: ignore[arg-type]
+    video_frames = imageio.get_reader(
         video_buffer,
-        format=video_format)
+        format=video_format)  # type: ignore[arg-type]
     frames = [
         Image.fromarray(frame_np).convert("RGB")
         for frame_np in video_frames  # type: ignore[attr-defined]
@@ -115,9 +115,9 @@ def video_frames_to_base64(
         raise ValueError("video_frames cannot be empty")
     video_buffer = BytesIO()
     # fmt: imageio.Format = formats[format]
-    with imageio.get_writer(  # type: ignore[arg-type]
+    with imageio.get_writer(
         video_buffer,
-        format=format,
+        format=format,  # type: ignore[arg-type]
         fps=fps
     ) as writer:
         for frame in video_frames:
@@ -1033,6 +1033,7 @@ def save_diffusers_video(
         for frame in video_frames:
             frame_np = np.array(frame)
             writer.append_data(frame_np)  # type: ignore[attr-defined]
+    return out_video_path
 
 
 def save_bcthw_as_mp4(

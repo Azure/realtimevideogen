@@ -63,7 +63,7 @@ class FluxUpscalerGeneration(USPGeneration):
 
     def __del__(self) -> None:
         if self.pipeline is not None:
-            del self.pipeline.transformer
+            del self.pipeline.transformer  # type: ignore[attr-defined]
             self.pipeline = None
         if self.controlnet is not None:
             del self.controlnet

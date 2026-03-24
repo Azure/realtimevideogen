@@ -86,7 +86,8 @@ class HiDreamGeneration(ModelGeneration):
 
         self.load_timer.start("pipeline")
 
-        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3.1-8B-Instruct")  # nosec B615
+        self.tokenizer = AutoTokenizer.from_pretrained(  # type: ignore[assignment]  # nosec B615
+            "meta-llama/Meta-Llama-3.1-8B-Instruct")
         self.text_encoder = LlamaForCausalLM.from_pretrained(
             "meta-llama/Meta-Llama-3.1-8B-Instruct",
             output_hidden_states=True,
@@ -100,12 +101,12 @@ class HiDreamGeneration(ModelGeneration):
             text_encoder_4=self.text_encoder,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("pipeline")
 
         logging.info(
             f"Loaded HiDreamImagePipeline: {self.HF_MODEL_NAME} device:{self.device} dtype:{self.param_dtype} "
-            f"device_map:{self.pipeline.hf_device_map}.")  # type: ignore[attr-defined]
+            f"device_map:{self.pipeline.hf_device_map}.")  # type: ignore[union-attr]
 
     def init_model_parallelism(self) -> None:
         """HiDream does not support parallelism yet."""
@@ -119,11 +120,11 @@ class HiDreamGeneration(ModelGeneration):
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
-        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
-            self.pipeline.transformer,  # type: ignore[attr-defined]
+        self.pipeline.transformer = torch.compile(  # type: ignore[union-attr]
+            self.pipeline.transformer,  # type: ignore[union-attr]
             mode="max-autotune-no-cudagraphs"
         )
-        assert self.pipeline.transformer is not None  # type: ignore[attr-defined]
+        assert self.pipeline.transformer is not None  # type: ignore[union-attr]
         self.load_timer.end("dit_compile")
 
     def _assert_model_init(self) -> None:
@@ -136,9 +137,8 @@ class HiDreamGeneration(ModelGeneration):
         width: int,
     ) -> None:
         """Check if the image size is supported for the current parallelism setting."""
-        assert self.pipeline is not None
-        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
-        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[union-attr]
+        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[union-attr]
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -178,8 +178,8 @@ class HiDreamGeneration(ModelGeneration):
         """
         gen_timer = self._new_gen_timer(job_id)
 
-        self._assert_args(height, width)
         self._assert_model_init()
+        self._assert_args(height, width)
         assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls

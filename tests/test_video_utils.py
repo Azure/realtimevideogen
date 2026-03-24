@@ -75,7 +75,7 @@ async def test_video() -> None:
 async def test_base64() -> None:
     """Test video frames to/from base64 conversion."""
     video_frames: List[np.ndarray] = [
-        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[list-item]
+        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[misc]
         for frame_id in range(12)
     ]
     video_base64 = video_frames_to_base64(video_frames)  # type: ignore[arg-type]
@@ -377,7 +377,7 @@ async def test_save_video_frames() -> None:
     with pytest.raises(ValueError):
         await save_video_frames([], fps=FPS)
     with pytest.raises(TypeError):
-        await save_video_frames(b"BLAH", fps=FPS)
+        await save_video_frames(b"BLAH", fps=FPS)  # type: ignore[arg-type]
 
 
 def assert_approx(
@@ -434,7 +434,7 @@ async def test_save_video_frames_audio() -> None:
     assert video_info["num_frames"] == 113, f"Video info: {video_file_info}"
     assert video_info["width"] == 180, f"Video info: {video_file_info}"
     assert video_info["height"] == 100, f"Video info: {video_file_info}"
-    duration_seconds = video_info["duration_seconds"]
+    duration_seconds = video_info["duration_seconds"]  # type: ignore[assignment]
     assert duration_seconds is not None
     assert_approx(duration_seconds, 4.913)  # 113 / 23
 

@@ -117,7 +117,7 @@ class VideoAudioTextLoaderVal():
         pixel_value_ref_llava = torch.stack(pixel_value_ref_llava, dim=0)  # type: ignore[assignment]
         pixel_value_ref_clip = self.clip_image_processor(
             images=Image.fromarray(
-                (pixel_value_ref[0].permute(1, 2, 0)).data.cpu().numpy().astype(np.uint8)),  # type: ignore[union-attr]
+                (pixel_value_ref[0].permute(1, 2, 0)).data.cpu().numpy().astype(np.uint8)),
             return_tensors="pt"
         ).pixel_values[0]
         pixel_value_ref_clip = pixel_value_ref_clip.unsqueeze(0)
@@ -129,14 +129,14 @@ class VideoAudioTextLoaderVal():
         # Output
         return {
             "text_prompt": prompt,
-            "pixel_value_ref": pixel_value_ref.to(dtype=torch.float16),  # type: ignore[union-attr]
-            "pixel_value_ref_llava": pixel_value_ref_llava.to(  # type: ignore[union-attr]
+            "pixel_value_ref": pixel_value_ref.to(dtype=torch.float16),
+            "pixel_value_ref_llava": pixel_value_ref_llava.to(  # type: ignore[attr-defined]
                 dtype=torch.float16),
             # for clip_image_encoder (1, 3, 244, 244)
-            "pixel_value_ref_clip": pixel_value_ref_clip.to(dtype=torch.float16),  # type: ignore[union-attr]
+            "pixel_value_ref_clip": pixel_value_ref_clip.to(dtype=torch.float16),
             "audio_prompts": audio_prompts.to(dtype=torch.float16),
-            "motion_bucket_id_heads": motion_bucket_id_heads.to(dtype=text_ids.dtype),
-            "motion_bucket_id_exps": motion_bucket_id_exps.to(dtype=text_ids.dtype),
+            "motion_bucket_id_heads": motion_bucket_id_heads.to(dtype=text_ids.dtype),  # type: ignore[attr-defined]
+            "motion_bucket_id_exps": motion_bucket_id_exps.to(dtype=text_ids.dtype),  # type: ignore[attr-defined]
             "fps": fps_tensor.to(dtype=torch.float16),
             "text_ids": text_ids.clone(),                                               # for llava_text_encoder
             "text_mask": text_mask.clone(),                                             # for llava_text_encoder

@@ -161,7 +161,7 @@ class RealESRGANGeneration(ModelGeneration):
                 ret.append(image)
             else:
                 ret.append(None)  # type: ignore[arg-type]
-        return ret
+        return ret  # type: ignore[return-value]
 
     def _gather_chunks(
         self,
@@ -173,7 +173,7 @@ class RealESRGANGeneration(ModelGeneration):
         This is used to collect the results after processing.
         """
         if self.world_size == 1:
-            return chunked_images
+            return chunked_images  # type: ignore[return-value]
 
         gathered_lists = None
         if self.rank == 0:
@@ -257,7 +257,7 @@ class RealESRGANGeneration(ModelGeneration):
             if image is not None:
                 if self.rank != 0:
                     logging.debug(f"[{self.rank}] Skipping image upscaling, not rank 0.")
-                    return [None]
+                    return [None]  # type: ignore[list-item]
                 out_image = await asyncio.to_thread(
                     self.generate_image,
                     image=image,

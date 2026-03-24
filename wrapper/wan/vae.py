@@ -702,8 +702,8 @@ class WanVAE_(nn.Module):
             out_conv = self.conv1(out[:, :, i:i + 1, :, :])  # type: ignore[call-overload]
             aux.append(out_conv)
         # Middle frames batched in groups of 4 (after the first one)
-        out_conv = self.conv1(  # type: ignore[call-overload]
-            out[:, :, start_frames - 1:num_lat_frames - end_frames, :, :])
+        out_conv = self.conv1(
+            out[:, :, start_frames - 1:num_lat_frames - end_frames, :, :])  # type: ignore[call-overload]
         aux.append(out_conv)
         # End frames 1 by 1
         if end_frames > 0:
@@ -887,8 +887,9 @@ def _video_vae(
     # load checkpoint
     logging.info(f'loading {pretrained_path}')
     model.load_state_dict(
-        torch.load(  # type: ignore[arg-type]
-            pretrained_path, map_location=device, weights_only=False),  # nosec B614 - trusted model checkpoint
+        torch.load(
+            pretrained_path, map_location=device,  # type: ignore[arg-type]
+            weights_only=False),  # nosec B614 - trusted model checkpoint
         assign=True)
 
     return model
@@ -935,8 +936,8 @@ class WanVAE:
         """
         with amp.autocast('cuda', dtype=self.dtype):
             return [
-                self.model.encode(  # type: ignore[arg-type]
-                    u.unsqueeze(0), self.scale, start_frames, end_frames).float().squeeze(0)
+                self.model.encode(
+                    u.unsqueeze(0), self.scale, start_frames, end_frames).float().squeeze(0)  # type: ignore[arg-type]
                 for u in videos
             ]
 

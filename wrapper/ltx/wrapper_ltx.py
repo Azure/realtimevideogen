@@ -80,18 +80,18 @@ class LTXVideoGeneration(ModelGeneration):
             # "Lightricks/LTX-Video",
             "Lightricks/LTX-Video-0.9.7-dev",
             torch_dtype=self.param_dtype)
-        self.pipeline.to(self.device)
+        self.pipeline.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("pipeline")
 
         self.load_timer.start("upsample")
         self.pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained(
             "Lightricks/ltxv-spatial-upscaler-0.9.7",
-            vae=self.pipeline.vae,
+            vae=self.pipeline.vae,  # type: ignore[union-attr]
             torch_dtype=self.param_dtype)
-        self.pipe_upsample.to(self.device)
+        self.pipe_upsample.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("upsample")
 
-        self.pipeline.vae.enable_tiling()
+        self.pipeline.vae.enable_tiling()  # type: ignore[union-attr]
 
     def init_model_parallelism(self) -> None:
         if self.world_size > 1:
@@ -199,7 +199,7 @@ class LTXVideoGeneration(ModelGeneration):
                 downscaled_width)
             seed = torch.Generator()
             seed.manual_seed(0)
-            latents = self.pipeline(  # type: ignore[misc]
+            latents = self.pipeline(  # type: ignore[operator]
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=neg_prompt,
@@ -214,7 +214,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 2. Upscale generated video using latent up-sampler with fewer inference steps
             # The available latent up-sampler up-scales the height/width by 2x
             upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
-            upscaled_latents = self.pipe_upsample(  # type: ignore[misc]
+            upscaled_latents = self.pipe_upsample(  # type: ignore[operator]
                 latents=latents,
                 output_type="latent"
             ).frames
@@ -222,7 +222,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 3. De-noise the upscaled video with few steps to improve texture (optional, but recommended)
             seed = torch.Generator()
             seed.manual_seed(0)
-            video_frames = self.pipeline(  # type: ignore[misc]
+            video_frames = self.pipeline(  # type: ignore[operator]
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=negative_prompt,
