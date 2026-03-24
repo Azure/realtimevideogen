@@ -18,10 +18,9 @@ RUN conda run -n streamwise pip install -r requirements.txt && \
 COPY *.py .
 COPY *.bash .
 COPY *.sh .
+COPY *.json .
 COPY templates ./templates
 COPY static ./static
-
-COPY services.json .
 
 SHELL ["/bin/bash", "-c"]
 RUN echo "source activate streamwise" >> ~/.bashrc
