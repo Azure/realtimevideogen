@@ -55,6 +55,31 @@ az deployment group create \
     acrResourceGroup=my-acr-rg
 ```
 
+To also disable default outbound access for VMs in the cluster (opt-in; provisions a NAT gateway
+and dedicated VNet so that outbound traffic is controlled rather than unrestricted):
+
+```bash
+az deployment group create \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --template-file deployment/aks/aks.bicep \
+  --parameters \
+    clusterName=my-cluster \
+    gpuNodeVmSize=Standard_ND96isrf_H100_v5 \
+    acrName=myacr \
+    acrResourceGroup=my-acr-rg \
+    disableDefaultOutboundAccess=true
+```
+
+When `disableDefaultOutboundAccess=true` the template additionally creates:
+- `aks-nat-public-ip` – static public IP used by the NAT gateway
+- `aks-nat-gateway` – NAT gateway that provides controlled outbound internet access
+- `aks-vnet` / `aks-node-subnet` – VNet and subnet with `defaultOutboundAccess: false`; both node pools
+  are placed in this subnet
+
+The address space can be customised via the `vnetAddressPrefix` (default `10.0.0.0/16`) and
+`subnetAddressPrefix` (default `10.0.0.0/24`) parameters.
+
 Some available GPU VM sizes:
 | VM Size | GPU |
 |---------|-----|
