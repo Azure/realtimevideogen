@@ -287,11 +287,10 @@ async def add_pod(
     API interface to add a pod for the specified container.
     If this does not work, try "deployment/helm/deploy.sh" to deploy namespace, etc.
 
-    When *mig_profile* is provided (e.g. ``"1g.5gb"``), the pod requests a
-    MIG slice instead of a whole GPU.  The *gpu* parameter then represents
-    the number of MIG instances requested (usually 1).  MIG is only supported
-    on A100 and H100 GPUs; set *gpu_type* accordingly (``"a100"``, ``"h100"``,
-    or ``"a+"``/``"h+"``) so the pod is scheduled on a MIG-capable node.
+    When *mig_profile* is provided (e.g. ``"1g.5gb"``), the pod requests a MIG slice instead of a whole GPU.
+    The *gpu* parameter then represents the number of MIG instances requested (usually 1).
+    MIG is only supported on A100 and H100 GPUs.
+    Set *gpu_type* accordingly (``"a100"`` or ``"h+"``) so the pod is scheduled on a MIG-capable node.
     """
     if not container_name:
         return jsonify({"error": "Missing required parameter 'container_name'"}), HTTPStatus.BAD_REQUEST
