@@ -414,14 +414,14 @@
                                 {% else %}
                                     {{ node.gpu_model | format_gpu_model | safe }}
                                 {% endif %}
-                                {% for profile, counts in node.mig_resources.items() %}
+                                {% for mig_profile, counts in node.mig_resources.items() %}
                                     {% set ns_mig = namespace(total_allocated_mig=0) %}
                                     {% for pod in pods %}
-                                        {% if pod.mig_profile == profile and pod.node == node.node_name %}
+                                        {% if pod.mig_profile == mig_profile and pod.node == node.node_name %}
                                             {% set ns_mig.total_allocated_mig = ns_mig.total_allocated_mig + pod.gpu | int %}
                                         {% endif %}
                                     {% endfor %}
-                                    <br><span class="badge bg-info">{{ profile }}</span>: {{ ns_mig.total_allocated_mig }}/{{ counts.allocatable }}/{{ counts.capacity }}
+                                    <br>+{{ mig_profile }}: {{ ns_mig.total_allocated_mig }}/{{ counts.allocatable }}/{{ counts.capacity }}
                                 {% endfor %}
                             {% elif node.capacity_resources.gpu == 0 or node.capacity_resources.gpu == "N/A" %}
                                 <span class="text-muted">-</span>
