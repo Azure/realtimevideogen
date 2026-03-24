@@ -209,7 +209,7 @@ class CogViewGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output: Any = self.pipeline(  # type: ignore[misc]
+            output: Any = self.pipeline(  # type: ignore[operator]
                 prompt=prompt,
                 height=height,
                 width=width,
