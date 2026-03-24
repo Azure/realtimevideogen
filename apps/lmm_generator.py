@@ -2,6 +2,8 @@
 LMM Generator Client.
 """
 
+from __future__ import annotations
+
 import sys
 import os
 import re
@@ -132,7 +134,7 @@ class LMMGenerator:
             limit_per_host=10,
             use_dns_cache=True,
             force_close=True)
-        self.session = ClientSession(
+        self.session: Optional[ClientSession] = ClientSession(
             connector=connector,
             timeout=SERVICE_LONG_TIMEOUT)
 
@@ -156,6 +158,7 @@ class LMMGenerator:
     async def _submit_request(self, request: ServiceRequest) -> asyncio.Future:
         """Submit a service request to the request executor and return the future."""
         self.requests.append(request)
+        assert self.request_executor is not None
         future = await self.request_executor.submit_request(request)
         return future
 
@@ -170,12 +173,14 @@ class LMMGenerator:
 
     def get_queued_requests(self) -> List[str]:
         """Get the list of queued request IDs from the request executor, sorted in ascending order."""
+        assert self.request_executor is not None
         request_ids = self.request_executor.get_queued_requests()
         request_ids.sort()
         return request_ids
 
     def get_requests(self) -> Dict[str, ServiceRequest]:
         """Get the dictionary of all requests currently being managed by the request executor."""
+        assert self.request_executor is not None
         return self.request_executor.get_requests()
 
     def get_service_url(
@@ -208,6 +213,7 @@ class LMMGenerator:
         url = f"{base_url}/files"
         try:
             # TODO use the request executor?
+            assert self.session is not None
             async with self.session.get(url, timeout=timeout) as response:
                 if response.status == HTTPStatus.OK and "application/json" in response.headers.get("Content-Type", ""):
                     response_json = await response.json()
@@ -236,6 +242,7 @@ class LMMGenerator:
         url = f"{base_url}/file/{file_name}"
         try:
             # TODO use the request executor?
+            assert self.session is not None
             async with self.session.get(url, timeout=timeout) as response:
                 if response.status == HTTPStatus.OK:
                     # return await response.read()
@@ -277,7 +284,7 @@ class LMMGenerator:
     ) -> Image.Image:
         """Generate an image from a text prompt using a txt2img Flux service."""
         service_name = get_service_name(TaskClass.TXT2IMG)
-        payload_json = {
+        payload_json: dict[str, str | float | int | None] = {
             "job_id": f"{self.job_id}_{task_id}",
             "prompt": prompt,
             "neg_prompt": neg_prompt,
@@ -443,7 +450,9 @@ class LMMGenerator:
         last_index = -1
 
         for file_desc in file_descrs:
-            file_name = file_desc["name"]
+            file_name = file_desc.get("name")
+            if not file_name:
+                continue
             # File names of the type: 20250706T191739_latents_024.pt
             match = re.match(rf"^{self.job_id}_{task_id}_latents_(\d+)\.pt$", file_name)
             if match:
@@ -940,6 +949,7 @@ class LMMGenerator:
                 extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
                 stream=False,
             )
+            assert response is not None
 
             # Process LLM response
             self.logger.debug("LLM tokens:")
@@ -1076,6 +1086,7 @@ class LMMGenerator:
 
         try:
             # TODO use request executor?
+            assert self.session is not None
             async with self.session.post(
                 url,
                 json=payload_json,
@@ -1085,6 +1096,7 @@ class LMMGenerator:
                 if response.ok:
                     if streaming:
                         async for line in response.content:
+                            line_strip = ""
                             try:
                                 line_strip = line.decode("utf-8").strip()
                                 if line_strip:
@@ -1167,9 +1179,11 @@ class LMMGenerator:
 
         try:
             # TODO use service request executor? with deadline
+            assert self.session is not None
             async with self.session.post(url, json=payload_json, headers=JSON_HEADERS, timeout=timeout) as response:
                 if response.ok:
                     async for line in response.content:
+                        line_strip = ""
                         try:
                             line_strip = line.decode("utf-8").strip()
                             if line_strip:

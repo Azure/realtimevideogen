@@ -7,6 +7,7 @@ from typing import override
 from typing import Optional
 from typing import Dict
 from typing import Any
+from typing import Union
 
 from PIL import Image
 
@@ -45,9 +46,9 @@ class HiDreamGeneration(ModelGeneration):
         self.gpu = torch.cuda.get_device_name(0)
 
         # Model components
-        self.pipeline: HiDreamImagePipeline = None
-        self.text_encoder = None
-        self.tokenizer = None
+        self.pipeline: Optional[HiDreamImagePipeline] = None
+        self.text_encoder: Optional[LlamaForCausalLM] = None
+        self.tokenizer: Optional[AutoTokenizer] = None
 
     def __del__(self) -> None:
         # Clean models
@@ -122,6 +123,7 @@ class HiDreamGeneration(ModelGeneration):
             self.pipeline.transformer,  # type: ignore[attr-defined]
             mode="max-autotune-no-cudagraphs"
         )
+        assert self.pipeline.transformer is not None  # type: ignore[attr-defined]
         self.load_timer.end("dit_compile")
 
     def _assert_model_init(self) -> None:
@@ -134,8 +136,9 @@ class HiDreamGeneration(ModelGeneration):
         width: int,
     ) -> None:
         """Check if the image size is supported for the current parallelism setting."""
-        height_latent = height // self.pipeline.vae_scale_factor
-        width_latent = width // self.pipeline.vae_scale_factor
+        assert self.pipeline is not None
+        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -175,8 +178,9 @@ class HiDreamGeneration(ModelGeneration):
         """
         gen_timer = self._new_gen_timer(job_id)
 
-        self._assert_model_init()
         self._assert_args(height, width)
+        self._assert_model_init()
+        assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls
 
@@ -201,7 +205,7 @@ class HiDreamGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(
+            output = self.pipeline(  # type: ignore[operator]
                 height=height,
                 width=width,
                 prompt=prompt,
@@ -228,11 +232,14 @@ class HiDreamGeneration(ModelGeneration):
             "world_size": self.world_size,
             "torch_compile": self.torch_compile,
             "dtype": str(self.param_dtype),
-            "device_map": self.pipeline.hf_device_map if self.pipeline else None,
+            "device_map": self.pipeline.hf_device_map if self.pipeline else None,  # type: ignore[attr-defined]
         })
         return ret
 
-    async def get_rest_args(self, data_json: Dict[str, str]) -> Dict[str, Any]:
+    async def get_rest_args(
+        self,
+        data_json: Dict[str, Union[str, int, float]]
+    ) -> Dict[str, Any]:
         if data_json is None:
             raise ValueError("Missing JSON body")
         prompt = data_json.get("prompt", None)

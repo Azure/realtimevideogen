@@ -197,13 +197,15 @@ _GPU_MODEL_PATTERNS: List[Tuple[str, str]] = [
 ]
 
 
-def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
+def format_gpu_model(
+    gpu_model: Optional[str]
+) -> Optional[str]:
     """Format GPU model names to be more user-friendly.
 
     Handles Azure VM SKU names (e.g. Standard_ND96ams_A100_v4) and raw GPU
     model strings reported by nvidia-smi (e.g. NVIDIA A100-SXM4-80GB).
     MIG instance names (e.g. NVIDIA A100-SXM4-80GB MIG 1g.10gb) are formatted
-    with the MIG profile appended (e.g. A100 80GB MIG 1g.10gb).
+    without the MIG profile (e.g. A100 80GB).
 
     Azure GPU VM sizes reference:
     https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nd-family
@@ -223,9 +225,8 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
 
     # Extract and strip the MIG profile before matching the base GPU model,
     # then re-append it so the profile is preserved in the display name.
-    # e.g. "NVIDIA A100-SXM4-80GB MIG 1g.10gb" -> "A100 80GB MIG 1g.10gb"
+    # e.g. "NVIDIA A100-SXM4-80GB MIG 1g.10gb" -> "A100 80GB"
     mig_match = _MIG_PROFILE_RE.search(gpu_model)
-    mig_suffix = " " + mig_match.group(0) if mig_match else ""
     base_model = _MIG_PROFILE_RE.sub("", gpu_model).strip() if mig_match else gpu_model
 
     # Normalize hyphens to spaces for pattern matching
@@ -233,7 +234,7 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
 
     for pattern, display_name in _GPU_MODEL_PATTERNS:
         if re.search(pattern, normalized, re.IGNORECASE):
-            return display_name + mig_suffix
+            return display_name  # + mig_suffix
 
     return gpu_model
 

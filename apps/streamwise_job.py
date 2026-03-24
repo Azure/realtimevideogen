@@ -1,6 +1,8 @@
 """
 StreamWise job to generate a video.
 """
+from __future__ import annotations
+
 import os
 import sys
 import time

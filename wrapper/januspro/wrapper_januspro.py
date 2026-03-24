@@ -134,6 +134,7 @@ class JanusProGeneration(ModelGeneration):
         super()._assert_model_init()
         assert self.vl_gpt is not None
         assert self.vl_chat_processor is not None
+        assert self.tokenizer is not None
 
     def _assert_args(
         self,
@@ -195,6 +196,9 @@ class JanusProGeneration(ModelGeneration):
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
+        assert self.vl_gpt is not None
+        assert self.vl_chat_processor is not None
+        assert self.tokenizer is not None
         self._assert_args(img_size, patch_size)
 
         assert self.vl_chat_processor is not None

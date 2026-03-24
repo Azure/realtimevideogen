@@ -6,6 +6,8 @@ https://github.com/FunAudioLLM/ThinkSound/blob/master/extract_latents.py
 https://github.com/FunAudioLLM/ThinkSound/blob/master/predict.py
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import tempfile
@@ -538,7 +540,10 @@ class OptimizedFeaturesUtils(FeaturesUtils):
         return out
 
     @inference_mode()
-    def encode_t5_text(self, text: list[str]) -> torch.Tensor:
+    def encode_t5_text(
+        self,
+        text: list[str]
+    ) -> torch.Tensor:
         assert self.t5_model is not None, 'T5 model is not loaded'
         assert self.t5_tokenizer is not None, 'T5 Tokenizer is not loaded'
 

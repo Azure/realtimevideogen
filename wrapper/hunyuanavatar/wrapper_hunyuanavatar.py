@@ -318,7 +318,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         audio_path: str,
         video_frames: np.ndarray,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes]:
+    ) -> Union[List[Image.Image], str, bytes, None]:
         gen_timer.start("output")
         try:
             if output_type == "pil":

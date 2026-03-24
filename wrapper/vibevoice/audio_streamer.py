@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import time
 import torch
-
 import asyncio
+
 from queue import Queue
+
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from transformers.generation import BaseStreamer
@@ -37,7 +38,7 @@ class AudioStreamer(BaseStreamer):
 
         # Create a queue for each sample in the batch
         self.audio_queues: List[Any] = [Queue() for _ in range(batch_size)]
-        self.finished_flags = [False for _ in range(batch_size)]
+        self.finished_flags: list[bool] = [False for _ in range(batch_size)]
         self.sample_indices_map: Dict[int, int] = {}  # Maps from sample index to queue index
 
     def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:
@@ -71,7 +72,7 @@ class AudioStreamer(BaseStreamer):
         else:
             # End specific samples
             for sample_idx in sample_indices:
-                idx = sample_idx.item() if torch.is_tensor(sample_idx) else sample_idx
+                idx = sample_idx.item() if torch.is_tensor(sample_idx) else sample_idx  # type: ignore[assignment]
                 if idx < self.batch_size and not self.finished_flags[idx]:
                     self.audio_queues[idx].put(self.stop_signal, timeout=self.timeout)
                     self.finished_flags[idx] = True
@@ -90,7 +91,7 @@ class AudioStreamer(BaseStreamer):
 class AudioSampleIterator:
     """Iterator for a single audio stream from the batch."""
 
-    def __init__(self, streamer: AudioStreamer, sample_idx: int):
+    def __init__(self, streamer: AudioStreamer, sample_idx: int) -> None:
         self.streamer = streamer
         self.sample_idx = sample_idx
 
@@ -107,7 +108,7 @@ class AudioSampleIterator:
 class AudioBatchIterator:
     """Iterator that yields audio chunks for all samples in the batch."""
 
-    def __init__(self, streamer: AudioStreamer):
+    def __init__(self, streamer: AudioStreamer) -> None:
         self.streamer = streamer
         self.active_samples = set(range(streamer.batch_size))
 
@@ -157,10 +158,12 @@ class AsyncAudioStreamer(AudioStreamer):
         batch_size: int,
         stop_signal: Optional[Any] = None,
         timeout: Optional[float] = None,
-    ):
+    ) -> None:
         super().__init__(batch_size, stop_signal, timeout)
         # Replace regular queues with async queues
-        self.audio_queues = [asyncio.Queue() for _ in range(batch_size)]
+        self.audio_queues: list[asyncio.Queue] = [  # type: ignore[assignment]
+            asyncio.Queue() for _ in range(batch_size)
+        ]
         self.loop = asyncio.get_running_loop()
 
     def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:
@@ -178,7 +181,7 @@ class AsyncAudioStreamer(AudioStreamer):
         if sample_indices is None:
             indices_to_end: list[int] = list(range(self.batch_size))
         else:
-            indices_to_end = [s.item() if torch.is_tensor(s) else s for s in sample_indices]
+            indices_to_end = [s.item() if torch.is_tensor(s) else s for s in sample_indices]  # type: ignore[assignment]
 
         for idx in indices_to_end:
             if idx < self.batch_size and not self.finished_flags[idx]:

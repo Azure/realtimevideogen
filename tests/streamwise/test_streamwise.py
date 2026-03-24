@@ -145,7 +145,7 @@ _MOCK_MIG_SERVICE = {
     "url": "http://10.0.0.6:8080",
     "node_name": "testnode",
     "cpu": 1,
-    "memory": 2147483648,
+    "memory": 2 * 1024 * 1024 * 1024,
     "gpu": 1,
     "mig_profile": "1g.10gb",
     "ephemeral_storage": 0,
@@ -415,7 +415,37 @@ async def test_get_service_files() -> None:
 
 _MOCK_MIG_SERVICE_WITH_HEALTH = {
     **_MOCK_MIG_SERVICE,
-    "health": {"gpu": "NVIDIA A100-SXM4-80GB MIG 1g.10gb", "world_size": 0},
+    "health": {
+        "gpu": "NVIDIA A100-SXM4-80GB MIG 1g.10gb",
+        "world_size": 0
+    },
+}
+
+# Service with gpu_info where memory fields are None (e.g. MIG instance where
+# nvmlDeviceGetMemoryInfo raises NVMLError).
+_MOCK_MIG_SERVICE_WITH_NULL_MEM = {
+    **_MOCK_MIG_SERVICE,
+    "health": {
+        "gpu": "MIG 1g.10gb",
+        "world_size": 0,
+        "gpu_info": [
+            {
+                "index": 0,
+                "current": True,
+                "name": "MIG 1g.10gb",
+                "sm_util": None,
+                "mem_util": None,
+                "mem_gib_used": None,
+                "mem_gib_total": None,
+                "temp": None,
+                "power_draw_watts": None,
+                "power_limit_watts": None,
+                "graphics_clock": None,
+                "sm_clock": None,
+                "mem_clock": None,
+            }
+        ],
+    },
 }
 
 _MOCK_MIG_NODE = {
@@ -507,6 +537,20 @@ async def test_service_shows_mig_with_gpu_model() -> None:
 
 
 @pytest.mark.asyncio
+async def test_service_mig_null_mem_renders_na() -> None:
+    """Service page renders N/A (not a TypeError) when mem_gib_used/total are None for MIG."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_services",
+               new=AsyncMock(return_value=[_MOCK_MIG_SERVICE_WITH_NULL_MEM])):
+        with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+            response = await client.get("/service/realesrgan")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert "<td>N/A</td>" in response_text
+    assert "<th>Memory</th>" in response_text
+
+
+@pytest.mark.asyncio
 async def test_index_shows_mig_profile_in_wrappers() -> None:
     """Index page wrappers table shows MIG profile badge instead of full GPU model for MIG services."""
     client = _get_client()
@@ -550,26 +594,37 @@ async def test_index_mig_node_shows_partitions() -> None:
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
     # MIG partition profile must appear in the nodes table
-    assert "1g.10gb" in response_text
-    # MIG badge class should be present
-    assert "badge bg-info" in response_text
+    assert "<br>+1g.10gb: 1/5/7\n" in response_text
 
 
 @pytest.mark.asyncio
 async def test_index_mig_pods_excluded_from_full_gpu_count() -> None:
     """Index page nodes table does not count MIG pods toward the full GPU allocated total."""
     client = _get_client()
-    _cpu = 96
-    _memory = 900 * 1024 * 1024 * 1024
-    _storage = 500 * 1024 * 1024 * 1024
+
     # Mixed node: has both full GPUs and MIG resources
     mixed_node = {
         **_MOCK_FULL_GPU_NODE,
         "node_name": "mixed-node",
         "mig_enabled": True,
-        "mig_resources": {"1g.10gb": {"capacity": 7, "allocatable": 6}},
-        "capacity_resources": {"cpu": _cpu, "memory": _memory, "storage": _storage, "gpu": "7"},
-        "allocatable_resources": {"cpu": _cpu, "memory": _memory, "storage": _storage, "gpu": "7"},
+        "mig_resources": {
+            "1g.10gb": {
+                "capacity": 7,
+                "allocatable": 6
+            }
+        },
+        "capacity_resources": {
+            "cpu": 96,
+            "memory": 900 * 1024 * 1024 * 1024,
+            "storage": 500 * 1024 * 1024 * 1024,
+            "gpu": "7"
+        },
+        "allocatable_resources": {
+            "cpu": 96,
+            "memory": 900 * 1024 * 1024 * 1024,
+            "storage": 500 * 1024 * 1024 * 1024,
+            "gpu": "7"
+        },
     }
     # Two pods: one full-GPU pod (gpu=2, no mig_profile) and one MIG pod
     full_pod = {**_MOCK_FULL_GPU_POD, "node": "mixed-node", "gpu": 2}

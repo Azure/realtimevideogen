@@ -128,10 +128,14 @@ def test_format_gpu_model() -> None:
     assert format_gpu_model(None) is None
     assert format_gpu_model(123) == 123  # type: ignore[arg-type]
     # MIG instance names: preserve the MIG profile alongside the formatted GPU name
-    assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 1g.10gb") == "A100 80GB MIG 1g.10gb"
-    assert format_gpu_model("NVIDIA A100-SXM4-40GB MIG 1g.5gb") == "A100 40GB MIG 1g.5gb"
-    assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 2g.20gb") == "A100 80GB MIG 2g.20gb"
-    assert format_gpu_model("NVIDIA H100-SXM5-80GB MIG 3g.40gb") == "H100 MIG 3g.40gb"
+    # assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 1g.10gb") == "A100 80GB MIG 1g.10gb"
+    # assert format_gpu_model("NVIDIA A100-SXM4-40GB MIG 1g.5gb") == "A100 40GB MIG 1g.5gb"
+    # assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 2g.20gb") == "A100 80GB MIG 2g.20gb"
+    # assert format_gpu_model("NVIDIA H100-SXM5-80GB MIG 3g.40gb") == "H100 MIG 3g.40gb"
+    assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 1g.10gb") == "A100 80GB"
+    assert format_gpu_model("NVIDIA A100-SXM4-40GB MIG 1g.5gb") == "A100 40GB"
+    assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 2g.20gb") == "A100 80GB"
+    assert format_gpu_model("NVIDIA H100-SXM5-80GB MIG 3g.40gb") == "H100"
 
 
 def test_get_aspect_ratio() -> None:

@@ -75,7 +75,7 @@ class VideoAudioTextLoaderVal():
         ref_image: Any,
         audio_path: str,
         prompt: str,
-        fps: int
+        fps: float,
     ) -> Dict[str, Any]:
         prompt = "Authentic, Realistic, Natural, High-quality, Lens-Fixed, " + prompt
 

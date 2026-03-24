@@ -3,6 +3,8 @@ StreamWise Cluster Manager.
 HTTP server that forwards the requests to each sub-module.
 """
 
+from __future__ import annotations
+
 import sys
 import os
 import json
@@ -16,7 +18,6 @@ from typing import List
 from typing import Dict
 from typing import Optional
 from typing import Any
-from typing import Tuple
 from typing import Union
 
 from kubernetes_asyncio.client.exceptions import ApiException
@@ -567,7 +568,7 @@ async def api_get_nodes() -> QuartReturn:
 
 def parse_gpu_info(
     gpu_info: Optional[Union[int, str]]
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, Optional[str]]:
     num_gpus = 1
     mig_profile = None
     if isinstance(gpu_info, int):
@@ -588,7 +589,7 @@ async def api_add_service(
     try:
         # CPU, memory GiB, ephemeral storage GiB, GPU count, GPU type
         # Keep in sync with the helm values
-        container_dict = {
+        container_dict: dict[str, tuple[int, int, int, Union[int, str]]] = {
             "podcasttranscript": (1, 4, 16, 0),
             "slidetranscript": (1, 4, 16, 0),
             "gemma": (16, 192, 64, min(2, max_gpus)),
