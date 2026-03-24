@@ -9,6 +9,7 @@ import traceback
 import nvidia_smi
 from nvidia_smi import NVMLError
 
+from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Dict
@@ -140,6 +141,14 @@ class ModelGeneration(ABC):
         if self.status != "ok":
             raise ValueError(f"Model not initialized. Current status: {self.status}.")
 
+    def _safe_nvml_call(self, fn: Callable[..., Any], *args: Any) -> Optional[Any]:
+        """Safely call an NVML function, returning None if not supported (e.g. on MIG instances)."""
+        try:
+            return fn(*args)
+        except NVMLError as ex:
+            logging.info("NVML call not supported: %s.", ex)
+            return None
+
     def get_gpu_info(self) -> Optional[List[Dict[str, Any]]]:
         """Get information about the GPUs on the system."""
         if not self.gpu_setup:
@@ -164,25 +173,38 @@ class ModelGeneration(ABC):
                     gpu_name = gpu_name_raw.decode("utf-8")
                 else:
                     gpu_name = gpu_name_raw
-                gpu_util = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
                 gpu_mem_info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+
+                # Some metrics are not supported on MIG instances; use _safe_nvml_call to
+                # return None for those fields rather than failing the entire GPU info query.
+                gpu_util = self._safe_nvml_call(nvidia_smi.nvmlDeviceGetUtilizationRates, handle)
+                temp = self._safe_nvml_call(
+                    nvidia_smi.nvmlDeviceGetTemperature, handle, nvidia_smi.NVML_TEMPERATURE_GPU
+                )
+                power_draw_raw = self._safe_nvml_call(nvidia_smi.nvmlDeviceGetPowerUsage, handle)
+                power_limit_raw = self._safe_nvml_call(nvidia_smi.nvmlDeviceGetEnforcedPowerLimit, handle)
+                graphics_clock = self._safe_nvml_call(
+                    nvidia_smi.nvmlDeviceGetClockInfo, handle, nvidia_smi.NVML_CLOCK_GRAPHICS
+                )
+                sm_clock = self._safe_nvml_call(nvidia_smi.nvmlDeviceGetClockInfo, handle, nvidia_smi.NVML_CLOCK_SM)
+                mem_clock = self._safe_nvml_call(nvidia_smi.nvmlDeviceGetClockInfo, handle, nvidia_smi.NVML_CLOCK_MEM)
 
                 ret.append({
                     "index": gpu_index,
                     "current": gpu_index == local_gpu_index,
                     "name": gpu_name,
-                    "sm_util": gpu_util.gpu,
-                    "mem_util": gpu_util.memory,
+                    "sm_util": gpu_util.gpu if gpu_util is not None else None,
+                    "mem_util": gpu_util.memory if gpu_util is not None else None,
                     "mem_gib_used": gpu_mem_info.used / (1024 ** 3),
                     "mem_gib_total": gpu_mem_info.total / (1024 ** 3),
-                    "temp": nvidia_smi.nvmlDeviceGetTemperature(handle, nvidia_smi.NVML_TEMPERATURE_GPU),
-                    # Power in Watts
-                    "power_draw_watts": nvidia_smi.nvmlDeviceGetPowerUsage(handle) / 1000.0,
-                    "power_limit_watts": nvidia_smi.nvmlDeviceGetEnforcedPowerLimit(handle) / 1000.0,
-                    # Frequencies in MHz
-                    "graphics_clock": nvidia_smi.nvmlDeviceGetClockInfo(handle, nvidia_smi.NVML_CLOCK_GRAPHICS),
-                    "sm_clock": nvidia_smi.nvmlDeviceGetClockInfo(handle, nvidia_smi.NVML_CLOCK_SM),
-                    "mem_clock": nvidia_smi.nvmlDeviceGetClockInfo(handle, nvidia_smi.NVML_CLOCK_MEM),
+                    "temp": temp,
+                    # Power in Watts (None if not supported by this device)
+                    "power_draw_watts": power_draw_raw / 1000.0 if power_draw_raw is not None else None,
+                    "power_limit_watts": power_limit_raw / 1000.0 if power_limit_raw is not None else None,
+                    # Frequencies in MHz (None if not supported by this device)
+                    "graphics_clock": graphics_clock,
+                    "sm_clock": sm_clock,
+                    "mem_clock": mem_clock,
                 })
 
             return ret
