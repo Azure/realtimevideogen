@@ -185,6 +185,26 @@ async def test_service_shows_full_gpu() -> None:
 
 
 @pytest.mark.asyncio
+async def test_service_multiple_pods_no_duplicate_http_error_class() -> None:
+    """Service page with multiple pods must declare HttpError exactly once (no redeclaration error)."""
+    client = _get_client()
+    svc1 = dict(_MOCK_MIG_SERVICE)
+    svc1["mig_profile"] = None
+    svc1["pod_name"] = "realesrgan-pod-0"
+    svc1["pod_ip"] = "10.0.0.6"
+    svc2 = dict(_MOCK_MIG_SERVICE)
+    svc2["mig_profile"] = None
+    svc2["pod_name"] = "realesrgan-pod-1"
+    svc2["pod_ip"] = "10.0.0.7"
+    with patch("streamwise.streamwise.get_services", new=AsyncMock(return_value=[svc1, svc2])):
+        with patch("streamwise.streamwise.get_k8s_load_balancers", new=AsyncMock(return_value=[])):
+            response = await client.get("/service/realesrgan")
+    assert response.status_code == HTTPStatus.OK
+    response_text = await response.get_data(as_text=True)
+    assert response_text.count("class HttpError extends Error") == 1
+
+
+@pytest.mark.asyncio
 async def test_container_info() -> None:
     app = sw.app
     client = app.test_client()
