@@ -21,6 +21,30 @@
     <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
     <script>
         const ansiUp = new AnsiUp();
+
+        class HttpError extends Error {
+            constructor(status, statusText, bodyText) {
+                super(`HTTP ${status} ${statusText}`);
+                this.status = status;
+                this.statusText = statusText;
+                this.bodyText = bodyText;
+                try {
+                    this.bodyJson = JSON.parse(bodyText);
+                } catch {
+                    this.bodyJson = null;
+                }
+            }
+
+            toDisplayString() {
+                if (this.bodyJson?.error) {
+                    return this.bodyJson.error;
+                }
+                if (this.bodyJson) {
+                    return JSON.stringify(this.bodyJson, null, 2);
+                }
+                return this.bodyText || `${this.status} ${this.statusText}`;
+            }
+        }
     </script>
 </head>
 
@@ -739,30 +763,6 @@
                     const logExternalUrl{{ loop.index }} = "{{ url_for('file_stream', container_ip=svc.load_balancer.external_ip, container_port=svc.load_balancer.external_port, file_name='streamwise.log') }}";
                 {% endif %}
                 const logUrl{{ loop.index }} = "{{ url_for('file_stream', container_ip=svc.pod_ip, container_port=svc.container_port, file_name='streamwise.log') }}";
-
-                class HttpError extends Error {
-                    constructor(status, statusText, bodyText) {
-                        super(`HTTP ${status} ${statusText}`);
-                        this.status = status;
-                        this.statusText = statusText;
-                        this.bodyText = bodyText;
-                        try {
-                            this.bodyJson = JSON.parse(bodyText);
-                        } catch {
-                            this.bodyJson = null;
-                        }
-                    }
-
-                    toDisplayString() {
-                        if (this.bodyJson?.error) {
-                            return this.bodyJson.error;
-                        }
-                        if (this.bodyJson) {
-                            return JSON.stringify(this.bodyJson, null, 2);
-                        }
-                        return this.bodyText || `${this.status} ${this.statusText}`;
-                    }
-                }
 
                 fetch(logUrl{{ loop.index }})
                 .then(res => {

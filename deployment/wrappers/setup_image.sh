@@ -98,6 +98,9 @@ cp "$WRAPPERS_DIR"/*.py ./docker_files/
 if compgen -G "$WRAPPER_DIR/*.py" > /dev/null 2>&1; then
   cp "$WRAPPER_DIR"/*.py ./docker_files/
 fi
+if compgen -G "$WRAPPER_DIR/*.json" > /dev/null 2>&1; then
+  cp "$WRAPPER_DIR"/*.json ./docker_files/
+fi
 if [[ -f "$WRAPPER_DIR/requirements.txt" ]]; then
   cp "$WRAPPER_DIR"/requirements.txt ./docker_files/
 fi

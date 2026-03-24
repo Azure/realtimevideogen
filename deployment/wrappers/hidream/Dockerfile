@@ -24,6 +24,7 @@ RUN conda run -n streamwise pip install -r requirements.txt
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
+COPY docker_files/*.json .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
 
