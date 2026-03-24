@@ -241,7 +241,7 @@ async def test_pod_shows_no_mig_profile_for_full_gpu() -> None:
         "url": "http://10.0.0.5:8080",
         "node": "testnode",
         "cpu": 2,
-        "memory": 4294967296,
+        "memory": 4 * 1024 * 1024 * 1024,
         "gpu": 1,
         "mig_profile": None,
     }
@@ -383,6 +383,7 @@ async def test_pure_mig_node_gpu_na() -> None:
     with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[mig_node])):
         with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
             response = await client.get("/node/testnode")
+
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
     assert "1g.10gb" in response_text
