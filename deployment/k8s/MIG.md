@@ -183,7 +183,7 @@ for k in keys:
 ```
 
 Expected output for an 80 GB A100 node:
-```
+```text
 Resource                        Capacity  Allocatable
 ------------------------------------------------------------
 nvidia.com/gpu                          7            7

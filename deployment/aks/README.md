@@ -62,6 +62,7 @@ az deployment group create \
 ```
 
 Some available GPU VM sizes:
+
 | VM Size | GPU |
 |---------|-----|
 | `Standard_NC96ads_A100_v4` | NVIDIA A100 |
@@ -275,6 +276,7 @@ For the full step-by-step setup (enabling MIG, creating instances, configuring t
 Deploy model services through the StreamWise web UI or REST API.
 
 **GPU requirements per service:**
+
 | Service | GPUs | MIG Profile (recommended) | Purpose |
 |---------|------|--------------------------|---------|
 | `gemma` | 2–4 | — (full GPUs) | LLM (screenplay generation) |
