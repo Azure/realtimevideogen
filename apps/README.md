@@ -23,7 +23,7 @@ It does not target making these applications complete or their quality.
 
 
 ## 🎙️ StreamCast
-We implement _podcast_ video generation as a K8s service: StreamCast.
+We implement *podcast* video generation as a K8s service: StreamCast.
 It exposes a [REST API](https://quart.palletsprojects.com/en/latest/) for users to submit requests (e.g., "generate a 10-minute video for this paper at medium quality").
 This service can run on inexpensive CPU servers.
 
@@ -31,8 +31,8 @@ StreamCast builds the workflow DAG with the stages, scenes, and shots (e.g., aud
 It starts with the screenplay node, and as the LLM generates scenes, it adds nodes to the DAG.
 Initially, it creates a sketch DAG (e.g., a 5-minute video with 45-second shots) with rough deadlines, later refining them as actual nodes are generated (e.g., scene 2 from 0:37-1:12 must complete by 19:39 UTC).
 
-StreamCast uses the _request scheduler_ library to discover all deployed instance models in the K8s cluster, along with their hardware resources and locations.
-The _scheduler_ then dispatches DAG nodes to the appropriate model instances.
+StreamCast uses the *request scheduler* library to discover all deployed instance models in the K8s cluster, along with their hardware resources and locations.
+The *scheduler* then dispatches DAG nodes to the appropriate model instances.
 If a shot cannot meet its deadline, its quality is reduced.
 Finally, StreamCast stitches the outputs using [FFmpeg](https://ffmpeg.org/) and streams the result back to the user.
 

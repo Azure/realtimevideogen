@@ -30,8 +30,6 @@ Deploy the microservices:
 helm install gpu-services . --namespace rtgen --create-namespace
 ```
 
-```
-
 **Verify deployment:**
 ```bash
 helm list -n rtgen
