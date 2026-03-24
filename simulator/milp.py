@@ -486,6 +486,7 @@ class MILPAllocator(ModelAllocator):
                         self.workflow.per_subscene_frames[model_name]
                         / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
                         * self.latency_data[gpu_type][model_name, num_devices]
+                        * latency_ratio
                         * self.workflow.num_steps[model_name]
                         * m.work_device[dev_idx(gpu_type, model_name, instance_id, num_devices)]
                         for num_devices in DEVICE_OPTIONS[model_name]
@@ -505,6 +506,7 @@ class MILPAllocator(ModelAllocator):
                         * self.workflow.per_subscene_frames[model_name]
                         / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
                         * self.latency_data[gpu_type][model_name, num_devices]
+                        * latency_ratio
                         * self.workflow.num_steps[model_name]
                         * 1  # TTFF for first subscene
                         for num_devices in DEVICE_OPTIONS[model_name]
