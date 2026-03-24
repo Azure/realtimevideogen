@@ -143,9 +143,11 @@ resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDef
 
 
 // ---------------------------------------------------------------------------
-// Variables
+// Subnet ID used by node pools when disableDefaultOutboundAccess is true.
 // ---------------------------------------------------------------------------
-
+var nodeSubnetId = disableDefaultOutboundAccess
+  ? resourceId('Microsoft.Network/virtualNetworks/subnets', aksVnet.name, 'aks-node-subnet')
+  : null
 // Subnet ID used by both node pools when disableDefaultOutboundAccess is true.
 // Evaluates to null (property omitted) when the custom VNet is not provisioned.
 var nodeSubnetId = disableDefaultOutboundAccess ? aksVnet.properties.subnets[0].id : null
