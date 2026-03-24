@@ -90,6 +90,8 @@ class FluxGeneration(USPGeneration):
 
         logging.info(
             f"Loaded FluxPipeline: {self.MODEL_NAME} device:{self.device} dtype:{self.param_dtype}.")
+
+    def init_model_parallelism(self) -> None:
         if not dist.is_initialized() or self.world_size <= 1:
             return
 

@@ -943,6 +943,11 @@ class LMMGenerator:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
                 messages=messages,  # type: ignore[arg-type]
+                max_tokens=max_tokens,
+                extra_body=extra_body,
+                # timeout=10.0,
+                extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
+                stream=False,
             )
             assert response is not None
 
@@ -954,9 +959,9 @@ class LMMGenerator:
             self.logger.debug(f"  Completion: {response.usage.completion_tokens}")  # type: ignore[union-attr]
             self.logger.debug(f"  Total: {response.usage.total_tokens}")  # type: ignore[union-attr]
             if response.usage.completion_tokens == max_tokens:  # type: ignore[union-attr]
-                self.logger.error(  # type: ignore[union-attr]
+                self.logger.error(
                     f"Completion hit max tokens limit "
-                    f"({response.usage.completion_tokens}/{max_tokens}).")
+                    f"({response.usage.completion_tokens}/{max_tokens}).")  # type: ignore[union-attr]
 
             if not response.choices:  # type: ignore[union-attr]
                 raise ValueError("No LLM response.")
