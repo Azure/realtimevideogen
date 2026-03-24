@@ -1,3 +1,4 @@
+{%- from "macros.html" import render_gpu -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -198,16 +199,7 @@
                         {{ svc.memory | format_bytes | safe }}
                     </td>
                     <td class="text-end">
-                        {% if svc.mig_profile %}
-                            <span title="MIG slice: {{ svc.mig_profile }}">{{ svc.gpu }} &times; <span class="badge bg-info" aria-label="MIG profile {{ svc.mig_profile }}">{{ svc.mig_profile }}</span></span>
-                        {% elif svc.gpu == 0 %}
-                            <span class="text-muted">-</span>
-                        {% else %}
-                            {{ svc.gpu }}
-                            {% if svc.health and svc.health.gpu %}
-                                &times;{{ svc.health.gpu | format_gpu_model | safe }}
-                            {% endif %}
-                        {% endif %}
+                        {{ render_gpu(svc.gpu, svc.mig_profile, svc.health) }}
                     </td>
                     <td class="text-end">
                         {% if not svc.health %}
@@ -389,16 +381,7 @@
             <tr><th scope="row">⚙️ CPU</th><td>{{ svc.cpu }}</td></tr>
             <tr><th scope="row">🗄️ Memory</th><td>{{ svc.memory | format_bytes | safe }} </td></tr>
             <tr><th scope="row">🧮 GPU</th><td>
-                {% if svc.mig_profile %}
-                    <span title="MIG slice: {{ svc.mig_profile }}">{{ svc.gpu }} &times; <span class="badge bg-info" aria-label="MIG profile {{ svc.mig_profile }}">{{ svc.mig_profile }}</span></span>
-                {% elif svc.gpu and svc.gpu > 0 %}
-                    {{ svc.gpu }}
-                    {% if svc.gpu and svc.health and svc.health.gpu %}
-                        &times; {{ svc.health.gpu | format_gpu_model | safe }}
-                    {% endif %}
-                {% else %}
-                    <span class="text-muted">-</span>
-                {% endif %}
+                {{ render_gpu(svc.gpu, svc.mig_profile, svc.health) }}
             </td></tr>
             <tr><th scope="row">💾 Ephemeral storage</th><td>
                 {% if svc.ephemeral_storage and svc.ephemeral_storage > 0 %}
