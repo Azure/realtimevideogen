@@ -4,6 +4,8 @@ import sys
 import pytest
 
 from PIL import Image
+from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from typing import override
 from typing import Dict
@@ -144,6 +146,59 @@ async def test_wrapper_model() -> None:
     model.interrupt()
 
     model.get_gpu_info()
+
+
+def test_get_gpu_info_mig() -> None:
+    """Test that get_gpu_info handles MIG (Not Supported) errors gracefully."""
+    import nvidia_smi
+    import torch
+    from nvidia_smi import NVMLError
+
+    model = MockModelGeneration()
+    model.init()
+
+    mock_handle = MagicMock()
+    mock_mem_info = MagicMock()
+    mock_mem_info.used = 4 * 1024 ** 3   # 4 GiB
+    mock_mem_info.total = 40 * 1024 ** 3  # 40 GiB
+
+    # Simulate a MIG instance: memory info works, but utilization / power /
+    # temperature / clock queries all raise NVMLError("Not Supported").
+    with patch.object(nvidia_smi, 'nvmlInit'), \
+         patch.object(nvidia_smi, 'nvmlShutdown'), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetCount', return_value=1), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetHandleByIndex', return_value=mock_handle), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetName', return_value="MIG 1g.5gb"), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetMemoryInfo', return_value=mock_mem_info), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetUtilizationRates', side_effect=NVMLError("Not Supported")), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetTemperature', side_effect=NVMLError("Not Supported")), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetPowerUsage', side_effect=NVMLError("Not Supported")), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetEnforcedPowerLimit', side_effect=NVMLError("Not Supported")), \
+         patch.object(nvidia_smi, 'nvmlDeviceGetClockInfo', side_effect=NVMLError("Not Supported")), \
+         patch.object(torch.cuda, 'current_device', return_value=0):
+
+        gpu_info = model.get_gpu_info()
+
+    assert gpu_info is not None, "get_gpu_info should return results even when some NVML calls are not supported"
+    assert len(gpu_info) == 1
+
+    g = gpu_info[0]
+    assert g["name"] == "MIG 1g.5gb"
+    assert g["mem_gib_used"] == pytest.approx(4.0)
+    assert g["mem_gib_total"] == pytest.approx(40.0)
+
+    # Fields not supported by MIG instances should be None (not raise an exception)
+    assert g["sm_util"] is None
+    assert g["mem_util"] is None
+    assert g["temp"] is None
+    assert g["power_draw_watts"] is None
+    assert g["power_limit_watts"] is None
+    assert g["graphics_clock"] is None
+    assert g["sm_clock"] is None
+    assert g["mem_clock"] is None
+
+    # gpu_setup must remain True so future calls are not suppressed
+    assert model.gpu_setup is True
 
 
 @pytest.mark.asyncio

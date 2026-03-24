@@ -19,6 +19,7 @@ RUN conda run -n streamwise hf download Lightricks/LTX-Video-0.9.7-dev --local-d
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
+COPY docker_files/*.json .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
 
