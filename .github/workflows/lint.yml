@@ -41,6 +41,9 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
+    - name: Install markdownlint-cli
+      run: npm install -g markdownlint-cli
+
     - name: Run Python lint
       if: always()
       run: flake8 . tests --output-file=flake8-results.txt --tee
@@ -122,6 +125,26 @@ jobs:
       run: |
         cat jsonlint-results.txt | reviewdog -efm="%f:%l:%c: %m" -name="JSON" -reporter=github-check -level=error || true
 
+    - name: Run Markdown lint
+      if: always()
+      run: |
+        MD_FILES=$(git ls-files '*.md')
+        if [ -z "$MD_FILES" ]; then
+          touch markdownlint-results.txt
+          exit 0
+        fi
+        markdownlint $MD_FILES > markdownlint-results.txt 2>&1
+        MD_EXIT=$?
+        cat markdownlint-results.txt
+        exit $MD_EXIT
+
+    - name: Markdown reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat markdownlint-results.txt | reviewdog -efm="%f:%l:%c %m" -efm="%f:%l %m" -name="Markdown" -reporter=github-check -level=warning || true
+
     - name: Lint summary
       if: always()
       run: |
@@ -153,6 +176,12 @@ jobs:
           else
             echo "| JSON | :white_check_mark: |"
           fi
+          if [ -s markdownlint-results.txt ]; then
+            MD_COUNT=$(wc -l < markdownlint-results.txt)
+            echo "| Markdown | :x: ${MD_COUNT} issue(s) |"
+          else
+            echo "| Markdown | :white_check_mark: |"
+          fi
           echo ""
           if [ -s flake8-results.txt ]; then
             echo "**Python details:**"
@@ -176,6 +205,12 @@ jobs:
             echo "**JSON details:**"
             echo '```'
             cat jsonlint-results.txt
+            echo '```'
+          fi
+          if [ -s markdownlint-results.txt ]; then
+            echo "**Markdown details:**"
+            echo '```'
+            head -20 markdownlint-results.txt
             echo '```'
           fi
         } | tee lint-summary.md >> "$GITHUB_STEP_SUMMARY"
