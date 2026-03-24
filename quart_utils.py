@@ -238,6 +238,61 @@ def format_gpu_model(gpu_model: Optional[str]) -> Optional[str]:
     return gpu_model
 
 
+def get_gpu_mem(gpu_model: Optional[str]) -> int:
+    """Get GPU memory in GB based on the GPU model string."""
+    if gpu_model is None:
+        return 0
+    if "16GB" in gpu_model:
+        return 16
+    if "16GB" in gpu_model:
+        return 32
+    if "40GB" in gpu_model:
+        return 40
+    if "A100" in gpu_model:
+        return 80
+    if "H100" in gpu_model:
+        return 80
+    if "H200" in gpu_model:
+        return 141
+    if "GB200" in gpu_model:
+        return 196
+    if "GB300" in gpu_model:
+        return 288
+    if "MI300" in gpu_model:
+        return 192
+    return 80
+
+
+def format_gpu_model_mig(
+    gpu_model: Optional[str],
+    mig_profile: Optional[str],
+) -> str:
+    if gpu_model is None:
+        return ""
+    mem_gb = get_gpu_mem(gpu_model)
+    if mig_profile is None:
+        return gpu_model
+    if mem_gb == 80:
+        if mig_profile == "1g.10gb":
+            return f"⅛ {gpu_model}"
+        if mig_profile == "2g.20gb":
+            return f"¼ {gpu_model}"
+        if mig_profile == "3g.40gb":
+            return f"½ {gpu_model}"
+        if mig_profile == "4g.40gb":
+            return f"½ {gpu_model}"
+    if mem_gb == 40:
+        if mig_profile == "1g.5gb":
+            return f"⅛ {gpu_model}"
+        if mig_profile == "2g.10gb":
+            return f"¼ {gpu_model}"
+        if mig_profile == "3g.20gb":
+            return f"½ {gpu_model}"
+        if mig_profile == "4g.20gb":
+            return f"½ {gpu_model}"
+    return f"{gpu_model} {mig_profile}"
+
+
 def get_aspect_ratio(ratio: float) -> str:
     if abs(ratio - 1) < 0.01:
         return "1:1"
