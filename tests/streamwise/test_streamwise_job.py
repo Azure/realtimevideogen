@@ -23,6 +23,11 @@ mock_numpy = NumPyMock()
 mock_modules = {
     "scipy": MagicMock(),
     "scipy.io": MagicMock(),
+    "PIL": MagicMock(),
+    "PIL.Image": MagicMock(),
+    "openai": MagicMock(),
+    "imageio": MagicMock(),
+    "imageio_ffmpeg": MagicMock(),
 }
 mock_modules.update(mock_k8s.get_sub_modules())
 mock_modules.update(mock_torch.get_sub_modules())

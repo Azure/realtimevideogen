@@ -421,7 +421,7 @@
                                             {% set ns_mig.total_allocated_mig = ns_mig.total_allocated_mig + pod.gpu | int %}
                                         {% endif %}
                                     {% endfor %}
-                                    <br>+{{ mig_profile }}: {{ ns_mig.total_allocated_mig }}/{{ counts.allocatable }}/{{ counts.capacity }}
+                                    <br><span class="badge bg-info">{{ mig_profile }}</span>: {{ ns_mig.total_allocated_mig }}/{{ counts.allocatable }}/{{ counts.capacity }}
                                 {% endfor %}
                             {% elif node.capacity_resources.gpu == 0 or node.capacity_resources.gpu == "N/A" %}
                                 <span class="text-muted">-</span>

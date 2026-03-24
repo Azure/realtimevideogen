@@ -11,6 +11,7 @@ from http import HTTPStatus
 
 from unittest.mock import patch
 from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
 from quart.typing import TestClientProtocol
 
@@ -18,11 +19,20 @@ from streamwise import http_session_manager
 
 from tests.test_utils import temp_sys_path
 from tests.k8s_mock import K8sMock
+from tests.torch_mock import TorchMock
+from tests.numpy_mock import NumPyMock
 
 mock_k8s = K8sMock()
+mock_torch = TorchMock()
+mock_numpy = NumPyMock()
 
-mock_modules = {}
+mock_modules = {
+    "scipy": MagicMock(),
+    "scipy.io": MagicMock(),
+}
 mock_modules.update(mock_k8s.get_sub_modules())
+mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_numpy.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
         from streamwise import streamwise as sw

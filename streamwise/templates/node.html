@@ -153,7 +153,7 @@
                         <th scope="row">MIG</th>
                         <td>
                             {% if node.mig_enabled %}
-                                <span class="text-success" title="Multi-Instance GPU" aria-label="MIG enabled">✅</span>
+                                <span class="text-success" title="Multi-Instance GPU" aria-label="MIG enabled">✅ Enabled</span>
                                 {% if node.mig_resources %}
                                     <ul class="mb-0 mt-1">
                                     {% for mig_profile, counts in node.mig_resources.items() %}
