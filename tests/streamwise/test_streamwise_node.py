@@ -79,10 +79,23 @@ _MOCK_NODE = {
     "node_name": "testnode",
     "region": "eastus",
     "resource_group": "rg-test",
-    "addresses": [{"type": "InternalIP", "address": "10.0.0.1"}],
+    "addresses": [{
+        "type": "InternalIP",
+        "address": "10.0.0.1"
+    }],
     "is_ready": True,
-    "capacity_resources": {"cpu": 4.0, "memory": 8589934592, "storage": 107374182400, "gpu": "N/A"},
-    "allocatable_resources": {"cpu": 4.0, "memory": 8589934592, "storage": 107374182400, "gpu": "N/A"},
+    "capacity_resources": {
+        "cpu": 4.0,
+        "memory": 8 * 1024 * 1024 * 1024,
+        "storage": 100 * 1024 * 1024 * 1024,
+        "gpu": "N/A"
+    },
+    "allocatable_resources": {
+        "cpu": 4.0,
+        "memory": 8 * 1024 * 1024 * 1024,
+        "storage": 100 * 1024 * 1024 * 1024,
+        "gpu": "N/A"
+    },
     "architecture": "amd64",
     "kernel_version": "5.15.0",
     "os_image": "Ubuntu 22.04",
@@ -113,22 +126,26 @@ async def test_node_shows_mig_enabled() -> None:
     """Node page shows MIG enabled badge when mig_enabled is True."""
     app = streamwise.app
     client = app.test_client()
-    mock: Dict[str, Any] = dict(_MOCK_NODE)
-    mig_node: Dict[str, Any] = mock
+    mig_node: Dict[str, Any] = dict(_MOCK_NODE)
     mig_node["mig_enabled"] = True
     mig_node["gpu_model"] = "NVIDIA-A100-SXM4-80GB"
     mig_node["capacity_resources"] = dict(mig_node["capacity_resources"])
     mig_node["capacity_resources"]["gpu"] = 7
     mig_node["allocatable_resources"] = dict(mig_node["allocatable_resources"])
     mig_node["allocatable_resources"]["gpu"] = "N/A"
-    mig_node["mig_resources"] = {"1g.10gb": {"capacity": 7, "allocatable": 7}}
+    mig_node["mig_resources"] = {
+        "1g.10gb": {
+            "capacity": 7,
+            "allocatable": 7
+        }
+    }
     with patch.object(node_manager, "get_k8s_nodes", new=AsyncMock(return_value=[mig_node])):
         with patch.object(node_manager, "get_k8s_pods", new=AsyncMock(return_value=[])):
             response = await client.get("/nodes")
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
-    assert "MIG" in response_text
-    assert "Enabled" in response_text
+    msg = '<span class="text-success" title="Multi-Instance GPU" aria-label="MIG enabled">\u2705</span>'
+    assert msg in response_text
 
 
 @pytest.mark.asyncio

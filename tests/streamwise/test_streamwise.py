@@ -550,9 +550,7 @@ async def test_index_mig_node_shows_partitions() -> None:
     assert response.status_code == HTTPStatus.OK
     response_text = await response.get_data(as_text=True)
     # MIG partition profile must appear in the nodes table
-    assert "1g.10gb" in response_text
-    # MIG badge class should be present
-    assert "badge bg-info" in response_text
+    assert "<br>+1g.10gb: 1/5/7\n" in response_text
 
 
 @pytest.mark.asyncio
@@ -567,9 +565,24 @@ async def test_index_mig_pods_excluded_from_full_gpu_count() -> None:
         **_MOCK_FULL_GPU_NODE,
         "node_name": "mixed-node",
         "mig_enabled": True,
-        "mig_resources": {"1g.10gb": {"capacity": 7, "allocatable": 6}},
-        "capacity_resources": {"cpu": _cpu, "memory": _memory, "storage": _storage, "gpu": "7"},
-        "allocatable_resources": {"cpu": _cpu, "memory": _memory, "storage": _storage, "gpu": "7"},
+        "mig_resources": {
+            "1g.10gb": {
+                "capacity": 7,
+                "allocatable": 6
+            }
+        },
+        "capacity_resources": {
+            "cpu": _cpu,
+            "memory": _memory,
+            "storage": _storage,
+            "gpu": "7"
+        },
+        "allocatable_resources": {
+            "cpu": _cpu,
+            "memory": _memory,
+            "storage": _storage,
+            "gpu": "7"
+        },
     }
     # Two pods: one full-GPU pod (gpu=2, no mig_profile) and one MIG pod
     full_pod = {**_MOCK_FULL_GPU_POD, "node": "mixed-node", "gpu": 2}
