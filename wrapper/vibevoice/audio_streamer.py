@@ -161,7 +161,9 @@ class AsyncAudioStreamer(AudioStreamer):
     ) -> None:
         super().__init__(batch_size, stop_signal, timeout)
         # Replace regular queues with async queues
-        self.audio_queues: list[asyncio.Queue] = [asyncio.Queue() for _ in range(batch_size)]  # type: ignore[assignment]
+        self.audio_queues: list[asyncio.Queue] = [  # type: ignore[assignment]
+            asyncio.Queue() for _ in range(batch_size)
+        ]
         self.loop = asyncio.get_running_loop()
 
     def put(self, audio_chunks: torch.Tensor, sample_indices: torch.Tensor) -> None:  # type: ignore[override]

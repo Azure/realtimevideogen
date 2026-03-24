@@ -206,7 +206,7 @@ class LMMGenerator:
         self,
         base_url: str,
         timeout: ClientTimeout = SERVICE_TIMEOUT,
-    ) -> Optional[List[str]]:
+    ) -> Optional[list[dict[str, str]]]:
         """Get the list of files available from the service at the given base URL."""
         t0 = time.time()
         url = f"{base_url}/files"
@@ -449,7 +449,9 @@ class LMMGenerator:
         last_index = -1
 
         for file_desc in file_descrs:
-            file_name = file_desc["name"]
+            file_name = file_desc.get("name")
+            if not file_name:
+                continue
             # File names of the type: 20250706T191739_latents_024.pt
             match = re.match(rf"^{self.job_id}_{task_id}_latents_(\d+)\.pt$", file_name)
             if match:
@@ -949,7 +951,7 @@ class LMMGenerator:
             assert response is not None
 
             # Process LLM response
-            assert response.usage is not None
+            assert response.usage is not None  # type: ignore[union-attr]
             usage = response.usage  # type: ignore[union-attr]
             self.logger.debug("LLM tokens:")
             self.logger.debug(f"  Prompt: {usage.prompt_tokens}")
@@ -958,7 +960,7 @@ class LMMGenerator:
             if usage.completion_tokens == max_tokens:
                 self.logger.error(f"Completion hit max tokens limit ({usage.completion_tokens}/{max_tokens}).")
 
-            choices = response.choices
+            choices = response.choices  # type: ignore[union-attr]
             if not choices:
                 raise ValueError("No LLM response.")
             response_choice = choices[0]
@@ -966,6 +968,7 @@ class LMMGenerator:
             response_message_content = response_message.content
             if response_message_content:
                 response_message_content = response_message_content.strip()
+            assert isinstance(response_message_content, str)
             return response_message_content
 
     async def gen_text_stream(
@@ -996,6 +999,7 @@ class LMMGenerator:
                 choice = chunk.choices[0]
                 delta = choice.delta
                 delta_content = delta.content
+                assert isinstance(delta_content, str)
                 yield delta_content
 
     async def gen_audio_transcript(
