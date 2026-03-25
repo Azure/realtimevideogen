@@ -1,7 +1,10 @@
+# mypy: ignore-errors
 """
 xFuser FramePack for Hunyuan Video.
-This module extends the Hunyuan Video Framepack Pipeline to support xFuser's long context attention and
-sequence parallelism.
+Extends the Hunyuan Video Framepack Pipeline to support xFuser's long context attention and sequence parallelism.
+Sources:
+* https://github.com/lllyasviel/FramePack
+* https://github.com/xdit-project/xDiT
 """
 # mypy: ignore-errors
 # Source: https://github.com/lllyasviel/FramePack and https://github.com/xdit-project/xDiT

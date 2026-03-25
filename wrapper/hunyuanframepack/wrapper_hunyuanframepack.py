@@ -63,7 +63,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
         save_intermediate: Optional[str] = None,
         job_id: Optional[str] = None,
         output_type: str = "tensor",  # "tensor", "video_binary", "video_path"
-    ) -> torch.Tensor:
+    ) -> Optional[torch.Tensor]:
         """
         Generate a video from an input image and a prompt.
         Based on:

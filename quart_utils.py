@@ -30,6 +30,7 @@ QuartReturn = Union[
     Tuple[Response, int],
     Dict[str, Any],
     Tuple[str, HTTPStatus],
+    Tuple[Dict[str, Any], HTTPStatus],
 ]
 
 
