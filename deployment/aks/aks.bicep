@@ -112,13 +112,11 @@ resource natGateway 'Microsoft.Network/natGateways@2023-11-01' = if (disableDefa
 }
 
 // ---------------------------------------------------------------------------
-// Network Security Group – allows inbound traffic on the Kubernetes NodePort
-// range (30000–32767) destined to node private IPs in the subnet.  Azure
-// LoadBalancer forwards external traffic to nodes using NodePorts, so the
-// subnet NSG must allow traffic to VirtualNetwork on that port range.
-// Without this explicit NSG, corporate policy may attach a default-deny NSG
-// to the subnet that blocks traffic even when the NIC-level NSG (managed by
-// AKS in the MC_ resource group) allows it.
+// Network Security Group – allows inbound traffic on ports 8000–9000 so that
+// Kubernetes LoadBalancer services (StreamWise, StreamCast, model wrappers)
+// are reachable from the Internet.  Without this explicit NSG, corporate
+// policy may attach a default-deny NSG to the subnet that blocks traffic
+// even when the NIC-level NSG (managed by AKS) allows it.
 // ---------------------------------------------------------------------------
 resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disableDefaultOutboundAccess) {
   name: 'aks-node-subnet-nsg'
@@ -126,7 +124,7 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
   properties: {
     securityRules: [
       {
-        name: 'AllowK8sNodePortsInbound'
+        name: 'AllowServicePortsInbound'
         properties: {
           priority: 100
           direction: 'Inbound'
@@ -134,8 +132,8 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
           protocol: 'Tcp'
           sourcePortRange: '*'
           sourceAddressPrefix: 'Internet'
-          destinationAddressPrefix: 'VirtualNetwork'
-          destinationPortRange: '30000-32767'
+          destinationAddressPrefix: publicIp.properties.ipAddress
+          destinationPortRange: '8000-9000'
         }
       }
     ]
