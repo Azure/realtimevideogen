@@ -22,6 +22,9 @@ images:
   kokoro:
     repository: kokoro
     tag: XXXX
+  dia:
+    repository: dia
+    tag: XXXX
   xtts:
     repository: xtts
     tag: XXXX
@@ -36,6 +39,12 @@ images:
   flux:
     repository: flux
     tag: XXXX
+  flux2:
+    repository: flux2
+    tag: XXXX
+  flux2klein:
+    repository: flux2klein
+    tag: XXXX
   fluxupscaler:
     repository: fluxupscaler
     tag: XXXX
@@ -44,6 +53,9 @@ images:
     tag: XXXX
   fluxkontext:
     repository: fluxkontext
+    tag: XXXX
+  cogview:
+    repository: cogview
     tag: XXXX
   4kagent:
     repository: 4kagent
