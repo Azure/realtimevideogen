@@ -82,7 +82,7 @@ with patch.dict(sys.modules, mock_modules):
 def test_get_service_names() -> None:
     """Check that we have the expected services covered."""
     service_names = get_service_names()
-    assert len(service_names) == 46
+    assert len(service_names) == 48
     assert "mock" in service_names
     assert "wan" in service_names
     assert "wan22" in service_names
