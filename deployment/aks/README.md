@@ -20,32 +20,36 @@ Fill out configuration parameters in `set_properties.sh`
 * Azure resource group and region
 * ACR settings
 
+```bash
+# Create your personal config from the template (only needed once)
+cp deployment/set_properties.sh.template deployment/set_properties.sh
+# Edit the file and fill in your values (AZ_SUBSCRIPTION_ID, AZ_RESOURCE_GROUP, ACR_NAME, HF_TOKEN, …)
+```
+
 To load the parameters to use them later:
 ```bash
-source set_properties.sh
+source deployment/set_properties.sh
 ```
 
 ## Step 1: Deploy AKS Cluster
 
 The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - An AKS cluster with a system node pool (for StreamWise, StreamCast, and system pods)
-- A GPU spot node pool for full-GPU workloads (starts at 0 nodes, scale up when needed)
-- A GPU MIG spot node pool for nodes with MIG-partitioned GPUs (starts at 0 nodes)
+- A **full-GPU spot node pool** (`spoth100`): all GPUs in standard mode; for heavy models (Wan, Flux, Gemma, etc.) — starts at 0 nodes
+- A **MIG spot node pool** (`spoth100mig`): same VM size but designated for mixed-mode use — 7 standard GPUs + 1 MIG-partitioned GPU (GPU 7) for lightweight services — starts at 0 nodes
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
 - A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
 
-Having separate node pools for full-GPU and MIG nodes avoids the problem of MIG
-configuration from one VMSS instance affecting all instances in the same pool.
+Separate node pools are needed because MIG mode is configured per node: putting the MIG node in its own pool prevents MIG changes on one VMSS instance from affecting the full-GPU instances.
 
 Review the Bicep parameters in [aks.bicep](aks.bicep) (cluster name, GPU VM size, ACR name), then deploy:
 
 ```bash
 az login
 
-# Pick a name for your Azure resource group and region
-AZ_RESOURCE_GROUP="my-resource-group"
-AZ_REGION="swedencentral"
+# If you haven't already, source your config (provides AZ_RESOURCE_GROUP, AZ_REGION, ACR_NAME, etc.)
+source deployment/set_properties.sh
 
 az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
 
@@ -58,8 +62,8 @@ az deployment group create \
     gpuNodeVmSize=Standard_ND96isrf_H100_v5 \
     gpuNodePoolName=spoth100 \
     gpuMigNodePoolName=spoth100mig \
-    acrName=myacr \
-    acrResourceGroup=my-acr-rg
+    acrName=$ACR_NAME \
+    acrResourceGroup=$AZ_RESOURCE_GROUP  # set to ACR resource group if different
 ```
 
 Some available GPU VM sizes:
@@ -140,14 +144,13 @@ Set the environment variables needed by the YAML templates, then deploy.
 > The pod will show `ContainerCreating` during this time.
 
 ```bash
-source ../set_properties.sh  # provides ACR_URL, AZ_RESOURCE_GROUP, etc.
+# If not already sourced (provides ACR_URL, AZ_RESOURCE_GROUP, etc.)
+source deployment/set_properties.sh
 export LOAD_BALANCER_IP=$IP_ADDRESS
 export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
-cd deployment/aks
-
-kubectl apply -f ../k8s/streamwise-service-account.yaml
-envsubst < streamwise-pod.yaml | kubectl apply -f -
+kubectl apply -f deployment/k8s/streamwise-service-account.yaml
+envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
 ```
 
 For Windows (PowerShell), you can use `Get-Content` and `-replace` instead of `envsubst`.
@@ -168,8 +171,8 @@ Open the web UI at: `http://$IP_ADDRESS:8081`
 
 ### Remove StreamWise
 ```bash
-kubectl delete -f streamwise-pod.yaml
-kubectl delete -f ../k8s/streamwise-service-account.yaml
+kubectl delete -f deployment/aks/streamwise-pod.yaml
+kubectl delete -f deployment/k8s/streamwise-service-account.yaml
 ```
 
 ## Step 4: Deploy StreamCast
@@ -177,8 +180,8 @@ kubectl delete -f ../k8s/streamwise-service-account.yaml
 Deploy using the same variable substitution approach as Step 3:
 
 ```bash
-kubectl apply -f ../k8s/streamwiseapp-service-account.yaml
-envsubst < streamcast-pod.yaml | kubectl apply -f -
+kubectl apply -f deployment/k8s/streamwiseapp-service-account.yaml
+envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
 ```
 
 Verify StreamCast is running:
@@ -191,8 +194,8 @@ Open the StreamCast UI at: `http://$IP_ADDRESS:8080`
 
 ### Remove StreamCast
 ```bash
-kubectl delete -f streamcast-pod.yaml
-kubectl delete -f ../k8s/streamwiseapp-service-account.yaml
+kubectl delete -f deployment/aks/streamcast-pod.yaml
+kubectl delete -f deployment/k8s/streamwiseapp-service-account.yaml
 ```
 
 ## Step 5: GPU Setup
@@ -203,7 +206,7 @@ See the [Generic Kubernetes GPU Setup](../k8s/README.md#gpu-setup) for the gener
 For AKS, apply the local DaemonSet manifest:
 ```bash
 kubectl create namespace gpu-resources
-kubectl apply -f ../k8s/nvidia-device-plugin-ds.yaml
+kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 ```
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
@@ -263,26 +266,13 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 
 ### 5.1 Partial GPU Support (MIG)
 
-NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources.
-This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
+The **MIG node pool** (`spoth100mig`) runs the same VM size as the full-GPU pool but is designed for **mixed-mode** use:
+- **7 GPUs** remain in standard mode — available as `nvidia.com/gpu` for heavy models
+- **1 GPU (GPU 7)** is manually put in MIG mode after the node comes up, creating smaller isolated slices for lightweight services such as Kokoro (TTS) and YOLO (detection)
 
-> **MIG is not enabled by default.**
-> After scaling up a MIG node you must manually enable MIG on GPU 7 and create instances.
-> The device-plugin DaemonSet ([`nvidia-device-plugin-ds.yaml`](../k8s/nvidia-device-plugin-ds.yaml)) uses the `gpu-config=mig` label set by the Bicep template to apply `MIG_STRATEGY=none` on full-GPU nodes and `MIG_STRATEGY=mixed` on MIG nodes.
-> See the full [MIG Setup Guide](../k8s/MIG.md).
+The Bicep template labels MIG nodes with `gpu-config=mig`. The device plugin DaemonSet uses this label to apply `MIG_STRATEGY=mixed` on those nodes and `MIG_STRATEGY=none` on full-GPU nodes, so MIG slices only appear where they are configured.
 
-The recommended setup for an 8-GPU node is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services:
-- **80 GB GPU**: 2 × `2g.20gb` + 3 × `1g.10gb`
-- **40 GB GPU**: 2 × `2g.10gb` + 3 × `1g.5gb`
-
-After setup, the expected GPU resources for H100 80GB are:
-
-| Node pool | `nvidia.com/gpu` | `nvidia.com/mig-1g.10gb` | `nvidia.com/mig-2g.20gb` |
-|-----------|:-:|:-:|:-:|
-| Full-GPU (e.g. `spoth100`) | 8 | — | — |
-| MIG (e.g. `spoth100mig`) | 7 | 3 | 2 |
-
-For the full step-by-step setup (enabling MIG, creating instances, configuring the device plugin, deploying services, AKS automatic MIG via `--gpu-instance-profile`, and the complete profile reference), see the **[MIG Setup Guide](../k8s/MIG.md)**.
+> **MIG is not enabled automatically.** After scaling up the MIG node pool (Step 5 above), follow the **[MIG Setup Guide](../k8s/MIG.md)** to enable MIG on GPU 7, create instances, configure the device plugin, and verify the setup.
 
 ## Step 6: Deploy GPU Microservices
 
@@ -356,10 +346,10 @@ Common issues:
 
 ```bash
 # Delete pods and services
-kubectl delete -f streamcast-pod.yaml
-kubectl delete -f ../k8s/streamwiseapp-service-account.yaml
-kubectl delete -f streamwise-pod.yaml
-kubectl delete -f ../k8s/streamwise-service-account.yaml
+kubectl delete -f deployment/aks/streamcast-pod.yaml
+kubectl delete -f deployment/k8s/streamwiseapp-service-account.yaml
+kubectl delete -f deployment/aks/streamwise-pod.yaml
+kubectl delete -f deployment/k8s/streamwise-service-account.yaml
 
 # Delete storage and namespace
 kubectl delete pvc local-pvc -n rtgen
