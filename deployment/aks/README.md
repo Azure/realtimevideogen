@@ -275,7 +275,7 @@ The recommended setup for an 8-GPU node is **7 full GPUs** for heavy models + **
 - **80 GB GPU**: 2 × `2g.20gb` + 3 × `1g.10gb`
 - **40 GB GPU**: 2 × `2g.10gb` + 3 × `1g.5gb`
 
-After setup, the expected GPU resources are:
+After setup, the expected GPU resources for H100 80GB are:
 
 | Node pool | `nvidia.com/gpu` | `nvidia.com/mig-1g.10gb` | `nvidia.com/mig-2g.20gb` |
 |-----------|:-:|:-:|:-:|
