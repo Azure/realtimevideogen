@@ -28,7 +28,18 @@ Set these shell variables once and reuse them throughout the guide:
 
 ```bash
 GPU_NODE="<gpu-node>"   # e.g. aks-spota100-27824666-vmss000004
-GPU_INDEX=7             # 0-based index of the GPU to put in MIG mode (7 = last GPU on an 8-GPU node; adjust for your server, e.g. 3 for a 4-GPU node)
+```
+
+Choose `GPU_INDEX` based on your VM size (always the **last GPU**, 0-indexed):
+
+| VM Size | GPUs | `GPU_INDEX` |
+|---------|------|-------------|
+| `Standard_NC96ads_A100_v4` | 4 | `3` |
+| `Standard_ND96ams_A100_v4` | 8 | `7` |
+| `Standard_ND96isrf_H100_v5` | 8 | `7` |
+
+```bash
+GPU_INDEX=7   # adjust per the table above (e.g. 3 for a 4-GPU node)
 ```
 
 ### 1. Create a privileged debug pod on the GPU node
@@ -118,8 +129,8 @@ kubectl wait --for=condition=Ready node/$GPU_NODE --timeout=300s
 ```
 
 > **For PCIe-based systems** (e.g. `Standard_NC96ads_A100_v4`), GPUs are independent.
-> You may be able to skip the VM restart by stopping the Fabric Manager (`systemctl stop nvidia-fabricmanager`) and resetting the GPU (`nvidia-smi -i $GPU_INDEX -r`).
-> If that fails, fall back to a VM restart.
+> You can try stopping the Fabric Manager (`systemctl stop nvidia-fabricmanager`) and resetting the GPU (`nvidia-smi -i $GPU_INDEX -r`), but in practice this often fails because other processes (kubelet, monitoring agents) hold GPU handles.
+> **A VM restart is usually required** even on PCIe systems. Fall back to the VMSS restart command above.
 
 ### 5. Verify MIG is active and create instances
 
@@ -161,6 +172,10 @@ GPU $GPU_INDEX should list the five MIG devices under it.
 > The two `2g` slices can run slightly heavier workloads, e.g. RealESRGAN upscaling.
 
 ### 6. Configure the NVIDIA device plugin for MIG
+
+> **⚠️ Important:** The `mixed`-strategy device plugin reports **0 GPUs** on the MIG node until MIG instances are created (Step 5).
+> If you scaled the MIG node pool but skipped MIG setup, the node will appear to have no GPU resources at all.
+> You must complete Steps 1–5 before the device plugin can enumerate any devices.
 
 The device plugin DaemonSet ([nvidia-device-plugin-ds.yaml](nvidia-device-plugin-ds.yaml)) contains **two** DaemonSets in a single file:
 
@@ -208,6 +223,15 @@ Expected output for an 80 GB A100 node:
 Resource                        Capacity  Allocatable
 ------------------------------------------------------------
 nvidia.com/gpu                          7            7
+nvidia.com/mig-1g.10gb                  3            3
+nvidia.com/mig-2g.20gb                  2            2
+```
+
+For a 4-GPU node (e.g. `Standard_NC96ads_A100_v4`):
+```text
+Resource                        Capacity  Allocatable
+------------------------------------------------------------
+nvidia.com/gpu                          3            3
 nvidia.com/mig-1g.10gb                  3            3
 nvidia.com/mig-2g.20gb                  2            2
 ```

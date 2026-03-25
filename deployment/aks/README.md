@@ -210,6 +210,12 @@ kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 ```
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
+
+> **Spot VM eviction:** Because these are Spot VMs, Azure may evict them at any time.
+> If a node disappears or the VMSS shows 0 instances after scaling, simply re-run the scale command.
+> Check VMSS capacity with:
+> `az vmss show -g $MC_RESOURCE_GROUP -n <vmss-name> --query sku.capacity`
+
 ```bash
 # Scale the full-GPU node pool (no MIG)
 az aks nodepool scale \
@@ -267,12 +273,23 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 ### 5.1 Partial GPU Support (MIG)
 
 The **MIG node pool** (`spoth100mig`) runs the same VM size as the full-GPU pool but is designed for **mixed-mode** use:
-- **7 GPUs** remain in standard mode — available as `nvidia.com/gpu` for heavy models
-- **1 GPU (GPU 7)** is manually put in MIG mode after the node comes up, creating smaller isolated slices for lightweight services such as Kokoro (TTS) and YOLO (detection)
+- Most GPUs remain in standard mode — available as `nvidia.com/gpu` for heavy models
+- **1 GPU** (the last one) is manually put in MIG mode after the node comes up, creating smaller isolated slices for lightweight services such as Kokoro (TTS) and YOLO (detection)
+
+The GPU index to put in MIG mode depends on the VM size:
+
+| VM Size | GPUs | GPU index for MIG |
+|---------|------|--------------------|
+| `Standard_NC96ads_A100_v4` | 4 | 3 |
+| `Standard_ND96ams_A100_v4` | 8 | 7 |
+| `Standard_ND96isrf_H100_v5` | 8 | 7 |
 
 The Bicep template labels MIG nodes with `gpu-config=mig`. The device plugin DaemonSet uses this label to apply `MIG_STRATEGY=mixed` on those nodes and `MIG_STRATEGY=none` on full-GPU nodes, so MIG slices only appear where they are configured.
 
-> **MIG is not enabled automatically.** After scaling up the MIG node pool (Step 5 above), follow the **[MIG Setup Guide](../k8s/MIG.md)** to enable MIG on GPU 7, create instances, configure the device plugin, and verify the setup.
+> **⚠️ MIG must be configured before GPU services can schedule on the MIG pool.**
+> Until MIG mode is enabled and instances are created, the `mixed`-strategy device plugin will report **0 GPUs** on the MIG node (it cannot enumerate devices without active MIG instances).
+> After scaling up the MIG node pool (Step 5 above), follow the **[MIG Setup Guide](../k8s/MIG.md)** immediately to enable MIG, create instances, and verify the setup.
+> The full-GPU node pool (`spoth100`) works immediately — no additional configuration is needed.
 
 ## Step 6: Deploy GPU Microservices
 
@@ -337,6 +354,8 @@ Common issues:
 - **Image pull errors**: Verify ACR is attached to AKS (`az aks check-acr -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --acr <acrName>`)
 - **Pods stuck in Pending (Insufficient cpu)**: The system node pool doesn't have enough CPU. Scale up with `az aks nodepool scale` or use a larger VM size (see Sizing note in Step 1)
 - **GPU not available**: Ensure the GPU node pool is scaled up and the NVIDIA device plugin is running
+- **MIG node reports 0 GPUs**: The `mixed`-strategy device plugin cannot enumerate devices until MIG mode is enabled and MIG instances are created. Complete the full [MIG Setup Guide](../k8s/MIG.md) — once instances exist the plugin will register `nvidia.com/gpu` (full GPUs) and `nvidia.com/mig-<profile>` (MIG slices) within ~30–60 seconds
+- **Spot VM evicted**: Spot VMs may be evicted at any time. Re-run `az aks nodepool scale` to restore the node. After re-scaling a MIG node you must repeat the [MIG Setup Guide](../k8s/MIG.md) since MIG state does not persist across evictions
 - **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
 - **Cannot reach LoadBalancer services (e.g. StreamWise at :8081)**: When `disableDefaultOutboundAccess` is true, the Bicep template creates an NSG (`aks-node-subnet-nsg`) allowing inbound TCP on the Kubernetes NodePort range. For `type: LoadBalancer` Services, the subnet NSG evaluates traffic destined to the node private IPs and the Service’s NodePort(s), not the public Load Balancer IP. If a corporate policy replaces or overrides this NSG on the subnet, add an inbound allow rule on the node subnet NSG such as: `az network nsg rule create -g $AZ_RESOURCE_GROUP --nsg-name <subnet-nsg> --name AllowK8sNodePorts --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes Internet --destination-address-prefixes VirtualNetwork --destination-port-ranges 30000-32767`. For tighter control, you can set explicit `nodePort` values on your Services and open only those ports instead of the full range. Azure evaluates both the subnet NSG and the NIC-level NSG (in the MC_ resource group) — traffic must be allowed by **both**.
 - **Secret errors**: Verify HF token is correctly configured with `kubectl get secret hf-token -n rtgen`
