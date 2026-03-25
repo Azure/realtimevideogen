@@ -368,7 +368,7 @@ class RealESRGANGeneration(ModelGeneration):
         logging.debug(f"[{self.rank}] Generated image with size {output_image.size}")
         if output_image.size[0] != width or output_image.size[1] != height:
             logging.debug(f"[{self.rank}] Downscaling now to {width}x{height}.")
-            output_image = output_image.resize((width, height), Image.LANCZOS)
+            output_image = output_image.resize((width, height), Image.Resampling.LANCZOS)
 
         return output_image
 

@@ -265,7 +265,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
             # Prepare the data
             gen_timer.start("encoding_inputs")
-            img_resized = img.resize((width, height), Image.LANCZOS)
+            img_resized = img.resize((width, height), Image.Resampling.LANCZOS)
             results = self.data_loader.encode_data(
                 ref_image=img_resized,
                 audio_path=audio_path,
