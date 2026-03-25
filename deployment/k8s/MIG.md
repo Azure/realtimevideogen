@@ -166,7 +166,7 @@ The device plugin DaemonSet ([nvidia-device-plugin-ds.yaml](nvidia-device-plugin
 
 | DaemonSet | `MIG_STRATEGY` | Targets | Purpose |
 |-----------|---------------|---------|---------|
-| `nvidia-device-plugin-daemonset` | `none` | Nodes **without** `gpu-config=mig` label | Ignores MIG — exposes all GPUs as `nvidia.com/gpu` (including GPU 7 even if MIG is on) |
+| `nvidia-device-plugin-daemonset` | `none` | Nodes where `gpu-config` label **does not exist** | Ignores MIG — exposes all GPUs as `nvidia.com/gpu` (including GPU 7 even if MIG is on) |
 | `nvidia-device-plugin-mig-daemonset` | `mixed` | Nodes **with** `gpu-config=mig` label | Advertises both `nvidia.com/gpu` (full GPUs) and `nvidia.com/mig-<profile>` (MIG slices) |
 
 This split is needed because MIG nodes have GPU 7 in MIG mode while full-GPU nodes do not.
