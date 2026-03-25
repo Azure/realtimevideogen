@@ -20,9 +20,15 @@ Fill out configuration parameters in `set_properties.sh`
 * Azure resource group and region
 * ACR settings
 
+```bash
+# Create your personal config from the template (only needed once)
+cp deployment/set_properties.sh.template deployment/set_properties.sh
+# Edit the file and fill in your values (AZ_SUBSCRIPTION_ID, AZ_RESOURCE_GROUP, ACR_NAME, HF_TOKEN, …)
+```
+
 To load the parameters to use them later:
 ```bash
-source set_properties.sh
+source deployment/set_properties.sh
 ```
 
 ## Step 1: Deploy AKS Cluster
@@ -43,9 +49,8 @@ Review the Bicep parameters in [aks.bicep](aks.bicep) (cluster name, GPU VM size
 ```bash
 az login
 
-# Pick a name for your Azure resource group and region
-AZ_RESOURCE_GROUP="my-resource-group"
-AZ_REGION="swedencentral"
+# If you haven't already, source your config (provides AZ_RESOURCE_GROUP, AZ_REGION, ACR_NAME, etc.)
+source deployment/set_properties.sh
 
 az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
 
@@ -58,8 +63,8 @@ az deployment group create \
     gpuNodeVmSize=Standard_ND96isrf_H100_v5 \
     gpuNodePoolName=spoth100 \
     gpuMigNodePoolName=spoth100mig \
-    acrName=myacr \
-    acrResourceGroup=my-acr-rg
+    acrName=$ACR_NAME \
+    acrResourceGroup=$AZ_RESOURCE_GROUP  # set to ACR resource group if different
 ```
 
 Some available GPU VM sizes:
@@ -140,14 +145,13 @@ Set the environment variables needed by the YAML templates, then deploy.
 > The pod will show `ContainerCreating` during this time.
 
 ```bash
-source ../set_properties.sh  # provides ACR_URL, AZ_RESOURCE_GROUP, etc.
+# If not already sourced (provides ACR_URL, AZ_RESOURCE_GROUP, etc.)
+source deployment/set_properties.sh
 export LOAD_BALANCER_IP=$IP_ADDRESS
 export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
-cd deployment/aks
-
-kubectl apply -f ../k8s/streamwise-service-account.yaml
-envsubst < streamwise-pod.yaml | kubectl apply -f -
+kubectl apply -f deployment/k8s/streamwise-service-account.yaml
+envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
 ```
 
 For Windows (PowerShell), you can use `Get-Content` and `-replace` instead of `envsubst`.
@@ -168,8 +172,8 @@ Open the web UI at: `http://$IP_ADDRESS:8081`
 
 ### Remove StreamWise
 ```bash
-kubectl delete -f streamwise-pod.yaml
-kubectl delete -f ../k8s/streamwise-service-account.yaml
+kubectl delete -f deployment/aks/streamwise-pod.yaml
+kubectl delete -f deployment/k8s/streamwise-service-account.yaml
 ```
 
 ## Step 4: Deploy StreamCast
@@ -177,8 +181,8 @@ kubectl delete -f ../k8s/streamwise-service-account.yaml
 Deploy using the same variable substitution approach as Step 3:
 
 ```bash
-kubectl apply -f ../k8s/streamwiseapp-service-account.yaml
-envsubst < streamcast-pod.yaml | kubectl apply -f -
+kubectl apply -f deployment/k8s/streamwiseapp-service-account.yaml
+envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
 ```
 
 Verify StreamCast is running:
@@ -191,8 +195,8 @@ Open the StreamCast UI at: `http://$IP_ADDRESS:8080`
 
 ### Remove StreamCast
 ```bash
-kubectl delete -f streamcast-pod.yaml
-kubectl delete -f ../k8s/streamwiseapp-service-account.yaml
+kubectl delete -f deployment/aks/streamcast-pod.yaml
+kubectl delete -f deployment/k8s/streamwiseapp-service-account.yaml
 ```
 
 ## Step 5: GPU Setup
@@ -203,7 +207,7 @@ See the [Generic Kubernetes GPU Setup](../k8s/README.md#gpu-setup) for the gener
 For AKS, apply the local DaemonSet manifest:
 ```bash
 kubectl create namespace gpu-resources
-kubectl apply -f ../k8s/nvidia-device-plugin-ds.yaml
+kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 ```
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
@@ -356,10 +360,10 @@ Common issues:
 
 ```bash
 # Delete pods and services
-kubectl delete -f streamcast-pod.yaml
-kubectl delete -f ../k8s/streamwiseapp-service-account.yaml
-kubectl delete -f streamwise-pod.yaml
-kubectl delete -f ../k8s/streamwise-service-account.yaml
+kubectl delete -f deployment/aks/streamcast-pod.yaml
+kubectl delete -f deployment/k8s/streamwiseapp-service-account.yaml
+kubectl delete -f deployment/aks/streamwise-pod.yaml
+kubectl delete -f deployment/k8s/streamwise-service-account.yaml
 
 # Delete storage and namespace
 kubectl delete pvc local-pvc -n rtgen

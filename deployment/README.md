@@ -157,7 +157,7 @@ Instead of using Helm from the command line, you can deploy the **StreamWise Clu
 
 1. **Deploy StreamWise Service Account**:
    ```bash
-   kubectl apply -f k8s/streamwise-service-account.yaml
+   kubectl apply -f deployment/k8s/streamwise-service-account.yaml
    ```
 
 2. **Configure environment variables** (for AKS with Load Balancer):
@@ -168,8 +168,7 @@ Instead of using Helm from the command line, you can deploy the **StreamWise Clu
 
 3. **Deploy StreamWise Pod and Service**:
    ```bash
-   cd deployment/aks
-   envsubst < streamwise-pod.yaml | kubectl apply -f -
+   envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
    ```
 
 4. **Verify deployment**:
@@ -181,9 +180,9 @@ Instead of using Helm from the command line, you can deploy the **StreamWise Clu
 5. **Access the Web UI**:
    ```bash
    # Or use port forwarding for local access
-   kubectl port-forward -n rtgen svc/streamwise 8080:8080
+   kubectl port-forward -n rtgen svc/streamwise-svc 8081:8081
    ```
-   Open your browser to `http://localhost:8080` (if using port-forward) or `http://$LOAD_BALANCER_IP:8081`.
+   Open your browser to `http://localhost:8081` (if using port-forward) or `http://$LOAD_BALANCER_IP:8081`.
 
 ### Deploy Components from Web UI
 
@@ -194,17 +193,6 @@ Once the StreamWise web UI is accessible:
 3. **Deploy services**: Use the web interface to submit jobs, configure resource allocations, and deploy model wrappers
 4. **Monitor deployments**: Track pod status, logs, and resource usage in real-time
 5. **Manage services**: Start, stop, restart, or delete services as needed
-
----
-
-
-## Complete Deployment Example (AKS)
-
-**Applies to:** Option 1 (Azure Kubernetes Service)
-
-For a complete end-to-end AKS deployment workflow with all steps from prerequisites to testing, see the **[AKS Deployment Guide - Complete Example](aks/README.md#complete-end-to-end-deployment-example)**.
-
----
 
 ## Building and Pushing Docker Images
 
@@ -234,9 +222,12 @@ Key variables set by `set_properties.sh`:
 `DOCKER_REPO` is always the same as `ACR_URL`. All built images are tagged `$DOCKER_REPO/<name>:<tag>` so they can be pushed directly to ACR.
 
 ```bash
-cd deployment
-source set_properties.sh       # loads the variables above
-az acr login --name $ACR_NAME  # authenticate to ACR
+# One-time setup: create your personal config from the template
+cp deployment/set_properties.sh.template deployment/set_properties.sh
+# Edit the file and fill in your values (AZ_SUBSCRIPTION_ID, AZ_RESOURCE_GROUP, ACR_NAME, HF_TOKEN, …)
+
+source deployment/set_properties.sh  # loads the variables above
+az acr login --name $ACR_NAME        # authenticate to ACR
 ```
 
 > **CI / agent environments:** if `DOCKER_REPO` is already set in the environment, `set_properties.sh` and the ACR login step are skipped automatically by the individual `setup_image.sh` scripts. Set `DOCKER_REPO=<acr-url>` before calling any build script to enable headless builds.
