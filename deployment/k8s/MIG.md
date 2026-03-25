@@ -3,14 +3,11 @@
 MIG partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
-> **Two node pools, two device-plugin strategies:**
-> The AKS Bicep template creates separate full-GPU and MIG node pools. The MIG pool is labelled
-> `gpu-config=mig`, which controls which device-plugin DaemonSet runs on each node
-> (see [Step 6](#6-configure-the-nvidia-device-plugin-for-mig)).
-> MIG is **not** enabled by default — you must follow Steps 1–5 below on each MIG node
-> after scaling up the pool.
-> - **Full-GPU pool:** The `none` MIG strategy exposes all 8 GPUs as `nvidia.com/gpu`.
-> - **MIG pool:** The `mixed` MIG strategy exposes 7 full GPUs plus `nvidia.com/mig-<profile>` slices on GPU 7.
+> **MIG is not enabled by default.** The AKS Bicep template creates separate full-GPU and MIG
+> node pools (the MIG pool is labelled `gpu-config=mig`). After scaling up a MIG node you must
+> follow Steps 1–5 below to enable MIG on GPU 7 and create instances.
+> The device-plugin DaemonSet uses this label to apply the right MIG strategy per pool —
+> see [Step 6](#6-configure-the-nvidia-device-plugin-for-mig) for details.
 
 ---
 
