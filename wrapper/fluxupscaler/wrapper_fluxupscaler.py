@@ -94,7 +94,7 @@ class FluxUpscalerGeneration(USPGeneration):
         if not self.pipeline:
             raise ValueError("Failed to load FluxControlNet pipeline.")
         assert isinstance(self.pipeline, FluxControlNetPipeline)
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
         self.load_timer.end("pipeline")
 
         logging.info(

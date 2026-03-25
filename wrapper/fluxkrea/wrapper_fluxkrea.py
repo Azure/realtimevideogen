@@ -58,7 +58,7 @@ class FluxKreaGeneration(FluxGeneration):
         if not self.pipeline:
             raise ValueError("Failed to load FluxKrea pipeline.")
         assert isinstance(self.pipeline, FluxPipeline)
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
         self.load_timer.end("pipeline")
 
         logging.info(

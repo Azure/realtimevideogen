@@ -64,7 +64,7 @@ class Flux2KleinGeneration(FluxGeneration):
         if not self.pipeline:
             raise ValueError("Failed to load Flux2Klein pipeline.")
         assert isinstance(self.pipeline, Flux2KleinPipeline)
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
         self.load_timer.end("pipeline")
 
         logging.info(
