@@ -388,37 +388,63 @@ class MILPAllocator(ModelAllocator):
                 for instance_id in instance_ids:
                     key = idx(gpu_type, model_name, instance_id)
 
-                    # TODO if not policy.is_disaggregated(Model.HF), add VAE
+                    """
+                    from models import HFModelAllocation
+                    HFModelAllocation(
+                        gpu_type,
+                        num_devices,
+                        replicas=1,
+                    )._calc_time_per_subscene(
+                        self.policy,
+                        self.workflow,
+                        self.latency_data[gpu_type]
+                    )
+                    """
 
                     # Makespan is the max time across all instances
                     # Linearized: use work_device instead of device_choice * work
-                    m.constraints.add(
-                        m.time[key] == sum(
-                            self.workflow.per_subscene_frames[model_name]
-                            / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
-                            * self.latency_data[gpu_type][model_name, num_devices]
-                            * latency_ratio
-                            * self.workflow.num_steps[model_name]
-                            * m.work_device[dev_idx(gpu_type, model_name, instance_id, num_devices)]
-                            for num_devices in DEVICE_OPTIONS[model_name]
-                        )
+                    hf_time_expr = sum(
+                        self.workflow.per_subscene_frames[model_name]
+                        / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
+                        * self.latency_data[gpu_type][model_name, num_devices]
+                        * latency_ratio
+                        * self.workflow.num_steps[model_name]
+                        * m.work_device[dev_idx(gpu_type, model_name, instance_id, num_devices)]
+                        for num_devices in DEVICE_OPTIONS[model_name]
                     )
+                    # When not disaggregated, VAE runs on the same instance
+                    if not self.policy.is_disaggregated(Model.HF):
+                        hf_vae_time_per_work = (
+                            self.latency_data[gpu_type][Model.HF_VAE, 1]
+                            * latency_ratio
+                            / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
+                        )
+                        hf_time_expr += hf_vae_time_per_work * m.work[key]
+                    m.constraints.add(m.time[key] == hf_time_expr)
                     # TTFF is for first chunk (can be smaller than subscene when disaggregated)
                     ttff_frames_hf = min(
                         self.workflow.hf_frames[0],
                         self.workflow.per_subscene_frames[model_name])
-                    m.constraints.add(
-                        m.ttff[key] == sum(
-                            m.device_choice[dev_idx(gpu_type, model_name, instance_id, num_devices)]
-                            * ttff_frames_hf
-                            / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
-                            * self.latency_data[gpu_type][model_name, num_devices]
-                            * latency_ratio
-                            * self.workflow.num_steps[model_name]
-                            * 1  # TTFF for first chunk
-                            for num_devices in DEVICE_OPTIONS[model_name]
-                        )
+                    hf_ttff_expr = sum(
+                        m.device_choice[dev_idx(gpu_type, model_name, instance_id, num_devices)]
+                        * ttff_frames_hf
+                        / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
+                        * self.latency_data[gpu_type][model_name, num_devices]
+                        * latency_ratio
+                        * self.workflow.num_steps[model_name]
+                        * 1  # TTFF for first chunk
+                        for num_devices in DEVICE_OPTIONS[model_name]
                     )
+                    # When not disaggregated, add VAE decode time for first chunk
+                    if not self.policy.is_disaggregated(Model.HF):
+                        hf_vae_ttff = (
+                            ttff_frames_hf
+                            / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
+                            * self.latency_data[gpu_type][Model.HF_VAE, 1]
+                            * latency_ratio
+                        )
+                        hf_ttff_expr += hf_vae_ttff * m.is_active[key]
+                    m.constraints.add(m.ttff[key] == hf_ttff_expr)
 
             # Hunyuan FramePack VAE
             if Model.HF_VAE in model_names and work[Model.HF_VAE] > 0:
@@ -456,28 +482,45 @@ class MILPAllocator(ModelAllocator):
                     key = idx(gpu_type, model_name, instance_id)
                     # Makespan is the max time across all instances
                     # Linearized: use work_device instead of device_choice * work
-                    m.constraints.add(
-                        m.time[key] == sum(
-                            self.workflow.per_subscene_frames[model_name]
-                            / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
-                            * self.latency_data[gpu_type][model_name, num_devices]
-                            * self.workflow.num_steps[model_name]
-                            * m.work_device[dev_idx(gpu_type, model_name, instance_id, num_devices)]
-                            for num_devices in DEVICE_OPTIONS[model_name]
-                        )
+                    ft_time_expr = sum(
+                        self.workflow.per_subscene_frames[model_name]
+                        / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
+                        * self.latency_data[gpu_type][model_name, num_devices]
+                        * latency_ratio
+                        * self.workflow.num_steps[model_name]
+                        * m.work_device[dev_idx(gpu_type, model_name, instance_id, num_devices)]
+                        for num_devices in DEVICE_OPTIONS[model_name]
                     )
+                    # When not disaggregated, VAE runs on the same instance
+                    if not self.policy.is_disaggregated(Model.FT):
+                        ft_vae_time_per_work = (
+                            self.latency_data[gpu_type][Model.FT_VAE, 1]
+                            * latency_ratio
+                            / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
+                        )
+                        ft_time_expr += ft_vae_time_per_work * m.work[key]
+                    m.constraints.add(m.time[key] == ft_time_expr)
                     # TTFF is for 1 work unit (e.g., subscene)
-                    m.constraints.add(
-                        m.ttff[key] == sum(
-                            m.device_choice[dev_idx(gpu_type, model_name, instance_id, num_devices)]
-                            * self.workflow.per_subscene_frames[model_name]
-                            / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
-                            * self.latency_data[gpu_type][model_name, num_devices]
-                            * self.workflow.num_steps[model_name]
-                            * 1  # TTFF for first subscene
-                            for num_devices in DEVICE_OPTIONS[model_name]
-                        )
+                    ft_ttff_expr = sum(
+                        m.device_choice[dev_idx(gpu_type, model_name, instance_id, num_devices)]
+                        * self.workflow.per_subscene_frames[model_name]
+                        / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
+                        * self.latency_data[gpu_type][model_name, num_devices]
+                        * latency_ratio
+                        * self.workflow.num_steps[model_name]
+                        * 1  # TTFF for first subscene
+                        for num_devices in DEVICE_OPTIONS[model_name]
                     )
+                    # When not disaggregated, add VAE decode time for first subscene
+                    if not self.policy.is_disaggregated(Model.FT):
+                        ft_vae_ttff = (
+                            self.workflow.per_subscene_frames[Model.FT]
+                            / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
+                            * self.latency_data[gpu_type][Model.FT_VAE, 1]
+                            * latency_ratio
+                        )
+                        ft_ttff_expr += ft_vae_ttff * m.is_active[key]
+                    m.constraints.add(m.ttff[key] == ft_ttff_expr)
 
             # Fantasy Talking VAE
             if Model.FT_VAE in model_names and work[Model.FT_VAE] > 0:
@@ -767,35 +810,54 @@ class MILPAllocator(ModelAllocator):
             )
 
         if model_name == Model.FLUX:
-            return self.latency_data[gpu_type][model_name, num_devices] * self.workflow.num_steps[Model.FLUX]
+            return (
+                self.latency_data[gpu_type][model_name, num_devices]
+                * self.workflow.num_steps[Model.FLUX]
+            )
 
         if model_name == Model.HF:
-            return (
+            time_per_work = (
                 self.workflow.per_subscene_frames[Model.HF]
                 / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
                 * self.latency_data[gpu_type][model_name, num_devices]
                 * latency_ratio
                 * self.workflow.num_steps[Model.HF]
             )
+            if not self.policy.is_disaggregated(Model.HF):
+                time_per_work += self._get_latency_per_work(
+                    gpu_type,
+                    Model.HF_VAE,
+                    1,  # VAE is single-device only in current policy
+                )
+            return time_per_work
 
         if model_name == Model.HF_VAE:
             return (
-                self.latency_data[gpu_type][model_name, num_devices] * latency_ratio
+                self.latency_data[gpu_type][model_name, num_devices]
+                * latency_ratio
                 / self.workflow.hf_frames[self.workflow.frames_per_step_idx]
             )
 
         if model_name == Model.FT:
-            return (
+            time_per_work = (
                 self.workflow.per_subscene_frames[Model.FT]
                 / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
                 * self.latency_data[gpu_type][model_name, num_devices]
                 * latency_ratio
                 * self.workflow.num_steps[Model.FT]
             )
+            if not self.policy.is_disaggregated(Model.FT):
+                time_per_work += self._get_latency_per_work(
+                    gpu_type,
+                    Model.FT_VAE,
+                    1,  # VAE is single-device only in current policy
+                )
+            return time_per_work
 
         if model_name == Model.FT_VAE:
             return (
-                self.latency_data[gpu_type][model_name, num_devices] * latency_ratio
+                self.latency_data[gpu_type][model_name, num_devices]
+                * latency_ratio
                 / self.workflow.ft_frames[self.workflow.frames_per_step_idx]
             )
 

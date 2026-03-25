@@ -298,4 +298,4 @@ def test_get_time_per_request_baseline() -> None:
     assert GPUType.A100 in time_per_req_baseline
     assert Model.GEMMA in time_per_req_baseline[GPUType.A100]
     assert_equals_approx(time_per_req_baseline[GPUType.A100][Model.FLUX], 9.75)
-    assert_equals_approx(time_per_req_baseline[GPUType.A100][Model.FT], 22565.76)
+    assert_equals_approx(time_per_req_baseline[GPUType.A100][Model.FT], 24618.20)

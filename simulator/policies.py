@@ -27,7 +27,8 @@ MAX_ITERATIONS = 100
 # Set to True if we want to use up all GPUs if there's no further improvements in the greedy optimization loop
 USE_ALL_GPUS = True
 
-# Shorthand for enabling disaggregation for all supported models
+# Default StreamWise policy configuration
+# TODO: Add a meta policy that picks the best among disaggregation options for HF/FT
 STREAMWISE_POLICY = Policy(
     name="streamwise",
     gpu_cost=GPU_SPOT_COST,
@@ -39,7 +40,6 @@ STREAMWISE_POLICY = Policy(
     use_upscaler=True,
     hardware=list(GPUType),
 )
-
 
 STREAMWISE_MILP_POLICY = Policy(
     name="streamwise",
