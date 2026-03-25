@@ -55,7 +55,8 @@ class FluxKreaGeneration(FluxGeneration):
             torch_dtype=self.param_dtype,
             # device_map="auto", # TODO check if needed
         )
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
+        assert isinstance(self.pipeline, FluxPipeline), "Pipeline type mismatch: expected FluxPipeline."
+        self.pipeline = self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
 
         logging.info(

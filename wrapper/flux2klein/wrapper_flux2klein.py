@@ -61,7 +61,8 @@ class Flux2KleinGeneration(FluxGeneration):
             torch_dtype=self.param_dtype,
             transformer=transformer,
         )
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
+        assert isinstance(self.pipeline, Flux2KleinPipeline), "Pipeline type mismatch: expected Flux2KleinPipeline."
+        self.pipeline = self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
 
         logging.info(
