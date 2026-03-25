@@ -1,6 +1,6 @@
 {% macro render_gpu(num_gpus, mig_profile, health) %}
     {%- if mig_profile %}
-        <span title="MIG: {{ mig_profile }}">
+        <span title="MIG slice: {{ mig_profile }}">
             {%- if num_gpus and num_gpus > 1 %}
                 {{ num_gpus }}
                 &times;
