@@ -3,11 +3,11 @@
 MIG partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
-> **MIG is not enabled by default.** The AKS Bicep template creates separate full-GPU and MIG
-> node pools (the MIG pool is labelled `gpu-config=mig`). After scaling up a MIG node you must
-> follow Steps 1–5 below to enable MIG on GPU 7 and create instances.
-> The device-plugin DaemonSet uses this label to apply the right MIG strategy per pool —
-> see [Step 6](#6-configure-the-nvidia-device-plugin-for-mig) for details.
+> **MIG is not enabled by default.**
+> The AKS Bicep template creates separate full-GPU and MIG node pools (the MIG pool is labelled `gpu-config=mig`).
+> After scaling up a MIG node you must follow Steps 1–5 below to enable MIG on GPU 7 and create instances.
+> The device-plugin DaemonSet uses this label to apply the right MIG strategy per pool.
+> See [Step 6](#6-configure-the-nvidia-device-plugin-for-mig) for details.
 
 ---
 
@@ -70,9 +70,9 @@ kubectl -n gpu-resources get pods -o wide | grep $GPU_NODE
 
 ### 3. Enable MIG mode on the selected GPU
 
-> **Tip:** On some VMs MIG may already be enabled on GPU 7. Check with the command below —
-> if it already shows `Enabled, Enabled`, skip this step and Step 4 and go directly to
-> [Step 5](#5-verify-mig-is-active-and-create-instances).
+> **Tip:**
+> On some VMs MIG may already be enabled on GPU 7.
+> Check with the command below - if it already shows `Enabled, Enabled`, skip this step and Step 4 and go directly to [Step 5](#5-verify-mig-is-active-and-create-instances).
 
 ```bash
 kubectl exec gpu-debug -- chroot /host \
