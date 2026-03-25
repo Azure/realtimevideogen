@@ -27,7 +27,7 @@ class ImageResize(ModelGeneration):
         await self.generate(image=dummy_image)
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         image: Image.Image,
         video: Optional[List[Image.Image]] = None,
@@ -65,12 +65,12 @@ class ImageResize(ModelGeneration):
         img_base64 = data_json.get("img", None)
         img = None
         if img_base64 is not None:
-            img = base64_to_img(img_base64)
+            img = base64_to_img(str(img_base64))
 
         video_base64 = data_json.get("video", None)
         video = None
         if video_base64 is not None:
-            video = base64_to_video_frames(video_base64)
+            video = base64_to_video_frames(str(video_base64))
 
         return {
             "task": self.model_name,

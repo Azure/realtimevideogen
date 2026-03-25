@@ -63,7 +63,7 @@ class FluxUpscalerGeneration(USPGeneration):
 
     def __del__(self) -> None:
         if self.pipeline is not None:
-            del self.pipeline.transformer  # type: ignore[attr-defined]
+            del self.pipeline.transformer
             self.pipeline = None
         if self.controlnet is not None:
             del self.controlnet
@@ -91,7 +91,7 @@ class FluxUpscalerGeneration(USPGeneration):
             cache_args=cache_args,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
+        self.pipeline = self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
 
         logging.info(
@@ -124,8 +124,8 @@ class FluxUpscalerGeneration(USPGeneration):
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
-        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
-            self.pipeline.transformer,  # type: ignore[attr-defined]
+        self.pipeline.transformer = torch.compile(
+            self.pipeline.transformer,
             mode="max-autotune-no-cudagraphs"
         )
         self.load_timer.end("dit_compile")
@@ -143,8 +143,8 @@ class FluxUpscalerGeneration(USPGeneration):
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
         assert self.pipeline is not None
-        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
-        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        height_latent = height // self.pipeline.vae_scale_factor
+        width_latent = width // self.pipeline.vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -312,7 +312,7 @@ class FluxUpscalerGeneration(USPGeneration):
 
         assert self.pipeline is not None, "Flux pipeline not initialized."
         gen_timer.start(f"step_{img_id:03d}_{0:03d}")
-        output: Any = self.pipeline(  # type: ignore[operator]
+        output: Any = self.pipeline(
             control_image=img,
             height=height,
             width=width,

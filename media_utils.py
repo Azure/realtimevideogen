@@ -95,10 +95,10 @@ def base64_to_video_frames(
     # fmt: imageio.Format = formats[video_format]
     video_frames = imageio.get_reader(
         video_buffer,
-        format=video_format)  # type: ignore[arg-type]
+        format=video_format)
     frames = [
         Image.fromarray(frame_np).convert("RGB")
-        for frame_np in video_frames  # type: ignore[attr-defined]
+        for frame_np in video_frames
     ]
     return frames
 
@@ -117,12 +117,12 @@ def video_frames_to_base64(
     # fmt: imageio.Format = formats[format]
     with imageio.get_writer(
         video_buffer,
-        format=format,  # type: ignore[arg-type]
+        format=format,
         fps=fps
     ) as writer:
         for frame in video_frames:
             frame_np = np.array(frame)
-            writer.append_data(frame_np)  # type: ignore[attr-defined]
+            writer.append_data(frame_np)
     video_bytes = video_buffer.getvalue()
     video_base64 = binary_to_base64(video_bytes)
     return video_base64
@@ -1032,7 +1032,7 @@ def save_diffusers_video(
     ) as writer:
         for frame in video_frames:
             frame_np = np.array(frame)
-            writer.append_data(frame_np)  # type: ignore[attr-defined]
+            writer.append_data(frame_np)
     return out_video_path
 
 
@@ -1058,7 +1058,7 @@ def save_bcthw_as_mp4(
     # torchvision.io.write_video(output_filename, x, fps=fps, video_codec=codec, options={'crf': str(int(crf))})
     with imageio.get_writer(output_filename, fps=fps, codec=video_codec) as writer:
         for frame in x.numpy():
-            writer.append_data(frame)  # type: ignore[attr-defined]
+            writer.append_data(frame)
     return output_filename
 
 

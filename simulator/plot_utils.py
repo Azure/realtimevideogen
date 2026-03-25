@@ -24,7 +24,7 @@ FIG_SIZE = (7, 5)
 
 
 def get_color_map() -> list[tuple[float, float, float]]:
-    return cast(ListedColormap, plt.get_cmap('tab10')).colors  # type: ignore[return-value]
+    return cast(ListedColormap, plt.get_cmap('tab10')).colors
 
 
 def _get_time_ticklabels(

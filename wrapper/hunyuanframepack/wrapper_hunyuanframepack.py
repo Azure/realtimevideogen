@@ -240,7 +240,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
                             f"/tmp/{save_intermediate}_latents_{it:03d}.pt")
 
             if self.rank != 0:
-                return None  # type: ignore[return-value]  # other workers do not need to return anything or VAE decode
+                return None  # other workers do not need to return anything or VAE decode
 
             if output_type == "latent":
                 if history_pixels is None:

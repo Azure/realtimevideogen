@@ -157,7 +157,7 @@ class StreamWiseApp(ABC):
                 return {
                     "status": "error",
                     "error": str(ex),
-                }, self.get_http_status_from_exception(ex)  # type: ignore[return-value]
+                }, self.get_http_status_from_exception(ex)
 
             return {
                 "status": "success",
@@ -257,7 +257,7 @@ class StreamWiseApp(ABC):
         config.accesslog = "-"
 
         # Increase max request body size to 128 MB (default is 16 MB)
-        config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
+        config.limit_max_request_size = 128 * 1024 * 1024
         self.app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
 
         await serve(self.app, config)
@@ -631,7 +631,7 @@ class StreamWiseApp(ABC):
                 times=times,
                 files=files)
 
-        @route("/api/job/<job_id>/status/history", methods=["GET"])  # type: ignore[type-var]
+        @route("/api/job/<job_id>/status/history", methods=["GET"])
         async def get_job_status_history(job_id: str) -> Dict[float, JobStatus]:
             """Get the status of a job asynchronously."""
             job_dir = f"{self.tmp_dir}/{job_id}"

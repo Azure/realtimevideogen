@@ -31,12 +31,12 @@ class CausalConv3d(nn.Conv3d):
         **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self._padding: Tuple[int, int, int, int, int, int] = (  # type: ignore[assignment]
-            self.padding[2],
-            self.padding[2],
-            self.padding[1],
-            self.padding[1],
-            2 * self.padding[0], 0
+        self._padding: Tuple[int, int, int, int, int, int] = (
+            self.padding[2],  # type: ignore[has-type]
+            self.padding[2],  # type: ignore[has-type]
+            self.padding[1],  # type: ignore[has-type]
+            self.padding[1],  # type: ignore[has-type]
+            2 * self.padding[0], 0  # type: ignore[has-type]
         )
         self.padding = (0, 0, 0)
 
@@ -131,7 +131,7 @@ class Resample(nn.Module):
             self.time_conv = CausalConv3d(
                 dim, dim, (3, 1, 1), stride=(2, 1, 1), padding=(0, 0, 0))
         else:
-            self.resample = nn.Identity()  # type: ignore[assignment]
+            self.resample = nn.Identity()
 
     def forward(
         self,
@@ -213,7 +213,7 @@ class Resample(nn.Module):
         # conv_weight.data[:,:,-1,1,1] = init_matrix * 0.5
         conv_weight.data[:, :, 1, 0, 0] = init_matrix  # * 0.5
         conv.weight.data.copy_(conv_weight)
-        nn.init.zeros_(conv.bias.data)  # type: ignore[union-attr]
+        nn.init.zeros_(conv.bias.data)
 
     def init_weight2(
         self,
@@ -227,7 +227,7 @@ class Resample(nn.Module):
         conv_weight[:c1 // 2, :, -1, 0, 0] = init_matrix
         conv_weight[c1 // 2:, :, -1, 0, 0] = init_matrix
         conv.weight.data.copy_(conv_weight)
-        nn.init.zeros_(conv.bias.data)  # type: ignore[union-attr]
+        nn.init.zeros_(conv.bias.data)
 
 
 class ResidualBlock(nn.Module):
@@ -359,14 +359,14 @@ class Encoder3d(nn.Module):
             for _ in range(num_res_blocks):
                 downsamples.append(ResidualBlock(in_dim, out_dim, dropout))
                 if scale in attn_scales:
-                    downsamples.append(AttentionBlock(out_dim))  # type: ignore[arg-type]
+                    downsamples.append(AttentionBlock(out_dim))
                 in_dim = out_dim
 
             # downsample block
             if i != len(dim_mult) - 1:
                 mode = 'downsample3d' if temperal_downsample[
                     i] else 'downsample2d'
-                downsamples.append(Resample(out_dim, mode=mode))  # type: ignore[arg-type]
+                downsamples.append(Resample(out_dim, mode=mode))
                 scale /= 2.0
         self.downsamples = nn.Sequential(*downsamples)
 
@@ -477,13 +477,13 @@ class Decoder3d(nn.Module):
             for _ in range(num_res_blocks + 1):
                 upsamples.append(ResidualBlock(in_dim, out_dim, dropout))
                 if scale in attn_scales:
-                    upsamples.append(AttentionBlock(out_dim))  # type: ignore[arg-type]
+                    upsamples.append(AttentionBlock(out_dim))
                 in_dim = out_dim
 
             # upsample block
             if i != len(dim_mult) - 1:
                 mode = 'upsample3d' if temperal_upsample[i] else 'upsample2d'
-                upsamples.append(Resample(out_dim, mode=mode))  # type: ignore[arg-type]
+                upsamples.append(Resample(out_dim, mode=mode))
                 scale *= 2.0
         self.upsamples = nn.Sequential(*upsamples)
 
@@ -693,21 +693,21 @@ class WanVAE_(nn.Module):
                 feat_cache=self._enc_feat_map,
                 feat_idx=self._enc_conv_idx)
             out.append(frame_encoded)
-        out = torch.cat(out, dim=2)  # type: ignore[assignment]
+        out = torch.cat(out, dim=2)
 
         # Convolution for mu and log_var
         aux = []
         # Start frames 1 by 1
         for i in range(start_frames - 1):
-            out_conv = self.conv1(out[:, :, i:i + 1, :, :])  # type: ignore[call-overload]
+            out_conv = self.conv1(out[:, :, i:i + 1, :, :])
             aux.append(out_conv)
         # Middle frames batched in groups of 4 (after the first one)
         out_conv = self.conv1(
-            out[:, :, start_frames - 1:num_lat_frames - end_frames, :, :])  # type: ignore[call-overload]
+            out[:, :, start_frames - 1:num_lat_frames - end_frames, :, :])
         aux.append(out_conv)
         # End frames 1 by 1
         if end_frames > 0:
-            out_conv = self.conv1(out[:, :, -end_frames:, :, :])  # type: ignore[call-overload]
+            out_conv = self.conv1(out[:, :, -end_frames:, :, :])
             aux.append(out_conv)
         mu, log_var = torch.cat(aux, dim=2).chunk(2, dim=1)
 
@@ -750,7 +750,7 @@ class WanVAE_(nn.Module):
             for i in range(end_frames):
                 z_conv = self.conv2(z[:, :, -end_frames:-end_frames + 1, :, :])
                 x.append(z_conv)
-        x = torch.cat(x, dim=2)  # type: ignore[assignment]
+        x = torch.cat(x, dim=2)
 
         # Decode
         out = []
@@ -761,18 +761,18 @@ class WanVAE_(nn.Module):
             elif end_frames > 0 and i >= num_lat_frames - end_frames:
                 self.clear_cache()
 
-            frame = x[:, :, i:i + 1, :, :]  # type: ignore[call-overload]
+            frame = x[:, :, i:i + 1, :, :]
             frame_decoded = self.decoder(
                 frame,
                 feat_cache=self._feat_map,
                 feat_idx=self._conv_idx)
             out.append(frame_decoded)
-        out = torch.cat(out, 2)  # type: ignore[assignment]
+        out = torch.cat(out, 2)
         self.clear_cache()
 
-        return out  # type: ignore[return-value]
+        return out
 
-    def decode_stream(  # type: ignore[misc]
+    def decode_stream(
         self,
         z: torch.Tensor,
         scale: Tuple[Any, Any],
@@ -810,7 +810,7 @@ class WanVAE_(nn.Module):
             for i in range(end_frames):
                 z_conv = self.conv2(z[:, :, -end_frames:-end_frames + 1, :, :])
                 x.append(z_conv)
-        x = torch.cat(x, dim=2)  # type: ignore[assignment]
+        x = torch.cat(x, dim=2)
 
         # Decode
         for i in range(num_lat_frames):
@@ -820,7 +820,7 @@ class WanVAE_(nn.Module):
             elif end_frames > 0 and i >= num_lat_frames - end_frames:
                 self.clear_cache()
 
-            frame = x[:, :, i:i + 1, :, :]  # type: ignore[call-overload]
+            frame = x[:, :, i:i + 1, :, :]
             out = self.decoder(
                 frame,
                 feat_cache=self._feat_map,
@@ -888,7 +888,7 @@ def _video_vae(
     logging.info(f'loading {pretrained_path}')
     model.load_state_dict(
         torch.load(
-            pretrained_path, map_location=device,  # type: ignore[arg-type]
+            pretrained_path, map_location=device,
             weights_only=False),  # nosec B614 - trusted model checkpoint
         assign=True)
 
@@ -937,7 +937,7 @@ class WanVAE:
         with amp.autocast('cuda', dtype=self.dtype):
             return [
                 self.model.encode(
-                    u.unsqueeze(0), self.scale, start_frames, end_frames).float().squeeze(0)  # type: ignore[arg-type]
+                    u.unsqueeze(0), self.scale, start_frames, end_frames).float().squeeze(0)
                 for u in videos
             ]
 
@@ -951,7 +951,7 @@ class WanVAE:
             return [
                 self.model.decode(
                     u.unsqueeze(0),
-                    self.scale,  # type: ignore[arg-type]
+                    self.scale,
                     start_frames,
                     end_frames
                 ).float().clamp_(-1, 1).squeeze(0)
@@ -973,7 +973,7 @@ class WanVAE:
         with amp.autocast('cuda', dtype=self.dtype):
             for video_frame in self.model.decode_stream(
                 z.unsqueeze(0),
-                self.scale,  # type: ignore[arg-type]
+                self.scale,
                 start_frame=start_frame,
                 start_frames=start_frames,
                 end_frames=end_frames

@@ -632,7 +632,7 @@ class GenVideoChunked:
         # Id
         frame_text = f"{self.video_id:03d}.{subvideo_id:03d}"
         ft_frames = [
-            add_text_to_frame(frame, text=frame_text, position="top-left")  # type: ignore[misc]
+            add_text_to_frame(frame, text=frame_text, position="top-left")
             for frame in ft_frames
         ]
 
@@ -640,7 +640,7 @@ class GenVideoChunked:
         width, height = ft_frames[0].size
         frame_text = f"{width}x{height} {len(ft_frames)} frames"
         ft_frames = [
-            add_text_to_frame(frame, text=frame_text, position="top-right")  # type: ignore[misc]
+            add_text_to_frame(frame, text=frame_text, position="top-right")
             for frame in ft_frames
         ]
         return ft_frames

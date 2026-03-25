@@ -54,7 +54,7 @@ class RealESRGANGeneration(ModelGeneration):
     def __del__(self) -> None:
         if self.models is not None:
             del self.models
-            self.models = None
+            self.models = None  # type: ignore[assignment]
         super().__del__()
 
     def init_parallelism(self) -> None:
@@ -185,7 +185,7 @@ class RealESRGANGeneration(ModelGeneration):
             return []
 
         ret = []
-        for position_images in zip(*gathered_lists):
+        for position_images in zip(*gathered_lists):  # type: ignore[misc]
             for img in position_images:
                 if img is not None:
                     ret.append(img)
@@ -196,7 +196,7 @@ class RealESRGANGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         job_id: Optional[str] = None,
         image: Optional[Image.Image] = None,
@@ -223,7 +223,7 @@ class RealESRGANGeneration(ModelGeneration):
                     video_len = get_video_size(video)
                     logging.info(
                         f"[{self.rank}] Upscaling video with {len(video)} frames and {bytes_to_human(video_len)}.")
-                ret = []
+                ret: list[Any] = []
                 video_frames = video
                 chunked_video_frames = self._chunk_list_image(video_frames)
                 for it, frame in enumerate(chunked_video_frames):
@@ -246,8 +246,8 @@ class RealESRGANGeneration(ModelGeneration):
                 if self.rank == 0:
                     logging.info(f"[{self.rank}] Generated {len(video)}->{len(ret)} upscaled video frames.")
                 else:
-                    return None  # Skip non-rank 0 processes
-                return await self._output_video(
+                    return None  # type: ignore[return-value]  # Skip non-rank 0 processes
+                return await self._output_video(  # type: ignore[return-value]
                     job_id,
                     gen_timer,
                     ret,
@@ -309,7 +309,7 @@ class RealESRGANGeneration(ModelGeneration):
                 return video_binary
 
             logging.error(f"Unknown output type: {output_type}")
-            return None
+            return None  # type: ignore[return-value]
         finally:
             gen_timer.end("output")
 

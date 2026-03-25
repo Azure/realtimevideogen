@@ -226,7 +226,7 @@ async def model_health(service_name: str) -> QuartReturn:
     """Get health status of a specific model."""
     model = get_model(service_name)
     if model is None:
-        return (  # type: ignore[return-value]
+        return (
             {"error": f"{service_name} not initialized"}, HTTPStatus.INTERNAL_SERVER_ERROR)
     return model.get_health()
 
@@ -1724,11 +1724,11 @@ async def run_httpserver(
     config.accesslog = "-"
 
     # Increase max request body size to 128 MB (default is 16 MB)
-    config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
+    config.limit_max_request_size = 128 * 1024 * 1024
     app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
 
     # Configure for better concurrency
-    config.worker_connections = 64  # type: ignore[attr-defined]  # Allow more concurrent connections
+    config.worker_connections = 64  # Allow more concurrent connections
     config.keep_alive_timeout = 5 * 60  # Keep connections alive for 1 minute
     config.graceful_timeout = 30  # Graceful shutdown timeout
 
