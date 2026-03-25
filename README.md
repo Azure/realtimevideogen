@@ -82,7 +82,7 @@ To deploy on [Azure Kubernetes Service (AKS)](https://learn.microsoft.com/en-us/
 
 ## 📄 Citation
 If you use StreamWise in research, please cite:
-```
+```bibtex
 @article{streamwise2026,
   title={{StreamWise: Adaptive Serving for Real-Time Multi-Modal Generation}},
   author={Haoran Qiu, Gohar Irfan Chaudry, Chaojie Zhang, Íñigo Goiri, Esha Choukse, Rodrigo Fonseca, Ricardo Bianchini},
