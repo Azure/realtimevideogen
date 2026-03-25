@@ -266,9 +266,21 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
+> **MIG is not enabled by default.**
+> After scaling up a MIG node you must manually enable MIG on GPU 7 and create instances.
+> The device-plugin DaemonSet ([`nvidia-device-plugin-ds.yaml`](../k8s/nvidia-device-plugin-ds.yaml)) uses the `gpu-config=mig` label set by the Bicep template to apply `MIG_STRATEGY=none` on full-GPU nodes and `MIG_STRATEGY=mixed` on MIG nodes.
+> See the full [MIG Setup Guide](../k8s/MIG.md).
+
 The recommended setup for an 8-GPU node is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services:
 - **80 GB GPU**: 2 × `2g.20gb` + 3 × `1g.10gb`
 - **40 GB GPU**: 2 × `2g.10gb` + 3 × `1g.5gb`
+
+After setup, the expected GPU resources for H100 80GB are:
+
+| Node pool | `nvidia.com/gpu` | `nvidia.com/mig-1g.10gb` | `nvidia.com/mig-2g.20gb` |
+|-----------|:-:|:-:|:-:|
+| Full-GPU (e.g. `spoth100`) | 8 | — | — |
+| MIG (e.g. `spoth100mig`) | 7 | 3 | 2 |
 
 For the full step-by-step setup (enabling MIG, creating instances, configuring the device plugin, deploying services, AKS automatic MIG via `--gpu-instance-profile`, and the complete profile reference), see the **[MIG Setup Guide](../k8s/MIG.md)**.
 
@@ -289,12 +301,8 @@ Deploy model services through the StreamWise web UI or REST API.
 | `realesrgan` | 1 | `2g.20gb` (80 GB) or `2g.10gb` (40 GB) | Video upscaling |
 | `podcasttranscript` | 0 | — | Transcript orchestration (CPU-only) |
 
-> **Capacity planning:** The Bicep template creates two GPU node pools:
-> - **Full-GPU pool** (`spoth100`): all 8 GPUs available as whole devices for heavy models (Gemma, Flux, HunyuanFramePack, etc.).
-> - **MIG pool** (`spoth100mig`): nodes where MIG is manually configured — typically 7 full GPUs + 1 MIG-partitioned GPU for lightweight services.
->
-> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice.
-> MIG nodes are labelled `gpu-config=mig` for easy identification and scheduling.
+> **Capacity planning:**
+> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice on the MIG pool, leaving the full-GPU pool for heavy models.
 > For parallel execution of all services, add more GPU nodes to either pool.
 
 The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
