@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/processor/vibevoice_processor.py
+
 import os
 import json
 import re

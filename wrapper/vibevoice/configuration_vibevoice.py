@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/configuration_vibevoice.py
+
 """ VibeVoice_AcousticTokenizer model configuration"""
 
 from typing import Any

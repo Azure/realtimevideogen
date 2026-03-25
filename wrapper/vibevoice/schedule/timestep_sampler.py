@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/schedule/timestep_sampler.py
+
 import math
 import torch
 
