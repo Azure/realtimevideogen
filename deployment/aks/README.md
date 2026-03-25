@@ -32,7 +32,7 @@ The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - A GPU spot node pool for full-GPU workloads (starts at 0 nodes, scale up when needed)
 - A GPU MIG spot node pool for nodes with MIG-partitioned GPUs (starts at 0 nodes)
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
-- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on the Kubernetes NodePort range (30000–32767) to node private IPs, attached to the node subnet so that LoadBalancer services are reachable from the Internet
+- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
 
 Having separate node pools for full-GPU and MIG nodes avoids the problem of MIG
