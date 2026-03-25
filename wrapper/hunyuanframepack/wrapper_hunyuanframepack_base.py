@@ -150,6 +150,7 @@ class HunyuanFramePackBase(USPGeneration):
             "hunyuanvideo-community/HunyuanVideo",
             subfolder='text_encoder_2',
             torch_dtype=torch.float16).to(self.device)  # nosec B615
+        assert self.text_encoder_2 is not None
         self.text_encoder_2.eval().requires_grad_(False)
 
         self.tokenizer = LlamaTokenizerFast.from_pretrained(
@@ -166,21 +167,22 @@ class HunyuanFramePackBase(USPGeneration):
             "hunyuanvideo-community/HunyuanVideo",
             subfolder='vae',
             torch_dtype=torch.float16).to(self.device)
-        self.vae.eval().requires_grad_(False)
+        assert self.vae is not None
+        self.vae.eval().requires_grad_(False)  # type: ignore[union-attr]
 
         if not self.enable_tiling:
             logging.info(f"[{self.rank}] Disabling tiling for VAE.")
-            self.vae.disable_tiling()
+            self.vae.disable_tiling()  # type: ignore[union-attr]
         else:
             logging.info(f"[{self.rank}] Enabling tiling for VAE.")
-            self.vae.enable_tiling()
+            self.vae.enable_tiling()  # type: ignore[union-attr]
 
         if not self.enable_slicing:
             logging.info(f"[{self.rank}] Disabling slicing for VAE.")
-            self.vae.disable_slicing()
+            self.vae.disable_slicing()  # type: ignore[union-attr]
         else:
             logging.info(f"[{self.rank}] Enabling slicing for VAE.")
-            self.vae.enable_slicing()
+            self.vae.enable_slicing()  # type: ignore[union-attr]
         self.load_timer.end("vae")
 
         diff_memory = torch.cuda.memory_allocated() - prev_memory
@@ -257,7 +259,8 @@ class HunyuanFramePackBase(USPGeneration):
 
         logging.info(f"[{self.rank}] Compiling VAE with torch.compile().")
         self.load_timer.start("vae_compile")
-        self.vae = torch.compile(
+        assert self.vae is not None
+        self.vae = torch.compile(  # type: ignore[call-overload]
             self.vae,
             mode="max-autotune-no-cudagraphs",
         )
@@ -582,7 +585,7 @@ class HunyuanFramePackBase(USPGeneration):
         gen_timer: GenTimer,
         pixels: torch.Tensor,
         output_type: str = "tensor",  # "tensor", "video_binary", "video_path"
-    ) -> Union[torch.Tensor, str, bytes]:
+    ) -> Union[torch.Tensor, str, bytes, None]:
         gen_timer.start("output")
         try:
             if output_type == "tensor":
@@ -610,7 +613,10 @@ class HunyuanFramePackBase(USPGeneration):
         finally:
             gen_timer.end("output")
 
-    async def get_rest_args(self, data_json: Dict[str, str]) -> Dict[str, Any]:
+    async def get_rest_args(
+        self,
+        data_json: Dict[str, Union[str, int, float]]
+    ) -> Dict[str, Any]:
         if data_json is None or not isinstance(data_json, dict):
             raise ValueError("Missing JSON body")
 
@@ -619,6 +625,8 @@ class HunyuanFramePackBase(USPGeneration):
         img_base64 = data_json.get("img", None)
         if img_base64 is None:
             raise ValueError("Missing 'img' parameter")
+        if not isinstance(img_base64, str):
+            raise ValueError("'img' parameter must be a base64 string")
         img = base64_to_img(img_base64)
 
         prompt = data_json.get("prompt", None)
