@@ -50,6 +50,7 @@
                                 <option value="flux2">FLUX.2</option>
                                 <option value="flux2klein">FLUX.2 Klein</option>
                                 <option value="hidream">HiDream I1</option>
+                                <option value="cogview">CogView4</option>
                                 <option value="qwenimage">Qwen Image</option>
                                 <option value="januspro">Janus Pro</option>
                                 <option value="llamagen">LlamaGen</option>
@@ -63,6 +64,7 @@
                                 <option value="qwenimageedit">Qwen Image Edit</option>
                                 <option value="imageresize">Image Resize</option>
                                 <option value="realesrgan">Real-ESRGAN</option>
+                                <option value="4kagent">4KAgent</option>
                             </optgroup>
                             <optgroup label="🎬 Video generation">
                                 <option value="hunyuanframepack">Hunyuan FramePack</option>
@@ -403,10 +405,12 @@
                 fluxkontext:         {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 flux2:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
                 flux2klein:          {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
+                cogview:             {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 imageresize:         {cpu:4,  memory:8,   ephemeralStorage:16, gpu:0},
                 realesrgan:          {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
                 yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.10gb'},
                 bagel:               {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                '4kagent':           {cpu:12, memory:64,  ephemeralStorage:32, gpu:1},
                 gemma:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
                 llama32:             {cpu:12, memory:192, ephemeralStorage:96, gpu:4},
                 hunyuanavatar:       {cpu:24, memory:192, ephemeralStorage:64, gpu:2},
@@ -414,10 +418,12 @@
                 qwenimage:           {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 qwenimageedit:       {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
                 ltx:                 {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
+                longcatvideo:        {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
                 januspro:            {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
                 llamagen:            {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
                 hunyuanimage:        {cpu:24, memory:128, ephemeralStorage:64, gpu:2},
                 whisper:             {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
+                dia:                 {cpu:4,  memory:16,  ephemeralStorage:16, gpu:1},
             };
 
             function getFriendlyGpuType(id) {
