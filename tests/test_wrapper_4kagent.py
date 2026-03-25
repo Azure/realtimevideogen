@@ -105,6 +105,7 @@ async def test_wrapper_4kagent_get_rest_args_success() -> None:
 
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
+    assert img_base64 is not None
 
     result = await model.get_rest_args({
         "job_id": "test-job",
@@ -128,6 +129,7 @@ async def test_wrapper_4kagent_get_rest_args_defaults() -> None:
     model = Upscale4KAgent()
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
+    assert img_base64 is not None
 
     result = await model.get_rest_args({"img": img_base64})
 
