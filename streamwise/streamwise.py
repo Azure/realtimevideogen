@@ -53,6 +53,7 @@ from quart_utils import is_rtgen_container
 from quart_utils import format_bytes
 from quart_utils import format_url
 from quart_utils import format_gpu_model
+from quart_utils import format_gpu_model_mig
 from quart_utils import get_aspect_ratio
 from quart_utils import get_file_type_emoji
 from quart_utils import get_content_type_emoji
@@ -117,6 +118,14 @@ def format_bytes_template(memory: int) -> str:
 @template_filter("format_gpu_model")
 def format_gpu_model_template(gpu_model: str) -> Optional[str]:
     return format_gpu_model(gpu_model)
+
+
+@template_filter("format_gpu_model_mig")
+def format_gpu_model_mig_template(
+    gpu_model: str,
+    mig_profile: Optional[str] = None
+) -> Optional[str]:
+    return format_gpu_model_mig(gpu_model, mig_profile)
 
 
 @template_filter("format_url")

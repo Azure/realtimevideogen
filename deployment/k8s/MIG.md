@@ -3,6 +3,12 @@
 MIG partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
+> **MIG is not enabled by default.**
+> The AKS Bicep template creates separate full-GPU and MIG node pools (the MIG pool is labelled `gpu-config=mig`).
+> After scaling up a MIG node you must follow Steps 1–5 below to enable MIG on GPU 7 and create instances.
+> The device-plugin DaemonSet uses this label to apply the right MIG strategy per pool.
+> See [Step 6](#6-configure-the-nvidia-device-plugin-for-mig) for details.
+
 ---
 
 ## Recommended layout: 7 full GPUs + 1 MIG-partitioned GPU
@@ -64,17 +70,22 @@ kubectl -n gpu-resources get pods -o wide | grep $GPU_NODE
 
 ### 3. Enable MIG mode on the selected GPU
 
+> **Tip:**
+> On some VMs MIG may already be enabled on GPU 7.
+> Check with the command below - if it already shows `Enabled, Enabled`, skip this step and Step 4 and go directly to [Step 5](#5-verify-mig-is-active-and-create-instances).
+
+```bash
+kubectl exec gpu-debug -- chroot /host \
+  nvidia-smi --query-gpu=index,mig.mode.current,mig.mode.pending --format=csv
+```
+
+If GPU $GPU_INDEX shows `Disabled, Disabled`, enable MIG:
 ```bash
 kubectl exec gpu-debug -- chroot /host nvidia-smi -i $GPU_INDEX -mig 1
 ```
 
 This puts MIG into **pending** state.
-Verify:
-```bash
-kubectl exec gpu-debug -- chroot /host \
-  nvidia-smi --query-gpu=index,mig.mode.current,mig.mode.pending --format=csv
-```
-GPU $GPU_INDEX should show `Disabled, Enabled` (current=Disabled, pending=Enabled).
+Verify again — GPU $GPU_INDEX should show `Disabled, Enabled` (current=Disabled, pending=Enabled).
 
 ### 4. Restart the VM to activate MIG
 
@@ -151,11 +162,21 @@ GPU $GPU_INDEX should list the five MIG devices under it.
 
 ### 6. Configure the NVIDIA device plugin for MIG
 
-The device plugin DaemonSet ([nvidia-device-plugin-ds.yaml](nvidia-device-plugin-ds.yaml)) must include:
-- **`MIG_STRATEGY=mixed`** environment variable — tells the plugin to advertise both `nvidia.com/gpu` (for full GPUs) and `nvidia.com/mig-<profile>` (for MIG slices).
-- **`privileged: true`** security context — required for the NVML calls that enumerate MIG devices. Without this the plugin fails with *"Insufficient Permissions"*.
+The device plugin DaemonSet ([nvidia-device-plugin-ds.yaml](nvidia-device-plugin-ds.yaml)) contains **two** DaemonSets in a single file:
 
-These are already set in the checked-in YAML. Apply it:
+| DaemonSet | `MIG_STRATEGY` | Targets | Purpose |
+|-----------|---------------|---------|---------|
+| `nvidia-device-plugin-daemonset` | `none` | Nodes where `gpu-config` label **does not exist** | Ignores MIG — exposes all GPUs as `nvidia.com/gpu` (including GPU 7 even if MIG is on) |
+| `nvidia-device-plugin-mig-daemonset` | `mixed` | Nodes **with** `gpu-config=mig` label | Advertises both `nvidia.com/gpu` (full GPUs) and `nvidia.com/mig-<profile>` (MIG slices) |
+
+This split is needed because MIG nodes have GPU 7 in MIG mode while full-GPU nodes do not.
+With a single `mixed` DaemonSet on all nodes, any GPU that has MIG enabled but no MIG
+instances configured becomes invisible to the scheduler. The `none` strategy on full-GPU
+nodes avoids this by ignoring MIG mode entirely.
+
+Both DaemonSets require **`privileged: true`** security context for the NVML calls that enumerate MIG devices.
+
+Apply them:
 ```bash
 kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 ```
@@ -183,7 +204,7 @@ for k in keys:
 ```
 
 Expected output for an 80 GB A100 node:
-```
+```text
 Resource                        Capacity  Allocatable
 ------------------------------------------------------------
 nvidia.com/gpu                          7            7

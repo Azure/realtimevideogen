@@ -29,9 +29,14 @@ source set_properties.sh
 
 The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - An AKS cluster with a system node pool (for StreamWise, StreamCast, and system pods)
-- A GPU spot node pool (starts at 0 nodes, scale up when needed)
+- A GPU spot node pool for full-GPU workloads (starts at 0 nodes, scale up when needed)
+- A GPU MIG spot node pool for nodes with MIG-partitioned GPUs (starts at 0 nodes)
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
+- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
+
+Having separate node pools for full-GPU and MIG nodes avoids the problem of MIG
+configuration from one VMSS instance affecting all instances in the same pool.
 
 Review the Bicep parameters in [aks.bicep](aks.bicep) (cluster name, GPU VM size, ACR name), then deploy:
 
@@ -51,11 +56,14 @@ az deployment group create \
   --parameters \
     clusterName=my-cluster \
     gpuNodeVmSize=Standard_ND96isrf_H100_v5 \
+    gpuNodePoolName=spoth100 \
+    gpuMigNodePoolName=spoth100mig \
     acrName=myacr \
     acrResourceGroup=my-acr-rg
 ```
 
 Some available GPU VM sizes:
+
 | VM Size | GPU |
 |---------|-----|
 | `Standard_NC96ads_A100_v4` | NVIDIA A100 |
@@ -200,24 +208,34 @@ kubectl apply -f ../k8s/nvidia-device-plugin-ds.yaml
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
 ```bash
+# Scale the full-GPU node pool (no MIG)
 az aks nodepool scale \
   --resource-group $AZ_RESOURCE_GROUP \
   --cluster-name $AKS_CLUSTER \
   --name spoth100 \
+  --node-count 1
+
+# Scale the MIG node pool
+az aks nodepool scale \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --cluster-name $AKS_CLUSTER \
+  --name spoth100mig \
   --node-count 1
 ```
 
 If these fails, scale the VMSS directly:
 ```bash
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
-NODEPOOL_NAME=$(az aks nodepool list \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --cluster-name $AKS_CLUSTER \
-  --query "[?starts_with(vmSize, 'Standard_N')].name | [0]" -o tsv)
-VMSS_NAME=$(az vmss list \
-  -g $MC_RESOURCE_GROUP \
-  --query "[?contains(name, 'aks-${NODEPOOL_NAME}-')].name | [0]" -o tsv)
-az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_NAME --new-capacity 1
+
+# Scale the full-GPU VMSS
+VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100-') && !contains(name, 'mig')].name | [0]" -o tsv)
+az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_FULL --new-capacity 1
+
+# Scale the MIG VMSS
+VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100mig-')].name | [0]" -o tsv)
+az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_MIG --new-capacity 1
 ```
 
 Log into a node using `node-shell`:
@@ -229,15 +247,18 @@ kubectl node-shell <node-name>
 Sometimes the NVIDIA setup with torch is not correct and we need to restart the VM:
 ```bash
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
-NODEPOOL_NAME=$(az aks nodepool list \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --cluster-name $AKS_CLUSTER \
-  --query "[?starts_with(vmSize, 'Standard_N')].name | [0]" -o tsv)
-VMSS_NAME=$(az vmss list \
-  -g $MC_RESOURCE_GROUP \
-  --query "[?contains(name, 'aks-${NODEPOOL_NAME}-')].name | [0]" -o tsv)
+
+# Restart a specific instance in the full-GPU pool
+VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100-') && !contains(name, 'mig')].name | [0]" -o tsv)
 INSTANCE_ID=0
-az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_NAME --instance-ids $INSTANCE_ID
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_FULL --instance-ids $INSTANCE_ID
+
+# Restart a specific instance in the MIG pool
+VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-spoth100mig-')].name | [0]" -o tsv)
+INSTANCE_ID=0
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_ID
 ```
 
 ### 5.1 Partial GPU Support (MIG)
@@ -245,9 +266,21 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_NAME --instance-ids $INSTANCE
 NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
+> **MIG is not enabled by default.**
+> After scaling up a MIG node you must manually enable MIG on GPU 7 and create instances.
+> The device-plugin DaemonSet ([`nvidia-device-plugin-ds.yaml`](../k8s/nvidia-device-plugin-ds.yaml)) uses the `gpu-config=mig` label set by the Bicep template to apply `MIG_STRATEGY=none` on full-GPU nodes and `MIG_STRATEGY=mixed` on MIG nodes.
+> See the full [MIG Setup Guide](../k8s/MIG.md).
+
 The recommended setup for an 8-GPU node is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services:
 - **80 GB GPU**: 2 × `2g.20gb` + 3 × `1g.10gb`
 - **40 GB GPU**: 2 × `2g.10gb` + 3 × `1g.5gb`
+
+After setup, the expected GPU resources for H100 80GB are:
+
+| Node pool | `nvidia.com/gpu` | `nvidia.com/mig-1g.10gb` | `nvidia.com/mig-2g.20gb` |
+|-----------|:-:|:-:|:-:|
+| Full-GPU (e.g. `spoth100`) | 8 | — | — |
+| MIG (e.g. `spoth100mig`) | 7 | 3 | 2 |
 
 For the full step-by-step setup (enabling MIG, creating instances, configuring the device plugin, deploying services, AKS automatic MIG via `--gpu-instance-profile`, and the complete profile reference), see the **[MIG Setup Guide](../k8s/MIG.md)**.
 
@@ -256,6 +289,7 @@ For the full step-by-step setup (enabling MIG, creating instances, configuring t
 Deploy model services through the StreamWise web UI or REST API.
 
 **GPU requirements per service:**
+
 | Service | GPUs | MIG Profile (recommended) | Purpose |
 |---------|------|--------------------------|---------|
 | `gemma` | 2–4 | — (full GPUs) | LLM (screenplay generation) |
@@ -267,10 +301,9 @@ Deploy model services through the StreamWise web UI or REST API.
 | `realesrgan` | 1 | `2g.20gb` (80 GB) or `2g.10gb` (40 GB) | Video upscaling |
 | `podcasttranscript` | 0 | — | Transcript orchestration (CPU-only) |
 
-> **Capacity planning:** A single `Standard_ND96isrf_H100_v5` node provides 8 GPUs.
-> The recommended setup is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services.
-> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice, leaving 7 whole GPUs available for Gemma, Flux, Wan, HunyuanFramePack, etc.
-> For parallel execution of all services, add more GPU nodes.
+> **Capacity planning:**
+> With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice on the MIG pool, leaving the full-GPU pool for heavy models.
+> For parallel execution of all services, add more GPU nodes to either pool.
 
 The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
 Use the REST API to deploy all services at once:
@@ -315,6 +348,7 @@ Common issues:
 - **Pods stuck in Pending (Insufficient cpu)**: The system node pool doesn't have enough CPU. Scale up with `az aks nodepool scale` or use a larger VM size (see Sizing note in Step 1)
 - **GPU not available**: Ensure the GPU node pool is scaled up and the NVIDIA device plugin is running
 - **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
+- **Cannot reach LoadBalancer services (e.g. StreamWise at :8081)**: When `disableDefaultOutboundAccess` is true, the Bicep template creates an NSG (`aks-node-subnet-nsg`) allowing inbound TCP on the Kubernetes NodePort range. For `type: LoadBalancer` Services, the subnet NSG evaluates traffic destined to the node private IPs and the Service’s NodePort(s), not the public Load Balancer IP. If a corporate policy replaces or overrides this NSG on the subnet, add an inbound allow rule on the node subnet NSG such as: `az network nsg rule create -g $AZ_RESOURCE_GROUP --nsg-name <subnet-nsg> --name AllowK8sNodePorts --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes Internet --destination-address-prefixes VirtualNetwork --destination-port-ranges 30000-32767`. For tighter control, you can set explicit `nodePort` values on your Services and open only those ports instead of the full range. Azure evaluates both the subnet NSG and the NIC-level NSG (in the MC_ resource group) — traffic must be allowed by **both**.
 - **Secret errors**: Verify HF token is correctly configured with `kubectl get secret hf-token -n rtgen`
 - **ACR role assignment fails on redeployment**: The role already exists. Attach ACR manually: `az aks update -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --attach-acr <acrName>`
 

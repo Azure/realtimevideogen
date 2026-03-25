@@ -8,7 +8,9 @@ from quart_utils import format_bytes
 from quart_utils import format_string
 from quart_utils import format_duration
 from quart_utils import format_gpu_model
+from quart_utils import format_gpu_model_mig
 from quart_utils import format_url
+from quart_utils import get_gpu_mem
 from quart_utils import get_aspect_ratio
 from quart_utils import get_class_emoji
 from quart_utils import get_file_type_emoji
@@ -136,6 +138,19 @@ def test_format_gpu_model() -> None:
     assert format_gpu_model("NVIDIA A100-SXM4-40GB MIG 1g.5gb") == "A100 40GB"
     assert format_gpu_model("NVIDIA A100-SXM4-80GB MIG 2g.20gb") == "A100 80GB"
     assert format_gpu_model("NVIDIA H100-SXM5-80GB MIG 3g.40gb") == "H100"
+
+
+def test_format_gpu_model_mig() -> None:
+    assert format_gpu_model_mig("A100 80GB", "1g.10gb") == "⅛ A100 80GB"
+    assert format_gpu_model_mig("A100 80GB", None) == "A100 80GB"
+    assert format_gpu_model_mig("A100 40GB", "2g.10gb") == "¼ A100 40GB"
+
+
+def test_get_gpu_mem() -> None:
+    assert get_gpu_mem("NVIDIA A100-SXM4-80GB") == 80
+    assert get_gpu_mem("NVIDIA A100-SXM4-40GB") == 40
+    assert get_gpu_mem("NVIDIA-GB200") == 196
+    assert get_gpu_mem("Standard_ND96isr_H200_v5") == 141
 
 
 def test_get_aspect_ratio() -> None:
