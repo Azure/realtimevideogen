@@ -112,9 +112,39 @@ resource natGateway 'Microsoft.Network/natGateways@2023-11-01' = if (disableDefa
 }
 
 // ---------------------------------------------------------------------------
+// Network Security Group – allows inbound traffic on ports 8000–9000 so that
+// Kubernetes LoadBalancer services (StreamWise, StreamCast, model wrappers)
+// are reachable from the Internet.  Without this explicit NSG, corporate
+// policy may attach a default-deny NSG to the subnet that blocks traffic
+// even when the NIC-level NSG (managed by AKS) allows it.
+// ---------------------------------------------------------------------------
+resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disableDefaultOutboundAccess) {
+  name: 'aks-node-subnet-nsg'
+  location: location
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowServicePortsInbound'
+        properties: {
+          priority: 100
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'Internet'
+          destinationAddressPrefix: publicIp.properties.ipAddress
+          destinationPortRange: '8000-9000'
+        }
+      }
+    ]
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Custom VNet – only provisioned when disableDefaultOutboundAccess = true.
 // The node subnet has defaultOutboundAccess disabled and uses the NAT gateway
-// for controlled outbound connectivity.
+// for controlled outbound connectivity.  The NSG above is attached to the
+// subnet to ensure LoadBalancer service ports are reachable.
 // ---------------------------------------------------------------------------
 resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDefaultOutboundAccess) {
   name: 'aks-vnet'
@@ -135,6 +165,9 @@ resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDef
           natGateway: {
             id: natGateway.id
           }
+          networkSecurityGroup: {
+            id: aksNsg.id
+          }
         }
       }
     ]
@@ -143,13 +176,9 @@ resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDef
 
 
 // ---------------------------------------------------------------------------
-// Subnet ID used by node pools when disableDefaultOutboundAccess is true.
-// ---------------------------------------------------------------------------
-var nodeSubnetId = disableDefaultOutboundAccess
-  ? resourceId('Microsoft.Network/virtualNetworks/subnets', aksVnet.name, 'aks-node-subnet')
-  : null
 // Subnet ID used by both node pools when disableDefaultOutboundAccess is true.
 // Evaluates to null (property omitted) when the custom VNet is not provisioned.
+// ---------------------------------------------------------------------------
 var nodeSubnetId = disableDefaultOutboundAccess ? aksVnet.properties.subnets[0].id : null
 
 // When disableDefaultOutboundAccess is false, networkProfile is null so it is
@@ -232,6 +261,7 @@ resource gpuMigNodePool 'Microsoft.ContainerService/managedClusters/agentPools@2
       'kubernetes.azure.com/scalesetpriority': 'spot'
       'gpu-config': 'mig'
     }
+    vnetSubnetID: nodeSubnetId
   }
 }
 

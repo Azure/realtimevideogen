@@ -32,6 +32,7 @@ The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - A GPU spot node pool for full-GPU workloads (starts at 0 nodes, scale up when needed)
 - A GPU MIG spot node pool for nodes with MIG-partitioned GPUs (starts at 0 nodes)
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
+- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
 
 Having separate node pools for full-GPU and MIG nodes avoids the problem of MIG
@@ -339,6 +340,7 @@ Common issues:
 - **Pods stuck in Pending (Insufficient cpu)**: The system node pool doesn't have enough CPU. Scale up with `az aks nodepool scale` or use a larger VM size (see Sizing note in Step 1)
 - **GPU not available**: Ensure the GPU node pool is scaled up and the NVIDIA device plugin is running
 - **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
+- **Cannot reach LoadBalancer services (e.g. StreamWise at :8081)**: When `disableDefaultOutboundAccess` is true, the Bicep template creates an NSG (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000. If a corporate policy replaces or overrides this NSG on the subnet, you must add an inbound allow rule manually: `az network nsg rule create -g $AZ_RESOURCE_GROUP --nsg-name <subnet-nsg> --name AllowServicePorts --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes Internet --destination-address-prefixes $IP_ADDRESS --destination-port-ranges 8000-9000`. Azure evaluates both the subnet NSG and the NIC-level NSG (in the MC\_ resource group) — traffic must be allowed by **both**.
 - **Secret errors**: Verify HF token is correctly configured with `kubectl get secret hf-token -n rtgen`
 - **ACR role assignment fails on redeployment**: The role already exists. Attach ACR manually: `az aks update -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --attach-acr <acrName>`
 
