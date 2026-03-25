@@ -48,10 +48,12 @@ param dnsPrefix string = clusterName
 param disableDefaultOutboundAccess bool = true
 
 @description('Address prefix for the AKS VNet. Only used when disableDefaultOutboundAccess is true.')
-param vnetAddressPrefix string = '10.0.0.0/16'
+// Uses 10.10.0.0/16 to avoid overlap with the VM-based K8s deployment (vm-gpu-k8s-deployment.bicep)
+// which occupies 10.0.0.0/16 – 10.5.0.0/16.  Choose a different block if those ranges are taken.
+param vnetAddressPrefix string = '10.10.0.0/16'
 
 @description('Address prefix for the AKS node subnet. Only used when disableDefaultOutboundAccess is true.')
-param subnetAddressPrefix string = '10.0.0.0/24'
+param subnetAddressPrefix string = '10.10.0.0/24'
 
 
 // ---------------------------------------------------------------------------
