@@ -7,6 +7,38 @@
             "tag": "v1.0.0"
         }
     },
+    "cogview": {
+        "name": "cogview",
+        "friendlyName": "CogView4",
+        "url": "https://huggingface.co/THUDM/CogView4-6B",
+        "dockerImage": {
+            "name": "cogview",
+            "tag": "v0.4.0"
+        },
+        "class": "text2image",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "image"
+        ]
+    },
+    "dia": {
+        "name": "dia",
+        "friendlyName": "Dia",
+        "url": "https://github.com/nari-labs/dia",
+        "dockerImage": {
+            "name": "dia",
+            "tag": "v0.4.0"
+        },
+        "class": "text2audio",
+        "inputs": [
+            "text"
+        ],
+        "outputs": [
+            "audio"
+        ]
+    },
     "fantasytalking": {
         "name": "fantasytalking",
         "friendlyName": "Fantasy Talking",
