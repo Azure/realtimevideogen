@@ -96,7 +96,7 @@ class VideoAudioTextLoaderVal():
             new_w = round(w * scale / 64) * 64
             new_h = round(h * scale / 64) * 64
 
-        ref_image = ref_image.resize((new_w, new_h), Image.LANCZOS)
+        ref_image = ref_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
         ref_image = np.array(ref_image)
         ref_image = torch.from_numpy(ref_image)

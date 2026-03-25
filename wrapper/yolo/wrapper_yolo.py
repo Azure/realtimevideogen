@@ -109,7 +109,7 @@ def zoom_image(
 
     # Crop and resize
     image = image.crop((left, upper, right, lower))
-    # image = image.resize((orig_w, orig_h), Image.LANCZOS)
+    # image = image.resize((orig_w, orig_h), Image.Resampling.LANCZOS)
     return image
 
 
