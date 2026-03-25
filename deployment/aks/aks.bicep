@@ -14,6 +14,8 @@ param systemNodeCount int = 1
 // Standard_NC96ads_A100_v4
 // Standard_ND96ams_A100_v4
 // Standard_ND96isrf_H100_v5
+// Standard_ND96isr_H200_v5
+// Standard_ND128isr_NDR_GB200_v6
 @description('VM size for the GPU spot node pool.')
 param gpuNodeVmSize string = 'Standard_ND96ams_A100_v4'
 

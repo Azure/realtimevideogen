@@ -37,6 +37,9 @@ Choose `GPU_INDEX` based on your VM size (always the **last GPU**, 0-indexed):
 | `Standard_NC96ads_A100_v4` | 4 | `3` |
 | `Standard_ND96ams_A100_v4` | 8 | `7` |
 | `Standard_ND96isrf_H100_v5` | 8 | `7` |
+| `Standard_ND96isr_H200_v5` | 8 | `7` |
+| `Standard_ND128isr_NDR_GB200_v6`| 4 | `3` |
+| `Standard_ND128isr_GB300_v6`| 4 | `3` |
 
 ```bash
 GPU_INDEX=7   # adjust per the table above (e.g. 3 for a 4-GPU node)

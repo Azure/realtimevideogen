@@ -35,8 +35,8 @@ source deployment/set_properties.sh
 
 The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - An AKS cluster with a system node pool (for StreamWise, StreamCast, and system pods)
-- A **full-GPU spot node pool** (`spoth100`): all GPUs in standard mode; for heavy models (Wan, Flux, Gemma, etc.) — starts at 0 nodes
-- A **MIG spot node pool** (`spoth100mig`): same VM size but designated for mixed-mode use — 7 standard GPUs + 1 MIG-partitioned GPU (GPU 7) for lightweight services — starts at 0 nodes
+- A **full-GPU spot node pool** (e.g., `spoth100`): all GPUs in standard mode; for heavy models (Wan, Flux, Gemma, etc.) — starts at 0 nodes
+- A **MIG spot node pool** (e.g., `spoth100mig`): same VM size but designated for mixed-mode use — 7 standard GPUs + 1 MIG-partitioned GPU for lightweight services — starts at 0 nodes
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
 - A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
@@ -73,6 +73,9 @@ Some available GPU VM sizes:
 | `Standard_NC96ads_A100_v4` | NVIDIA A100 |
 | `Standard_ND96ams_A100_v4` | NVIDIA A100 (InfiniBand) |
 | `Standard_ND96isrf_H100_v5` | NVIDIA H100 |
+| `Standard_ND96isr_H200_v5` | NVIDIA H200 |
+| `Standard_ND128isr_NDR_GB200_v6`| NVIDIA GB200 |
+| `Standard_ND128isr_GB300_v6`| NVIDIA GB300 |
 
 > **Note:** The cluster name defaults to `<resource-group>-cluster`.
 > If the ACR role assignment fails (e.g. on redeployment), the cluster itself will still be created successfully.
@@ -211,11 +214,6 @@ kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 
 Scale the GPU spot node pool up (it starts at 0 nodes):
 
-> **Spot VM eviction:** Because these are Spot VMs, Azure may evict them at any time.
-> If a node disappears or the VMSS shows 0 instances after scaling, simply re-run the scale command.
-> Check VMSS capacity with:
-> `az vmss show -g $MC_RESOURCE_GROUP -n <vmss-name> --query sku.capacity`
-
 ```bash
 # Scale the full-GPU node pool (no MIG)
 az aks nodepool scale \
@@ -247,6 +245,12 @@ VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
 az vmss scale -g $MC_RESOURCE_GROUP -n $VMSS_MIG --new-capacity 1
 ```
 
+> **Spot VM eviction:**
+> Because these are Spot VMs, Azure may evict them at any time.
+> If a node disappears or the VMSS shows 0 instances after scaling, re-run the scale command.
+> Check VMSS capacity with:
+> `az vmss show -g $MC_RESOURCE_GROUP -n <vmss-name> --query sku.capacity`
+
 Log into a node using `node-shell`:
 ```bash
 kubectl get nodes
@@ -272,24 +276,17 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 
 ### 5.1 Partial GPU Support (MIG)
 
-The **MIG node pool** (`spoth100mig`) runs the same VM size as the full-GPU pool but is designed for **mixed-mode** use:
-- Most GPUs remain in standard mode — available as `nvidia.com/gpu` for heavy models
-- **1 GPU** (the last one) is manually put in MIG mode after the node comes up, creating smaller isolated slices for lightweight services such as Kokoro (TTS) and YOLO (detection)
+The **MIG node pool** (e.g., `spoth100mig`) runs the same VM size as the full-GPU pool but is designed for **mixed-mode** use:
+- Most GPUs remain in standard mode; available as `nvidia.com/gpu` for heavy models
+- **1 GPU** (the last one) is manually put in MIG mode after the node comes up, creating smaller isolated slices for lightweight services (e.g., Kokoro and YOLO)
 
-The GPU index to put in MIG mode depends on the VM size:
+The Bicep template labels MIG nodes with `gpu-config=mig`.
+The device plugin DaemonSet uses this label to apply `MIG_STRATEGY=mixed` on those nodes and `MIG_STRATEGY=none` on full-GPU nodes, so MIG slices only appear where they are configured.
 
-| VM Size | GPUs | GPU index for MIG |
-|---------|------|--------------------|
-| `Standard_NC96ads_A100_v4` | 4 | 3 |
-| `Standard_ND96ams_A100_v4` | 8 | 7 |
-| `Standard_ND96isrf_H100_v5` | 8 | 7 |
-
-The Bicep template labels MIG nodes with `gpu-config=mig`. The device plugin DaemonSet uses this label to apply `MIG_STRATEGY=mixed` on those nodes and `MIG_STRATEGY=none` on full-GPU nodes, so MIG slices only appear where they are configured.
-
-> **⚠️ MIG must be configured before GPU services can schedule on the MIG pool.**
+> **⚠️ MIG must be configured before GPU services can be scheduled.**
 > Until MIG mode is enabled and instances are created, the `mixed`-strategy device plugin will report **0 GPUs** on the MIG node (it cannot enumerate devices without active MIG instances).
-> After scaling up the MIG node pool (Step 5 above), follow the **[MIG Setup Guide](../k8s/MIG.md)** immediately to enable MIG, create instances, and verify the setup.
-> The full-GPU node pool (`spoth100`) works immediately — no additional configuration is needed.
+> After scaling up the MIG node pool (Step 5 above), follow the **[guide to enable MIG](../k8s/MIG.md)**, create instances, and verify the setup.
+> The full-GPU node pool (`spoth100`) works without additional configuration.
 
 ## Step 6: Deploy GPU Microservices
 
