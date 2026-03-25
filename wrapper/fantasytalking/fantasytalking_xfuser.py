@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 import logging
 
 from typing import Any
@@ -12,11 +11,11 @@ import torch.amp as amp
 from torch import Tensor
 from torch.nn import Module
 
-from xfuser.core.distributed import get_sequence_parallel_rank
-from xfuser.core.distributed import get_sequence_parallel_world_size
-from xfuser.core.distributed import get_sp_group
+from xfuser.core.distributed import get_sequence_parallel_rank  # type: ignore[import-untyped]
+from xfuser.core.distributed import get_sequence_parallel_world_size  # type: ignore[import-untyped]
+from xfuser.core.distributed import get_sp_group  # type: ignore[import-untyped]
 
-from diffsynth.models.wan_video_dit import sinusoidal_embedding_1d
+from diffsynth.models.wan_video_dit import sinusoidal_embedding_1d  # type: ignore[import-untyped]
 
 
 def usp_fantasytalking_forward(
@@ -43,19 +42,19 @@ def usp_fantasytalking_forward(
     t:              [B].
     context:        A list of text embeddings each with shape [L, C].
     """
-    if self.model_type == "i2v":
+    if self.model_type == "i2v":  # type: ignore[attr-defined]
         assert clip_fea is not None and y is not None
     # params
     device = x[0].device
-    if self.freqs.device != device:
-        self.freqs = self.freqs.to(device)
+    if self.freqs.device != device:  # type: ignore[attr-defined]
+        self.freqs = self.freqs.to(device)  # type: ignore[attr-defined]
 
     if y is not None:
         x = [torch.cat([u, v], dim=0) for u, v in zip(x, y)]
 
     # embeddings
     x = [
-        self.patch_embedding(u.unsqueeze(0))
+        self.patch_embedding(u.unsqueeze(0))  # type: ignore[attr-defined]
         for u in x
     ]
     grid_sizes = torch.stack(
@@ -71,23 +70,23 @@ def usp_fantasytalking_forward(
 
     # time embeddings
     with amp.autocast(dtype=torch.float32, device_type="cuda"):
-        e = self.time_embedding(
-            sinusoidal_embedding_1d(self.freq_dim, timestep).float()
+        e = self.time_embedding(  # type: ignore[attr-defined]
+            sinusoidal_embedding_1d(self.freq_dim, timestep).float()  # type: ignore[attr-defined]
         )
-        e0 = self.time_projection(e).unflatten(1, (6, self.dim))
+        e0 = self.time_projection(e).unflatten(1, (6, self.dim))  # type: ignore[attr-defined]
         assert e.dtype == torch.float32 and e0.dtype == torch.float32
 
     # context
     context_lens = None
-    context = self.text_embedding(
+    context = self.text_embedding(  # type: ignore[attr-defined]
         torch.stack([
-            torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))])
+            torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))])  # type: ignore[attr-defined]
             for u in context
         ])
     )
 
     if clip_fea is not None:
-        context_clip = self.img_emb(clip_fea)  # bs x 257 x dim
+        context_clip = self.img_emb(clip_fea)  # type: ignore[attr-defined]
         context = torch.concat([context_clip, context], dim=1)
 
     # Context Parallel
@@ -131,7 +130,7 @@ def usp_fantasytalking_forward(
         e=e0,
         seq_lens=seq_lens,
         grid_sizes=grid_sizes,
-        freqs=self.freqs,
+        freqs=self.freqs,  # type: ignore[attr-defined]
         context=context,
         context_lens=context_lens,
         audio_proj=audio_proj,
@@ -145,7 +144,7 @@ def usp_fantasytalking_forward(
             return module(*inputs, **kwargs)
         return custom_forward
 
-    for block in self.blocks:
+    for block in self.blocks:  # type: ignore[attr-defined]
         if self.training and use_gradient_checkpointing:
             x = torch.utils.checkpoint.checkpoint(
                 create_custom_forward(block),
@@ -157,12 +156,12 @@ def usp_fantasytalking_forward(
             x = block(x, **kwargs)
 
     # head
-    x = self.head(x, e)
+    x = self.head(x, e)  # type: ignore[attr-defined]
 
     # Context Parallel
     x = get_sp_group().all_gather(x, dim=1)
 
     # unpatchify
-    x = self.unpatchify(x, grid_sizes)
+    x = self.unpatchify(x, grid_sizes)  # type: ignore[attr-defined]
     x = torch.stack(x).float()
     return x

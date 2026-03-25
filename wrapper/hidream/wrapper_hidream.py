@@ -101,12 +101,13 @@ class HiDreamGeneration(ModelGeneration):
             text_encoder_4=self.text_encoder,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
+        assert self.pipeline is not None
+        self.pipeline = self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
 
         logging.info(
             f"Loaded HiDreamImagePipeline: {self.HF_MODEL_NAME} device:{self.device} dtype:{self.param_dtype} "
-            f"device_map:{self.pipeline.hf_device_map}.")  # type: ignore[union-attr]
+            f"device_map:{self.pipeline.hf_device_map}.")
 
     def init_model_parallelism(self) -> None:
         """HiDream does not support parallelism yet."""

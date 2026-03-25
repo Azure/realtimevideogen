@@ -490,7 +490,7 @@ async def test_save_video_frames_audio() -> None:
     assert audio_info is not None
     audio_duration_seconds = audio_info.get("duration_seconds")
     assert audio_duration_seconds is not None
-    assert audio_duration_seconds > 0
+    assert audio_duration_seconds > 4.0
     """
     # assert_approx(audio_info["duration_seconds"], 4.913)
     assert_approx(
@@ -498,7 +498,6 @@ async def test_save_video_frames_audio() -> None:
         msg=f"Video info: {video_file_info}")  # TODO this is not good
     """
     logging.info(f"Audio info: {audio_info}")
-    assert audio_info["duration_seconds"] is not None and audio_info["duration_seconds"] > 4.0
 
     os.remove(video_path)
 
