@@ -43,7 +43,7 @@ spec:
         - name: FAIL_ON_INIT_ERROR
           value: "false"
         # "none" ignores MIG entirely — all GPUs are exposed as nvidia.com/gpu,
-        # even if the VM ships with MIG enabled on one GPU (Azure A100/H100 default).
+        # regardless of whether any GPU has MIG mode enabled.
         - name: MIG_STRATEGY
           value: "none"
         securityContext:

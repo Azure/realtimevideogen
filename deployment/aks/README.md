@@ -266,15 +266,13 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
-> **MIG on GPU 7 — firmware default, not something we configure:**
-> NVSwitch-based SXM systems (`Standard_ND96ams_A100_v4`, `Standard_ND96isrf_H100_v5`)
-> ship with MIG mode already enabled on GPU 7. This is a platform-level default —
-> neither the Bicep template nor the MIG setup guide enables it; it comes pre-set on the VM.
-> The split device plugin DaemonSet ([`nvidia-device-plugin-ds.yaml`](../k8s/nvidia-device-plugin-ds.yaml)) handles this transparently:
-> - **Full-GPU pool** — uses `MIG_STRATEGY=none`, which ignores MIG and exposes all 8 GPUs as `nvidia.com/gpu`.
-> - **MIG pool** (nodes labelled `gpu-config=mig`) — uses `MIG_STRATEGY=mixed`, which exposes 7 full GPUs plus MIG slices.
->   You only need to **create the MIG instances** on GPU 7; MIG mode is already enabled.
->   Skip to [Step 5 of the MIG guide](../k8s/MIG.md#5-verify-mig-is-active-and-create-instances).
+> **Two node pools, two device-plugin strategies:**
+> The Bicep template creates separate full-GPU and MIG node pools (the MIG pool is labelled
+> `gpu-config=mig`). After scaling up a MIG node you must **manually enable MIG on GPU 7
+> and create MIG instances** — see the full [MIG Setup Guide](../k8s/MIG.md).
+> The split device plugin DaemonSet ([`nvidia-device-plugin-ds.yaml`](../k8s/nvidia-device-plugin-ds.yaml)) matches each pool:
+> - **Full-GPU pool** — uses `MIG_STRATEGY=none`, exposing all 8 GPUs as `nvidia.com/gpu`.
+> - **MIG pool** — uses `MIG_STRATEGY=mixed`, exposing 7 full GPUs plus MIG slices on GPU 7.
 
 The recommended setup for an 8-GPU node is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services:
 - **80 GB GPU**: 2 × `2g.20gb` + 3 × `1g.10gb`
