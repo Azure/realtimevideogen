@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v6
 
     - name: Use Python 3.12
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
         cache: 'pip'
