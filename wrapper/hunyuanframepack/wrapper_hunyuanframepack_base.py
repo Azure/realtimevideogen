@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+# Source: https://github.com/lllyasviel/FramePack
 import logging
 import math
 import time

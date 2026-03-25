@@ -4,6 +4,7 @@ This module extends the Hunyuan Video Framepack Pipeline to support xFuser's lon
 sequence parallelism.
 """
 # mypy: ignore-errors
+# Source: https://github.com/lllyasviel/FramePack and https://github.com/xdit-project/xDiT
 import torch
 import functools
 import einops

@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+# Source: https://github.com/vaaale/VibeVoiceCommunity/blob/main/vibevoice/modeling_vibevoice_inference.py
 from dataclasses import dataclass
 
 from typing import List

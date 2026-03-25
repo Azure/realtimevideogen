@@ -2,6 +2,7 @@
 Handle video VAE encoding and decoding using the Hunyuan Framepack VAE model.
 """
 # mypy: ignore-errors
+# Source: https://github.com/Tencent/HunyuanVideo
 import logging
 import os
 import tempfile

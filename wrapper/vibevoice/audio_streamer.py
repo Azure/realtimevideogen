@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+# Source: https://github.com/vaaale/VibeVoiceCommunity/blob/main/vibevoice/audio_streamer.py
 from __future__ import annotations
 
 import time

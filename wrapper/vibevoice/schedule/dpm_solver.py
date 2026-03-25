@@ -15,6 +15,7 @@
 # DISCLAIMER: This file is strongly influenced by https://github.com/LuChengTHU/dpm-solver
 
 # mypy: ignore-errors
+# Source: https://github.com/vaaale/VibeVoiceCommunity/blob/main/vibevoice/schedule/dpm_solver.py
 import math
 from typing import Any, List, Optional, Tuple, Union
 

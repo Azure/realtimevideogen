@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+# Source: https://github.com/QwenLM/Qwen2.5-VL
 import logging
 import os
 import sys
