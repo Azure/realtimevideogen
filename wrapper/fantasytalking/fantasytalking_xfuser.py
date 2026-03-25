@@ -90,7 +90,7 @@ def usp_fantasytalking_forward(
 
     if clip_fea is not None:
         context_clip = self.img_emb(clip_fea)  # bs x 257 x dim
-        context = torch.concat([context_clip, context], dim=1)
+        context = torch.concat([context_clip, context], dim=1)  # type: ignore[assignment, list-item]
 
     # Context Parallel
     sp_world = get_sequence_parallel_world_size()

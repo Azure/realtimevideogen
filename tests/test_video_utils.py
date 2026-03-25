@@ -43,7 +43,7 @@ from file_utils import read_file_base64
 @pytest.mark.asyncio
 async def test_video() -> None:
     video_frames: List[np.ndarray] = [
-        get_frame_with_text(100, 60, f"frame{frame_id:02d}", output_type="numpy")
+        get_frame_with_text(100, 60, f"frame{frame_id:02d}", output_type="numpy")  # type: ignore[misc]
         for frame_id in range(24)
     ]
     video_path = await save_video_frames(video_frames, fps=24)
@@ -75,10 +75,10 @@ async def test_video() -> None:
 async def test_base64() -> None:
     """Test video frames to/from base64 conversion."""
     video_frames: List[np.ndarray] = [
-        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")
+        get_frame_with_text(80, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[misc]
         for frame_id in range(12)
     ]
-    video_base64 = video_frames_to_base64(video_frames)
+    video_base64 = video_frames_to_base64(video_frames)  # type: ignore[arg-type]
     video_frames_2 = base64_to_video_frames(video_base64)
     assert len(video_frames) == len(video_frames_2)
     for frame1, frame2 in zip(video_frames, video_frames_2):
@@ -102,7 +102,7 @@ async def test_base64() -> None:
 def test_get_video_frames_at_fps() -> None:
     """Test getting a video frames at a specific FPS."""
     video_frames: list[Image.Image] = [
-        get_frame_with_text(128, 64, f"frame{frame_id:02d}", output_type="pil")
+        get_frame_with_text(128, 64, f"frame{frame_id:02d}", output_type="pil")  # type: ignore[misc]
         for frame_id in range(10)
     ]
     new_video_frames = get_video_frames_at_fps(video_frames, src_fps=30, dst_fps=30)
@@ -380,11 +380,11 @@ async def test_save_video_frames() -> None:
     """
 
     with pytest.raises(ValueError):
-        await save_video_frames(None, fps=FPS)
+        await save_video_frames(None, fps=FPS)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         await save_video_frames([], fps=FPS)
     with pytest.raises(TypeError):
-        await save_video_frames(b"BLAH", fps=FPS)
+        await save_video_frames(b"BLAH", fps=FPS)  # type: ignore[arg-type]
 
 
 def assert_approx(
@@ -416,7 +416,7 @@ async def test_save_video_frames_audio() -> None:
             WIDTH, HEIGHT,
             text=f"frame{frame_id:02d}",
             font_size=24,
-            output_type="pil")
+            output_type="pil")  # type: ignore[misc]
         for frame_id in range(NUM_FRAMES)
     ]
     assert len(video_frames) == NUM_FRAMES
@@ -552,7 +552,7 @@ async def test_change_fps() -> None:
         await save_video_frames([], fps=30)
 
     with pytest.raises(ValueError, match="No video frames provided."):
-        await save_video_frames(None, fps=30)
+        await save_video_frames(None, fps=30)  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
         get_video_fps(12345)  # type: ignore[arg-type]
