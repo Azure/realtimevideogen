@@ -109,7 +109,7 @@ class JanusProGeneration(ModelGeneration):
             language_config=language_config,
             trust_remote_code=True
         )  # nosec B615
-        self.vl_gpt = self.vl_gpt.to(self.param_dtype)  # type: ignore[arg-type]
+        self.vl_gpt = self.vl_gpt.to(self.param_dtype)
         self.vl_gpt = self.vl_gpt.to(self.device)
         self.vl_gpt = self.vl_gpt.eval()
         self.load_timer.end("model")
@@ -170,7 +170,7 @@ class JanusProGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(
+    async def generate(  # type: ignore[override]
         self,
         prompt: str,
         temperature: float = 1.0,
@@ -201,10 +201,6 @@ class JanusProGeneration(ModelGeneration):
         assert self.tokenizer is not None
         self._assert_args(img_size, patch_size)
 
-        assert self.vl_chat_processor is not None
-        assert self.vl_gpt is not None
-        assert self.tokenizer is not None
-
         width = img_size // patch_size * patch_size
         height = img_size // patch_size * patch_size
 
@@ -227,8 +223,7 @@ class JanusProGeneration(ModelGeneration):
                 tokens[i, :] = input_ids
                 if i % 2 != 0:
                     tokens[i, 1:-1] = self.vl_chat_processor.pad_id
-            inputs_embeds = self.vl_gpt.language_model.get_input_embeddings()(  # type: ignore[union-attr,operator]
-                tokens)
+            inputs_embeds = self.vl_gpt.language_model.get_input_embeddings()(tokens)
             gen_timer.end("tokenize")
 
             gen_timer.start("generate_tokens")
@@ -236,14 +231,14 @@ class JanusProGeneration(ModelGeneration):
             pkv = None
             for ix in range(image_token_num_per_image):
                 gen_timer.start(f"generate_token_{ix:03d}")
-                outputs = self.vl_gpt.language_model.model(  # type: ignore[union-attr,operator]
+                outputs = self.vl_gpt.language_model.model(
                     inputs_embeds=inputs_embeds,
                     use_cache=True,
                     past_key_values=pkv
                 )
                 pkv = outputs.past_key_values
                 hidden_states = outputs.last_hidden_state
-                logits = self.vl_gpt.gen_head(hidden_states[:, -1, :])  # type: ignore[operator]
+                logits = self.vl_gpt.gen_head(hidden_states[:, -1, :])
                 logit_cond = logits[0::2, :]
                 logit_uncond = logits[1::2, :]
                 logits = logit_uncond + cfg_weight * (logit_cond - logit_uncond)
@@ -255,7 +250,7 @@ class JanusProGeneration(ModelGeneration):
                     next_token.unsqueeze(dim=1)
                 ], dim=1).view(-1)
 
-                img_embeds = self.vl_gpt.prepare_gen_img_embeds(next_token)  # type: ignore[operator]
+                img_embeds = self.vl_gpt.prepare_gen_img_embeds(next_token)
                 inputs_embeds = img_embeds.unsqueeze(dim=1)
                 gen_timer.end(f"generate_token_{ix:03d}")
             gen_timer.end("generate_tokens")
@@ -263,7 +258,7 @@ class JanusProGeneration(ModelGeneration):
             gen_timer.start("decode_images")
             # TODO fix failure
             # shape '[2, 24, 24, 8]' is invalid for input of size 1600.
-            patches = self.vl_gpt.gen_vision_model.decode_code(  # type: ignore[union-attr,operator]
+            patches = self.vl_gpt.gen_vision_model.decode_code(
                 generated_tokens.to(dtype=torch.int),
                 shape=[parallel_size, 8, width // patch_size, height // patch_size]
             )
@@ -276,8 +271,7 @@ class JanusProGeneration(ModelGeneration):
             gen_timer.start("convert_pil")
             images = []
             for i in range(parallel_size):
-                pil_image = Image.fromarray(visual_img[i]).resize(
-                    (768, 768), Image.LANCZOS)  # type: ignore[attr-defined]
+                pil_image = Image.fromarray(visual_img[i]).resize((768, 768), Image.Resampling.LANCZOS)
                 images.append(pil_image)
             gen_timer.end("convert_pil")
 

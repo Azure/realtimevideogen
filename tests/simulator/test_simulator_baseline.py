@@ -467,7 +467,7 @@ def test_baseline_hardware_error() -> None:
     assert models[Model.UPSCALER][0].get_num_gpus() == 0
 
     assert 500 < result.total_time_s < 810
-    assert 170 < result.ttff_s < result.total_time_s
+    assert 130 < result.ttff_s < result.total_time_s
     assert 0 < result.tbf_s < 1
     assert result.total_time_s * (1265 + 24) * POWER_GPU_IDLE[GPUType.A100] < result.total_energy
     assert result.total_energy < result.total_time_s * (1265 + 24) * POWER_GPU_TDP[GPUType.H200]

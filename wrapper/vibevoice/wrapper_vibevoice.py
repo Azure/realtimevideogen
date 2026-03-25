@@ -16,9 +16,6 @@ from typing import Dict
 from typing import Union
 from typing import Any
 
-# TODO This is now missing in the github repo
-# from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
-# from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
 # Copy from transformers PR: https://github.com/huggingface/transformers/pull/40546/files
 from vibevoice_processor import VibeVoiceProcessor
 from modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference

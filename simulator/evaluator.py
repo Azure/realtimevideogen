@@ -11,6 +11,7 @@ from typing import Optional
 
 from constants import NUM_GPUS_PER_SERVER
 from constants import TOTAL_INPUT_TOKENS
+from constants import SECONDS_IN_HOUR
 
 from sim_types import Result
 from sim_types import GPUType
@@ -24,8 +25,6 @@ from sim_types import Policy
 from sim_types_json import models_to_json
 from sim_types_json import workflow_to_json
 from sim_types_json import policy_to_json
-
-SECONDS_IN_HOUR = 60 * 60
 
 
 def _count_instances(
@@ -101,9 +100,7 @@ def evaluate_times(
             _assert_no_instances(models, Model.UPSCALER)
             continue
 
-        if model_name not in (Model.HF_VAE, Model.FT_VAE):
-            # VAE models are optional and can be 0
-            _assert_at_least_one_instance(models, model_name)
+        _assert_at_least_one_instance(models, model_name)
 
         if not workflow.is_parallelizable(model_name):
             # Single-instance: no work splitting
@@ -125,6 +122,11 @@ def evaluate_times(
             for model_alloc in models[gpu_type][model_name]:
                 if model_alloc.get_num_gpus() > 0:
                     latency = latency_data[gpu_type][model_name, model_alloc.devices]
+                    # When not disaggregated, include VAE overhead in capacity
+                    if model_name == Model.FT and not policy.is_disaggregated(Model.FT):
+                        latency += latency_data[gpu_type][Model.FT_VAE, 1] / workflow.num_steps[Model.FT]
+                    if model_name == Model.HF and not policy.is_disaggregated(Model.HF):
+                        latency += latency_data[gpu_type][Model.HF_VAE, 1] / workflow.num_steps[Model.HF]
                     if model_name in (Model.HF, Model.HF_VAE, Model.FT, Model.FT_VAE):
                         latency *= workflow.get_resolution_scale(policy.use_upscaler)
                     if model_name == Model.GEMMA:

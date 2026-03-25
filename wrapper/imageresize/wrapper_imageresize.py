@@ -7,6 +7,7 @@ from typing import List
 from typing import Optional
 from typing import Dict
 from typing import Any
+from typing import Union
 
 from wrapper_model import ModelGeneration
 
@@ -26,7 +27,7 @@ class ImageResize(ModelGeneration):
         await self.generate(image=dummy_image)
 
     @override
-    async def generate(
+    async def generate(  # type: ignore[override]
         self,
         image: Image.Image,
         video: Optional[List[Image.Image]] = None,
@@ -41,20 +42,23 @@ class ImageResize(ModelGeneration):
         try:
             # Video
             if video is not None:
-                return [  # type: ignore[return-value]
-                    frame.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
+                return [
+                    frame.resize((width, height), Image.Resampling.LANCZOS)
                     for frame in video
                 ]
             # Image
             if image is not None:
-                return image.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
+                return image.resize((width, height), Image.Resampling.LANCZOS)
             # Missing inputs
             raise ValueError("Image is required for resizing generation.")
         finally:
             gen_timer.end("total")
             self.running = False
 
-    async def get_rest_args(self, data_json: Dict[str, str]) -> Dict[str, Any]:
+    async def get_rest_args(
+        self,
+        data_json: Dict[str, Union[str, int, float]],
+    ) -> Dict[str, Any]:
         if data_json is None:
             raise ValueError("Missing JSON body")
 

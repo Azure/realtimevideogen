@@ -1,5 +1,6 @@
 # mypy: ignore-errors
-# Source: https://github.com/vaaale/VibeVoiceCommunity/blob/main/vibevoice/modeling_vibevoice_inference.py
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/modeling_vibevoice_streaming_inference.py
+
 from dataclasses import dataclass
 
 from typing import List
@@ -365,7 +366,7 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             return generation_config, model_kwargs, input_ids
 
     @torch.no_grad()
-    def generate(
+    def generate(  # type: ignore[override]
         self,
         inputs: Optional[torch.Tensor] = None,
         generation_config: Optional[GenerationConfig] = None,

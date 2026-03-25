@@ -20,7 +20,7 @@ from diffsynth.models.wan_video_dit import sinusoidal_embedding_1d
 
 def usp_fantasytalking_forward(
     self: Module,
-    x: List[Tensor],  # [C, T, H, W]
+    x_list: List[Tensor],  # [C, T, H, W]
     timestep: Tensor,  # [B]
     context: List[Tensor],  # [L, C]
     seq_len: Union[int, Tensor],  # [B] or scalar
@@ -38,34 +38,37 @@ def usp_fantasytalking_forward(
     https://github.com/Fantasy-AMAP/fantasy-talking/blob/main/diffsynth/models/wan_video_dit.py
     And adjusted based on:
     https://github.com/Wan-Video/Wan2.1/blob/main/wan/distributed/xdit_context_parallel.py
-    x:              A list of videos each with shape [C, T, H, W].
-    t:              [B].
+    x_list:         A list of videos each with shape [C, T, H, W].
+    timestep:       [B].
     context:        A list of text embeddings each with shape [L, C].
     """
     if self.model_type == "i2v":
         assert clip_fea is not None and y is not None
     # params
-    device = x[0].device
+    device = x_list[0].device
     if self.freqs.device != device:
         self.freqs = self.freqs.to(device)
 
     if y is not None:
-        x = [torch.cat([u, v], dim=0) for u, v in zip(x, y)]
+        x_list = [torch.cat([u, v], dim=0) for u, v in zip(x_list, y)]
 
     # embeddings
-    x = [
+    x_embed_list = [
         self.patch_embedding(u.unsqueeze(0))  # type: ignore[operator]
-        for u in x
+        for u in x_list
     ]
     grid_sizes = torch.stack(
-        [torch.tensor(u.shape[2:], dtype=torch.long) for u in x]
+        [
+            torch.tensor(u.shape[2:], dtype=torch.long)
+            for u in x_embed_list
+        ]
     )  # [B,2]
-    x = [u.flatten(2).transpose(1, 2) for u in x]  # [[C, L, T],,]
-    seq_lens = torch.tensor([u.size(1) for u in x], dtype=torch.long)
+    x_t_list = [u.flatten(2).transpose(1, 2) for u in x_embed_list]  # [[C, L, T],,]
+    seq_lens = torch.tensor([u.size(1) for u in x_t_list], dtype=torch.long)
     assert seq_lens.max() <= seq_len
-    x = torch.cat([  # type: ignore[assignment]
-        torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))], dim=1)  # type: ignore[arg-type]
-        for u in x
+    x = torch.cat([
+        torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))], dim=1)
+        for u in x_t_list
     ])
 
     # time embeddings
@@ -86,20 +89,17 @@ def usp_fantasytalking_forward(
     )
 
     if clip_fea is not None:
-        context_clip = self.img_emb(clip_fea)  # type: ignore[operator]
+        context_clip = self.img_emb(clip_fea)  # type: ignore[operator]  # bs x 257 x dim
         context = torch.concat([context_clip, context], dim=1)  # type: ignore[assignment, list-item]
 
     # Context Parallel
     sp_world = get_sequence_parallel_world_size()
     sp_rank = get_sequence_parallel_rank()
-    if x.shape[1] % sp_world != 0:  # type: ignore[attr-defined]
-        raise ValueError(
-            f"Input sequence length {x.shape} is not divisible "  # type: ignore[attr-defined]
-            f"by sequence parallel {sp_world}"
-        )
-    logging.debug(f"Input sequence length {x.shape} and sequence parallel {sp_world}.")  # type: ignore[attr-defined]
-    x = torch.chunk(x, sp_world, dim=1)[sp_rank]  # type: ignore[arg-type]
-    logging.debug(f"Input sequence length after chunking {x.shape}.")  # type: ignore[attr-defined]
+    if x.shape[1] % sp_world != 0:
+        raise ValueError(f"Input sequence length {x.shape} is not divisible by sequence parallel {sp_world}")
+    logging.debug(f"Input sequence length {x.shape} and sequence parallel {sp_world}.")
+    x = torch.chunk(x, sp_world, dim=1)[sp_rank]
+    logging.debug(f"Input sequence length after chunking {x.shape}.")
 
     """
     # https://github.com/Fantasy-AMAP/fantasy-talking/issues/52
@@ -163,5 +163,5 @@ def usp_fantasytalking_forward(
 
     # unpatchify
     x = self.unpatchify(x, grid_sizes)  # type: ignore[operator]
-    x = torch.stack(x).float()  # type: ignore[assignment]
-    return x  # type: ignore[return-value]
+    x = torch.stack(x).float()
+    return x

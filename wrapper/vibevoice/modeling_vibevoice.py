@@ -1,5 +1,6 @@
 # mypy: ignore-errors
-# Source: https://github.com/vaaale/VibeVoiceCommunity/blob/main/vibevoice/modeling_vibevoice.py
+# Copy from: https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/modeling_vibevoice.py
+
 from dataclasses import dataclass
 
 from typing import Any

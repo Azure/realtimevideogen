@@ -1,5 +1,6 @@
 # mypy: ignore-errors
-# Source: https://github.com/vaaale/VibeVoiceCommunity/blob/main/vibevoice/modular/modular_vibevoice_tokenizer.py
+# Copy from: https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/modular_vibevoice_tokenizer.py
+
 import math
 
 from functools import partial

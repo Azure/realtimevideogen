@@ -188,6 +188,7 @@ def get_time_per_request_baseline(
         k: v * num_pixels_high / num_pixels_medium
         for k, v in latency_data.gpus[GPUType.A100].ft.items()
     }
+    latency_ft_vae_a100 = latency_data.gpus[GPUType.A100][Model.FT_VAE, 1] * num_pixels_high / num_pixels_medium
 
     num_gemma_gpus = 1
     num_flux_gpus = 1
@@ -204,7 +205,10 @@ def get_time_per_request_baseline(
         + (total_frames_hf / hf_frames[frames_per_step_idx] * latency_hf_vae_a100)
     )
     latency_ft = latency_ft_mapping_a100[num_ft_gpus] / num_ft_replicas
-    time_ft = total_frames_ft / ft_frames[frames_per_step_idx] * latency_ft * num_steps_ft
+    time_ft = (
+        (total_frames_ft / ft_frames[frames_per_step_idx] * latency_ft * num_steps_ft)
+        + (total_frames_ft / ft_frames[frames_per_step_idx] * latency_ft_vae_a100)
+    )
 
     return {
         GPUType.A100: {

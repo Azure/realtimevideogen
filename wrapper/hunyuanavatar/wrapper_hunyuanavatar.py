@@ -101,7 +101,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         super().__del__()
 
     def init_parallelism(self) -> None:
-        self.load_timer.start("torch_dist")  # type: ignore[has-type]
+        self.load_timer.start("torch_dist")
 
         logging.info("Initializing distributed environment...")
 
@@ -120,7 +120,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
         if self.world_size <= 1:
             logging.info("World size is 1, skipping distributed initialization.")
-            self.load_timer.end("torch_dist")  # type: ignore[has-type]
+            self.load_timer.end("torch_dist")
             return
 
         if not dist.is_initialized():
@@ -143,7 +143,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
         initialize_sequence_parallel_state(self.world_size)
 
-        self.load_timer.end("torch_dist")  # type: ignore[has-type]
+        self.load_timer.end("torch_dist")
 
     def load_model(self) -> None:
         self.rank = 0
@@ -167,7 +167,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
         # Load the wav2vec model
         self.load_timer.start("wav2vec")
-        self.wav2vec = WhisperModel.from_pretrained(  # type: ignore[call-arg]
+        self.wav2vec = WhisperModel.from_pretrained(
             f"{self.models_root_path}/whisper-tiny/"  # nosec B615 - local path
         ).to(device=self.device, dtype=torch.float32)
         self.wav2vec.requires_grad_(False)
@@ -265,7 +265,7 @@ class HunyuanAvatarGeneration(USPGeneration):
 
             # Prepare the data
             gen_timer.start("encoding_inputs")
-            img_resized = img.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
+            img_resized = img.resize((width, height), Image.Resampling.LANCZOS)
             results = self.data_loader.encode_data(
                 ref_image=img_resized,
                 audio_path=audio_path,
@@ -301,7 +301,7 @@ class HunyuanAvatarGeneration(USPGeneration):
                 final_frames.append(frame)
             final_frames = np.stack(final_frames, axis=0)
 
-            return await self._output_video(  # type: ignore[return-value]
+            return await self._output_video(
                 job_id,
                 gen_timer,
                 audio_path,
@@ -322,7 +322,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         gen_timer.start("output")
         try:
             if output_type == "pil":
-                return video_frames  # type: ignore[return-value]
+                return video_frames
 
             if output_type in ("video_binary", "video_path"):
                 if not job_id:

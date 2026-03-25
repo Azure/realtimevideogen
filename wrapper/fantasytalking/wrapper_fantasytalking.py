@@ -378,7 +378,7 @@ class FantasyTalking(USPGeneration):
 
             if video is not None and len(video) > 0:
                 gen_timer.start("video_preprocess")
-                video = [frame.resize((width, height), Image.LANCZOS) for frame in video]  # type: ignore[attr-defined]
+                video = [frame.resize((width, height), Image.Resampling.LANCZOS) for frame in video]
 
                 # We assume the input video has the same FPS
                 video_num_frames = len(video)
@@ -410,7 +410,7 @@ class FantasyTalking(USPGeneration):
                 gen_timer.start("img_preprocess")
                 if self.rank == 0:
                     logging.info(f"[{self.rank}] Image:{img.size}->{(width, height)}.")
-                img = img.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
+                img = img.resize((width, height), Image.Resampling.LANCZOS)
                 gen_timer.end("img_preprocess")
 
             gen_timer.start("audio_encoder")

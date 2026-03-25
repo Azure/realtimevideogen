@@ -54,6 +54,7 @@ class RealESRGANGeneration(ModelGeneration):
     def __del__(self) -> None:
         if self.models is not None:
             del self.models
+            self.models = None
         super().__del__()
 
     def init_parallelism(self) -> None:
@@ -153,15 +154,15 @@ class RealESRGANGeneration(ModelGeneration):
         Each rank will process only its assigned images (not None).
         """
         if self.world_size == 1 or len(images) < 1:
-            return images  # type: ignore[return-value]
+            return images
         # Chunk one image per rank
         ret = []
         for it, image in enumerate(images):
             if it % self.world_size == self.rank:
                 ret.append(image)
             else:
-                ret.append(None)  # type: ignore[arg-type]
-        return ret  # type: ignore[return-value]
+                ret.append(None)
+        return ret
 
     def _gather_chunks(
         self,
@@ -173,7 +174,7 @@ class RealESRGANGeneration(ModelGeneration):
         This is used to collect the results after processing.
         """
         if self.world_size == 1:
-            return chunked_images  # type: ignore[return-value]
+            return chunked_images
 
         gathered_lists = None
         if self.rank == 0:
@@ -184,7 +185,7 @@ class RealESRGANGeneration(ModelGeneration):
             return []
 
         ret = []
-        for position_images in zip(*gathered_lists):  # type: ignore[misc]
+        for position_images in zip(*gathered_lists):
             for img in position_images:
                 if img is not None:
                     ret.append(img)
@@ -195,7 +196,7 @@ class RealESRGANGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(
+    async def generate(  # type: ignore[override]
         self,
         job_id: Optional[str] = None,
         image: Optional[Image.Image] = None,
@@ -222,7 +223,7 @@ class RealESRGANGeneration(ModelGeneration):
                     video_len = get_video_size(video)
                     logging.info(
                         f"[{self.rank}] Upscaling video with {len(video)} frames and {bytes_to_human(video_len)}.")
-                ret: list[Any] = []
+                ret = []
                 video_frames = video
                 chunked_video_frames = self._chunk_list_image(video_frames)
                 for it, frame in enumerate(chunked_video_frames):
@@ -245,8 +246,8 @@ class RealESRGANGeneration(ModelGeneration):
                 if self.rank == 0:
                     logging.info(f"[{self.rank}] Generated {len(video)}->{len(ret)} upscaled video frames.")
                 else:
-                    return None  # type: ignore[return-value]  # Skip non-rank 0 processes
-                return await self._output_video(  # type: ignore[return-value]
+                    return None  # Skip non-rank 0 processes
+                return await self._output_video(
                     job_id,
                     gen_timer,
                     ret,
@@ -257,7 +258,7 @@ class RealESRGANGeneration(ModelGeneration):
             if image is not None:
                 if self.rank != 0:
                     logging.debug(f"[{self.rank}] Skipping image upscaling, not rank 0.")
-                    return [None]  # type: ignore[list-item]
+                    return [None]
                 out_image = await asyncio.to_thread(
                     self.generate_image,
                     image=image,
@@ -308,7 +309,7 @@ class RealESRGANGeneration(ModelGeneration):
                 return video_binary
 
             logging.error(f"Unknown output type: {output_type}")
-            return None  # type: ignore[return-value]
+            return None
         finally:
             gen_timer.end("output")
 
@@ -367,7 +368,7 @@ class RealESRGANGeneration(ModelGeneration):
         logging.debug(f"[{self.rank}] Generated image with size {output_image.size}")
         if output_image.size[0] != width or output_image.size[1] != height:
             logging.debug(f"[{self.rank}] Downscaling now to {width}x{height}.")
-            output_image = output_image.resize((width, height), Image.LANCZOS)  # type: ignore[attr-defined]
+            output_image = output_image.resize((width, height), Image.Resampling.LANCZOS)
 
         return output_image
 

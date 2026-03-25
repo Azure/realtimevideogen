@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/schedule/dpm_solver.py
+
 # Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,9 +28,7 @@ import torch
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.utils import deprecate
 from diffusers.utils.torch_utils import randn_tensor
-from diffusers.schedulers.scheduling_utils import KarrasDiffusionSchedulers
-from diffusers.schedulers.scheduling_utils import SchedulerMixin
-from diffusers.schedulers.scheduling_utils import SchedulerOutput
+from diffusers.schedulers.scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin, SchedulerOutput
 
 
 def betas_for_alpha_bar(

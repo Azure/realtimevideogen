@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/modular_vibevoice_text_tokenizer.py
+
 """Tokenization classes for vibevoice."""
 
 from typing import Any
