@@ -7,78 +7,53 @@ FROM ${DOCKER_REPO}/base:${BASE_TAG}
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
 
-WORKDIR /4kagent
-
-# ---------------------------------------------------------------------------
-# 1. Clone the 4KAgent repository
-# ---------------------------------------------------------------------------
+# Clone 4KAgent
 RUN git clone --depth 1 https://github.com/taco-group/4KAgent /4kagent/4KAgent
 
-# ---------------------------------------------------------------------------
-# 2. Create the main '4kagent' conda environment (Python 3.10)
-# ---------------------------------------------------------------------------
-RUN conda create -n 4kagent python=3.10 -y
+WORKDIR /4kagent
 
-RUN conda run -n 4kagent pip install \
+# Create 4kagent conda environment (Python 3.10, older torch required by 4KAgent)
+RUN conda create -n 4kagent python=3.10 -y && \
+    conda run -n 4kagent pip install \
         torch==2.1.2+cu118 torchvision==0.16.2+cu118 torchaudio==2.1.2+cu118 \
-        -f https://download.pytorch.org/whl/torch_stable.html --quiet
-
-RUN conda run -n 4kagent pip install \
-        -r /4kagent/4KAgent/installation/requirements.txt --quiet
-
-RUN conda run -n 4kagent pip install --upgrade transformers==4.49.0 --quiet && \
+        -f https://download.pytorch.org/whl/torch_stable.html && \
+    conda run -n 4kagent pip install -r /4kagent/4KAgent/installation/requirements.txt && \
+    conda run -n 4kagent pip install --upgrade transformers==4.49.0 && \
     conda run -n 4kagent pip cache purge
 
-# ---------------------------------------------------------------------------
-# 3. Create tool-specific conda sub-environments
-# ---------------------------------------------------------------------------
-
-# 3a. 4kagent_spec_tools (Python 3.8) – used by brightening, dehazing, etc.
+# Create tool conda environments for 4KAgent executors
 RUN conda create -n 4kagent_spec_tools python=3.8 -y && \
     conda run -n 4kagent_spec_tools pip install \
-        -r /4kagent/4KAgent/installation/spec_tools_requirements.txt --quiet && \
+        -r /4kagent/4KAgent/installation/spec_tools_requirements.txt && \
     conda run -n 4kagent_spec_tools pip cache purge
 
-# 3b. 4kagent_dehaze (Python 3.8, old CUDA 11.7 torch) – RIDCP dehazing tool
 RUN conda create -n 4kagent_dehaze python=3.8 -y && \
     conda run -n 4kagent_dehaze pip install \
         torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 \
-        --extra-index-url https://download.pytorch.org/whl/cu117 --quiet && \
+        --extra-index-url https://download.pytorch.org/whl/cu117 && \
     conda run -n 4kagent_dehaze pip install \
-        -r /4kagent/4KAgent/executor/dehazing/tools/RIDCP_dehazing/requirements.txt --quiet && \
+        -r /4kagent/4KAgent/executor/dehazing/tools/RIDCP_dehazing/requirements.txt && \
     conda run -n 4kagent_dehaze pip cache purge
 
-# 3c. 4kagent_sr (Python 3.10) – OSEDiff / PISASR super-resolution tools
 RUN conda create -n 4kagent_sr python=3.10 -y && \
     conda run -n 4kagent_sr pip install \
-        -r /4kagent/4KAgent/executor/super_resolution/tools/OSEDiff/requirements.txt --quiet && \
+        -r /4kagent/4KAgent/executor/super_resolution/tools/OSEDiff/requirements.txt && \
     conda run -n 4kagent_sr pip cache purge
 
-# ---------------------------------------------------------------------------
-# 4. Create symbolic links required by the executor
-# ---------------------------------------------------------------------------
+# Create tool symbolic links
 RUN cd /4kagent/4KAgent && bash installation/tools_sym_links.sh
 
-# ---------------------------------------------------------------------------
-# 5. Download pretrained checkpoints from Hugging Face
-# ---------------------------------------------------------------------------
-RUN conda run -n 4kagent huggingface-cli download \
-        YSZuo/4KAgent-Toolbox-Pretrained-Models \
-        --local-dir /4kagent/4KAgent/pretrained_ckpts \
-        --quiet && \
-    # Copy landmark model for old-photo restoration
+# Download pretrained checkpoints from Hugging Face
+RUN conda run -n 4kagent huggingface-cli download YSZuo/4KAgent-Toolbox-Pretrained-Models \
+        --local-dir /4kagent/4KAgent/pretrained_ckpts && \
     cp /4kagent/4KAgent/pretrained_ckpts/BOBL/Face_Detection/shape_predictor_68_face_landmarks.dat \
        /4kagent/4KAgent/executor/old_photo_restoration/tools/BOBL/Face_Detection/ && \
-    # Copy HPSv2 vocabulary file to both required locations
     cp /4kagent/4KAgent/pretrained_ckpts/hpsv2/bpe_simple_vocab_16e6.txt.gz \
        /4kagent/4KAgent/utils/clib_fiqa/model/ && \
     conda run -n 4kagent bash -c \
         'cp /4kagent/4KAgent/pretrained_ckpts/hpsv2/bpe_simple_vocab_16e6.txt.gz \
          "$(python -c "import hpsv2, os; print(os.path.join(os.path.dirname(hpsv2.__file__), '"'"'src/open_clip'"'"'))")"'
 
-# ---------------------------------------------------------------------------
-# 6. Install wrapper dependencies into the 'streamwise' env
-# ---------------------------------------------------------------------------
 COPY docker_files/requirements.txt .
 RUN conda run -n streamwise pip install -r requirements.txt && \
     conda run -n streamwise pip cache purge
@@ -86,7 +61,6 @@ RUN conda run -n streamwise pip install -r requirements.txt && \
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
 COPY docker_files/*.json .
-COPY docker_files/*.sh .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
 
