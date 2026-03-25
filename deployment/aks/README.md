@@ -266,8 +266,11 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
-> **Azure A100/H100 default:** Azure ND-series VMs ship with MIG enabled on GPU 7.
-> The device plugin DaemonSet handles this automatically:
+> **MIG on GPU 7 — firmware default, not something we configure:**
+> NVSwitch-based SXM systems (`Standard_ND96ams_A100_v4`, `Standard_ND96isrf_H100_v5`)
+> ship with MIG mode already enabled on GPU 7. This is a platform-level default —
+> neither the Bicep template nor the MIG setup guide enables it; it comes pre-set on the VM.
+> The split device plugin DaemonSet ([`nvidia-device-plugin-ds.yaml`](../k8s/nvidia-device-plugin-ds.yaml)) handles this transparently:
 > - **Full-GPU pool** — uses `MIG_STRATEGY=none`, which ignores MIG and exposes all 8 GPUs as `nvidia.com/gpu`.
 > - **MIG pool** (nodes labelled `gpu-config=mig`) — uses `MIG_STRATEGY=mixed`, which exposes 7 full GPUs plus MIG slices.
 >   You only need to **create the MIG instances** on GPU 7; MIG mode is already enabled.

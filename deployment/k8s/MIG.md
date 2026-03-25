@@ -3,9 +3,11 @@
 MIG partitions a single A100 or H100 GPU into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
-> **Azure A100/H100 default:** Azure ND-series VMs (e.g. `Standard_ND96ams_A100_v4`) ship with
-> **MIG already enabled on GPU 7**.
-> This affects both full-GPU and MIG node pools.
+> **MIG on GPU 7 — firmware default, not something we configure:**
+> NVSwitch-based SXM systems (e.g. `Standard_ND96ams_A100_v4`, `Standard_ND96isrf_H100_v5`)
+> ship with **MIG mode already enabled on GPU 7**. This is a platform-level default set on the
+> VM before it reaches you — neither the Bicep template nor these manual steps enable it.
+> Because every VM of these SKUs has MIG on GPU 7, it affects **all** node pools (full-GPU and MIG alike):
 > - **Full-GPU pool:** The `none` MIG strategy in the device plugin ignores this — all 8 GPUs are exposed.
 >   No manual action is needed as long as you use the split DaemonSet in
 >   [nvidia-device-plugin-ds.yaml](nvidia-device-plugin-ds.yaml) (see [Step 6](#6-configure-the-nvidia-device-plugin-for-mig)).
@@ -73,8 +75,10 @@ kubectl -n gpu-resources get pods -o wide | grep $GPU_NODE
 
 ### 3. Enable MIG mode on the selected GPU
 
-> **Azure ND-series VMs:** GPU 7 typically ships with MIG already enabled.
-> Check with the command below — if it already shows `Enabled, Enabled`, skip this step and Step 4 and go directly to [Step 5](#5-verify-mig-is-active-and-create-instances).
+> **NVSwitch-based SXM VMs** (e.g. `Standard_ND96ams_A100_v4`): GPU 7 ships with MIG already
+> enabled as a firmware default.
+> Check with the command below — if it already shows `Enabled, Enabled`, skip this step and
+> Step 4 and go directly to [Step 5](#5-verify-mig-is-active-and-create-instances).
 
 ```bash
 kubectl exec gpu-debug -- chroot /host \
@@ -171,8 +175,9 @@ The device plugin DaemonSet ([nvidia-device-plugin-ds.yaml](nvidia-device-plugin
 | `nvidia-device-plugin-daemonset` | `none` | Nodes **without** `gpu-config=mig` label | Ignores MIG — exposes all GPUs as `nvidia.com/gpu` (including GPU 7 even if MIG is on) |
 | `nvidia-device-plugin-mig-daemonset` | `mixed` | Nodes **with** `gpu-config=mig` label | Advertises both `nvidia.com/gpu` (full GPUs) and `nvidia.com/mig-<profile>` (MIG slices) |
 
-This split is needed because Azure ND-series A100/H100 VMs ship with MIG enabled on GPU 7 by default.
-With a single `mixed` DaemonSet on all nodes, full-GPU nodes would lose GPU 7 (MIG on but no instances configured = invisible to the scheduler).
+This split is needed because NVSwitch-based SXM VMs (A100/H100) ship with MIG enabled on GPU 7
+as a firmware default. With a single `mixed` DaemonSet on all nodes, full-GPU nodes would lose
+GPU 7 (MIG on but no instances configured = invisible to the scheduler).
 The `none` strategy avoids this by ignoring MIG mode entirely.
 
 Both DaemonSets require **`privileged: true`** security context for the NVML calls that enumerate MIG devices.
