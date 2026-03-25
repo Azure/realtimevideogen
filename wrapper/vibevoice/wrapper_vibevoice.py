@@ -16,6 +16,7 @@ from typing import Dict
 from typing import Union
 from typing import Any
 
+# Copy from transformers PR: https://github.com/huggingface/transformers/pull/40546/files
 from vibevoice_processor import VibeVoiceProcessor
 from modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
 
