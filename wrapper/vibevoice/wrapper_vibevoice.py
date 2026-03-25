@@ -17,6 +17,8 @@ from typing import Union
 from typing import Any
 
 # Copy from transformers PR: https://github.com/huggingface/transformers/pull/40546/files
+from transformers.generation import GenerationConfig
+
 from vibevoice_processor import VibeVoiceProcessor
 from modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
 
@@ -308,7 +310,7 @@ class VibeVoiceGeneration(ModelGeneration):
                 max_new_tokens=None,
                 cfg_scale=cfg_scale,
                 tokenizer=self.processor.tokenizer,
-                generation_config={'do_sample': False},
+                generation_config=GenerationConfig(do_sample=False),
                 verbose=True,
             )
             output_path = "/tmp/file.wav"
