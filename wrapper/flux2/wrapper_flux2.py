@@ -98,8 +98,8 @@ class Flux2Generation(FluxGeneration):
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
-        self.pipeline.transformer = torch.compile(
-            self.pipeline.transformer,
+        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
+            self.pipeline.transformer,  # type: ignore[attr-defined]
             mode="max-autotune-no-cudagraphs"
         )
         self.load_timer.end("dit_compile")
@@ -130,8 +130,8 @@ class Flux2Generation(FluxGeneration):
 
         self._assert_model_init()
         assert self.pipeline is not None, "FLUX.2 pipeline not initialized."
-        height_latent = height // self.pipeline.vae_scale_factor
-        width_latent = width // self.pipeline.vae_scale_factor
+        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -162,7 +162,7 @@ class Flux2Generation(FluxGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(
+            output = self.pipeline(  # type: ignore[operator]
                 height=height,
                 width=width,
                 prompt=prompt,

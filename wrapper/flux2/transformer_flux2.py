@@ -69,8 +69,8 @@ class xFuserFlux2AttnProcessor(Flux2AttnProcessor):
             value = torch.cat([encoder_value, value], dim=1)
 
         if image_rotary_emb is not None:
-            query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
-            key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
+            query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)  # type: ignore[assignment]
+            key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)  # type: ignore[assignment]
 
         # Transpose for attention computation
         query = query.transpose(1, 2)
@@ -132,8 +132,8 @@ class xFuserFlux2ParallelSelfAttnProcessor(Flux2ParallelSelfAttnProcessor):
         key = attn.norm_k(key)
 
         if image_rotary_emb is not None:
-            query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
-            key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
+            query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)  # type: ignore[assignment]
+            key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)  # type: ignore[assignment]
 
         # Transpose for attention computation
         query = query.transpose(1, 2)
