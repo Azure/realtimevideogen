@@ -45,7 +45,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
         )
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -63,7 +63,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
         save_intermediate: Optional[str] = None,
         job_id: Optional[str] = None,
         output_type: str = "tensor",  # "tensor", "video_binary", "video_path"
-    ) -> torch.Tensor:
+    ) -> Optional[torch.Tensor]:
         """
         Generate a video from an input image and a prompt.
         Based on:
@@ -134,7 +134,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
             history_pixels = None
             total_generated_latent_frames = 0
 
-            latent_paddings = reversed(range(total_latent_sections))
+            latent_paddings: list[int] = list(reversed(range(total_latent_sections)))
 
             if total_latent_sections > 4:
                 # In theory the latent_paddings should follow the above sequence, but it seems that duplicating some
@@ -150,7 +150,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
             for it, latent_padding in enumerate(latent_paddings):
                 logging.debug(f"Running step {it + 1}.")
 
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(
                         f"Generation interrupted at step {it + 1} of {total_latent_sections}.")

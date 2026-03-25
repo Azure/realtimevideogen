@@ -1,3 +1,7 @@
+# mypy: ignore-errors
+# Copy from: https://github.com/Wan-Video/Wan2.1/blob/main/wan/modules/vae.py
+# Added some changes for streaming encode/decode and 1-frame encode/decode.
+
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import logging
 
