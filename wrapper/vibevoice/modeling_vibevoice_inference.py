@@ -298,7 +298,10 @@ class VibeVoiceForConditionalGenerationInference(VibeVoicePreTrainedModel, Gener
             )
         else:
             assert tokenizer is not None, "tokenizer must be provided"
-            gen_config_dict = generation_config.to_dict()
+            if isinstance(generation_config, dict):
+                gen_config_dict = generation_config
+            else:
+                gen_config_dict = generation_config.to_dict()
             gen_config_dict.pop('bos_token_id', None)
             gen_config_dict.pop('eos_token_id', None)
             gen_config_dict.pop('pad_token_id', None)
