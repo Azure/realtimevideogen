@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/modular_vibevoice_diffusion_head.py
+
 import math
 from typing import cast
 
