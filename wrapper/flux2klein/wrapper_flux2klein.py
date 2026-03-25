@@ -126,8 +126,11 @@ class Flux2KleinGeneration(FluxGeneration):
 
         self._assert_model_init()
         assert self.pipeline is not None, "FLUX.2-klein pipeline not initialized."
-        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
-        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        vae_scale_factor: Optional[int] = getattr(self.pipeline, "vae_scale_factor", None)
+        if vae_scale_factor is None:
+            raise ValueError("Pipeline does not have vae_scale_factor.")
+        height_latent = height // vae_scale_factor
+        width_latent = width // vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
