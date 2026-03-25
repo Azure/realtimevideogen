@@ -265,9 +265,23 @@ az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_
 NVIDIA Multi-Instance GPU (MIG) partitions a single GPU (e.g., A100 or H100) into smaller isolated slices, each with dedicated memory and compute resources.
 This lets lightweight models such as **Kokoro** (TTS) and **YOLO** (image detection) share a physical GPU instead of occupying a whole one.
 
+> **Azure A100/H100 default:** Azure ND-series VMs ship with MIG enabled on GPU 7.
+> The device plugin DaemonSet handles this automatically:
+> - **Full-GPU pool** — uses `MIG_STRATEGY=none`, which ignores MIG and exposes all 8 GPUs as `nvidia.com/gpu`.
+> - **MIG pool** (nodes labelled `gpu-config=mig`) — uses `MIG_STRATEGY=mixed`, which exposes 7 full GPUs plus MIG slices.
+>   You only need to **create the MIG instances** on GPU 7; MIG mode is already enabled.
+>   Skip to [Step 5 of the MIG guide](../k8s/MIG.md#5-verify-mig-is-active-and-create-instances).
+
 The recommended setup for an 8-GPU node is **7 full GPUs** for heavy models + **1 MIG-partitioned GPU** for lightweight services:
 - **80 GB GPU**: 2 × `2g.20gb` + 3 × `1g.10gb`
 - **40 GB GPU**: 2 × `2g.10gb` + 3 × `1g.5gb`
+
+After setup, the expected GPU resources are:
+
+| Node pool | `nvidia.com/gpu` | `nvidia.com/mig-1g.10gb` | `nvidia.com/mig-2g.20gb` |
+|-----------|:-:|:-:|:-:|
+| Full-GPU (e.g. `spoth100`) | 8 | — | — |
+| MIG (e.g. `spoth100mig`) | 7 | 3 | 2 |
 
 For the full step-by-step setup (enabling MIG, creating instances, configuring the device plugin, deploying services, AKS automatic MIG via `--gpu-instance-profile`, and the complete profile reference), see the **[MIG Setup Guide](../k8s/MIG.md)**.
 
