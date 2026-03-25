@@ -3,6 +3,7 @@ import librosa
 import numpy as np
 
 from typing import Dict
+from typing import List
 from typing import Tuple
 from typing import Any
 
@@ -21,16 +22,16 @@ def get_audio_feature(
     audio_input, sampling_rate = librosa.load(audio_path, sr=16000)
     assert sampling_rate == 16000
 
-    audio_features = []
+    audio_feature_list: List[torch.Tensor] = []
     window = 750 * 640
     for i in range(0, len(audio_input), window):
         audio_feature = feature_extractor(audio_input[i:i + window],
                                           sampling_rate=sampling_rate,
                                           return_tensors="pt",
                                           ).input_features
-        audio_features.append(audio_feature)
+        audio_feature_list.append(audio_feature)
 
-    audio_features = torch.cat(audio_features, dim=-1)
+    audio_features = torch.cat(audio_feature_list, dim=-1)
     return audio_features, len(audio_input) // 640
 
 
@@ -104,17 +105,15 @@ class VideoAudioTextLoaderVal():
         audio_input, audio_len = get_audio_feature(self.feature_extractor, audio_path)
         audio_prompts = audio_input[0]
 
-        motion_bucket_id_heads = np.array([25] * 4)
-        motion_bucket_id_exps = np.array([30] * 4)
-        motion_bucket_id_heads = torch.from_numpy(motion_bucket_id_heads)
-        motion_bucket_id_exps = torch.from_numpy(motion_bucket_id_exps)
+        motion_bucket_id_heads: torch.Tensor = torch.from_numpy(np.array([25] * 4))
+        motion_bucket_id_exps: torch.Tensor = torch.from_numpy(np.array([30] * 4))
         fps_tensor = torch.from_numpy(np.array(fps))
 
         to_pil = ToPILImage()
         pixel_value_ref = rearrange(ref_image.clone().unsqueeze(0), "b h w c -> b c h w")   # (b c h w)
 
-        pixel_value_ref_llava = [self.llava_transform(to_pil(image)) for image in pixel_value_ref]
-        pixel_value_ref_llava = torch.stack(pixel_value_ref_llava, dim=0)
+        pixel_value_ref_llava_list = [self.llava_transform(to_pil(image)) for image in pixel_value_ref]
+        pixel_value_ref_llava: torch.Tensor = torch.stack(pixel_value_ref_llava_list, dim=0)
         pixel_value_ref_clip = self.clip_image_processor(
             images=Image.fromarray((pixel_value_ref[0].permute(1, 2, 0)).data.cpu().numpy().astype(np.uint8)),
             return_tensors="pt"
