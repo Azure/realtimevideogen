@@ -11,11 +11,11 @@ import torch.amp as amp
 from torch import Tensor
 from torch.nn import Module
 
-from xfuser.core.distributed import get_sequence_parallel_rank  # type: ignore
-from xfuser.core.distributed import get_sequence_parallel_world_size  # type: ignore
-from xfuser.core.distributed import get_sp_group  # type: ignore
+from xfuser.core.distributed import get_sequence_parallel_rank
+from xfuser.core.distributed import get_sequence_parallel_world_size
+from xfuser.core.distributed import get_sp_group
 
-from diffsynth.models.wan_video_dit import sinusoidal_embedding_1d  # type: ignore
+from diffsynth.models.wan_video_dit import sinusoidal_embedding_1d
 
 
 def usp_fantasytalking_forward(
@@ -42,12 +42,12 @@ def usp_fantasytalking_forward(
     t:              [B].
     context:        A list of text embeddings each with shape [L, C].
     """
-    if self.model_type == "i2v":  # type: ignore
+    if self.model_type == "i2v":
         assert clip_fea is not None and y is not None
     # params
     device = x[0].device
-    if self.freqs.device != device:  # type: ignore
-        self.freqs = self.freqs.to(device)  # type: ignore
+    if self.freqs.device != device:
+        self.freqs = self.freqs.to(device)
 
     if y is not None:
         x = [torch.cat([u, v], dim=0) for u, v in zip(x, y)]
@@ -71,7 +71,7 @@ def usp_fantasytalking_forward(
     # time embeddings
     with amp.autocast(dtype=torch.float32, device_type="cuda"):
         e = self.time_embedding(  # type: ignore[operator]
-            sinusoidal_embedding_1d(self.freq_dim, timestep).float()  # type: ignore
+            sinusoidal_embedding_1d(self.freq_dim, timestep).float()
         )
         e0 = self.time_projection(e).unflatten(1, (6, self.dim))  # type: ignore[operator]
         assert e.dtype == torch.float32 and e0.dtype == torch.float32
@@ -130,7 +130,7 @@ def usp_fantasytalking_forward(
         e=e0,
         seq_lens=seq_lens,
         grid_sizes=grid_sizes,
-        freqs=self.freqs,  # type: ignore
+        freqs=self.freqs,
         context=context,
         context_lens=context_lens,
         audio_proj=audio_proj,
