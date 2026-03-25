@@ -1,3 +1,7 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/processor/audio_utils.py
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/processor/vibevoice_tokenizer_processor.py
+
 """
 Processor class for VibeVoice models.
 """

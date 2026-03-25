@@ -271,7 +271,7 @@ class JanusProGeneration(ModelGeneration):
             gen_timer.start("convert_pil")
             images = []
             for i in range(parallel_size):
-                pil_image = Image.fromarray(visual_img[i]).resize((768, 768), Image.LANCZOS)
+                pil_image = Image.fromarray(visual_img[i]).resize((768, 768), Image.Resampling.LANCZOS)
                 images.append(pil_image)
             gen_timer.end("convert_pil")
 

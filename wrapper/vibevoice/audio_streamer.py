@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# Copy from: https://github.com/microsoft/VibeVoice/blob/main/vibevoice/modular/streamer.py
+
 from __future__ import annotations
 
 import time

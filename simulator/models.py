@@ -165,6 +165,17 @@ class FluxModelAllocation(ModelAllocation):
     """Flux model allocation."""
     model: ClassVar[Model] = Model.FLUX
 
+    def _calc_time_per_scene(
+        self,
+        policy: Policy,
+        workflow: WorkflowConfig,
+        latency_data: LatencyData,
+    ) -> float:
+        return (
+            latency_data[self.gpu_type][self.model, self.devices]
+            * workflow.num_steps[Model.FLUX]
+        )
+
     @override
     def get_max_replicas(
         self,
@@ -183,8 +194,11 @@ class FluxModelAllocation(ModelAllocation):
         if self.get_num_gpus() == 0:
             self.time = 0.0
             return self.time
-        latency_flux = latency_data[self.gpu_type][self.model, self.devices]
-        time_per_scene = latency_flux * workflow.num_steps[Model.FLUX]
+        time_per_scene = self._calc_time_per_scene(
+            policy,
+            workflow,
+            latency_data,
+        )
         total_work = workflow.model_work.get(Model.FLUX, 1)
         if total_work > 1:
             num_scenes = math.ceil(work_pct * total_work)
@@ -206,8 +220,12 @@ class FluxModelAllocation(ModelAllocation):
         if self.get_num_gpus() == 0:
             self.time_first = 0.0
             return self.time_first
-        latency_flux = latency_data[self.gpu_type][self.model, self.devices]
-        self.time_first = latency_flux * workflow.num_steps[Model.FLUX]
+        time_per_scene = self._calc_time_per_scene(
+            policy,
+            workflow,
+            latency_data,
+        )
+        self.time_first = time_per_scene
         return self.time_first
 
     @override
@@ -235,6 +253,32 @@ class HFModelAllocation(ModelAllocation):
     """HunyuanFramePack model allocation."""
     model: ClassVar[Model] = Model.HF
 
+    def _calc_time_per_frame(
+        self,
+        policy: Policy,
+        workflow: WorkflowConfig,
+        latency_data: LatencyData,
+    ) -> float:
+        return (
+            latency_data[self.gpu_type][self.model, self.devices]
+            * workflow.get_resolution_scale(policy.use_upscaler)
+            * workflow.num_steps[Model.HF]
+        )
+
+    def _calc_time_per_subscene(
+        self,
+        policy: Policy,
+        workflow: WorkflowConfig,
+        latency_data: LatencyData,
+    ) -> float:
+        return (
+            workflow.per_subscene_frames[Model.HF]
+            / workflow.hf_frames[workflow.frames_per_step_idx]
+            * latency_data[self.gpu_type][self.model, self.devices]
+            * workflow.get_resolution_scale(policy.use_upscaler)  # latency_ratio
+            * workflow.num_steps[Model.HF]
+        )
+
     @override
     def calculate_time(
         self,
@@ -247,13 +291,11 @@ class HFModelAllocation(ModelAllocation):
             self.time = 0.0
             return self.time
 
-        latency_hf = latency_data[self.gpu_type][self.model, self.devices]
-        resolution_scale = workflow.get_resolution_scale(policy.use_upscaler)
-        latency_hf *= resolution_scale
-
-        frames_per_step_hf = workflow.hf_frames[workflow.frames_per_step_idx]
-        num_steps_hf = workflow.num_steps[Model.HF]
-        hf_time_per_subscene = workflow.per_subscene_frames[Model.HF] / frames_per_step_hf * latency_hf * num_steps_hf
+        hf_time_per_subscene = self._calc_time_per_subscene(
+            policy,
+            workflow,
+            latency_data,
+        )
         self.time = _calculate_total_time(
             math.ceil(work_pct * workflow.total_subscenes),
             self.replicas,
@@ -261,12 +303,15 @@ class HFModelAllocation(ModelAllocation):
 
         if not policy.is_disaggregated(Model.HF):
             # Include VAE time in the same GPU when disaggregation is disabled
-            vae_time_per_frame = latency_data[self.gpu_type][Model.HF_VAE, 1] / frames_per_step_hf
-            vae_time_per_frame *= resolution_scale
+            hf_vae_time_per_frame = (
+                latency_data[self.gpu_type][Model.HF_VAE, 1]  # VAE is single-device only in current policy
+                * workflow.get_resolution_scale(policy.use_upscaler)
+                / workflow.hf_frames[workflow.frames_per_step_idx]
+            )
             self.time += _calculate_total_time(
-                workflow.total_frames[Model.HF],
+                math.ceil(work_pct * workflow.total_frames[Model.HF]),
                 self.replicas,
-                vae_time_per_frame)
+                hf_vae_time_per_frame)
 
         return self.time
 
@@ -281,28 +326,37 @@ class HFModelAllocation(ModelAllocation):
             self.time_first = 0.0
             return self.time_first
 
-        latency_hf = latency_data[self.gpu_type][self.model, self.devices]
-        frames_per_step_hf = workflow.hf_frames[workflow.frames_per_step_idx]
-        resolution_scale = workflow.get_resolution_scale(policy.use_upscaler)
-        latency_hf *= resolution_scale
-        num_steps_hf = workflow.num_steps[Model.HF]
-
         if policy.is_disaggregated(Model.HF):
             # HF for the first chunk
             self.time_first = min(
-                workflow.hf_frames[0] / frames_per_step_hf * latency_hf * num_steps_hf,
-                workflow.per_subscene_frames[Model.HF] / frames_per_step_hf * latency_hf * num_steps_hf,
+                # Option 1: the first few frames until the first chunk is done
+                workflow.hf_frames[0]
+                / workflow.hf_frames[workflow.frames_per_step_idx]
+                * self._calc_time_per_frame(
+                    policy,
+                    workflow,
+                    latency_data
+                ),
+                # Option 2: the full subscene
+                self._calc_time_per_subscene(
+                    policy,
+                    workflow,
+                    latency_data
+                ),
             )
         else:
             # HF + VAE for the full subscene
-            hf_time_per_subscene = workflow.per_subscene_frames[Model.HF] / frames_per_step_hf * \
-                latency_hf * num_steps_hf
-
-            vae_time_per_frame = latency_data[self.gpu_type][Model.HF_VAE, 1] / frames_per_step_hf
-            vae_time_per_frame *= resolution_scale
-            vae_time_per_subscene = workflow.per_subscene_frames[Model.HF] * vae_time_per_frame
-
-            self.time_first = hf_time_per_subscene + vae_time_per_subscene
+            hf_time_per_subscene = self._calc_time_per_subscene(
+                policy,
+                workflow,
+                latency_data)
+            hf_vae_time_per_subscene = (
+                workflow.per_subscene_frames[Model.HF]
+                / workflow.hf_frames[workflow.frames_per_step_idx]
+                * latency_data[self.gpu_type][Model.HF_VAE, 1]  # VAE is single-device only in current policy
+                * workflow.get_resolution_scale(policy.use_upscaler)
+            )
+            self.time_first = hf_time_per_subscene + hf_vae_time_per_subscene
 
         return self.time_first
 
@@ -338,6 +392,18 @@ class HFVAEModelAllocation(ModelAllocation):
     """HunyuanFramePack VAE model allocation."""
     model: ClassVar[Model] = Model.HF_VAE
 
+    def _calc_time_per_frame(
+        self,
+        policy: Policy,
+        workflow: WorkflowConfig,
+        latency_data: LatencyData,
+    ) -> float:
+        return (
+            latency_data[self.gpu_type][Model.HF_VAE, self.devices]
+            * workflow.get_resolution_scale(policy.use_upscaler)
+            / workflow.hf_frames[workflow.frames_per_step_idx]
+        )
+
     @override
     def calculate_time(
         self,
@@ -354,9 +420,11 @@ class HFVAEModelAllocation(ModelAllocation):
             self.time = 0.0
             return self.time
 
-        frames_per_step_hf = workflow.hf_frames[workflow.frames_per_step_idx]
-        vae_time_per_frame = latency_data[self.gpu_type][Model.HF_VAE, self.devices] / frames_per_step_hf
-        vae_time_per_frame *= workflow.get_resolution_scale(policy.use_upscaler)
+        vae_time_per_frame = self._calc_time_per_frame(
+            policy,
+            workflow,
+            latency_data
+        )
         self.time = _calculate_total_time(
             math.ceil(workflow.total_frames[Model.HF] * work_pct),
             self.replicas,
@@ -378,10 +446,13 @@ class HFVAEModelAllocation(ModelAllocation):
             self.time_first = 0.0
             return self.time_first
 
-        frames_per_step_hf = workflow.hf_frames[workflow.frames_per_step_idx]
-        vae_time_per_frame = latency_data[self.gpu_type][Model.HF_VAE, self.devices] / frames_per_step_hf
-        vae_time_per_frame *= workflow.get_resolution_scale(policy.use_upscaler)
-        self.time_first = workflow.per_subscene_frames[Model.HF] * vae_time_per_frame
+        vae_time_per_frame = self._calc_time_per_frame(
+            policy,
+            workflow,
+            latency_data,
+        )
+        num_frames = workflow.per_subscene_frames[Model.HF]
+        self.time_first = num_frames * vae_time_per_frame
         return self.time_first
 
     @override
@@ -415,6 +486,20 @@ class FTModelAllocation(ModelAllocation):
     """FantasyTalking model allocation."""
     model: ClassVar[Model] = Model.FT
 
+    def _calc_time_per_subscene(
+        self,
+        policy: Policy,
+        workflow: WorkflowConfig,
+        latency_data: LatencyData,
+    ) -> float:
+        return (
+            workflow.per_subscene_frames[Model.FT]
+            / workflow.ft_frames[workflow.frames_per_step_idx]
+            * latency_data[self.gpu_type][Model.FT, self.devices]
+            * workflow.get_resolution_scale(policy.use_upscaler)
+            * workflow.num_steps[Model.FT]
+        )
+
     @override
     def calculate_time(
         self,
@@ -427,12 +512,11 @@ class FTModelAllocation(ModelAllocation):
             self.time = 0.0
             return self.time
 
-        latency_ft = latency_data[self.gpu_type][Model.FT, self.devices]
-        latency_ft *= workflow.get_resolution_scale(policy.use_upscaler)
-
-        frames_per_step_ft = workflow.ft_frames[workflow.frames_per_step_idx]
-        num_steps_ft = workflow.num_steps[Model.FT]
-        ft_time_per_subscene = workflow.per_subscene_frames[Model.FT] / frames_per_step_ft * latency_ft * num_steps_ft
+        ft_time_per_subscene = self._calc_time_per_subscene(
+            policy,
+            workflow,
+            latency_data,
+        )
         self.time = _calculate_total_time(
             math.ceil(work_pct * workflow.total_subscenes),
             self.replicas,
@@ -440,12 +524,17 @@ class FTModelAllocation(ModelAllocation):
 
         if not policy.is_disaggregated(Model.FT):
             # Include VAE time in the same GPU when disaggregation is disabled
-            vae_time_per_frame = latency_data[self.gpu_type][Model.FT_VAE, 1] / frames_per_step_ft
-            vae_time_per_frame *= workflow.get_resolution_scale(policy.use_upscaler)
+            # Note: VAE latency uses devices=1 as VAE processing is not parallelized
+            # across multiple devices in the same way as the main FT diffusion
+            ft_vae_time_per_frame = (
+                latency_data[self.gpu_type][Model.FT_VAE, 1]
+                * workflow.get_resolution_scale(policy.use_upscaler)
+                / workflow.ft_frames[workflow.frames_per_step_idx]
+            )
             self.time += _calculate_total_time(
-                workflow.total_frames[Model.FT],
+                math.ceil(work_pct * workflow.total_frames[Model.FT]),
                 self.replicas,
-                vae_time_per_frame)
+                ft_vae_time_per_frame)
 
         return self.time
 
@@ -460,34 +549,23 @@ class FTModelAllocation(ModelAllocation):
             self.time_first = 0.0
             return self.time_first
 
-        latency_ft = latency_data[self.gpu_type][Model.FT, self.devices]
-        latency_ft *= workflow.get_resolution_scale(policy.use_upscaler)
-        frames_per_step_ft = workflow.ft_frames[workflow.frames_per_step_idx]
-        num_steps_ft = workflow.num_steps[Model.FT]
-
-        # TODO make the values in the data proper
-        ft_time_per_subscene = workflow.per_subscene_frames[Model.FT] / frames_per_step_ft * latency_ft * num_steps_ft
+        ft_time_per_subscene = self._calc_time_per_subscene(
+            policy,
+            workflow,
+            latency_data,
+        )
         self.time_first = ft_time_per_subscene
 
-        # TODO better way to check if disaggregated?
-        """
-        if policy.is_disaggregated(Model.FT):
-            # FT for the first chunk
-            self.time_first = min(
-                workflow.ft_frames[0] / frames_per_step_ft * latency_ft * num_steps_ft,
-                workflow.per_subscene_frames[Model.FT] / frames_per_step_ft * latency_ft * num_steps_ft,
+        if not policy.is_disaggregated(Model.FT):
+            # Include VAE time_first when FT-VAE is not disaggregated
+            # Note: VAE latency uses devices=1 (see note in calculate_time)
+            ft_vae_time_per_subscene = (
+                workflow.per_subscene_frames[Model.FT]
+                / workflow.ft_frames[workflow.frames_per_step_idx]
+                * latency_data[self.gpu_type][Model.FT_VAE, 1]
+                * workflow.get_resolution_scale(policy.use_upscaler)
             )
-        else:
-            # FT + VAE for the full subscene
-            ft_time_per_subscene = workflow.per_subscene_frames[Model.FT] / frames_per_step_ft * \
-                latency_ft * num_steps_ft
-
-            vae_time_per_frame = latency_data[self.gpu_type][Model.FT_VAE, 1] / frames_per_step_ft
-            vae_time_per_frame *= workflow.get_resolution_scale(policy.use_upscaler)
-            vae_time_per_subscene = workflow.per_subscene_frames[Model.FT] * vae_time_per_frame
-
-            self.time_first = ft_time_per_subscene + vae_time_per_subscene
-        """
+            self.time_first += ft_vae_time_per_subscene
 
         return self.time_first
 
@@ -523,6 +601,18 @@ class FTVAEModelAllocation(ModelAllocation):
     """FantasyTalking VAE model allocation."""
     model: ClassVar[Model] = Model.FT_VAE
 
+    def _calc_time_per_frame(
+        self,
+        policy: Policy,
+        workflow: WorkflowConfig,
+        latency_data: LatencyData,
+    ) -> float:
+        return (
+            latency_data[self.gpu_type][Model.FT_VAE, self.devices]
+            * workflow.get_resolution_scale(policy.use_upscaler)
+            / workflow.ft_frames[workflow.frames_per_step_idx]
+        )
+
     @override
     def calculate_time(
         self,
@@ -539,9 +629,11 @@ class FTVAEModelAllocation(ModelAllocation):
             self.time = 0.0
             return self.time
 
-        frames_per_step_ft = workflow.ft_frames[workflow.frames_per_step_idx]
-        vae_time_per_frame = latency_data[self.gpu_type][Model.FT_VAE, self.devices] / frames_per_step_ft
-        vae_time_per_frame *= workflow.get_resolution_scale(policy.use_upscaler)
+        vae_time_per_frame = self._calc_time_per_frame(
+            policy,
+            workflow,
+            latency_data,
+        )
         self.time = _calculate_total_time(
             math.ceil(workflow.total_frames[Model.FT] * work_pct),
             self.replicas,
@@ -563,10 +655,13 @@ class FTVAEModelAllocation(ModelAllocation):
             self.time_first = 0.0
             return self.time_first
 
-        frames_per_step_ft = workflow.ft_frames[workflow.frames_per_step_idx]
-        vae_time_per_frame = latency_data[self.gpu_type][Model.FT_VAE, self.devices] / frames_per_step_ft
-        vae_time_per_frame *= workflow.get_resolution_scale(policy.use_upscaler)
-        self.time_first = workflow.per_subscene_frames[Model.FT] * vae_time_per_frame
+        vae_time_per_frame = self._calc_time_per_frame(
+            policy,
+            workflow,
+            latency_data,
+        )
+        num_frames = workflow.per_subscene_frames[Model.FT]
+        self.time_first = num_frames * vae_time_per_frame
         return self.time_first
 
     @override
@@ -629,8 +724,11 @@ class UpscalerModelAllocation(ModelAllocation):
         if self.get_num_gpus() == 0:
             self.time_first = 0.0
             return self.time_first
-        latency = latency_data[self.gpu_type][self.model, self.devices]
-        self.time_first = workflow.per_subscene_frames[Model.FT] * latency
+
+        self.time_first = (
+            workflow.per_subscene_frames[Model.FT]
+            * latency_data[self.gpu_type][self.model, self.devices]
+        )
         return self.time_first
 
     @override
@@ -676,8 +774,11 @@ class OthersModelAllocation(ModelAllocation):
         if self.get_num_gpus() == 0:
             self.time = 0.0
             return self.time
-        latency_others = latency_data[self.gpu_type][self.model, self.devices]
-        self.time = workflow.total_scenes * latency_others
+
+        self.time = (
+            workflow.total_scenes
+            * latency_data[self.gpu_type][self.model, self.devices]
+        )
         return self.time
 
     @override
@@ -690,8 +791,8 @@ class OthersModelAllocation(ModelAllocation):
         if self.get_num_gpus() == 0:
             self.time_first = 0.0
             return self.time_first
-        latency_others = latency_data[self.gpu_type][self.model, self.devices]
-        self.time_first = latency_others
+
+        self.time_first = latency_data[self.gpu_type][self.model, self.devices]
         return self.time_first
 
     @override
