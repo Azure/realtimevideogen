@@ -77,7 +77,9 @@ class FluxGeneration(USPGeneration):
             torch_dtype=self.param_dtype,
             # device_map="auto", # TODO check if needed
         )
-        assert isinstance(self.pipeline, FluxPipeline), "Pipeline type mismatch: expected FluxPipeline."
+        if not self.pipeline:
+            raise ValueError("Failed to load FLUX pipeline.")
+        assert isinstance(self.pipeline, FluxPipeline)
         # TODO save some memory for V100 32GB
         # https://huggingface.co/docs/diffusers/main/en/optimization/memory
         # https://huggingface.co/docs/diffusers/main/en/optimization/memory#reduce-memory-usage

@@ -91,7 +91,9 @@ class FluxUpscalerGeneration(USPGeneration):
             cache_args=cache_args,
             torch_dtype=self.param_dtype,
         )
-        assert isinstance(self.pipeline, FluxControlNetPipeline), "Pipeline type mismatch: expected FluxControlNetPipeline."
+        if not self.pipeline:
+            raise ValueError("Failed to load FluxControlNet pipeline.")
+        assert isinstance(self.pipeline, FluxControlNetPipeline)
         self.pipeline = self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
 
