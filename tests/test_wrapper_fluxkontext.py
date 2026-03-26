@@ -6,10 +6,12 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 from PIL import Image
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/fluxkontext")
@@ -30,9 +32,9 @@ mock_modules = {
     'xfuser.model_executor.models.transformers.transformer_flux': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from image_utils import img_to_base64
@@ -49,7 +51,7 @@ async def test_wrapper_fluxkontext() -> None:
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             img=img,
             width=128,

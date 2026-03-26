@@ -51,7 +51,7 @@ async def test_wrapper_fluxupscaler() -> None:
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             img=img,
             width=128,
