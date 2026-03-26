@@ -260,7 +260,7 @@ class StreamWiseApp(ABC):
 
         # Increase max request body size to 128 MB (default is 16 MB)
         config.wsgi_max_body_size = 128 * 1024 * 1024
-        config.limit_max_request_size = 128 * 1024 * 1024
+        config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
         self.app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
 
         await serve(self.app, config)
