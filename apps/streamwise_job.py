@@ -192,11 +192,11 @@ class StreamWiseJob:
     def _handle_value_error(self, ex: Exception) -> None:
         self.logger.error(f"Value error for {self.job_id}: {ex}")
 
-    def _handle_file_not_found(
+    def _handle_file_error(
         self,
-        fnfe: FileNotFoundError
+        ex: Exception
     ) -> None:
-        self.logger.error(f"File not found for {self.job_id}: {fnfe}")
+        self.logger.error(f"File not found for {self.job_id}: {ex}")
 
     def _handle_unknown_error(self, ex: Exception) -> None:
         self.logger.error(f"Error for {self.job_id} [{type(ex).__name__}]: {ex}")
@@ -215,7 +215,7 @@ class StreamWiseJob:
             NoActiveContainerError: self._handle_container_error,
             NoRunnableContainerError: self._handle_container_error,
             ValueError: self._handle_value_error,
-            FileNotFoundError: self._handle_file_not_found,
+            FileNotFoundError: self._handle_file_error,
         }
 
     @asynccontextmanager
