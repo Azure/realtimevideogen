@@ -77,16 +77,15 @@ async def test_wrapper_hunyuanframepackvae() -> None:
     with pytest.raises(ValueError, match="Missing 'latents' parameter"):
         await model.get_rest_args({})
 
-    with pytest.raises(EOFError):
-        await model.get_rest_args({"latents": ""})
-        # assert args is not None
-        # assert args["task"] == "hunyuanframepackvae"
+    args = await model.get_rest_args({"latents": ""})
+    assert args is not None
+    assert args["task"] == "hunyuanframepackvae"
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="isinstance"):
         # TODO fix mocks
         await model.warmup()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Latents cannot be None"):
         # TODO implement fixtures
         await model.generate(latents=None)
         # assert video_frames is not None
