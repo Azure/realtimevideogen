@@ -153,8 +153,6 @@ class HunyuanAvatarGeneration(USPGeneration):
             self.device = torch.device(f"cuda:{dist.get_rank()}")
             self.rank = dist.get_rank()
 
-        self.load_timer = LoadTimer()
-
         self.load_timer.start("hunyuan_video_sampler")
         self.hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(
             f"{self.models_root_path}/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
