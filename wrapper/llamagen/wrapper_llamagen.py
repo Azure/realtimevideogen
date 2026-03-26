@@ -150,6 +150,7 @@ class LlamaGenGeneration(ModelGeneration):
             cls_token_num=self.cls_token_num,
             model_type=self.gpt_type,
         )
+        assert self.gpt_model is not None
         self.gpt_model = self.gpt_model.to(dtype=self.param_dtype)
         self.gpt_model = self.gpt_model.to(device=self.device)
         if self.image_size not in [256, 512]:
@@ -199,7 +200,8 @@ class LlamaGenGeneration(ModelGeneration):
             return
 
         self.load_timer.start("model_compile")
-        self.gpt_model = torch.compile(
+        assert self.gpt_model is not None
+        self.gpt_model = torch.compile(  # type: ignore[assignment]
             self.gpt_model,
             mode="reduce-overhead",
             fullgraph=True
@@ -224,18 +226,19 @@ class LlamaGenGeneration(ModelGeneration):
         """
         Prepare text embeddings using T5 model.
         """
+        assert self.t5_model is not None
         caption_embs, emb_masks = self.t5_model.get_text_embeddings(prompts)
 
         if not no_left_padding:
             # Implement left-padding as in the original code
             new_emb_masks = torch.flip(emb_masks, dims=[-1])
-            new_caption_embs = []
+            new_caption_embs_list = []
             for idx, (caption_emb, emb_mask) in enumerate(zip(caption_embs, emb_masks)):
                 valid_num = int(emb_mask.sum().item())
                 logging.debug(f'Prompt {idx} token len: {valid_num}')
                 new_caption_emb = torch.cat([caption_emb[valid_num:], caption_emb[:valid_num]])
-                new_caption_embs.append(new_caption_emb)
-            new_caption_embs = torch.stack(new_caption_embs)
+                new_caption_embs_list.append(new_caption_emb)
+            new_caption_embs = torch.stack(new_caption_embs_list)
         else:
             new_caption_embs, new_emb_masks = caption_embs, emb_masks
 
@@ -318,7 +321,7 @@ class LlamaGenGeneration(ModelGeneration):
             # Prepare text embeddings
             gen_timer.start("text_embeddings")
             prompts = [prompt]  # LlamaGen expects a list
-            c_indices, c_emb_masks = self._prepare_text_embeddings(gen_timer, prompts, no_left_padding)
+            c_indices, c_emb_masks = self._prepare_text_embeddings(prompts, no_left_padding)
             gen_timer.end("text_embeddings")
 
             # Generate token indices
@@ -340,7 +343,9 @@ class LlamaGenGeneration(ModelGeneration):
 
             # Decode to image
             gen_timer.start("decoding")
-            samples = self.vq_model.decode_code(index_sample, qzshape)  # output in [-1, 1]
+            assert self.vq_model is not None
+            # output in [-1, 1]
+            samples = self.vq_model.decode_code(index_sample, qzshape)  # type: ignore [operator]
             sample = samples[0]
             gen_timer.end("decoding")
 

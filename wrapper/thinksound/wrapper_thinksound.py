@@ -121,7 +121,7 @@ class ThinkSoundGeneration(ModelGeneration):
         self.load_timer.start("diffusion_model")
         # https://github.com/FunAudioLLM/ThinkSound/blob/master/ThinkSound/configs/model_configs/thinksound.json
         duration = 9.0  # TODO fix harcoding
-        model_config = {}
+        model_config: Dict[str, Any] = {}
         model_config["sample_size"] = duration * model_config["sample_rate"]
         model_config["model"]["diffusion"]["config"]["sync_seq_len"] = 24 * int(duration)
         model_config["model"]["diffusion"]["config"]["clip_seq_len"] = 8 * int(duration)
@@ -145,7 +145,8 @@ class ThinkSoundGeneration(ModelGeneration):
         if not self.torch_compile:
             return
         self.load_timer.start("compile")
-        self.model = torch.compile(self.model)
+        assert self.diffusion_model is not None
+        self.diffusion_model = torch.compile(self.diffusion_model)  # type: ignore[assignment]
         self.load_timer.end("compile")
 
     def _assert_model_init(self) -> None:
@@ -252,11 +253,11 @@ class ThinkSoundGeneration(ModelGeneration):
             # Extract video features
             clip_video = data['clip_video']
             clip_features = self.feature_extractor.encode_video_with_clip(clip_video.unsqueeze(0))
-            output['metaclip_features'] = clip_features
+            output['metaclip_features'] = clip_features  # type: ignore[assignment]
 
             sync_video = data['sync_video']
             sync_features = self.feature_extractor.encode_video_with_sync(sync_video.unsqueeze(0))
-            output['sync_features'] = sync_features
+            output['sync_features'] = sync_features  # type: ignore[assignment]
 
             # Extract text features
             caption_list = [data['caption']]
@@ -266,7 +267,7 @@ class ThinkSoundGeneration(ModelGeneration):
 
             caption_cot_list = [data['caption_cot']]
             t5_features = self.feature_extractor.encode_t5_text(caption_cot_list)
-            output['t5_features'] = t5_features
+            output['t5_features'] = t5_features  # type: ignore[assignment]
 
             # Convert tensors to numpy and save
             sample_output = {
@@ -373,7 +374,7 @@ class ThinkSoundGeneration(ModelGeneration):
         dummy_video = np.random.randint(0, 255, (30, 224, 224, 3), dtype=np.uint8)  # 1 second at 30fps
 
         # Convert to video bytes (this would need a proper implementation)
-        dummy_video_bytes = dummy_video  # Placeholder
+        dummy_video_bytes = dummy_video.tobytes()  # Placeholder, not a valid video format
 
         await self.generate(
             video_binary=dummy_video_bytes,
@@ -513,7 +514,7 @@ class OptimizedFeaturesUtils(FeaturesUtils):
             self.t5_model = self._load_to_cuda(self.t5_model)  # type: ignore[has-type]
 
         if self.synchformer is not None:  # type: ignore[has-type]
-            self.synchformer = self._load_to_cuda(self.synchformer)
+            self.synchformer = self._load_to_cuda(self.synchformer)  # type: ignore[has-type]
 
     def _load_to_cuda(
         self,
