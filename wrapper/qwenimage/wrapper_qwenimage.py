@@ -75,7 +75,7 @@ class QwenImageGeneration(ModelGeneration):
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("pipeline")
 
     def init_model_parallelism(self) -> None:
