@@ -6,8 +6,10 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/hunyuanframepackvae")
@@ -15,7 +17,6 @@ sys.path.append("wrapper/hunyuanframepack")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -35,7 +36,6 @@ mock_modules = {
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
     'transformers': MagicMock(),
     'einops': MagicMock(),
-    'diffusers': MagicMock(),
     'diffusers_helper': MagicMock(),
     'diffusers_helper.hunyuan': MagicMock(),
     'diffusers_helper.utils': MagicMock(),
@@ -47,14 +47,10 @@ mock_modules = {
     'diffusers_helper.k_diffusion': MagicMock(),
     'diffusers_helper.k_diffusion.uni_pc_fm': MagicMock(),
     'diffusers_helper.k_diffusion.wrapper': MagicMock(),
-    'diffusers.models': MagicMock(),
-    'diffusers.models.attention': MagicMock(),
-    'diffusers.models.transformers': MagicMock(),
-    'diffusers.models.transformers.transformer_hunyuan_video': MagicMock(),
-    'diffusers.models.transformers.transformer_2d': MagicMock(),
     'flash_attn': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from hunyuanframepackvae.wrapper_hunyuanframepackvae import HunyuanFramepackVAEGeneration
