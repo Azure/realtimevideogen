@@ -6,10 +6,12 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 from PIL import Image
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/hidream")
@@ -26,10 +28,10 @@ mock_modules = {
     'xfuser.model_executor': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
     'transformers': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from hidream.wrapper_hidream import HiDreamGeneration
@@ -74,5 +76,13 @@ async def test_basic() -> None:
     assert image is not None
     assert isinstance(image, Image.Image)
     assert image.size == (1280, 800)
+
+    # 48x48 not supported for 2 GPUs (latent shape 9, odd).
+    model.world_size = 2
+    with pytest.raises(ValueError, match="48x48 not supported for 2 GPUs"):
+        await model.generate(
+            width=48,
+            height=48,
+            prompt="Test prompt")
 
     del model

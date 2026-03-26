@@ -26,8 +26,8 @@ def _make_pipeline_class(
     """Create a real class that inherits from MagicMock so it can be used with isinstance()."""
     cls = type(name, (MagicMock,), {})
     instance = cls()
-    cls.__bool__ = lambda self: True  # type: ignore[assignment]
-    type(instance).__bool__ = lambda self: True  # type: ignore[assignment]
+    cls.__bool__ = lambda self: True  # type: ignore[attr-defined]
+    type(instance).__bool__ = lambda self: True
     instance.to = MagicMock(return_value=instance)
     instance.vae_scale_factor = 8
     if ret_type == "pil":
@@ -86,7 +86,7 @@ class DiffusersMock(MagicMock):
             "diffusers.models.normalization": MagicMock(),
             "diffusers.models.transformers": MagicMock(),
             "diffusers.models.transformers.dual_transformer_2d": MagicMock(),
-            "diffusers.models.transformers.transformer_2d": MagicMock(),
+            'diffusers.models.transformers.transformer_2d': MagicMock(),
             "diffusers.models.transformers.transformer_flux2": MagicMock(),
             "diffusers.models.transformers.transformer_hunyuan_video": MagicMock(),
             "diffusers.models.downsampling": MagicMock(),
