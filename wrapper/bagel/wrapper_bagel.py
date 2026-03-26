@@ -279,6 +279,11 @@ class BagelGeneration(ModelGeneration):
         image = Image.fromarray((image).to(torch.uint8).cpu().numpy())
         return image
 
+    def _assert_model_init(self) -> None:
+        super()._assert_model_init()
+        if self.model is None:
+            raise ValueError("Model not initialized.")
+
     @inference_mode()
     async def warmup(self) -> None:
         logging.info(f"[{self.rank}] Warmup for Bagel generation")
@@ -307,6 +312,10 @@ class BagelGeneration(ModelGeneration):
     ) -> Image.Image:
         gen_timer = self._new_gen_timer(job_id)
 
+        self._assert_model_init()
+        assert self.model is not None
+        assert self.vae_transform is not None
+
         self.running = True  # Mark running to avoid concurrent calls
 
         try:
@@ -322,8 +331,6 @@ class BagelGeneration(ModelGeneration):
             image_shape = (height, width)
 
             # https://github.com/ByteDance-Seed/Bagel/blob/main/inferencer.py#L119
-            assert self.model is not None
-            assert self.vae_transform is not None
             num_hidden_layers = self.model.config.llm_config.num_hidden_layers
             # num_hidden_layers = 32  # Set this up properly
             gen_context = {
@@ -480,7 +487,10 @@ class BagelGeneration(ModelGeneration):
         })
         return ret
 
-    async def get_rest_args(self, data_json: Dict[str, str]) -> Dict[str, Any]:
+    async def get_rest_args(
+        self,
+        data_json: Dict[str, str]
+    ) -> Dict[str, Any]:
         if data_json is None:
             raise ValueError("Missing JSON body")
         imgs_base64 = data_json.get("imgs", None)

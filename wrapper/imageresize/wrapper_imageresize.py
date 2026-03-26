@@ -65,11 +65,13 @@ class ImageResize(ModelGeneration):
         img_base64 = data_json.get("img", None)
         img = None
         if img_base64 is not None:
+            assert isinstance(img_base64, str)
             img = base64_to_img(img_base64)
 
         video_base64 = data_json.get("video", None)
         video = None
         if video_base64 is not None:
+            assert isinstance(video_base64, str)
             video = base64_to_video_frames(video_base64)
 
         return {
