@@ -33,7 +33,6 @@ from functools import partial
 
 from model_timing import GenTimer
 from wrapper_model import ModelGeneration
-from wrapper_model import GenerationInterruptedError
 from wrapper_usp import USPGeneration
 
 from image_utils import base64_to_img
@@ -716,9 +715,7 @@ class CustomWanVideoPipeline(WanVideoPipeline):
             for progress_id, timestep in enumerate(self.scheduler.timesteps):
                 logging.debug(f"Running step {progress_id + 1}/{total_steps}.")
 
-                if parent.interrupted:
-                    parent.interrupted = False
-                    raise GenerationInterruptedError(f"Generation interrupted at step {progress_id + 1}")
+                parent.check_interrupted()
 
                 gen_timer.start(f"dit_{progress_id:03d}")
                 if progress_id >= total_steps_considering_audio:

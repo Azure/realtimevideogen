@@ -85,6 +85,11 @@ class ModelGeneration(ABC):
             return True
         return False
 
+    def check_interrupted(self) -> None:
+        """Raise GenerationInterruptedError if generation has been interrupted."""
+        if self.is_interrupted():
+            raise GenerationInterruptedError("Generation interrupted.")
+
     def init_logging(self) -> None:
         """Initialize logging with colored output."""
         setup_logging(

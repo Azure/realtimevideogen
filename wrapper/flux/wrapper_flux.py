@@ -18,7 +18,6 @@ import torch
 import torch.distributed as dist
 from torch import inference_mode
 
-from wrapper_model import GenerationInterruptedError
 from wrapper_usp import USPGeneration
 
 from flux_xfuser import parallelize_transformer
@@ -205,8 +204,7 @@ class FluxGeneration(USPGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.is_interrupted():
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
+                self.check_interrupted()
                 return callback_kwargs
 
             logging.info(

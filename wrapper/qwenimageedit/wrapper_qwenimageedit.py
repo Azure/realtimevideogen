@@ -15,7 +15,6 @@ from torch import inference_mode
 
 from image_utils import base64_to_img
 from wrapper_model import ModelGeneration
-from wrapper_model import GenerationInterruptedError
 
 from diffusers import QwenImageEditPipeline
 
@@ -174,8 +173,7 @@ class QwenImageEditGeneration(ModelGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.is_interrupted():
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
+                self.check_interrupted()
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")

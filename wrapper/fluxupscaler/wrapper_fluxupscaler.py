@@ -21,7 +21,6 @@ import torch.distributed as dist
 from torch import inference_mode
 
 from model_timing import GenTimer
-from wrapper_model import GenerationInterruptedError
 from wrapper_flux import FluxGeneration
 
 from flux_xfuser import parallelize_transformer
@@ -294,8 +293,7 @@ class FluxUpscalerGeneration(FluxGeneration):
             gen_timer.end(f"step_{img_id:03d}_{step:03d}")
             if step < sampling_steps - 1:
                 gen_timer.start(f"step_{img_id:03d}_{step + 1:03d}")
-            if self.is_interrupted():
-                raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}.")
+            self.check_interrupted()
             return callback_kwargs
 
         assert self.pipeline is not None, "Flux pipeline not initialized."

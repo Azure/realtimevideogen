@@ -18,7 +18,6 @@ import torch.distributed as dist
 from torch import inference_mode
 
 from wrapper_model import ModelGeneration
-from wrapper_model import GenerationInterruptedError
 
 from transformers import AutoModelForCausalLM
 # from hunyuan_image_3_pipeline import HunyuanImage3Text2ImagePipeline
@@ -214,8 +213,7 @@ class HunyuanImageGeneration(ModelGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.is_interrupted():
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
+                self.check_interrupted()
                 return callback_kwargs
 
             image = await asyncio.to_thread(
