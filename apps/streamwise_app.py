@@ -95,11 +95,10 @@ PORT = 18080
 K8S_CLUSTER = "incluster"
 
 
-def status_history_to_times(status_history: Dict[str, str]) -> Dict[str, datetime]:
+def status_history_to_times(status_history: Dict[float, str]) -> Dict[str, datetime]:
     """Convert status history timestamps to datetime objects."""
     times: Dict[str, datetime] = {}
-    for timestamp_str, status_str in status_history.items():
-        timestamp_float = float(timestamp_str)
+    for timestamp_float, status_str in status_history.items():
         if status_str == "COMPLETED" or status_str == "EXPIRED":
             times[status_str] = datetime.fromtimestamp(timestamp_float)
         elif status_str not in times:
@@ -261,6 +260,7 @@ class StreamWiseApp(ABC):
 
         # Increase max request body size to 128 MB (default is 16 MB)
         config.wsgi_max_body_size = 128 * 1024 * 1024
+        config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
         self.app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
 
         await serve(self.app, config)
@@ -634,12 +634,12 @@ class StreamWiseApp(ABC):
                 times=times,
                 files=files)
 
-        @route("/api/job/<job_id>/status/history", methods=["GET"])
-        async def get_job_status_history(job_id: str) -> Dict[str, str]:
+        @route("/api/job/<job_id>/status/history", methods=["GET"])  # type: ignore[type-var]
+        async def get_job_status_history(job_id: str) -> Dict[float, str]:
             """Get the status of a job asynchronously."""
             job_dir = f"{self.tmp_dir}/{job_id}"
             status_file = f"{job_dir}/status.txt"
-            ret: Dict[str, str] = {}
+            ret: Dict[float, str] = {}
             if not await aiofiles.os.path.exists(status_file):
                 return ret
 
@@ -659,8 +659,7 @@ class StreamWiseApp(ABC):
                         continue
                     status_val = int(status_str)
                     status = JobStatus(status_val)
-                    timestamp_float = float(timestamp_str)
-                    ret[str(timestamp_float)] = status.name
+                    ret[float(timestamp_str)] = status.name
             return ret
 
         @route("/api/job/<job_id>/requests", methods=["GET"])
