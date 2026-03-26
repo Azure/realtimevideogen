@@ -233,7 +233,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         audio_cfg_scale: float = 5.0,  # TODO not used
         job_id: Optional[str] = None,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> List[Image.Image]:
+    ) -> Union[List[Image.Image], np.ndarray, str, bytes, None]:
         """
         Generate a video from an image, a piece of audio, and a text prompt.
         Args:
@@ -318,7 +318,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         audio_path: str,
         video_frames: np.ndarray,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes, None]:
+    ) -> Union[List[Image.Image], np.ndarray, str, bytes, None]:
         gen_timer.start("output")
         try:
             if output_type == "pil":
