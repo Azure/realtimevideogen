@@ -18,7 +18,6 @@ mock_torch = TorchMock()
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'torch': mock_torch,
     'xfuser': MagicMock(),
     'xfuser.config': MagicMock(),

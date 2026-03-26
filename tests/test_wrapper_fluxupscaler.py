@@ -19,7 +19,6 @@ sys.path.append("wrapper/fluxupscaler")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -51,7 +50,7 @@ async def test_wrapper_fluxupscaler() -> None:
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             img=img,
             width=128,
@@ -72,7 +71,7 @@ async def test_wrapper_fluxupscaler() -> None:
         "img": img_base64,
     })
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing JSON body"):
         await model.get_rest_args(None)
 
     # Success case
@@ -84,14 +83,31 @@ async def test_wrapper_fluxupscaler() -> None:
         "img": img_base64
     })
 
-    with pytest.raises(ValueError):
-        await model.warmup()
+    await model.warmup()
 
-    with pytest.raises(ValueError):
+    image = await model.generate(
+        img=img,
+        width=256,
+        height=160,
+        prompt="Test prompt",
+    )
+    assert image is not None
+    assert isinstance(image, Image.Image)
+
+    # Bad cases: _assert_args only rejects when world_size > 1
+    model.world_size = 2
+    with pytest.raises(ValueError, match="48x48 not supported for 2 GPUs"):
         await model.generate(
             img=img,
-            width=256,
-            height=160,
+            width=48,
+            height=48,
+            prompt="Test prompt",
+        )
+    with pytest.raises(ValueError, match="208x116 not supported for 2 GPUs"):
+        await model.generate(
+            img=img,
+            width=208,
+            height=116,
             prompt="Test prompt",
         )
 

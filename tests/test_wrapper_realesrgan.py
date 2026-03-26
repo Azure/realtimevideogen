@@ -15,7 +15,6 @@ sys.path.append("realesrgan")
 
 with patch.dict(sys.modules, {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'RealESRGAN': MagicMock(),
