@@ -16,7 +16,6 @@ import torch.distributed as dist
 from torch import inference_mode
 
 from wrapper_model import ModelGeneration
-from wrapper_model import GenerationInterruptedError
 
 from diffusers import HiDreamImagePipeline
 
@@ -132,14 +131,24 @@ class HiDreamGeneration(ModelGeneration):
         super()._assert_model_init()
         assert self.pipeline is not None
 
+    def _get_vae_scale_factor(self) -> int:
+        """Return the VAE scale factor from the pipeline, raising if unavailable."""
+        if not self.pipeline:
+            raise ValueError("Pipeline not initialized.")
+        vae_scale_factor = getattr(self.pipeline, "vae_scale_factor", None)
+        if vae_scale_factor is None:
+            raise ValueError("Pipeline does not have vae_scale_factor.")
+        return vae_scale_factor
+
     def _assert_args(
         self,
         height: int,
         width: int,
     ) -> None:
         """Check if the image size is supported for the current parallelism setting."""
-        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[union-attr]
-        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[union-attr]
+        vae_scale_factor = self._get_vae_scale_factor()
+        height_latent = height // vae_scale_factor
+        width_latent = width // vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -200,9 +209,7 @@ class HiDreamGeneration(ModelGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
+                self.check_interrupted()
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")

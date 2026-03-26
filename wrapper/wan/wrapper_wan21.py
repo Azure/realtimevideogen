@@ -23,7 +23,6 @@ import torchvision.transforms.functional as TF
 
 from functools import partial
 
-from wrapper_model import GenerationInterruptedError
 from wrapper_wan import WanVideoGeneration
 
 from wan.modules.model import WanModel
@@ -312,9 +311,7 @@ class Wan21VideoGeneration(WanVideoGeneration):
                 for it, t in enumerate(timesteps):
                     logging.debug(f"[{self.rank}] Running step {it + 1}/{len(timesteps)}.")
 
-                    if self.interrupted:
-                        self.interrupted = False
-                        raise GenerationInterruptedError(f"Generation interrupted at step {it + 1}.")
+                    self.check_interrupted()
 
                     gen_timer.start(f"dit_{it:03d}")
 
