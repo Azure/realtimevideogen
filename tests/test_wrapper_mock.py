@@ -70,7 +70,6 @@ async def test_http_server() -> None:
         'nvidia_smi': MagicMock(),
         'torch': mock_torch,
         'torch.distributed': MagicMock(),
-        'colorlog': MagicMock(),
         'imageio': MagicMock(),
         'xfuser': MagicMock(),
         'xfuser.config': MagicMock(),

@@ -6,8 +6,12 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
+
+from PIL import Image
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/flux2")
@@ -28,9 +32,9 @@ mock_modules = {
     'xfuser.model_executor.models.transformers.transformer_flux2': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from flux2.wrapper_flux2 import Flux2Generation
@@ -81,47 +85,47 @@ async def test_wrapper_flux2() -> None:
     # Verify the full pipeline was NOT moved to a single device (would cause OOM)
     mock_pipeline_instance.to.assert_not_called()
 
-    # Mock pipeline return object
-    mock_output = MagicMock()
-    mock_output.images = ["image"]
-    model.pipeline = MagicMock(return_value=mock_output)
-    model.pipeline.vae_scale_factor = 8
-
     health = model.get_health()
     assert health is not None
     timestamps = model.get_timestamps()
     assert timestamps is not None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing JSON body"):
         await model.get_rest_args(None)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing 'prompt' parameter"):
         await model.get_rest_args({})
-    await model.get_rest_args({
+    args = await model.get_rest_args({
         "job_id": "unittest",
         "prompt": "Test prompt",
         "width": 80,
         "height": 60,
     })
+    assert "args" in args
 
     await model.warmup()
 
     image = await model.generate(
         width=256,
-        height=256,
+        height=320,
         prompt="Test prompt")
     assert image is not None
+    assert isinstance(image, Image.Image)
+    assert image.size == (256, 320)
 
     image = await model.generate(
-        width=256,
-        height=160,
+        width=480,
+        height=320,
         prompt="Test prompt")
     assert image is not None
+    assert isinstance(image, Image.Image)
+    assert image.size == (480, 320)
 
-    # 15x17 not supported for 2 GPUs.
+    # 48x48 not supported for 2 GPUs (latent shape 9, odd).
     model.world_size = 2
-    image = await model.generate(
-        width=15,
-        height=17,
-        prompt="Test prompt")
+    with pytest.raises(ValueError, match="48x48 not supported for 2 GPUs"):
+        await model.generate(
+            width=48,
+            height=48,
+            prompt="Test prompt")
 
     del model
