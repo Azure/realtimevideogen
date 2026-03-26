@@ -22,7 +22,7 @@ from torch import inference_mode
 
 from model_timing import GenTimer
 from wrapper_model import GenerationInterruptedError
-from wrapper_usp import USPGeneration
+from wrapper_flux import FluxGeneration
 
 from flux_xfuser import parallelize_transformer
 
@@ -42,7 +42,7 @@ from xfuser.core.distributed import initialize_runtime_state
 from xfuser.core.distributed import get_pipeline_parallel_world_size
 
 
-class FluxUpscalerGeneration(USPGeneration):
+class FluxUpscalerGeneration(FluxGeneration):
     """Class for image and video upscaling using the Flux model with ControlNet."""
 
     def __init__(
@@ -137,23 +137,6 @@ class FluxUpscalerGeneration(USPGeneration):
         super()._assert_model_init()
         assert self.pipeline is not None
         assert self.controlnet is not None
-
-    def _assert_args(
-        self,
-        height: int,
-        width: int,
-    ) -> None:
-        # Check if the image size is supported for the current parallelism setting
-        # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
-        assert self.pipeline is not None
-        vae_scale_factor: Optional[int] = getattr(self.pipeline, "vae_scale_factor", None)
-        if vae_scale_factor is None:
-            raise ValueError("Pipeline does not have vae_scale_factor.")
-        height_latent = height // vae_scale_factor
-        width_latent = width // vae_scale_factor
-        img_latent_shape = (height_latent // 2) * (width_latent // 2)
-        if img_latent_shape % self.world_size != 0:
-            raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
 
     @inference_mode()
     async def warmup(self) -> None:

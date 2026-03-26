@@ -13,8 +13,9 @@ from PIL import Image
 mock_torch = TorchMock()
 mock_diffusers = DiffusersMock()
 
-sys.path.append("fluxupscaler")
-sys.path.append("flux")
+sys.path.append("wrapper")
+sys.path.append("wrapper/flux")
+sys.path.append("wrapper/fluxupscaler")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
