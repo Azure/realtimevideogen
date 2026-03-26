@@ -8,8 +8,6 @@ from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
 from tests.diffusers_mock import DiffusersMock
 
-from PIL import Image
-
 mock_torch = TorchMock()
 mock_diffusers = DiffusersMock()
 
