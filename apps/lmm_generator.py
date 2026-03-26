@@ -26,6 +26,9 @@ from aiohttp import ClientTimeout
 from json import JSONDecodeError
 
 from openai import AsyncOpenAI
+from openai import AsyncStream
+from openai.types.chat import ChatCompletionChunk
+from openai.types.chat import ChatCompletionMessageParam
 
 from enum import Enum
 
@@ -35,6 +38,7 @@ from typing import Tuple
 from typing import Dict
 from typing import Union
 from typing import AsyncGenerator
+from typing import cast
 
 from lmm_service_manager import LMMServiceManager
 
@@ -941,7 +945,7 @@ class LMMGenerator:
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
-                messages=messages,
+                messages=cast(List[ChatCompletionMessageParam], messages),
                 max_tokens=max_tokens,
                 extra_body=extra_body,
                 # timeout=10.0,
@@ -986,14 +990,17 @@ class LMMGenerator:
 
         # vLLM OpenAI-compatible client
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
-            response = await llm_client.chat.completions.create(
-                model=llm_model,
-                messages=messages,
-                max_tokens=max_tokens,
-                extra_body=extra_body,
-                # timeout=10.0,
-                extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
-                stream=True,
+            response = cast(
+                AsyncStream[ChatCompletionChunk],
+                await llm_client.chat.completions.create(
+                    model=llm_model,
+                    messages=cast(List[ChatCompletionMessageParam], messages),
+                    max_tokens=max_tokens,
+                    extra_body=extra_body,
+                    # timeout=10.0,
+                    extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
+                    stream=True,
+                )
             )
             async for chunk in response:
                 choice = chunk.choices[0]

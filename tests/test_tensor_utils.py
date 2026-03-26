@@ -52,7 +52,7 @@ def test_tensor_file() -> None:
     os.remove("test_tensor.pt")
 
     with pytest.raises(TypeError):
-        get_tensor_file_info(None)
+        get_tensor_file_info(None)  # type: ignore[arg-type]
     with pytest.raises(FileNotFoundError):
         get_tensor_file_info("nonexisting.pt")
 
