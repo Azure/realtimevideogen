@@ -951,8 +951,8 @@ class LMMGenerator:
             assert response is not None
 
             # Process LLM response
-            assert response.usage is not None  # type: ignore[union-attr]
-            usage = response.usage  # type: ignore[union-attr]
+            assert response.usage is not None
+            usage = response.usage
             self.logger.debug("LLM tokens:")
             self.logger.debug(f"  Prompt: {usage.prompt_tokens}")
             self.logger.debug(f"  Completion: {usage.completion_tokens}")
@@ -960,7 +960,7 @@ class LMMGenerator:
             if usage.completion_tokens == max_tokens:
                 self.logger.error(f"Completion hit max tokens limit ({usage.completion_tokens}/{max_tokens}).")
 
-            choices = response.choices  # type: ignore[union-attr]
+            choices = response.choices
             if not choices:
                 raise ValueError("No LLM response.")
             response_choice = choices[0]

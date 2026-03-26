@@ -101,13 +101,13 @@ class HiDreamGeneration(ModelGeneration):
             torch_dtype=self.param_dtype,
         )
         assert self.pipeline is not None
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
+        self.pipeline = self.pipeline.to(self.device)
         assert self.pipeline is not None
         self.load_timer.end("pipeline")
 
         logging.info(
             f"Loaded HiDreamImagePipeline: {self.HF_MODEL_NAME} device:{self.device} dtype:{self.param_dtype} "
-            f"device_map:{self.pipeline.hf_device_map}.")  # type: ignore[union-attr]
+            f"device_map:{self.pipeline.hf_device_map}.")
 
     def init_model_parallelism(self) -> None:
         """HiDream does not support parallelism yet."""
@@ -122,12 +122,12 @@ class HiDreamGeneration(ModelGeneration):
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
         assert self.pipeline is not None
-        assert self.pipeline.transformer is not None  # type: ignore[attr-defined]
-        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
-            self.pipeline.transformer,  # type: ignore[attr-defined]
+        assert self.pipeline.transformer is not None
+        self.pipeline.transformer = torch.compile(
+            self.pipeline.transformer,
             mode="max-autotune-no-cudagraphs"
         )
-        assert self.pipeline.transformer is not None  # type: ignore[attr-defined]
+        assert self.pipeline.transformer is not None
         self.load_timer.end("dit_compile")
 
     def _assert_model_init(self) -> None:
@@ -141,8 +141,8 @@ class HiDreamGeneration(ModelGeneration):
     ) -> None:
         """Check if the image size is supported for the current parallelism setting."""
         assert self.pipeline is not None
-        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
-        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        height_latent = height // self.pipeline.vae_scale_factor
+        width_latent = width // self.pipeline.vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -209,7 +209,7 @@ class HiDreamGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(  # type: ignore[operator]
+            output = self.pipeline(
                 height=height,
                 width=width,
                 prompt=prompt,
@@ -236,7 +236,7 @@ class HiDreamGeneration(ModelGeneration):
             "world_size": self.world_size,
             "torch_compile": self.torch_compile,
             "dtype": str(self.param_dtype),
-            "device_map": self.pipeline.hf_device_map if self.pipeline else None,  # type: ignore[attr-defined]
+            "device_map": self.pipeline.hf_device_map if self.pipeline else None,
         })
         return ret
 

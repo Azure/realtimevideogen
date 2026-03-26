@@ -128,7 +128,7 @@ class QwenImageEditGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         height: int,

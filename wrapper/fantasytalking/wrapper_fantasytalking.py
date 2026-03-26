@@ -679,7 +679,7 @@ class CustomWanVideoPipeline(WanVideoPipeline):
                 for frame in input_video
             ]
             input_video = self.preprocess_images(input_video)
-            input_video = torch.stack(input_video, dim=2)  # type: ignore[arg-type, assignment]
+            input_video = torch.stack(input_video, dim=2)
             latents = self.encode_video(input_video, **tiler_kwargs).to(
                 dtype=noise.dtype,
                 device=noise.device)

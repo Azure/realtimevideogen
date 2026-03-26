@@ -1741,11 +1741,11 @@ async def run_httpserver(
     config.accesslog = "-"
 
     # Increase max request body size to 128 MB (default is 16 MB)
-    config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
+    config.limit_max_request_size = 128 * 1024 * 1024
     app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
 
     # Configure for better concurrency (allow more concurrent connections)
-    config.worker_connections = 64  # type: ignore[attr-defined]
+    config.worker_connections = 64
     config.keep_alive_timeout = 5 * 60  # Keep connections alive for 1 minute
     config.graceful_timeout = 30  # Graceful shutdown timeout
 

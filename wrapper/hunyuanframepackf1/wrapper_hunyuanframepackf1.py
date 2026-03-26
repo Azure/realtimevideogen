@@ -42,7 +42,7 @@ class HunyuanFramepackF1Generation(HunyuanFramePackBase):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
