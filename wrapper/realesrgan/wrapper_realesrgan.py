@@ -209,7 +209,7 @@ class RealESRGANGeneration(ModelGeneration):
         pad_size: int = 15,
         video_fps: int = 30,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes]:
+    ) -> Optional[Union[List[Image.Image], str, bytes]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
@@ -285,7 +285,7 @@ class RealESRGANGeneration(ModelGeneration):
         video_frames: List[Image.Image],
         video_fps: int = 30,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes]:
+    ) -> Optional[Union[List[Image.Image], str, bytes]]:
         gen_timer.start("output")
         try:
             if output_type == "pil":
@@ -309,7 +309,7 @@ class RealESRGANGeneration(ModelGeneration):
                 return video_binary
 
             logging.error(f"Unknown output type: {output_type}")
-            raise ValueError(f"Unknown output type: {output_type}")
+            return None
         finally:
             gen_timer.end("output")
 
