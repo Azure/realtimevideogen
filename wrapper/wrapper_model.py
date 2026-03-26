@@ -78,6 +78,18 @@ class ModelGeneration(ABC):
         else:
             logging.warning(f"[{self.rank}] Not running, cannot interrupt.")
 
+    def is_interrupted(self) -> bool:
+        """Check and clear the interrupted flag. Returns True if generation was interrupted."""
+        if self.interrupted:
+            self.interrupted = False
+            return True
+        return False
+
+    def check_interrupted(self) -> None:
+        """Raise GenerationInterruptedError if generation has been interrupted."""
+        if self.is_interrupted():
+            raise GenerationInterruptedError("Generation interrupted.")
+
     def init_logging(self) -> None:
         """Initialize logging with colored output."""
         setup_logging(

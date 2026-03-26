@@ -18,7 +18,6 @@ import torch.distributed as dist
 from torch import inference_mode
 
 from image_utils import base64_to_img
-from wrapper_model import GenerationInterruptedError
 from wrapper_flux import FluxGeneration
 
 from flux_xfuser import parallelize_transformer
@@ -137,8 +136,9 @@ class FluxKontextGeneration(FluxGeneration):
 
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
-        height_latent = height // self.pipeline.vae_scale_factor
-        width_latent = width // self.pipeline.vae_scale_factor
+        vae_scale_factor = self._get_vae_scale_factor()
+        height_latent = height // vae_scale_factor
+        width_latent = width // vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -165,9 +165,7 @@ class FluxKontextGeneration(FluxGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}.")
+                self.check_interrupted()
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
