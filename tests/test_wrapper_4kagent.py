@@ -153,7 +153,7 @@ async def test_wrapper_4kagent_generate_no_image() -> None:
 
 @pytest.mark.asyncio
 async def test_wrapper_4kagent_generate_success() -> None:
-    """generate() calls the subprocess and returns the PIL result."""
+    """generate() calls _run_4kagent and returns the PIL result."""
     model = Upscale4KAgent()
     with patch("os.path.isdir", return_value=True), \
          patch.object(model, "_write_config"):
@@ -162,7 +162,7 @@ async def test_wrapper_4kagent_generate_success() -> None:
     expected_image = Image.new("RGB", (1024, 1024), color=(200, 200, 200))
     input_image = Image.new("RGB", (64, 48))
 
-    with patch.object(model, "_run_4kagent_subprocess", new=AsyncMock()), \
+    with patch.object(model, "_run_4kagent"), \
          patch.object(model, "_load_result", return_value=expected_image):
         result = await model.generate(
             image=input_image,
@@ -177,19 +177,19 @@ async def test_wrapper_4kagent_generate_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_4kagent_generate_subprocess_error() -> None:
-    """generate() propagates subprocess failure as RuntimeError."""
+async def test_wrapper_4kagent_generate_error() -> None:
+    """generate() propagates failure from _run_4kagent as RuntimeError."""
     model = Upscale4KAgent()
     with patch("os.path.isdir", return_value=True), \
          patch.object(model, "_write_config"):
         model.init()
 
-    async def fail_subprocess(**kwargs: object) -> None:
-        raise RuntimeError("4KAgent subprocess failed (exit 1): error")
+    def fail_run(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("4KAgent failed: error")
 
     input_image = Image.new("RGB", (64, 48))
-    with patch.object(model, "_run_4kagent_subprocess", side_effect=fail_subprocess):
-        with pytest.raises(RuntimeError, match="subprocess failed"):
+    with patch.object(model, "_run_4kagent", side_effect=fail_run):
+        with pytest.raises(RuntimeError, match="4KAgent failed"):
             await model.generate(image=input_image)
 
     assert not model.running
@@ -208,8 +208,6 @@ async def test_wrapper_4kagent_health() -> None:
     assert "model_name" in health
     assert "status" in health
     assert "fourk_agent_dir" in health
-    assert "conda_env" in health
-    assert health["conda_env"] == Upscale4KAgent.CONDA_ENV
     del model
 
 

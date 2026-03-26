@@ -6,6 +6,7 @@ https://github.com/taco-group/4KAgent
 import asyncio
 import logging
 import os
+import sys
 import tempfile
 
 from pathlib import Path
@@ -30,9 +31,8 @@ class Upscale4KAgent(ModelGeneration):
     Wrapper for 4KAgent image super-resolution.
 
     4KAgent is an agentic framework that upscales any image to 4K resolution.
-    It runs as a subprocess in a dedicated conda environment (``4kagent``) so
-    that its Python 3.10 / older-torch dependency stack does not conflict with
-    the ``streamwise`` environment.
+    The 4KAgent code is imported directly from the cloned repository at
+    FOURK_AGENT_DIR, which is added to sys.path during load_model().
 
     Required environment variables (at least one LLM key is needed):
         LLAMA_API_KEY   – Meta Llama API key (used by llama_vision profiles)
@@ -42,7 +42,6 @@ class Upscale4KAgent(ModelGeneration):
     """
 
     FOURK_AGENT_DIR: str = "/4kagent/4KAgent"
-    CONDA_ENV: str = "4kagent"
     DEFAULT_PROFILE: str = "ExpSR_s4_P"
 
     def __init__(self, model_name: str = "4kagent") -> None:
@@ -75,6 +74,10 @@ class Upscale4KAgent(ModelGeneration):
                 "Ensure the Docker image has cloned the repository."
             )
         self.fourk_agent_dir = self.FOURK_AGENT_DIR
+        # Add the 4KAgent repo to sys.path so its packages can be imported
+        # directly. This must happen before the first call to _run_4kagent().
+        if self.fourk_agent_dir not in sys.path:
+            sys.path.insert(0, self.fourk_agent_dir)
         self._write_config()
 
         # Warn if no LLM API key is configured.  Most llama_vision-based profiles
@@ -130,7 +133,7 @@ class Upscale4KAgent(ModelGeneration):
             logging.warning("4KAgent does not support model parallelism.")
 
     def model_compile(self) -> None:
-        # torch.compile is not applicable for a subprocess-based wrapper.
+        # torch.compile is not applicable for direct-import execution.
         pass
 
     def _assert_model_init(self) -> None:
@@ -177,19 +180,18 @@ class Upscale4KAgent(ModelGeneration):
         try:
             with tempfile.TemporaryDirectory(prefix="4kagent_in_") as input_dir:
                 with tempfile.TemporaryDirectory(prefix="4kagent_out_") as output_dir:
-                    # Persist the input image for the subprocess.
                     gen_timer.start("save_input")
-                    input_path = os.path.join(input_dir, "input.png")
-                    await asyncio.to_thread(image.save, input_path)
+                    input_path = Path(input_dir) / "input.png"
+                    await asyncio.to_thread(image.save, str(input_path))
                     gen_timer.end("save_input")
 
-                    # Run 4KAgent in the dedicated conda environment.
                     gen_timer.start("inference")
-                    await self._run_4kagent_subprocess(
-                        input_dir=input_dir,
-                        output_dir=output_dir,
-                        profile_name=profile_name,
-                        tool_run_gpu_id=tool_run_gpu_id,
+                    await asyncio.to_thread(
+                        self._run_4kagent,
+                        input_path,
+                        Path(output_dir),
+                        profile_name,
+                        tool_run_gpu_id,
                     )
                     gen_timer.end("inference")
 
@@ -203,55 +205,44 @@ class Upscale4KAgent(ModelGeneration):
             self.running = False
             gen_timer.end("total")
 
-    async def _run_4kagent_subprocess(
+    def _run_4kagent(
         self,
-        input_dir: str,
-        output_dir: str,
+        input_path: Path,
+        output_dir: Path,
         profile_name: str,
         tool_run_gpu_id: int,
     ) -> None:
-        """Invoke ``infer_4kagent.py`` in the *4kagent* conda environment."""
+        """Import and run The4KAgent pipeline directly.
+
+        Called via asyncio.to_thread; 4KAgent handles one image at a time so
+        concurrent requests are serialised by the caller's semaphore.
+        The lazy import (after sys.path is set in load_model) is intentional:
+        Python's import system caches modules in sys.modules so subsequent
+        calls incur only a dict lookup.
+        """
         assert self.fourk_agent_dir is not None
-        cmd = [
-            "/opt/conda/bin/conda",
-            "run", "--no-capture-output",
-            "-n", self.CONDA_ENV,
-            "python",
-            os.path.join(self.fourk_agent_dir, "infer_4kagent.py"),
-            "--input_dir", input_dir,
-            "--output_dir", output_dir,
-            "--profile_name", profile_name,
-            "--tool_run_gpu_id", str(tool_run_gpu_id),
-        ]
+        from pipeline.the4kagent_pipeline import The4KAgent  # noqa: PLC0415
         logging.info(
             "[%s] Running 4KAgent: profile=%s, tool_gpu=%s.",
             self.rank, profile_name, tool_run_gpu_id,
         )
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=self.fourk_agent_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        agent = The4KAgent(
+            input_path=input_path,
+            output_dir=output_dir,
+            llm_config_path=Path(self.fourk_agent_dir) / "config.yml",
+            with_retrieval=True,
+            with_reflection=True,
+            silent=False,
+            tool_run_gpu_id=tool_run_gpu_id,
+            profile_name=profile_name,
         )
-        stdout, stderr = await process.communicate()
-        if stdout:
-            logging.info("[%s] 4KAgent stdout: %s", self.rank, stdout.decode(errors="replace"))
-        if stderr:
-            logging.info("[%s] 4KAgent stderr: %s", self.rank, stderr.decode(errors="replace"))
-
-        if process.returncode != 0:
-            raise RuntimeError(
-                f"4KAgent subprocess failed (exit {process.returncode}): "
-                f"{stderr.decode(errors='replace')}"
-            )
+        agent.run()
 
     def _load_result(self, output_dir: str) -> Image.Image:
         """
         Locate and load the result image produced by 4KAgent.
 
         4KAgent writes to ``<output_dir>/<image_stem>/<step>/result.png``.
-        For an input named ``input.png`` the stem is ``input``, so the glob
-        ``*/*/result.png`` finds the final result.
         """
         result_candidates = sorted(Path(output_dir).glob("*/*/result.png"))
         if not result_candidates:
@@ -270,7 +261,6 @@ class Upscale4KAgent(ModelGeneration):
             "rank": self.rank,
             "world_size": self.world_size,
             "fourk_agent_dir": self.fourk_agent_dir,
-            "conda_env": self.CONDA_ENV,
         })
         return ret
 

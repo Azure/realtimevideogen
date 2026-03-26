@@ -1,6 +1,4 @@
-# 4KAgent is run in a separate conda environment ('4kagent').
-# This requirements.txt lists only packages needed by the wrapper
-# itself (running in the 'streamwise' conda env).
+# Wrapper dependencies for 4KAgent (running in the streamwise conda env)
 PyYAML>=6.0
 # After this is HTTP server requirements
 colorlog
