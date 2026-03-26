@@ -42,7 +42,7 @@ class ImageResize(ModelGeneration):
         try:
             # Video
             if video is not None:
-                return [
+                return [  # type: ignore[return-value]
                     frame.resize((width, height), Image.Resampling.LANCZOS)
                     for frame in video
                 ]

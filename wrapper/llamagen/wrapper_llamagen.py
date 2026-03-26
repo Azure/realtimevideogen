@@ -199,7 +199,7 @@ class LlamaGenGeneration(ModelGeneration):
             return
 
         self.load_timer.start("model_compile")
-        self.gpt_model = torch.compile(
+        self.gpt_model = torch.compile(  # type: ignore[assignment]
             self.gpt_model,
             mode="reduce-overhead",
             fullgraph=True
@@ -235,14 +235,14 @@ class LlamaGenGeneration(ModelGeneration):
                 logging.debug(f'Prompt {idx} token len: {valid_num}')
                 new_caption_emb = torch.cat([caption_emb[valid_num:], caption_emb[:valid_num]])
                 new_caption_embs.append(new_caption_emb)
-            new_caption_embs = torch.stack(new_caption_embs)
+            new_caption_embs = torch.stack(new_caption_embs)  # type: ignore[assignment]
         else:
             new_caption_embs, new_emb_masks = caption_embs, emb_masks
 
         c_indices = new_caption_embs * new_emb_masks[:, :, None]
         c_emb_masks = new_emb_masks
 
-        return c_indices, c_emb_masks
+        return c_indices, c_emb_masks  # type: ignore[return-value]
 
     def _sample_to_image(self, sample: torch.Tensor) -> Image.Image:
         # "sample" is a tensor with shape [C, H, W] [3, H, W] and values in [-1, 1]
@@ -340,7 +340,7 @@ class LlamaGenGeneration(ModelGeneration):
 
             # Decode to image
             gen_timer.start("decoding")
-            samples = self.vq_model.decode_code(  # type: ignore[union-attr]
+            samples = self.vq_model.decode_code(  # type: ignore[union-attr, operator]
                 index_sample, qzshape)  # output in [-1, 1]
             sample = samples[0]
             gen_timer.end("decoding")

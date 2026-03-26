@@ -62,7 +62,7 @@ class DiaGeneration(ModelGeneration):
         self.load_timer.start("dia")
         self.dia = DiaForConditionalGeneration.from_pretrained(
             "nari-labs/Dia-1.6B-0626")  # nosec B615
-        self.dia = self.dia.to(self.device)
+        self.dia = self.dia.to(self.device)  # type: ignore[arg-type]
         self.load_timer.end("dia")
 
         try:
@@ -89,7 +89,7 @@ class DiaGeneration(ModelGeneration):
         if not self.torch_compile:
             return
         self.load_timer.start("compile")
-        self.dia = torch.compile(
+        self.dia = torch.compile(  # type: ignore[assignment]
             self.dia,
             fullgraph=True,
             mode="max-autotune")
@@ -150,7 +150,7 @@ class DiaGeneration(ModelGeneration):
             text = text.strip()
 
             gen_timer.start("encode")
-            inputs = self.processor(
+            inputs = self.processor(  # type: ignore[operator]
                 text=text,
                 padding=True,
                 return_tensors="pt"
@@ -171,7 +171,7 @@ class DiaGeneration(ModelGeneration):
             gen_timer.end("dia")
 
             gen_timer.start("decode")
-            outputs = self.processor.batch_decode(outputs)
+            outputs = self.processor.batch_decode(outputs)  # type: ignore[attr-defined]
             gen_timer.end("decode")
 
             logging.info(f"Generated {len(outputs)} output(s) for '{job_id}'.")
@@ -198,7 +198,7 @@ class DiaGeneration(ModelGeneration):
                 audio_path = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
             else:
                 audio_path = f"/tmp/{job_id}.wav"
-            self.processor.save_audio(
+            self.processor.save_audio(  # type: ignore[attr-defined]
                 outputs,
                 audio_path)
             return audio_path

@@ -941,7 +941,7 @@ class LMMGenerator:
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 max_tokens=max_tokens,
                 extra_body=extra_body,
                 # timeout=10.0,
@@ -951,8 +951,8 @@ class LMMGenerator:
             assert response is not None
 
             # Process LLM response
-            assert response.usage is not None
-            usage = response.usage
+            assert response.usage is not None  # type: ignore[union-attr]
+            usage = response.usage  # type: ignore[union-attr]
             self.logger.debug("LLM tokens:")
             self.logger.debug(f"  Prompt: {usage.prompt_tokens}")
             self.logger.debug(f"  Completion: {usage.completion_tokens}")
@@ -960,7 +960,7 @@ class LMMGenerator:
             if usage.completion_tokens == max_tokens:
                 self.logger.error(f"Completion hit max tokens limit ({usage.completion_tokens}/{max_tokens}).")
 
-            choices = response.choices
+            choices = response.choices  # type: ignore[union-attr]
             if not choices:
                 raise ValueError("No LLM response.")
             response_choice = choices[0]
@@ -988,17 +988,17 @@ class LMMGenerator:
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 max_tokens=max_tokens,
                 extra_body=extra_body,
                 # timeout=10.0,
                 extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
                 stream=True,
             )
-            async for chunk in response:
+            async for chunk in response:  # type: ignore[union-attr]
                 choice = chunk.choices[0]
                 delta = choice.delta.content
-                yield delta
+                yield delta  # type: ignore[misc]
 
     async def gen_audio_transcript(
         self,

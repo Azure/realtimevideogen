@@ -236,7 +236,7 @@ class SlideTranscriptGenerator(ModelGeneration):
 
         response_stream = cast("AsyncStream[ChatCompletionChunk]", await self.llm_client.chat.completions.create(
             model=self.llm_model,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
             extra_body=self.extra_body,
