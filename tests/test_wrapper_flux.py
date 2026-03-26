@@ -8,6 +8,8 @@ from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
 from tests.diffusers_mock import DiffusersMock
 
+from PIL import Image
+
 mock_torch = TorchMock()
 mock_diffusers = DiffusersMock()
 
@@ -17,7 +19,6 @@ sys.path.append("wrapper/flux")
 mock_modules = {
     'torch': mock_torch,
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'xfuser': MagicMock(),
@@ -50,12 +51,6 @@ async def test_wrapper_flux() -> None:
     model.init()
     assert model.status == "ok"
 
-    # Mock pipeline return object
-    mock_output = MagicMock()
-    mock_output.images = ["image"]
-    model.pipeline = MagicMock(return_value=mock_output)
-    model.pipeline.vae_scale_factor = 8
-
     health = model.get_health()
     assert health is not None
     timestamps = model.get_timestamps()
@@ -80,14 +75,15 @@ async def test_wrapper_flux() -> None:
         height=1024,
         prompt="Test prompt")
     assert image is not None
+    assert isinstance(image, Image.Image)
+    assert image.size == (1024, 1024)
 
-    # 15x17 not supported for 2 GPUs.
+    # 48x48 not supported for 2 GPUs (latent shape 9, odd).
     model.world_size = 2
-    # TODO fix
-    # with pytest.raises(ValueError, msg="15x17 not supported for 2 GPUs."):
-    image = await model.generate(
-        width=15,
-        height=17,
-        prompt="Test prompt")
+    with pytest.raises(ValueError, match="48x48 not supported for 2 GPUs"):
+        await model.generate(
+            width=48,
+            height=48,
+            prompt="Test prompt")
 
     del model

@@ -7,6 +7,8 @@ from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
 
+from PIL import Image
+
 mock_torch = TorchMock()
 
 sys.path.append("wrapper")
@@ -14,7 +16,6 @@ sys.path.append("wrapper/hidream")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -47,12 +48,6 @@ async def test_basic() -> None:
     model.init()
     assert model.status == "ok"
 
-    # Mock pipeline return object
-    mock_output = MagicMock()
-    mock_output.images = ["image"]
-    model.pipeline = MagicMock(return_value=mock_output)
-    model.pipeline.vae_scale_factor = 8
-
     health = model.get_health()
     assert health is not None
     timestamps = model.get_timestamps()
@@ -73,9 +68,11 @@ async def test_basic() -> None:
     await model.warmup()
 
     image = await model.generate(
-        width=1024,
-        height=1024,
+        width=1280,
+        height=800,
         prompt="Test prompt")
     assert image is not None
+    assert isinstance(image, Image.Image)
+    assert image.size == (1280, 800)
 
     del model

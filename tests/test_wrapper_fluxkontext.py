@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import logging
 import pytest
 
 from unittest.mock import patch
@@ -19,7 +20,6 @@ sys.path.append("wrapper/flux")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -61,6 +61,12 @@ async def test_wrapper_fluxkontext() -> None:
     model.init()
     assert model.status == "ok"
 
+    # Mock pipeline return object
+    mock_output = MagicMock()
+    mock_output.images = ["image"]
+    model.pipeline = MagicMock(return_value=mock_output)
+    model.pipeline.vae_scale_factor = 8
+
     health = model.get_health()
     assert health is not None
     timestamps = model.get_timestamps()
@@ -70,7 +76,7 @@ async def test_wrapper_fluxkontext() -> None:
         await model.get_rest_args(None)
     with pytest.raises(ValueError):
         await model.get_rest_args({})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing 'prompt' parameter"):
         # Missing prompt
         await model.get_rest_args({
             "img": img_base64,
@@ -85,15 +91,23 @@ async def test_wrapper_fluxkontext() -> None:
         "img": img_base64
     })
 
-    with pytest.raises(ValueError):
-        await model.warmup()
+    await model.warmup()
 
-    with pytest.raises(ValueError):
-        await model.generate(
-            img=img,
-            width=256,
-            height=160,
-            prompt="Test prompt",
-        )
+    image = await model.generate(
+        img=img,
+        width=256,
+        height=160,
+        prompt="Test prompt",
+    )
+    assert image is not None
+
+
+    image = await model.generate(
+        img=img,
+        width=257,
+        height=160,
+        prompt="Test prompt",
+    )
+    assert image is not None
 
     del model
