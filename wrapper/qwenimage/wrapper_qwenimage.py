@@ -41,7 +41,7 @@ class QwenImageGeneration(ModelGeneration):
         self.param_dtype = param_dtype
 
         # Model components
-        self.pipeline: QwenImagePipeline = None
+        self.pipeline: Optional[QwenImagePipeline] = None
 
     def __del__(self) -> None:
         """Cleanup resources on deletion."""
@@ -76,7 +76,7 @@ class QwenImageGeneration(ModelGeneration):
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
         self.load_timer.end("pipeline")
 
     def init_model_parallelism(self) -> None:
@@ -91,8 +91,9 @@ class QwenImageGeneration(ModelGeneration):
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
-        self.pipeline.transformer = torch.compile(
-            self.pipeline.transformer,
+        assert self.pipeline is not None
+        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
+            self.pipeline.transformer,  # type: ignore[attr-defined]
             mode="max-autotune-no-cudagraphs"
         )
         self.load_timer.end("dit_compile")
@@ -108,8 +109,9 @@ class QwenImageGeneration(ModelGeneration):
         width: int,
     ) -> None:
         """Check if the image size is supported for the current parallelism setting."""
-        height_latent = height // self.pipeline.vae_scale_factor
-        width_latent = width // self.pipeline.vae_scale_factor
+        assert self.pipeline is not None
+        height_latent = height // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
+        width_latent = width // self.pipeline.vae_scale_factor  # type: ignore[attr-defined]
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
@@ -128,7 +130,7 @@ class QwenImageGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         height: int,
         width: int,
@@ -143,6 +145,7 @@ class QwenImageGeneration(ModelGeneration):
 
         self._assert_model_init()
         self._assert_args(height, width)
+        assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls
 
@@ -161,14 +164,14 @@ class QwenImageGeneration(ModelGeneration):
                 gen_timer.end(f"step_{step:03d}")
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:
+                if self.interrupted:  # type: ignore[has-type]
                     self.interrupted = False
                     raise GenerationInterruptedError(
                         f"Generation interrupted at step {step + 1} ({timestep}).")
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(
+            output = self.pipeline(  # type: ignore[operator]
                 height=height,
                 width=width,
                 prompt=prompt,
