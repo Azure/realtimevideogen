@@ -129,6 +129,14 @@ class FluxGeneration(USPGeneration):
         if self.pipeline is None:
             raise ValueError("FLUX pipeline not initialized.")
 
+    def _get_vae_scale_factor(self) -> int:
+        if not self.pipeline:
+            raise ValueError("Pipeline not initialized.")
+        vae_scale_factor = getattr(self.pipeline, "vae_scale_factor", None)
+        if vae_scale_factor is None:
+            raise ValueError("Pipeline does not have vae_scale_factor.")
+        return vae_scale_factor
+
     def _assert_args(
         self,
         height: int,
@@ -136,11 +144,7 @@ class FluxGeneration(USPGeneration):
     ) -> None:
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
-        if not self.pipeline:
-            raise ValueError("FLUX pipeline not initialized.")
-        vae_scale_factor: Optional[int] = getattr(self.pipeline, "vae_scale_factor", None)
-        if vae_scale_factor is None:
-            raise ValueError("Pipeline does not have vae_scale_factor.")
+        vae_scale_factor = self._get_vae_scale_factor()
         height_latent = height // vae_scale_factor
         width_latent = width // vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
