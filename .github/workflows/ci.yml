@@ -290,6 +290,20 @@ jobs:
         done
         echo "| coverage.xml | $(du -h coverage.xml 2>/dev/null | cut -f1 || echo 'N/A') |" >> "$GITHUB_STEP_SUMMARY"
 
+    - name: Generate test failure summary
+      if: always()
+      run: |
+        python .github/scripts/parse_test_results.py
+        cat test-failures-summary.md >> "$GITHUB_STEP_SUMMARY" || true
+
+    - name: Add test failures PR comment
+      if: always() && github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v3
+      with:
+        header: test-failures
+        recreate: true
+        path: test-failures-summary.md
+
     - name: Publish test results
       if: always()
       uses: EnricoMi/publish-unit-test-result-action@v2
