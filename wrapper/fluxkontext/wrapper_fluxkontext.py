@@ -134,6 +134,8 @@ class FluxKontextGeneration(FluxGeneration):
         """
         gen_timer = self._new_gen_timer(job_id)
 
+        self._assert_model_init()
+
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
         vae_scale_factor = self._get_vae_scale_factor()
