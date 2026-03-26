@@ -34,7 +34,7 @@ class ImageResize(ModelGeneration):
         height: int = 1024,
         width: int = 1024,
         job_id: Optional[str] = None,
-    ) -> Image.Image:
+    ) -> Union[Image.Image, List[Image.Image]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True

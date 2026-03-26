@@ -97,7 +97,10 @@ class DiaGeneration(ModelGeneration):
             mode="max-autotune")
         self.load_timer.end("compile")
 
-    def get_rest_args(self, data_json: Dict[str, str]) -> Dict[str, Any]:
+    def get_rest_args(
+        self,
+        data_json: Dict[str, Any]
+    ) -> Dict[str, Any]:
         if data_json is None:
             raise ValueError("Missing JSON body")
 
