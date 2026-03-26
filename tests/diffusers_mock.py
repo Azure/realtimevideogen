@@ -11,7 +11,7 @@ def _make_pipeline_class(name: str) -> type:
     """Create a real class that inherits from MagicMock so it can be used with isinstance()."""
     cls = type(name, (MagicMock,), {})
     instance = cls()
-    cls.from_pretrained = MagicMock(return_value=instance)
+    cls.from_pretrained = MagicMock(return_value=instance)  # type: ignore[attr-defined]
     return cls
 
 
