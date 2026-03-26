@@ -142,8 +142,7 @@ class HunyuanFramepackF1Generation(HunyuanFramePackBase):
             for it in range(total_latent_sections):
                 logging.debug(f"Running step {it + 1}.")
 
-                if self.interrupted:
-                    self.interrupted = False
+                if self.is_interrupted():
                     raise GenerationInterruptedError(
                         f"Generation interrupted at step {it + 1} of {total_latent_sections}.")
 

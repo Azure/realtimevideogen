@@ -150,8 +150,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
             for it, latent_padding in enumerate(latent_paddings):
                 logging.debug(f"Running step {it + 1}.")
 
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
+                if self.is_interrupted():
                     raise GenerationInterruptedError(
                         f"Generation interrupted at step {it + 1} of {total_latent_sections}.")
 

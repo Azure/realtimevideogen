@@ -214,8 +214,7 @@ class HunyuanImageGeneration(ModelGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
+                if self.is_interrupted():
                     raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
                 return callback_kwargs
 

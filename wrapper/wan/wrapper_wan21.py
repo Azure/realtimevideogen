@@ -312,8 +312,7 @@ class Wan21VideoGeneration(WanVideoGeneration):
                 for it, t in enumerate(timesteps):
                     logging.debug(f"[{self.rank}] Running step {it + 1}/{len(timesteps)}.")
 
-                    if self.interrupted:
-                        self.interrupted = False
+                    if self.is_interrupted():
                         raise GenerationInterruptedError(f"Generation interrupted at step {it + 1}.")
 
                     gen_timer.start(f"dit_{it:03d}")
