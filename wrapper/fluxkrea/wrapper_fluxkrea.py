@@ -124,15 +124,8 @@ class FluxKreaGeneration(FluxGeneration):
         self._assert_model_init()
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
-        assert self.pipeline is not None, "FluxKrea pipeline not initialized."
-        vae_scale_factor: Optional[int] = getattr(self.pipeline, "vae_scale_factor", None)
-        if vae_scale_factor is None:
-            raise ValueError("Pipeline does not have vae_scale_factor.")
-        height_latent = height // vae_scale_factor
-        width_latent = width // vae_scale_factor
-        img_latent_shape = (height_latent // 2) * (width_latent // 2)
-        if img_latent_shape % self.world_size != 0:
-            raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
+        self._assert_args(height, width)
+        assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls
 
