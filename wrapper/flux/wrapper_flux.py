@@ -79,13 +79,14 @@ class FluxGeneration(USPGeneration):
         )
         if not self.pipeline:
             raise ValueError("Failed to load FLUX pipeline.")
+        assert isinstance(self.pipeline, FluxPipeline)
         # TODO save some memory for V100 32GB
         # https://huggingface.co/docs/diffusers/main/en/optimization/memory
         # https://huggingface.co/docs/diffusers/main/en/optimization/memory#reduce-memory-usage
         # self.pipeline.enable_sequential_cpu_offload()
         # self.pipeline.enable_model_cpu_offload()
         # https://huggingface.co/docs/diffusers/en/training/distributed_inference#model-sharding
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
         self.load_timer.end("pipeline")
 
         logging.info(
@@ -117,8 +118,8 @@ class FluxGeneration(USPGeneration):
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
-        self.pipeline.transformer = torch.compile(
-            self.pipeline.transformer,
+        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
+            self.pipeline.transformer,  # type: ignore[attr-defined]
             mode="max-autotune-no-cudagraphs"
         )
         self.load_timer.end("dit_compile")
@@ -128,6 +129,14 @@ class FluxGeneration(USPGeneration):
         if self.pipeline is None:
             raise ValueError("FLUX pipeline not initialized.")
 
+    def _get_vae_scale_factor(self) -> int:
+        if not self.pipeline:
+            raise ValueError("Pipeline not initialized.")
+        vae_scale_factor = getattr(self.pipeline, "vae_scale_factor", None)
+        if vae_scale_factor is None:
+            raise ValueError("Pipeline does not have vae_scale_factor.")
+        return vae_scale_factor
+
     def _assert_args(
         self,
         height: int,
@@ -135,10 +144,9 @@ class FluxGeneration(USPGeneration):
     ) -> None:
         # Check if the image size is supported for the current parallelism setting
         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
-        if not self.pipeline:
-            raise ValueError("FLUX pipeline not initialized.")
-        height_latent = height // self.pipeline.vae_scale_factor
-        width_latent = width // self.pipeline.vae_scale_factor
+        vae_scale_factor = self._get_vae_scale_factor()
+        height_latent = height // vae_scale_factor
+        width_latent = width // vae_scale_factor
         img_latent_shape = (height_latent // 2) * (width_latent // 2)
         if img_latent_shape % self.world_size != 0:
             raise ValueError(f"{width}x{height} not supported for {self.world_size} GPUs.")
@@ -206,15 +214,16 @@ class FluxGeneration(USPGeneration):
                 f"[{self.rank}] Generating image with {width}x{height} and '{prompt[:self.MAX_LOG_TEXT_LEN]}'...")
             gen_timer.start(f"step_{0:03d}")
             output: Any = await asyncio.to_thread(
-                self.pipeline,
-                width=width,
-                height=height,
-                prompt=prompt,
-                negative_prompt=neg_prompt,
-                num_inference_steps=sampling_steps,
-                output_type="pil",
-                generator=seed_g,
-                callback_on_step_end=callback_gen_timer,
+                lambda: self.pipeline(  # type: ignore[operator, misc]
+                    width=width,
+                    height=height,
+                    prompt=prompt,
+                    negative_prompt=neg_prompt,
+                    num_inference_steps=sampling_steps,
+                    output_type="pil",
+                    generator=seed_g,
+                    callback_on_step_end=callback_gen_timer,
+                )
             )
 
             if not output or len(output.images) != 1:

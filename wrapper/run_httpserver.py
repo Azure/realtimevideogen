@@ -832,6 +832,14 @@ async def llamagen_e2e() -> QuartReturn:
     return await gen_img(model)
 
 
+@route("/cogview", methods=["POST"])
+@exclusive_route("cogview")
+async def cogview_e2e() -> QuartReturn:
+    """CogView4 image generation endpoint."""
+    model = get_model("cogview")
+    return await gen_img(model)
+
+
 @route("/bagel", methods=["POST"])
 @exclusive_route("bagel")
 async def bagel_e2e() -> QuartReturn:
@@ -1400,6 +1408,7 @@ def arg_parsing() -> Tuple[argparse.Namespace, Optional[EngineConfig]]:
     parser.add_argument("--fluxkrea", action="store_true", help="Flux Krea model")
     parser.add_argument("--flux2", action="store_true", help="FLUX.2-dev model")
     parser.add_argument("--flux2klein", action="store_true", help="FLUX.2-klein-9B model")
+    parser.add_argument("--cogview", action="store_true", help="CogView4 model")
     parser.add_argument("--hidream", action="store_true", help="HiDream model")
     parser.add_argument("--qwenimage", action="store_true", help="Qwen Image model")
     parser.add_argument("--qwenimageedit", action="store_true", help="Qwen Image Edit model")
@@ -1555,6 +1564,12 @@ async def init_model(
         await load_model_wrapper_file(rank, model_name)
         from wrapper_flux2klein import Flux2KleinGeneration
         models[model_name] = Flux2KleinGeneration(engine_config=engine_config)
+
+    if args.cogview:
+        model_name = "cogview"
+        await load_model_wrapper_file(rank, model_name)
+        from wrapper_cogview import CogViewGeneration
+        models[model_name] = CogViewGeneration(engine_config=engine_config)
 
     if args.hidream:
         model_name = "hidream"

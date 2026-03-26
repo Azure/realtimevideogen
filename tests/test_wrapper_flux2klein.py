@@ -6,8 +6,10 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/flux2klein")
@@ -29,9 +31,9 @@ mock_modules = {
     'xfuser.model_executor.models.transformers.transformer_flux2': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from flux2klein.wrapper_flux2klein import Flux2KleinGeneration

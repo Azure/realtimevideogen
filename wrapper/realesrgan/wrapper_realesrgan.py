@@ -52,9 +52,8 @@ class RealESRGANGeneration(ModelGeneration):
             self.GPU = torch.cuda.get_device_name(0)
 
     def __del__(self) -> None:
-        if self.models is not None:
+        if self.models:
             del self.models
-            self.models = None  # type: ignore[assignment]
         super().__del__()
 
     def init_parallelism(self) -> None:
@@ -154,9 +153,9 @@ class RealESRGANGeneration(ModelGeneration):
         Each rank will process only its assigned images (not None).
         """
         if self.world_size == 1 or len(images) < 1:
-            return images
+            return [img for img in images]
         # Chunk one image per rank
-        ret = []
+        ret: List[Optional[Image.Image]] = []
         for it, image in enumerate(images):
             if it % self.world_size == self.rank:
                 ret.append(image)
@@ -174,7 +173,7 @@ class RealESRGANGeneration(ModelGeneration):
         This is used to collect the results after processing.
         """
         if self.world_size == 1:
-            return chunked_images
+            return [img for img in chunked_images if img is not None]
 
         gathered_lists = None
         if self.rank == 0:
@@ -184,8 +183,9 @@ class RealESRGANGeneration(ModelGeneration):
         if self.rank != 0:
             return []
 
+        assert gathered_lists is not None
         ret = []
-        for position_images in zip(*gathered_lists):  # type: ignore[misc]
+        for position_images in zip(*gathered_lists):
             for img in position_images:
                 if img is not None:
                     ret.append(img)
@@ -209,7 +209,7 @@ class RealESRGANGeneration(ModelGeneration):
         pad_size: int = 15,
         video_fps: int = 30,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> List[Image.Image]:
+    ) -> Optional[Union[List[Image.Image], str, bytes]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self._assert_model_init()
@@ -223,7 +223,7 @@ class RealESRGANGeneration(ModelGeneration):
                     video_len = get_video_size(video)
                     logging.info(
                         f"[{self.rank}] Upscaling video with {len(video)} frames and {bytes_to_human(video_len)}.")
-                ret: list[Any] = []
+                ret: List[Optional[Image.Image]] = []
                 video_frames = video
                 chunked_video_frames = self._chunk_list_image(video_frames)
                 for it, frame in enumerate(chunked_video_frames):
@@ -242,15 +242,15 @@ class RealESRGANGeneration(ModelGeneration):
                             pad_size=pad_size)
                         ret.append(resized_frame)
                         gen_timer.end(f"frame_{it:03d}")
-                ret = self._gather_chunks(ret)
+                gathered_frames = self._gather_chunks(ret)
                 if self.rank == 0:
-                    logging.info(f"[{self.rank}] Generated {len(video)}->{len(ret)} upscaled video frames.")
+                    logging.info(f"[{self.rank}] Generated {len(video)}->{len(gathered_frames)} upscaled video frames.")
                 else:
-                    return None  # type: ignore[return-value]  # Skip non-rank 0 processes
-                return await self._output_video(  # type: ignore[return-value]
+                    return []  # Skip non-rank 0 processes
+                return await self._output_video(
                     job_id,
                     gen_timer,
-                    ret,
+                    gathered_frames,
                     video_fps,
                     output_type)
 
@@ -258,7 +258,7 @@ class RealESRGANGeneration(ModelGeneration):
             if image is not None:
                 if self.rank != 0:
                     logging.debug(f"[{self.rank}] Skipping image upscaling, not rank 0.")
-                    return [None]
+                    return []
                 out_image = await asyncio.to_thread(
                     self.generate_image,
                     image=image,
@@ -285,7 +285,7 @@ class RealESRGANGeneration(ModelGeneration):
         video_frames: List[Image.Image],
         video_fps: int = 30,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes]:
+    ) -> Optional[Union[List[Image.Image], str, bytes]]:
         gen_timer.start("output")
         try:
             if output_type == "pil":
@@ -309,7 +309,7 @@ class RealESRGANGeneration(ModelGeneration):
                 return video_binary
 
             logging.error(f"Unknown output type: {output_type}")
-            return None  # type: ignore[return-value]
+            return None
         finally:
             gen_timer.end("output")
 
