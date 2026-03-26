@@ -246,8 +246,7 @@ class SlideTranscriptGenerator(ModelGeneration):
         it = 0
         buffer_text = ""
         async for chunk in response_stream:
-            if self.interrupted:  # type: ignore[has-type]
-                self.interrupted = False
+            if self.is_interrupted():
                 logging.info("Generation interrupted.")
                 return
 

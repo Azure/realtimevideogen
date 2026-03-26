@@ -13,7 +13,6 @@ from torch import inference_mode
 
 from typing import Optional
 
-from wrapper_model import GenerationInterruptedError
 from wrapper_hunyuanframepack_base import HunyuanFramePackBase
 
 from PIL import Image
@@ -150,10 +149,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
             for it, latent_padding in enumerate(latent_paddings):
                 logging.debug(f"Running step {it + 1}.")
 
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
-                    raise GenerationInterruptedError(
-                        f"Generation interrupted at step {it + 1} of {total_latent_sections}.")
+                self.check_interrupted()
 
                 gen_timer.start(f"dit_{it:03d}")
 
