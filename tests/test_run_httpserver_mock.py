@@ -42,7 +42,6 @@ mock_serve = AsyncMock()
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'torch': mock_torch,
     'hypercorn': MagicMock(),
     'hypercorn.config': MagicMock(),

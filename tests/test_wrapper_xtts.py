@@ -13,7 +13,6 @@ sys.path.append("wrapper/xtts")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'numpy': MagicMock(),
     'TTS': MagicMock(),
     'TTS.tts': MagicMock(),

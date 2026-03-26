@@ -134,14 +134,8 @@ class FluxKontextGeneration(FluxGeneration):
         """
         gen_timer = self._new_gen_timer(job_id)
 
-        # Check if the image size is supported for the current parallelism setting
-        # https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py
-        vae_scale_factor = self._get_vae_scale_factor()
-        height_latent = height // vae_scale_factor
-        width_latent = width // vae_scale_factor
-        img_latent_shape = (height_latent // 2) * (width_latent // 2)
-        if img_latent_shape % self.world_size != 0:
-            raise ValueError(f"{height}x{width} not supported for {self.world_size} GPUs.")
+        self._assert_model_init()
+        self._assert_args(height, width)
 
         gen_timer.start("image_preprocess")
         img = img.resize((width, height), Image.Resampling.LANCZOS)

@@ -79,7 +79,7 @@ class QwenImageEditGeneration(ModelGeneration):
             pretrained_model_name_or_path=self.HF_MODEL_NAME,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("pipeline")
 
     def model_compile(self) -> None:
@@ -177,7 +177,7 @@ class QwenImageEditGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(
+            output = self.pipeline(  # type: ignore[operator]
                 image=img,
                 height=height,
                 width=width,

@@ -6,14 +6,16 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
-sys.path.append("flux")
+sys.path.append("wrapper")
+sys.path.append("wrapper/januspro")
 
-with patch.dict(sys.modules, {
+mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -26,11 +28,13 @@ with patch.dict(sys.modules, {
     'xfuser.model_executor': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
     'transformers': MagicMock(),
     'janus': MagicMock(),
     'janus.models': MagicMock(),
-}):
+}
+mock_modules.update(mock_diffusers.get_sub_modules())
+
+with patch.dict(sys.modules, mock_modules):
     from januspro.wrapper_januspro import JanusProGeneration
 
 
@@ -62,18 +66,21 @@ async def test_wrapper_januspro() -> None:
         await model.get_rest_args(None)
     with pytest.raises(ValueError):
         await model.get_rest_args({})
-    await model.get_rest_args({
+    args = await model.get_rest_args({
         "job_id": "unittest",
         "prompt": "Test prompt",
         "width": 80,
         "height": 60,
         "seed": 7,
     })
+    assert args is not None
+    assert "args" in args
+    assert args["args"]["prompt"] == "Test prompt"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="could not broadcast input array from shape"):
         await model.warmup()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="could not broadcast input array from shape"):
         await model.generate(prompt="Test prompt")
 
     del model
