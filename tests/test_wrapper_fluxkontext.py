@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import logging
 import pytest
 
 from unittest.mock import patch
@@ -61,12 +60,6 @@ async def test_wrapper_fluxkontext() -> None:
     model.init()
     assert model.status == "ok"
 
-    # Mock pipeline return object
-    mock_output = MagicMock()
-    mock_output.images = ["image"]
-    model.pipeline = MagicMock(return_value=mock_output)
-    model.pipeline.vae_scale_factor = 8
-
     health = model.get_health()
     assert health is not None
     timestamps = model.get_timestamps()
@@ -100,14 +93,15 @@ async def test_wrapper_fluxkontext() -> None:
         prompt="Test prompt",
     )
     assert image is not None
+    assert isinstance(image, Image.Image)
 
-
-    image = await model.generate(
-        img=img,
-        width=257,
-        height=160,
-        prompt="Test prompt",
-    )
-    assert image is not None
+    model.world_size = 4
+    with pytest.raises(ValueError, match="48x48 not supported for 4 GPUs"):
+        await model.generate(
+            img=img,
+            width=48,
+            height=48,
+            prompt="Test prompt",
+        )
 
     del model
