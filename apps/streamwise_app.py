@@ -659,7 +659,8 @@ class StreamWiseApp(ABC):
                         continue
                     status_val = int(status_str)
                     status = JobStatus(status_val)
-                    ret[float(timestamp_str)] = status.name
+                    timestamp_float = float(timestamp_str)
+                    ret[timestamp_float] = status.name
             return ret
 
         @route("/api/job/<job_id>/requests", methods=["GET"])
