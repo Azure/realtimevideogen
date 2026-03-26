@@ -65,9 +65,9 @@ async def test_wrapper_fluxkontext() -> None:
     timestamps = model.get_timestamps()
     assert timestamps is not None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing JSON body"):
         await model.get_rest_args(None)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing 'img' parameter"):
         await model.get_rest_args({})
     with pytest.raises(ValueError, match="Missing 'prompt' parameter"):
         # Missing prompt
@@ -76,13 +76,14 @@ async def test_wrapper_fluxkontext() -> None:
         })
 
     # Success case
-    await model.get_rest_args({
+    args = await model.get_rest_args({
         "job_id": "unittest",
         "prompt": "Test prompt",
         "width": 80,
         "height": 60,
         "img": img_base64
     })
+    assert "args" in args
 
     await model.warmup()
 
@@ -94,6 +95,7 @@ async def test_wrapper_fluxkontext() -> None:
     )
     assert image is not None
     assert isinstance(image, Image.Image)
+    assert image.size == (256, 160)
 
     model.world_size = 4
     with pytest.raises(ValueError, match="48x48 not supported for 4 GPUs"):
