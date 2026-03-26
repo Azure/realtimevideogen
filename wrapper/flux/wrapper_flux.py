@@ -130,10 +130,10 @@ class FluxGeneration(USPGeneration):
 
     def _get_vae_scale_factor(self) -> int:
         if not self.pipeline:
-            raise ValueError("Pipeline not initialized.")
+            raise ValueError("Model not initialized.")
         vae_scale_factor = getattr(self.pipeline, "vae_scale_factor", None)
         if vae_scale_factor is None:
-            raise ValueError("Pipeline does not have vae_scale_factor.")
+            raise ValueError("Model does not have vae_scale_factor.")
         return vae_scale_factor
 
     def _assert_args(

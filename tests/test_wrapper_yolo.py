@@ -19,7 +19,6 @@ with patch.dict(sys.modules, {
     'ultralytics.YOLO': MagicMock(),
     'cv2': MagicMock(),
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'torch': mock_torch,
 }):

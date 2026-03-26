@@ -18,7 +18,6 @@ with patch.dict(sys.modules, {
     'azure': MagicMock(),
     'azure.identity': MagicMock(),
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'tenacity': MagicMock(),
     'torch': mock_torch,
     'openai': mock_openai,

@@ -26,6 +26,9 @@ from aiohttp import ClientTimeout
 from json import JSONDecodeError
 
 from openai import AsyncOpenAI
+from openai import AsyncStream
+from openai.types.chat import ChatCompletionChunk
+from openai.types.chat import ChatCompletionMessageParam
 
 from enum import Enum
 
@@ -35,6 +38,7 @@ from typing import Tuple
 from typing import Dict
 from typing import Union
 from typing import AsyncGenerator
+from typing import cast
 
 from lmm_service_manager import LMMServiceManager
 
@@ -941,7 +945,7 @@ class LMMGenerator:
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
             response = await llm_client.chat.completions.create(
                 model=llm_model,
-                messages=messages,  # type: ignore[arg-type]
+                messages=cast(List[ChatCompletionMessageParam], messages),
                 max_tokens=max_tokens,
                 extra_body=extra_body,
                 # timeout=10.0,
@@ -951,8 +955,8 @@ class LMMGenerator:
             assert response is not None
 
             # Process LLM response
-            assert response.usage is not None  # type: ignore[union-attr]
-            usage = response.usage  # type: ignore[union-attr]
+            assert response.usage is not None
+            usage = response.usage
             self.logger.debug("LLM tokens:")
             self.logger.debug(f"  Prompt: {usage.prompt_tokens}")
             self.logger.debug(f"  Completion: {usage.completion_tokens}")
@@ -960,7 +964,7 @@ class LMMGenerator:
             if usage.completion_tokens == max_tokens:
                 self.logger.error(f"Completion hit max tokens limit ({usage.completion_tokens}/{max_tokens}).")
 
-            choices = response.choices  # type: ignore[union-attr]
+            choices = response.choices
             if not choices:
                 raise ValueError("No LLM response.")
             response_choice = choices[0]
@@ -986,19 +990,24 @@ class LMMGenerator:
 
         # vLLM OpenAI-compatible client
         async with AsyncOpenAI(base_url=url, api_key=api_key,) as llm_client:
-            response = await llm_client.chat.completions.create(
-                model=llm_model,
-                messages=messages,  # type: ignore[arg-type]
-                max_tokens=max_tokens,
-                extra_body=extra_body,
-                # timeout=10.0,
-                extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
-                stream=True,
+            response = cast(
+                AsyncStream[ChatCompletionChunk],
+                await llm_client.chat.completions.create(
+                    model=llm_model,
+                    messages=cast(List[ChatCompletionMessageParam], messages),
+                    max_tokens=max_tokens,
+                    extra_body=extra_body,
+                    # timeout=10.0,
+                    extra_headers={"X-Request-ID": f"{self.job_id}_{task_id}"},
+                    stream=True,
+                )
             )
-            async for chunk in response:  # type: ignore[union-attr]
+            async for chunk in response:
                 choice = chunk.choices[0]
-                delta = choice.delta.content
-                yield delta  # type: ignore[misc]
+                delta = choice.delta
+                delta_content = delta.content
+                assert isinstance(delta_content, str)
+                yield delta_content
 
     async def gen_audio_transcript(
         self,

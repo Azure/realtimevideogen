@@ -22,7 +22,7 @@ class TestImageUtils(TestCase):
 
         base64_str = img_to_base64(image)
         self.assertIsInstance(base64_str, str)
-        assert base64_str is not None
+        assert isinstance(base64_str, str)  # narrow Optional[str] to str for mypy
 
         image_from_base64 = base64_to_img(base64_str)
         self.assertIsInstance(image_from_base64, Image.Image)

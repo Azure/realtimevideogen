@@ -6,10 +6,12 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 from PIL import Image
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/fluxkontext")
@@ -17,7 +19,6 @@ sys.path.append("wrapper/flux")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -30,9 +31,9 @@ mock_modules = {
     'xfuser.model_executor.models.transformers.transformer_flux': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from image_utils import img_to_base64
@@ -49,7 +50,7 @@ async def test_wrapper_fluxkontext() -> None:
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             img=img,
             width=128,
@@ -64,33 +65,44 @@ async def test_wrapper_fluxkontext() -> None:
     timestamps = model.get_timestamps()
     assert timestamps is not None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing JSON body"):
         await model.get_rest_args(None)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing 'img' parameter"):
         await model.get_rest_args({})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Missing 'prompt' parameter"):
         # Missing prompt
         await model.get_rest_args({
             "img": img_base64,
         })
 
     # Success case
-    await model.get_rest_args({
+    args = await model.get_rest_args({
         "job_id": "unittest",
         "prompt": "Test prompt",
         "width": 80,
         "height": 60,
         "img": img_base64
     })
+    assert "args" in args
 
-    with pytest.raises(ValueError):
-        await model.warmup()
+    await model.warmup()
 
-    with pytest.raises(ValueError):
+    image = await model.generate(
+        img=img,
+        width=256,
+        height=160,
+        prompt="Test prompt",
+    )
+    assert image is not None
+    assert isinstance(image, Image.Image)
+    assert image.size == (256, 160)
+
+    model.world_size = 4
+    with pytest.raises(ValueError, match="48x48 not supported for 4 GPUs"):
         await model.generate(
             img=img,
-            width=256,
-            height=160,
+            width=48,
+            height=48,
             prompt="Test prompt",
         )
 

@@ -18,7 +18,6 @@ sys.path.append("wrapper/wan")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
