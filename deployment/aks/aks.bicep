@@ -416,7 +416,7 @@ var kvCertificateUserRoleId = subscriptionResourceId(
 
 resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: keyVault
-  name: guid(keyVault.id, aksCluster.properties.identityProfile.kubeletidentity.objectId, kvSecretsUserRoleId)
+  name: guid(keyVault.id, aksCluster.id, kvSecretsUserRoleId)
   properties: {
     principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
     roleDefinitionId: kvSecretsUserRoleId
@@ -426,7 +426,7 @@ resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-0
 
 resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: keyVault
-  name: guid(keyVault.id, aksCluster.properties.identityProfile.kubeletidentity.objectId, kvCertificateUserRoleId)
+  name: guid(keyVault.id, aksCluster.id, kvCertificateUserRoleId)
   properties: {
     principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
     roleDefinitionId: kvCertificateUserRoleId
