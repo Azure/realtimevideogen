@@ -334,7 +334,6 @@ async def test_parse_chat_history() -> None:
 @pytest.mark.asyncio
 async def test_get_chat_history_from_file_not_found() -> None:
     """get_chat_history_from_file raises FileNotFoundError for missing job path."""
-    import pytest
     with pytest.raises(FileNotFoundError):
         await get_chat_history_from_file("/nonexistent/path", "fake_job_id")
 
