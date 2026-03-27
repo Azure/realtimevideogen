@@ -6,6 +6,7 @@ FROM ${DOCKER_REPO}/vllm/vllm-openai:v0.9.1
 
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
+ENV PIP_ROOT_USER_ACTION=ignore
 
 # System deps (librosa needs soundfile)
 RUN apt-get update && apt-get install -y \
