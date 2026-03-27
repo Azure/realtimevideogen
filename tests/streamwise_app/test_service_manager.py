@@ -85,10 +85,14 @@ def test_parse_arguments_https_args() -> None:
     with patch.dict(sys.modules, mock_torch.get_sub_modules()):
         with temp_sys_path("apps"):
             from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
 
     class _TestApp(StreamWiseApp):
         def setup_routes(self) -> None:
             pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
 
     app_instance = _TestApp("test")
     with patch("sys.argv", ["app", "--certfile", "/tmp/cert.pem", "--keyfile", "/tmp/key.pem"]):
@@ -102,10 +106,14 @@ def test_parse_arguments_https_defaults() -> None:
     with patch.dict(sys.modules, mock_torch.get_sub_modules()):
         with temp_sys_path("apps"):
             from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
 
     class _TestApp(StreamWiseApp):
         def setup_routes(self) -> None:
             pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
 
     app_instance = _TestApp("test")
     with patch("sys.argv", ["app"]):
@@ -120,10 +128,14 @@ async def test_run_httpserver_https() -> None:
     with patch.dict(sys.modules, mock_torch.get_sub_modules()):
         with temp_sys_path("apps"):
             from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
 
     class _TestApp(StreamWiseApp):
         def setup_routes(self) -> None:
             pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
 
     app_instance = _TestApp("test")
     with patch("apps.streamwise_app.serve", new=AsyncMock()) as mock_serve:
@@ -145,10 +157,14 @@ async def test_run_httpserver_http() -> None:
     with patch.dict(sys.modules, mock_torch.get_sub_modules()):
         with temp_sys_path("apps"):
             from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
 
     class _TestApp(StreamWiseApp):
         def setup_routes(self) -> None:
             pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
 
     app_instance = _TestApp("test")
     with patch("apps.streamwise_app.serve", new=AsyncMock()) as mock_serve:
