@@ -1,1 +1,7 @@
-# Empty as it is still not available
+# Wrapper dependencies for 4KAgent (running in the streamwise conda env)
+PyYAML>=6.0
+# After this is HTTP server requirements
+colorlog
+nvidia-ml-py3
+quart
+hypercorn

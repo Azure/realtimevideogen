@@ -855,6 +855,14 @@ async def imageresize_e2e() -> QuartReturn:
     return await gen_img(model)
 
 
+@route("/4kagent", methods=["POST"])
+@exclusive_route("4kagent")
+async def fourk_agent_e2e() -> QuartReturn:
+    """4KAgent image super-resolution endpoint."""
+    model = get_model("4kagent")
+    return await gen_img(model)
+
+
 @route("/realesrgan", methods=["POST"])
 @exclusive_route("realesrgan")
 async def realesrgan_e2e() -> QuartReturn:
