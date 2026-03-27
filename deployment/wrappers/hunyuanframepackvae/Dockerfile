@@ -15,13 +15,10 @@ RUN pip install -r requirements.txt && \
     pip cache purge
 
 # Download HunyuanVideo VAE model from Hugging Face
-#RUN hf download hunyuanvideo-community/HunyuanVideo --local-dir hunyuanvideo-community/HunyuanVideo \
-#    --local-dir-use-symlinks False \
-#    vae/config.json \
-#    vae/diffusion_pytorch_model.safetensors
-RUN hf download hunyuanvideo-community/HunyuanVideo --local-dir hunyuanvideo-community/HunyuanVideo \
+RUN hf download hunyuanvideo-community/HunyuanVideo \
     vae/config.json \
-    vae/diffusion_pytorch_model.safetensors
+    vae/diffusion_pytorch_model.safetensors \
+    --local-dir hunyuanvideo-community/HunyuanVideo
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
