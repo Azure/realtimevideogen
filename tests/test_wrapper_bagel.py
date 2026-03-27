@@ -20,7 +20,6 @@ mock_modules = {
     'nvidia_smi': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
-    'torch': mock_torch,
     'xfuser': MagicMock(),
     'xfuser.config': MagicMock(),
     'xfuser.core': MagicMock(),
