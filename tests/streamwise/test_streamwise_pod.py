@@ -132,14 +132,20 @@ def test_mig_profiles_set() -> None:
 
 
 def test_get_tls_cert_settings() -> None:
+    import sys
     volume_mount, volume = get_tls_cert_settings()
-    assert volume_mount.mount_path == "/certs"
-    assert volume_mount.read_only is True
-    assert volume_mount.name == "tls-csi"
-    assert volume.name == "tls-csi"
-    assert volume.csi.driver == "secrets-store.csi.k8s.io"
-    assert volume.csi.read_only is True
-    assert volume.csi.volume_attributes == {"secretProviderClass": "streamwise-tls"}
+    assert volume_mount is not None
+    assert volume is not None
+    # V1VolumeMount / V1Volume are MagicMocks in the test environment; verify the
+    # constructors were called with the correct arguments instead of checking attributes.
+    k8s_client = sys.modules["kubernetes_asyncio.client"]
+    k8s_client.V1VolumeMount.assert_called_with(name="tls-csi", mount_path="/certs", read_only=True)
+    k8s_client.V1CSIVolumeSource.assert_called_with(
+        driver="secrets-store.csi.k8s.io",
+        read_only=True,
+        volume_attributes={"secretProviderClass": "streamwise-tls"},
+    )
+    k8s_client.V1Volume.assert_called_with(name="tls-csi", csi=k8s_client.V1CSIVolumeSource.return_value)
 
 
 @pytest.mark.asyncio
