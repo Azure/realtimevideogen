@@ -30,6 +30,14 @@ from tests.test_utils import temp_sys_path
 from tests.torch_mock import TorchMock
 from tests.k8s_mock import K8sMock
 from tests.fantasytalking_mock import FantasyTalkingMock
+from tests.streamwise_app.app_test_helpers import check_app_root
+from tests.streamwise_app.app_test_helpers import check_health
+from tests.streamwise_app.app_test_helpers import check_files
+from tests.streamwise_app.app_test_helpers import check_unknown_route
+from tests.streamwise_app.app_test_helpers import check_job_submit_page
+from tests.streamwise_app.app_test_helpers import check_job_status_page
+from tests.streamwise_app.app_test_helpers import check_api_job_status
+from tests.streamwise_app.app_test_helpers import check_api_job_requests
 
 mock_torch = TorchMock()
 mock_k8s = K8sMock()
@@ -186,112 +194,49 @@ def _make_noisy_job(job_id: str, config: Dict[str, Any] | None = None) -> Stream
 @pytest.mark.asyncio
 async def test_app(test_app: Quart) -> None:
     """Check that GET / returns 200 with the correct content."""
-    client = test_app.test_client()
-    response = await client.get("/")
-    assert response is not None
-    assert response.status_code == HTTPStatus.OK
-    assert "text/html; charset=utf-8" == response.content_type
-    response_html = await response.get_data(as_text=True)
-    assert response_html.startswith("<!DOCTYPE html>\n<html lang=\"en\">")
-    assert "StreamMovie" in response_html
+    await check_app_root(test_app, "StreamMovie")
 
 
 @pytest.mark.asyncio
 async def test_health(test_app: Quart) -> None:
     """Check /health."""
-    client = test_app.test_client()
-    response = await client.get("/health")
-    assert response is not None
-    assert response.status_code == HTTPStatus.OK
-    response_json = await response.get_json()
-    assert response_json == {
-        "host": None,
-        "jobs": {},
-        "k8s_cluster": None,
-        "port": None,
-        "services": {},
-        "status": "ok"
-    }
+    await check_health(test_app)
 
 
 @pytest.mark.asyncio
 async def test_files(test_app: Quart) -> None:
     """Check /files endpoint."""
-    client = test_app.test_client()
-
-    if not os.path.exists("/tmp/streammovie"):
-        os.makedirs("/tmp/streammovie", exist_ok=True)
-
-    response = await client.get("/files")
-    assert response.status_code == HTTPStatus.OK
-    response_json = await response.get_json()
-    assert "files" in response_json
-
-    response = await client.get("/file/testfile.txt")
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    response_json = await response.get_json()
-    assert response_json == {"error": "File '/tmp/streammovie/testfile.txt' not found"}
-
-    response = await client.get("/file_stream/job_id/testfile2.txt")
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    response_json = await response.get_json()
-    assert response_json == {"error": "File not found"}
-
-    response = await client.get("/file_view/job_id/testfile3.txt")
-    assert response.status_code == HTTPStatus.OK
-    assert response.content_type == "text/html; charset=utf-8"
-    response_text = await response.get_data(as_text=True)
-    assert response_text.startswith("<!DOCTYPE html>\n<html>")
-    assert "<title>File viewer: testfile3.txt</title>" in response_text
+    await check_files(test_app, "streammovie")
 
 
 @pytest.mark.asyncio
 async def test_unknown_route(test_app: Quart) -> None:
     """Check that an unknown route returns 404."""
-    client = test_app.test_client()
-    response = await client.get("/does-not-exist")
-    assert response.status_code == HTTPStatus.NOT_FOUND
+    await check_unknown_route(test_app)
 
 
 @pytest.mark.asyncio
 async def test_job_status_page(test_app: Quart) -> None:
     """Check the web page for job status."""
-    client = test_app.test_client()
-    job_id = "testjobid"
-    response = await client.get(f"/job/{job_id}")
-    assert response.status_code == HTTPStatus.OK
-    text = await response.get_data(as_text=True)
-    assert len(text) > 0
+    await check_job_status_page(test_app)
 
 
 @pytest.mark.asyncio
 async def test_api_job_status(test_app: Quart) -> None:
     """Check the API for job status (returns UNKNOWN for nonexistent jobs)."""
-    client = test_app.test_client()
-    job_id = "nonexistent_job_id"
-    response = await client.get(f"/api/job/{job_id}/status")
-    assert response.status_code == HTTPStatus.OK
-    response_json = await response.get_json()
-    assert "status" in response_json
+    await check_api_job_status(test_app)
 
 
 @pytest.mark.asyncio
 async def test_api_job_requests(test_app: Quart) -> None:
     """Check the API for job requests listing (returns empty for nonexistent jobs)."""
-    client = test_app.test_client()
-    job_id = "nonexistent_job_id"
-    response = await client.get(f"/api/job/{job_id}/requests")
-    assert response.status_code == HTTPStatus.OK
+    await check_api_job_requests(test_app)
 
 
 @pytest.mark.asyncio
 async def test_job_submit_page(test_app: Quart) -> None:
     """Check the web page for job submission."""
-    client = test_app.test_client()
-    response = await client.get("/job")
-    assert response.status_code == HTTPStatus.OK
-    text = await response.get_data(as_text=True)
-    assert len(text) > 0
+    await check_job_submit_page(test_app)
 
 
 @pytest.mark.asyncio
