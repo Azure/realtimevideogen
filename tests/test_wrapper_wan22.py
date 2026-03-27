@@ -59,7 +59,7 @@ with patch.dict(sys.modules, mock_modules):
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_init() -> None:
+async def test_init() -> None:
     """Test basic initialization and health checks."""
     model = Wan22VideoGeneration()
     assert model is not None
@@ -76,7 +76,7 @@ async def test_wrapper_wan22_init() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_missing_body() -> None:
+async def test_get_rest_args_missing_body() -> None:
     """Test that get_rest_args raises for missing JSON body."""
     model = Wan22VideoGeneration()
     model.init()
@@ -86,7 +86,7 @@ async def test_wrapper_wan22_get_rest_args_missing_body() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_missing_img() -> None:
+async def test_get_rest_args_missing_img() -> None:
     """Test that get_rest_args raises when img is absent."""
     model = Wan22VideoGeneration()
     model.init()
@@ -96,7 +96,7 @@ async def test_wrapper_wan22_get_rest_args_missing_img() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_missing_prompt() -> None:
+async def test_get_rest_args_missing_prompt() -> None:
     """Test that get_rest_args raises when prompt is absent."""
     model = Wan22VideoGeneration()
     model.init()
@@ -109,7 +109,7 @@ async def test_wrapper_wan22_get_rest_args_missing_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_missing_audio() -> None:
+async def test_get_rest_args_missing_audio() -> None:
     """Test that get_rest_args raises when audio is absent and TTS is disabled."""
     model = Wan22VideoGeneration()
     model.init()
@@ -125,7 +125,7 @@ async def test_wrapper_wan22_get_rest_args_missing_audio() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_with_audio() -> None:
+async def test_get_rest_args_with_audio() -> None:
     """Test get_rest_args with a base64-encoded audio file."""
     model = Wan22VideoGeneration()
     model.init()
@@ -157,7 +157,7 @@ async def test_wrapper_wan22_get_rest_args_with_audio() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_with_tts() -> None:
+async def test_get_rest_args_with_tts() -> None:
     """Test get_rest_args with TTS parameters."""
     model = Wan22VideoGeneration()
     model.init()
@@ -187,7 +187,7 @@ async def test_wrapper_wan22_get_rest_args_with_tts() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_custom_params() -> None:
+async def test_get_rest_args_custom_params() -> None:
     """Test get_rest_args honours custom resolution, steps, and clip count."""
     model = Wan22VideoGeneration()
     model.init()
@@ -220,7 +220,7 @@ async def test_wrapper_wan22_get_rest_args_custom_params() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_generate_raises_without_init() -> None:
+async def test_generate_raises_without_init() -> None:
     """Test that generate raises when model has not been initialized."""
     model = Wan22VideoGeneration()
     # NOTE: intentionally NOT calling model.init() here
@@ -238,7 +238,7 @@ async def test_wrapper_wan22_generate_raises_without_init() -> None:
     gc.collect()
 
 
-def test_wrapper_wan22_assert_model_init_wan_s2v_none() -> None:
+def test_assert_model_init_wan_s2v_none() -> None:
     """Test _assert_model_init raises when wan_s2v is None after init."""
     model = Wan22VideoGeneration()
     model.init()
@@ -247,7 +247,7 @@ def test_wrapper_wan22_assert_model_init_wan_s2v_none() -> None:
         model._assert_model_init()
 
 
-def test_wrapper_wan22_model_compile_no_op_no_torch_compile() -> None:
+def test_model_compile_no_op_no_torch_compile() -> None:
     """Test model_compile is no-op when torch_compile=False."""
     model = Wan22VideoGeneration()
     model.init()
@@ -255,7 +255,7 @@ def test_wrapper_wan22_model_compile_no_op_no_torch_compile() -> None:
     model.model_compile()  # should not raise
 
 
-def test_wrapper_wan22_model_compile_no_op_no_wan_s2v() -> None:
+def test_model_compile_no_op_no_wan_s2v() -> None:
     """Test model_compile is no-op when wan_s2v is None."""
     model = Wan22VideoGeneration()
     model.init()
@@ -264,7 +264,7 @@ def test_wrapper_wan22_model_compile_no_op_no_wan_s2v() -> None:
     model.model_compile()  # should not raise (wan_s2v is None guard)
 
 
-def test_wrapper_wan22_model_compile_with_torch_compile() -> None:
+def test_model_compile_with_torch_compile() -> None:
     """Test model_compile calls torch.compile when torch_compile=True and wan_s2v is set."""
     model = Wan22VideoGeneration()
     model.init()
@@ -274,7 +274,7 @@ def test_wrapper_wan22_model_compile_with_torch_compile() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_img_not_string() -> None:
+async def test_get_rest_args_img_not_string() -> None:
     """Test get_rest_args raises when img is not a string."""
     model = Wan22VideoGeneration()
     model.init()
@@ -284,7 +284,7 @@ async def test_wrapper_wan22_get_rest_args_img_not_string() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_audio_not_string() -> None:
+async def test_get_rest_args_audio_not_string() -> None:
     """Test get_rest_args raises when audio is not a string."""
     model = Wan22VideoGeneration()
     model.init()
@@ -301,7 +301,7 @@ async def test_wrapper_wan22_get_rest_args_audio_not_string() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_tts_prompt_audio_not_string() -> None:
+async def test_get_rest_args_tts_prompt_audio_not_string() -> None:
     """Test get_rest_args raises when tts_prompt_audio is not a string."""
     model = Wan22VideoGeneration()
     model.init()
@@ -319,7 +319,7 @@ async def test_wrapper_wan22_get_rest_args_tts_prompt_audio_not_string() -> None
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan22_get_rest_args_with_job_id() -> None:
+async def test_get_rest_args_with_job_id() -> None:
     """Test get_rest_args passes a deterministic audio destination when job_id is given."""
     model = Wan22VideoGeneration()
     model.init()

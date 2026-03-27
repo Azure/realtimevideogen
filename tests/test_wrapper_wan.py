@@ -50,7 +50,7 @@ with patch.dict(sys.modules, mock_modules):
 
 
 @pytest.mark.asyncio
-async def test_wrapper_wan() -> None:
+async def test_init() -> None:
     model = Wan21VideoGeneration()
     assert model is not None
     assert model.model_name == "wan"
@@ -113,7 +113,7 @@ async def test_vae() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_assert_args() -> None:
+async def test_assert_args() -> None:
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
 
@@ -147,7 +147,7 @@ async def test_wan_assert_args() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_get_rest_args_full() -> None:
+async def test_get_rest_args_full() -> None:
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
         from image_utils import img_to_base64 as _img_to_base64
@@ -177,7 +177,7 @@ async def test_wan_get_rest_args_full() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_get_rest_args_extra_params() -> None:
+async def test_get_rest_args_extra_params() -> None:
     """Test get_rest_args with neg_prompt, sampling_steps, output_type and video_seconds."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -211,7 +211,7 @@ async def test_wan_get_rest_args_extra_params() -> None:
     assert result_secs["args"]["num_frames"] == 29
 
 
-def test_wan_assert_model_init() -> None:
+def test_assert_model_init() -> None:
     """Test that _assert_model_init raises when model components are not loaded."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -222,7 +222,7 @@ def test_wan_assert_model_init() -> None:
         model._assert_model_init()
 
 
-def test_wan_model_compile_no_op() -> None:
+def test_model_compile_no_op() -> None:
     """Test model_compile returns immediately when torch_compile=False."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -233,7 +233,7 @@ def test_wan_model_compile_no_op() -> None:
     model.model_compile()  # should not raise
 
 
-def test_wan_model_compile_with_torch_compile() -> None:
+def test_model_compile_with_torch_compile() -> None:
     """Test model_compile calls torch.compile when torch_compile=True."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -245,7 +245,7 @@ def test_wan_model_compile_with_torch_compile() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_assert_model_init_text_encoder_none() -> None:
+async def test_assert_model_init_text_encoder_none() -> None:
     """Test _assert_model_init raises when text_encoder is None."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -258,7 +258,7 @@ async def test_wan_assert_model_init_text_encoder_none() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_assert_model_init_vae_none() -> None:
+async def test_assert_model_init_vae_none() -> None:
     """Test _assert_model_init raises when vae is None."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -316,7 +316,7 @@ async def test_wan21_assert_model_init_dit_model_none() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_output_video_tensor() -> None:
+async def test_output_video_tensor() -> None:
     """Test _output_video returns tensor directly for output_type='tensor'."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -331,7 +331,7 @@ async def test_wan_output_video_tensor() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_output_video_unknown_type() -> None:
+async def test_output_video_unknown_type() -> None:
     """Test _output_video returns None for an unknown output_type."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -346,7 +346,7 @@ async def test_wan_output_video_unknown_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_get_rest_args_steps_fallback() -> None:
+async def test_get_rest_args_steps_fallback() -> None:
     """Test get_rest_args uses 'steps' when sampling_steps=0."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -368,7 +368,7 @@ async def test_wan_get_rest_args_steps_fallback() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_get_rest_args_video_seconds_no_vae_stride() -> None:
+async def test_get_rest_args_video_seconds_no_vae_stride() -> None:
     """Test get_rest_args raises when video_seconds is set but vae_stride is None."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -390,7 +390,7 @@ async def test_wan_get_rest_args_video_seconds_no_vae_stride() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_assert_args_num_frames_too_large() -> None:
+async def test_assert_args_num_frames_too_large() -> None:
     """Test _assert_args raises when num_frames is too large (passes modulo check)."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -405,7 +405,7 @@ async def test_wan_assert_args_num_frames_too_large() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_get_rest_args_img_not_string() -> None:
+async def test_get_rest_args_img_not_string() -> None:
     """Test get_rest_args raises when img is truthy but not a string."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -418,7 +418,7 @@ async def test_wan_get_rest_args_img_not_string() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_get_rest_args_missing_prompt() -> None:
+async def test_get_rest_args_missing_prompt() -> None:
     """Test get_rest_args raises when prompt is missing."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -435,7 +435,7 @@ async def test_wan_get_rest_args_missing_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_output_video_pil() -> None:
+async def test_output_video_pil() -> None:
     """Test _output_video calls _tensor_to_pil for output_type='pil'."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -453,7 +453,7 @@ async def test_wan_output_video_pil() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_output_video_video_path() -> None:
+async def test_output_video_video_path() -> None:
     """Test _output_video returns a video path for output_type='video_path'."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -469,7 +469,7 @@ async def test_wan_output_video_video_path() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wan_output_video_video_binary() -> None:
+async def test_output_video_video_binary() -> None:
     """Test _output_video returns video bytes for output_type='video_binary'."""
     import tempfile
     import os
@@ -499,7 +499,7 @@ async def test_wan_output_video_video_binary() -> None:
         os.unlink(tmp_path)
 
 
-def test_wan_vae_decode() -> None:
+def test_vae_decode() -> None:
     """Test vae_decode passes through correctly with a properly mocked tensor."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
@@ -527,7 +527,7 @@ def test_wan_vae_decode() -> None:
     assert result is mock_pixel
 
 
-def test_wan_vae_encode() -> None:
+def test_vae_encode() -> None:
     """Test vae_encode passes through correctly with a properly mocked tensor."""
     with patch.dict(sys.modules, mock_modules):
         from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
