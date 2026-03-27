@@ -335,33 +335,37 @@ def test_setup_dist_environment_mig() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_httpserver_http() -> None:
+@pytest.mark.timeout(10)
+async def test_run_httpserver_http(monkeypatch: pytest.MonkeyPatch) -> None:
     """run_httpserver() configures Hypercorn without SSL when no certfile is given."""
-    with patch("run_httpserver.serve", new=AsyncMock()) as mock_serve:
-        await run_httpserver.run_httpserver(host="127.0.0.1", port=9999)
-        mock_serve.assert_awaited_once()
-        config = mock_serve.call_args[0][1]
-        assert config.bind == ["127.0.0.1:9999"]
-        # No SSL attributes set
-        assert getattr(config, "certfile", None) is None
-        assert getattr(config, "keyfile", None) is None
+    mock_serve = AsyncMock()
+    monkeypatch.setattr(run_httpserver, "serve", mock_serve)
+    await run_httpserver.run_httpserver(host="127.0.0.1", port=9999)
+    mock_serve.assert_awaited_once()
+    config = mock_serve.call_args[0][1]
+    assert config.bind == ["127.0.0.1:9999"]
+    # No SSL attributes set
+    assert getattr(config, "certfile", None) is None
+    assert getattr(config, "keyfile", None) is None
 
 
 @pytest.mark.asyncio
-async def test_run_httpserver_https() -> None:
+@pytest.mark.timeout(10)
+async def test_run_httpserver_https(monkeypatch: pytest.MonkeyPatch) -> None:
     """run_httpserver() configures Hypercorn with SSL when certfile and keyfile are given."""
-    with patch("run_httpserver.serve", new=AsyncMock()) as mock_serve:
-        await run_httpserver.run_httpserver(
-            host="127.0.0.1",
-            port=9999,
-            certfile="/tmp/cert.pem",
-            keyfile="/tmp/key.pem",
-        )
-        mock_serve.assert_awaited_once()
-        config = mock_serve.call_args[0][1]
-        assert config.bind == ["127.0.0.1:9999"]
-        assert config.certfile == "/tmp/cert.pem"
-        assert config.keyfile == "/tmp/key.pem"
+    mock_serve = AsyncMock()
+    monkeypatch.setattr(run_httpserver, "serve", mock_serve)
+    await run_httpserver.run_httpserver(
+        host="127.0.0.1",
+        port=9999,
+        certfile="/tmp/cert.pem",
+        keyfile="/tmp/key.pem",
+    )
+    mock_serve.assert_awaited_once()
+    config = mock_serve.call_args[0][1]
+    assert config.bind == ["127.0.0.1:9999"]
+    assert config.certfile == "/tmp/cert.pem"
+    assert config.keyfile == "/tmp/key.pem"
 
 
 def test_arg_parsing_https_args() -> None:
