@@ -49,7 +49,7 @@ mock_modules =  {
 mock_modules.update(mock_torch.get_sub_modules())
 mock_modules.update(mock_diffusers.get_sub_modules())
 
-with patch.dict(sys.modules,):
+with patch.dict(sys.modules, mock_modules):
     from flux.run_flux_benchmark import main as run_flux_benchmark_main
     from wan.run_wan_benchmark import main as run_wan_benchmark_main
     from wan.run_wan_benchmark_batching import main as run_wan_benchmark_batching_main
