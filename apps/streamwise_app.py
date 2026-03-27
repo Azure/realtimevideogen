@@ -198,6 +198,8 @@ class StreamWiseApp(ABC):
         parser.add_argument("--k8s_cluster", type=str, default=K8S_CLUSTER, help="Kubernetes cluster context name")
         parser.add_argument("--host", type=str, default=HOST, help="Host to bind the server to")
         parser.add_argument("--port", type=int, default=PORT, help="Port to bind the server to")
+        parser.add_argument("--certfile", type=str, default=None, help="Path to SSL certificate file for HTTPS")
+        parser.add_argument("--keyfile", type=str, default=None, help="Path to SSL private key file for HTTPS")
         return parser.parse_args()
 
     def get_http_status_from_exception(
@@ -214,7 +216,11 @@ class StreamWiseApp(ABC):
         args: Any
     ) -> None:
         """Main entry point for StreamWise application."""
-        logging.info(f"Starting {self.app_name} app on {args.host}:{args.port} with K8S cluster '{args.k8s_cluster}'")
+        scheme = "https" if args.certfile else "http"
+        logging.info(
+            f"Starting {self.app_name} app on {scheme}://{args.host}:{args.port} "
+            f"with K8S cluster '{args.k8s_cluster}'"
+        )
 
         self.service_manager = LMMServiceManager(
             app_name=self.app_name,
@@ -229,7 +235,9 @@ class StreamWiseApp(ABC):
         try:
             http_task = asyncio.create_task(self.run_httpserver(
                 host=args.host,
-                port=args.port
+                port=args.port,
+                certfile=args.certfile,
+                keyfile=args.keyfile,
             ))
             await http_task
         except OSError as os_err:
@@ -249,9 +257,11 @@ class StreamWiseApp(ABC):
     async def run_httpserver(
         self,
         host: str = HOST,
-        port: int = PORT
+        port: int = PORT,
+        certfile: Optional[str] = None,
+        keyfile: Optional[str] = None,
     ) -> None:
-        """HTTP server runs in the main process."""
+        """HTTP/HTTPS server runs in the main process."""
         config = Config()
         config.bind = [f"{host}:{port}"]
 
@@ -262,6 +272,11 @@ class StreamWiseApp(ABC):
         config.wsgi_max_body_size = 128 * 1024 * 1024
         config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
         self.app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
+
+        if certfile:
+            config.certfile = certfile
+        if keyfile:
+            config.keyfile = keyfile
 
         await serve(self.app, config)
 

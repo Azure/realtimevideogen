@@ -26,7 +26,6 @@ from quart import Quart
 from quart import request
 from quart import jsonify
 from quart import render_template
-from quart import abort
 
 from http import HTTPStatus
 
@@ -348,9 +347,7 @@ async def service_timelines(service_name: str) -> QuartReturn:
             timestamps=timestamps)
     except Exception as ex:
         logging.error(f"Error fetching timestamps for {service_name}: {ex}")
-        abort(
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-            description=f"Error fetching timestamps for {service_name}: {ex}")
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @route("/service/timeline", methods=["GET"])
@@ -697,6 +694,8 @@ if __name__ == "__main__":
     parser.add_argument("--k8s_cluster", type=str, default=K8S_CLUSTER, help="Kubernetes cluster context name")
     parser.add_argument("--host", type=str, default=HOST, help="Host to bind the server to")
     parser.add_argument("--port", type=int, default=PORT, help="Port to bind the server to")
+    parser.add_argument("--certfile", type=str, default=None, help="Path to SSL certificate file for HTTPS")
+    parser.add_argument("--keyfile", type=str, default=None, help="Path to SSL private key file for HTTPS")
     args = parser.parse_args()
 
     k8s_cluster = args.k8s_cluster
@@ -704,10 +703,13 @@ if __name__ == "__main__":
     port = args.port
 
     try:
-        logging.info(f"Starting on {host}:{port} for K8S cluster '{k8s_cluster}'.")
+        scheme = "https" if args.certfile else "http"
+        logging.info(f"Starting on {scheme}://{host}:{port} for K8S cluster '{k8s_cluster}'.")
         app.run(
             host=host,
             port=port,
+            certfile=args.certfile,
+            keyfile=args.keyfile,
             # threaded=True,
             # debug=True,
         )

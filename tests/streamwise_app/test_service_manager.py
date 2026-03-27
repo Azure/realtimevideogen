@@ -78,3 +78,98 @@ async def test_service_manager() -> None:
         service_manager.get_service_urls("qwenimage")
 
     await service_manager.stop()
+
+
+def test_parse_arguments_https_args() -> None:
+    """parse_arguments() accepts --certfile and --keyfile for HTTPS."""
+    with patch.dict(sys.modules, mock_torch.get_sub_modules()):
+        with temp_sys_path("apps"):
+            from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
+
+    class _TestApp(StreamWiseApp):
+        def setup_routes(self) -> None:
+            pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
+
+    app_instance = _TestApp("test")
+    with patch("sys.argv", ["app", "--certfile", "/tmp/cert.pem", "--keyfile", "/tmp/key.pem"]):
+        args = app_instance.parse_arguments("test")
+        assert args.certfile == "/tmp/cert.pem"
+        assert args.keyfile == "/tmp/key.pem"
+
+
+def test_parse_arguments_https_defaults() -> None:
+    """parse_arguments() defaults certfile and keyfile to None (HTTP mode)."""
+    with patch.dict(sys.modules, mock_torch.get_sub_modules()):
+        with temp_sys_path("apps"):
+            from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
+
+    class _TestApp(StreamWiseApp):
+        def setup_routes(self) -> None:
+            pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
+
+    app_instance = _TestApp("test")
+    with patch("sys.argv", ["app"]):
+        args = app_instance.parse_arguments("test")
+        assert args.certfile is None
+        assert args.keyfile is None
+
+
+@pytest.mark.asyncio
+async def test_run_httpserver_https() -> None:
+    """run_httpserver() configures Hypercorn SSL when certfile/keyfile are given."""
+    with patch.dict(sys.modules, mock_torch.get_sub_modules()):
+        with temp_sys_path("apps"):
+            from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
+
+    class _TestApp(StreamWiseApp):
+        def setup_routes(self) -> None:
+            pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
+
+    app_instance = _TestApp("test")
+    with patch("apps.streamwise_app.serve", new=AsyncMock()) as mock_serve:
+        await app_instance.run_httpserver(
+            host="127.0.0.1",
+            port=9999,
+            certfile="/tmp/cert.pem",
+            keyfile="/tmp/key.pem",
+        )
+        mock_serve.assert_awaited_once()
+        config = mock_serve.call_args[0][1]
+        assert config.certfile == "/tmp/cert.pem"
+        assert config.keyfile == "/tmp/key.pem"
+
+
+@pytest.mark.asyncio
+async def test_run_httpserver_http() -> None:
+    """run_httpserver() configures Hypercorn without SSL when no certfile is given."""
+    with patch.dict(sys.modules, mock_torch.get_sub_modules()):
+        with temp_sys_path("apps"):
+            from apps.streamwise_app import StreamWiseApp
+            from apps.streamwise_job import StreamWiseJob
+
+    class _TestApp(StreamWiseApp):
+        def setup_routes(self) -> None:
+            pass
+
+        def create_job(self, job_id: str, job_config: dict) -> StreamWiseJob:
+            raise NotImplementedError
+
+    app_instance = _TestApp("test")
+    with patch("apps.streamwise_app.serve", new=AsyncMock()) as mock_serve:
+        await app_instance.run_httpserver(host="127.0.0.1", port=9999)
+        mock_serve.assert_awaited_once()
+        config = mock_serve.call_args[0][1]
+        assert getattr(config, "certfile", None) is None
+        assert getattr(config, "keyfile", None) is None

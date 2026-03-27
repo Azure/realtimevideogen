@@ -18,6 +18,7 @@ mock_k8s = K8sMock()
 
 mock_modules = {}
 mock_modules.update(mock_k8s.get_sub_modules())
+mock_k8s_client = mock_modules["kubernetes_asyncio.client"]
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
         from streamwise import streamwise as sw
@@ -27,6 +28,7 @@ with patch.dict(sys.modules, mock_modules):
         from streamwise.pod_manager import get_gemma_settings
         from streamwise.pod_manager import get_llama32_settings
         from streamwise.pod_manager import get_mig_resource_name
+        from streamwise.pod_manager import get_tls_cert_settings
         from streamwise.pod_manager import MIG_PROFILES
 
 
@@ -128,6 +130,27 @@ def test_mig_profiles_set() -> None:
     assert "1g.10gb" in MIG_PROFILES
     assert "7g.80gb" in MIG_PROFILES
     assert "invalid" not in MIG_PROFILES
+
+
+def test_get_tls_cert_settings() -> None:
+    # Reset the relevant mocks so calls from earlier tests (e.g. get_gemma_settings)
+    # do not interfere with assert_called_once_with below.
+    mock_k8s_client.V1VolumeMount.reset_mock()
+    mock_k8s_client.V1Volume.reset_mock()
+    mock_k8s_client.V1CSIVolumeSource.reset_mock()
+
+    volume_mount, volume = get_tls_cert_settings()
+    assert volume_mount is not None
+    assert volume is not None
+    # V1VolumeMount / V1Volume are MagicMocks in the test environment; verify the
+    # constructors were called with the correct arguments.
+    mock_k8s_client.V1VolumeMount.assert_called_once_with(name="tls-csi", mount_path="/certs", read_only=True)
+    mock_k8s_client.V1CSIVolumeSource.assert_called_once_with(
+        driver="secrets-store.csi.k8s.io",
+        read_only=True,
+        volume_attributes={"secretProviderClass": "streamwise-tls"},
+    )
+    mock_k8s_client.V1Volume.assert_called_once_with(name="tls-csi", csi=mock_k8s_client.V1CSIVolumeSource.return_value)
 
 
 @pytest.mark.asyncio
