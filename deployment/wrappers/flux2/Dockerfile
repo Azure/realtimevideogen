@@ -1,6 +1,6 @@
-# base image has CUDA, Miniconda, streamwise conda env with torch, and base_requirements
+# base image has CUDA and Python with torch and base_requirements
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
-ARG BASE_TAG=v1.0.0
+ARG BASE_TAG=v0.5.0
 
 FROM ${DOCKER_REPO}/base:${BASE_TAG}
 
@@ -14,16 +14,16 @@ ENV HF_HOME=/huggingface_hub
 RUN --mount=type=secret,id=hf_token \
     HF_TOKEN=$(cat /run/secrets/hf_token) && \
     mkdir -p $HF_HOME && \
-    conda run -n streamwise hf auth login --token "$HF_TOKEN" && \
-    conda run -n streamwise hf download black-forest-labs/FLUX.2-dev --local-dir black-forest-labs/FLUX.2-dev
+    hf auth login --token "$HF_TOKEN" && \
+    hf download black-forest-labs/FLUX.2-dev --local-dir black-forest-labs/FLUX.2-dev
 
 COPY docker_files/requirements.txt .
-RUN conda run -n streamwise pip install -r requirements.txt && \
-    conda run -n streamwise pip cache purge
+RUN pip install -r requirements.txt && \
+    pip cache purge
 
 COPY docker_files/*.py .
 # Inject transformer_flux2.py (cloned from xDiT GitHub) into the installed xfuser package
-RUN XFUSER_TRANSFORMERS=$(conda run -n streamwise python -c \
+RUN XFUSER_TRANSFORMERS=$(python3 -c \
         "import xfuser, os; print(os.path.join(os.path.dirname(os.path.abspath(xfuser.__file__)), \
         'model_executor/models/transformers'))") && \
     cp transformer_flux2.py "$XFUSER_TRANSFORMERS/transformer_flux2.py"
@@ -32,8 +32,6 @@ COPY docker_files/*.json .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
 
-SHELL ["/bin/bash", "-c"]
-RUN echo "source activate streamwise" >> ~/.bashrc
 
 ENTRYPOINT ["bash", "run_httpserver.bash", "--flux2"]
 EXPOSE 8080

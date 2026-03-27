@@ -31,7 +31,6 @@ elif [[ -f "/certs/cert.pem" ]] && [[ -f "/certs/key.pem" ]]; then
     CERT_ARGS=(--certfile /certs/cert.pem --keyfile /certs/key.pem)
 fi
 
-/opt/conda/bin/conda run -n streamwise \
 python3 -u "$APP_NAME.py" \
 ${CERT_ARGS[@]+"${CERT_ARGS[@]}"} \
 "$@"

@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: streamcast
-    image: ${ACR_URL}/streamcast:v0.4.0
+    image: ${ACR_URL}/streamcast:v0.5.0
     ports:
     - containerPort: 18080
       protocol: TCP
