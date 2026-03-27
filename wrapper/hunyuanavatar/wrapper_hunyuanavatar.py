@@ -35,7 +35,6 @@ from PIL import Image
 
 from xfuser.config import EngineConfig
 
-from model_timing import LoadTimer
 from model_timing import GenTimer
 
 from wrapper_usp import USPGeneration

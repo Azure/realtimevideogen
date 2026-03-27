@@ -16,7 +16,7 @@ sys.path.append("wrapper")
 sys.path.append("wrapper/flux")
 sys.path.append("wrapper/wan")
 
-mock_modules =  {
+mock_modules = {
     'torch.profiler': MagicMock(),
     'torch.hub': MagicMock(),
     'torch.version': MagicMock(),

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import pytest
 
 from typing import Tuple
 
@@ -17,7 +16,7 @@ mock_diffusers = DiffusersMock()
 sys.path.append("wrapper")
 sys.path.append("wrapper/flux")
 
-mock_modules =  {
+mock_modules = {
     'xfuser': MagicMock(),
     'xfuser.config': MagicMock(),
     'xfuser.core': MagicMock(),
