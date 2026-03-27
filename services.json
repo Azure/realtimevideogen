@@ -4,7 +4,7 @@
         "friendlyName": "Wrapper Base Image",
         "dockerImage": {
             "name": "base",
-            "tag": "v1.0.0"
+            "tag": "v0.5.0"
         }
     },
     "cogview": {
@@ -13,7 +13,7 @@
         "url": "https://huggingface.co/THUDM/CogView4-6B",
         "dockerImage": {
             "name": "cogview",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -29,7 +29,7 @@
         "url": "https://github.com/nari-labs/dia",
         "dockerImage": {
             "name": "dia",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2audio",
         "inputs": [
@@ -45,7 +45,7 @@
         "url": "https://github.com/Fantasy-AMAP/fantasy-talking",
         "dockerImage": {
             "name": "fantasytalking",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimageaudio2video",
         "inputs": [
@@ -66,7 +66,7 @@
         "url": "https://github.com/black-forest-labs/flux",
         "dockerImage": {
             "name": "flux",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -82,7 +82,7 @@
         "url": "https://huggingface.co/jasperai/Flux.1-dev-Controlnet-Upscaler",
         "dockerImage": {
             "name": "fluxupscaler",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -99,7 +99,7 @@
         "url": "https://github.com/krea-ai/flux-krea",
         "dockerImage": {
             "name": "fluxkrea",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -115,7 +115,7 @@
         "url": "https://github.com/black-forest-labs/flux",
         "dockerImage": {
             "name": "fluxkontext",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -132,7 +132,7 @@
         "url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
         "dockerImage": {
             "name": "flux2",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -148,7 +148,7 @@
         "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B",
         "dockerImage": {
             "name": "flux2klein",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -164,7 +164,7 @@
         "url": "https://github.com/taco-group/4KAgent",
         "dockerImage": {
             "name": "4kagent",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -180,7 +180,7 @@
         "url": "https://github.com/HiDream-ai/HiDream-I1",
         "dockerImage": {
             "name": "hidream",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -196,7 +196,7 @@
         "url": "https://huggingface.co/Qwen/Qwen-Image",
         "dockerImage": {
             "name": "qwenimage",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -212,7 +212,7 @@
         "url": "https://huggingface.co/Qwen/Qwen-Image-Edit",
         "dockerImage": {
             "name": "qwenimageedit",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -229,7 +229,7 @@
         "url": "https://github.com/deepseek-ai/Janus",
         "dockerImage": {
             "name": "januspro",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -245,7 +245,7 @@
         "url": "https://github.com/FoundationVision/LlamaGen",
         "dockerImage": {
             "name": "llamagen",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -261,7 +261,7 @@
         "url": "https://github.com/bytedance-seed/BAGEL",
         "dockerImage": {
             "name": "bagel",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -278,7 +278,7 @@
         "url": "https://huggingface.co/tencent/HunyuanImage-3.0",
         "dockerImage": {
             "name": "hunyuanimage",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2image",
         "inputs": [
@@ -294,7 +294,7 @@
         "url": "https://github.com/lllyasviel/FramePack",
         "dockerImage": {
             "name": "hunyuanframepack",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimage2video",
         "inputs": [
@@ -314,7 +314,7 @@
         "url": "https://github.com/lllyasviel/FramePack",
         "dockerImage": {
             "name": "hunyuanframepackf1",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimage2video",
         "inputs": [
@@ -334,7 +334,7 @@
         "url": "https://github.com/lllyasviel/FramePack",
         "dockerImage": {
             "name": "hunyuanframepackvae",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "latent2video",
         "inputs": [
@@ -353,7 +353,7 @@
         "url": "https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar",
         "dockerImage": {
             "name": "hunyuanavatar",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimageaudio2video",
         "inputs": [
@@ -371,7 +371,7 @@
         "url": "https://github.com/hexgrad/kokoro",
         "dockerImage": {
             "name": "kokoro",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2audio",
         "inputs": [
@@ -387,7 +387,7 @@
         "url": "https://github.com/coqui-ai/TTS",
         "dockerImage": {
             "name": "xtts",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2audio",
         "inputs": [
@@ -403,7 +403,7 @@
         "url": "https://github.com/FunAudioLLM/ThinkSound",
         "dockerImage": {
             "name": "thinksound",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "video2audio",
         "inputs": [
@@ -419,7 +419,7 @@
         "url": "https://github.com/microsoft/VibeVoice",
         "dockerImage": {
             "name": "vibevoice",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2audio",
         "inputs": [
@@ -434,7 +434,7 @@
         "friendlyName": "Podcast Transcript",
         "dockerImage": {
             "name": "podcasttranscript",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2text",
         "inputs": [
@@ -449,7 +449,7 @@
         "friendlyName": "Slide Transcript",
         "dockerImage": {
             "name": "slidetranscript",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2text",
         "inputs": [
@@ -465,7 +465,7 @@
         "url": "https://github.com/Wan-Video/Wan2.1",
         "dockerImage": {
             "name": "wan",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimage2video",
         "inputs": [
@@ -486,7 +486,7 @@
         "url": "https://github.com/Wan-Video/Wan2.2",
         "dockerImage": {
             "name": "wan22",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimage2video",
         "inputs": [
@@ -508,7 +508,7 @@
         "url": "https://github.com/ultralytics/ultralytics",
         "dockerImage": {
             "name": "yolo",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -524,7 +524,7 @@
         "url": "https://pillow.readthedocs.io/en/stable/reference/Image.html",
         "dockerImage": {
             "name": "imageresize",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -540,7 +540,7 @@
         "url": "https://github.com/xinntao/Real-ESRGAN",
         "dockerImage": {
             "name": "realesrgan",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "image2image",
         "inputs": [
@@ -556,7 +556,7 @@
         "url": "hhttps://github.com/Lightricks/LTX-Video",
         "dockerImage": {
             "name": "ltx",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimage2video",
         "inputs": [
@@ -576,7 +576,7 @@
         "url": "https://github.com/meituan-longcat/LongCat-Video",
         "dockerImage": {
             "name": "longcatvideo",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "textimage2video",
         "inputs": [
@@ -644,7 +644,7 @@
         "url": "https://github.com/meta-llama/llama-models/",
         "dockerImage": {
             "name": "mock",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "mock",
         "inputs": [
@@ -659,7 +659,7 @@
         "friendlyName": "StreamWise",
         "dockerImage": {
             "name": "streamwise",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "manager"
     },
@@ -668,7 +668,7 @@
         "friendlyName": "StreamCast",
         "dockerImage": {
             "name": "streamcast",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "doc2video"
     },
@@ -677,7 +677,7 @@
         "friendlyName": "StreamPersona",
         "dockerImage": {
             "name": "streampersona",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "doc2video"
     },
@@ -686,7 +686,7 @@
         "friendlyName": "StreamShort",
         "dockerImage": {
             "name": "streamshort",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "video2video"
     },
@@ -695,7 +695,7 @@
         "friendlyName": "StreamDub",
         "dockerImage": {
             "name": "streamdub",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "video2video"
     },
@@ -704,7 +704,7 @@
         "friendlyName": "StreamMovie",
         "dockerImage": {
             "name": "streammovie",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "video2video"
     },
@@ -713,7 +713,7 @@
         "friendlyName": "StreamAnimate",
         "dockerImage": {
             "name": "streamanimate",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2video"
     },
@@ -722,7 +722,7 @@
         "friendlyName": "StreamChat",
         "dockerImage": {
             "name": "streamchat",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "text2video"
     },
@@ -731,7 +731,7 @@
         "friendlyName": "StreamEdit",
         "dockerImage": {
             "name": "streamedit",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "video2video"
     },
@@ -740,7 +740,7 @@
         "friendlyName": "StreamLecture",
         "dockerImage": {
             "name": "streamlecture",
-            "tag": "v0.4.0"
+            "tag": "v0.5.0"
         },
         "class": "doc2video"
     }

@@ -1,5 +1,6 @@
+# base image has CUDA and Python with torch and base_requirements
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
-ARG BASE_TAG=v1.0.0
+ARG BASE_TAG=v0.5.0
 
 FROM ${DOCKER_REPO}/base:${BASE_TAG}
 
@@ -56,6 +57,7 @@ COPY docker_files/*.bash .
 COPY docker_files/*.json .
 COPY docker_files/templates ./templates
 COPY docker_files/static ./static
+
 
 ENTRYPOINT ["bash", "run_httpserver.bash", "--4kagent"]
 EXPOSE 8080

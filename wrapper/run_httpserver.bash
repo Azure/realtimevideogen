@@ -49,7 +49,6 @@ if [[ $NUM_GPUS -gt 8 ]]; then
     MAIN_SERVER=10.0.0.4:29500  # Set this up
     NODE_RANK=0  # Set this up
 
-    /opt/conda/bin/conda run -n streamwise \
     torchrun \
     --rdzv_backend=c10d \
     --rdzv_endpoint="${MAIN_SERVER}" \
@@ -63,7 +62,6 @@ if [[ $NUM_GPUS -gt 8 ]]; then
     "$@"
 elif [[ $NUM_GPUS -gt 1 ]]; then
     # Single-node multi-GPU setup
-    /opt/conda/bin/conda run -n streamwise \
     torchrun \
     --nproc_per_node="${NUM_GPUS}" \
     run_httpserver.py \
@@ -72,7 +70,6 @@ elif [[ $NUM_GPUS -gt 1 ]]; then
     --use_torch_compile \
     "$@"
 else
-    /opt/conda/bin/conda run -n streamwise \
     python3 -u run_httpserver.py \
     "$@"
 fi
