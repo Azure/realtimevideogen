@@ -327,7 +327,7 @@ class LMMGeneratorMock(LMMGenerator):
     def get_queued_requests(self) -> List[str]:
         return []  # TODO
 
-    async def gen_text(  # type: ignore[override]
+    async def gen_text(
         self,
         messages: List[Dict],
         *_: Any,
@@ -336,7 +336,7 @@ class LMMGeneratorMock(LMMGenerator):
         """Return a canned text reply for testing."""
         return "This is a mock response."
 
-    async def gen_audio_transcript(  # type: ignore[override]
+    async def gen_audio_transcript(
         self,
         audio_path: str,
         *_: Any,
