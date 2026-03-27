@@ -36,8 +36,7 @@ RUN apt-get update && \
 ARG TORCH_PACKAGE=torch==2.8.0+cu128
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
 
-RUN pip install --upgrade pip && \
-    pip install "${TORCH_PACKAGE}" --index-url "${TORCH_INDEX_URL}" && \
+RUN pip install "${TORCH_PACKAGE}" --index-url "${TORCH_INDEX_URL}" && \
     pip install ninja packaging && \
     pip cache purge
 

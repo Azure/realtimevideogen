@@ -1,7 +1,7 @@
 # base image has CUDA and Python with torch
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
 ARG APP_NAME=streamwiseapp
-ARG BASE_TAG=v1.0.0
+ARG BASE_TAG=v0.5.0
 
 FROM ${DOCKER_REPO}/base:${BASE_TAG}
 

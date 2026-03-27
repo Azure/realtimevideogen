@@ -4,7 +4,7 @@
         "friendlyName": "Wrapper Base Image",
         "dockerImage": {
             "name": "base",
-            "tag": "v1.0.0"
+            "tag": "v0.5.0"
         }
     },
     "cogview": {

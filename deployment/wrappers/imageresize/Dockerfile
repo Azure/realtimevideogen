@@ -1,6 +1,6 @@
 # base image has CUDA and Python with torch and base_requirements
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
-ARG BASE_TAG=v1.0.0
+ARG BASE_TAG=v0.5.0
 
 FROM ${DOCKER_REPO}/base:${BASE_TAG}
 
