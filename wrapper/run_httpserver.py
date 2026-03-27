@@ -1392,6 +1392,8 @@ def arg_parsing() -> Tuple[argparse.Namespace, Optional[EngineConfig]]:
 
     parser.add_argument("--host", type=str, default=HOST, help="Host to bind the server")
     parser.add_argument("--port", type=int, default=PORT, help="Port to bind the server")
+    parser.add_argument("--certfile", type=str, default=None, help="Path to SSL certificate file for HTTPS")
+    parser.add_argument("--keyfile", type=str, default=None, help="Path to SSL private key file for HTTPS")
 
     parser.add_argument("--wan", action="store_true", help="Wan 2.1 model")
     parser.add_argument("--wan21", action="store_true", help="Wan 2.1 model")
@@ -1733,8 +1735,10 @@ async def init_model(
 async def run_httpserver(
     host: str = HOST,
     port: int = PORT,
+    certfile: Optional[str] = None,
+    keyfile: Optional[str] = None,
 ) -> None:
-    """HTTP server runs in the main process (rank 0)."""
+    """HTTP/HTTPS server runs in the main process (rank 0)."""
     config = Config()
     config.bind = [f"{host}:{port}"]
 
@@ -1749,7 +1753,13 @@ async def run_httpserver(
     config.keep_alive_timeout = 5 * 60  # Keep connections alive for 1 minute
     config.graceful_timeout = 30  # Graceful shutdown timeout
 
-    logging.info(f"[{rank}] Starting HTTP server on {host}:{port} with routes:")
+    if certfile:
+        config.certfile = certfile
+    if keyfile:
+        config.keyfile = keyfile
+
+    scheme = "https" if certfile else "http"
+    logging.info(f"[{rank}] Starting HTTP server on {scheme}://{host}:{port} with routes:")
     for rule in app.url_map.iter_rules():
         logging.info(f"[{rank}] - {rule.rule}")
 
@@ -1785,6 +1795,8 @@ async def main() -> None:
             http_task = asyncio.create_task(run_httpserver(
                 host=args.host,
                 port=args.port,
+                certfile=getattr(args, "certfile", None),
+                keyfile=getattr(args, "keyfile", None),
             ))
 
             await init_model(args, engine_config)

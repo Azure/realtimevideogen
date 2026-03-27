@@ -9,6 +9,7 @@ from http import HTTPStatus
 
 from unittest.mock import patch
 from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 
 from tests.test_utils import temp_sys_path
 from tests.torch_mock import TorchMock
@@ -331,3 +332,49 @@ def test_setup_dist_environment_mig() -> None:
         run_httpserver.setup_dist_environment()
         # local_rank=1 is out of range; should fall back to device 0
         mock_torch.cuda.set_device.assert_called_with(0)
+
+
+@pytest.mark.asyncio
+async def test_run_httpserver_http() -> None:
+    """run_httpserver() configures Hypercorn without SSL when no certfile is given."""
+    with patch("run_httpserver.serve", new=AsyncMock()) as mock_serve:
+        await run_httpserver.run_httpserver(host="127.0.0.1", port=9999)
+        mock_serve.assert_awaited_once()
+        config = mock_serve.call_args[0][1]
+        assert config.bind == ["127.0.0.1:9999"]
+        # No SSL attributes set
+        assert getattr(config, "certfile", None) is None
+        assert getattr(config, "keyfile", None) is None
+
+
+@pytest.mark.asyncio
+async def test_run_httpserver_https() -> None:
+    """run_httpserver() configures Hypercorn with SSL when certfile and keyfile are given."""
+    with patch("run_httpserver.serve", new=AsyncMock()) as mock_serve:
+        await run_httpserver.run_httpserver(
+            host="127.0.0.1",
+            port=9999,
+            certfile="/tmp/cert.pem",
+            keyfile="/tmp/key.pem",
+        )
+        mock_serve.assert_awaited_once()
+        config = mock_serve.call_args[0][1]
+        assert config.bind == ["127.0.0.1:9999"]
+        assert config.certfile == "/tmp/cert.pem"
+        assert config.keyfile == "/tmp/key.pem"
+
+
+def test_arg_parsing_https_args() -> None:
+    """arg_parsing() accepts --certfile and --keyfile arguments."""
+    with patch("sys.argv", ["run_httpserver", "--mock", "--certfile", "/tmp/cert.pem", "--keyfile", "/tmp/key.pem"]):
+        args, _ = run_httpserver.arg_parsing()
+        assert args.certfile == "/tmp/cert.pem"
+        assert args.keyfile == "/tmp/key.pem"
+
+
+def test_arg_parsing_https_defaults() -> None:
+    """arg_parsing() defaults certfile and keyfile to None (HTTP mode)."""
+    with patch("sys.argv", ["run_httpserver", "--mock"]):
+        args, _ = run_httpserver.arg_parsing()
+        assert args.certfile is None
+        assert args.keyfile is None

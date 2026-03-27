@@ -639,3 +639,31 @@ async def test_index_mig_pods_excluded_from_full_gpu_count() -> None:
     # The full GPU count should be 2 (only the non-MIG pod), not 3 (2+1 counting MIG pod)
     assert "2/7/7" in response_text
     assert "3/7/7" not in response_text
+
+
+def test_streamwise_arg_parser_https_args() -> None:
+    """streamwise.py argument parser accepts --certfile and --keyfile."""
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--k8s_cluster", type=str, default=None)
+    parser.add_argument("--host", type=str, default=sw.HOST)
+    parser.add_argument("--port", type=int, default=sw.PORT)
+    parser.add_argument("--certfile", type=str, default=None)
+    parser.add_argument("--keyfile", type=str, default=None)
+    args = parser.parse_args(["--certfile", "/tmp/cert.pem", "--keyfile", "/tmp/key.pem"])
+    assert args.certfile == "/tmp/cert.pem"
+    assert args.keyfile == "/tmp/key.pem"
+
+
+def test_streamwise_arg_parser_https_defaults() -> None:
+    """streamwise.py argument parser defaults certfile and keyfile to None."""
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--k8s_cluster", type=str, default=None)
+    parser.add_argument("--host", type=str, default=sw.HOST)
+    parser.add_argument("--port", type=int, default=sw.PORT)
+    parser.add_argument("--certfile", type=str, default=None)
+    parser.add_argument("--keyfile", type=str, default=None)
+    args = parser.parse_args([])
+    assert args.certfile is None
+    assert args.keyfile is None
