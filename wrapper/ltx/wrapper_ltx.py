@@ -80,18 +80,20 @@ class LTXVideoGeneration(ModelGeneration):
             # "Lightricks/LTX-Video",
             "Lightricks/LTX-Video-0.9.7-dev",
             torch_dtype=self.param_dtype)
-        self.pipeline.to(self.device)
+        assert self.pipeline is not None
+        self.pipeline.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("pipeline")
 
         self.load_timer.start("upsample")
         self.pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained(
             "Lightricks/ltxv-spatial-upscaler-0.9.7",
-            vae=self.pipeline.vae,
+            vae=self.pipeline.vae,  # type: ignore[union-attr]
             torch_dtype=self.param_dtype)
-        self.pipe_upsample.to(self.device)
+        assert self.pipe_upsample is not None
+        self.pipe_upsample.to(self.device)  # type: ignore[union-attr]
         self.load_timer.end("upsample")
 
-        self.pipeline.vae.enable_tiling()
+        self.pipeline.vae.enable_tiling()  # type: ignore[union-attr]
 
     def init_model_parallelism(self) -> None:
         if self.world_size > 1:
@@ -102,8 +104,9 @@ class LTXVideoGeneration(ModelGeneration):
             return
         logging.info("Compiling transformer with torch.compile().")
         self.load_timer.start("dit_compile")
-        self.pipeline.transformer = torch.compile(
-            self.pipeline.transformer,
+        assert self.pipeline is not None
+        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
+            self.pipeline.transformer,  # type: ignore[attr-defined]
             mode="max-autotune-no-cudagraphs",
         )
         self.load_timer.end("dit_compile")
@@ -113,8 +116,10 @@ class LTXVideoGeneration(ModelGeneration):
         height: int,
         width: int
     ) -> Tuple[int, int]:
-        height = height - (height % self.pipeline.vae_spatial_compression_ratio)
-        width = width - (width % self.pipeline.vae_spatial_compression_ratio)
+        assert self.pipeline is not None
+        vae_spatial_compression_ratio = self.pipeline.vae_spatial_compression_ratio  # type: ignore[attr-defined]
+        height = height - (height % vae_spatial_compression_ratio)
+        width = width - (width % vae_spatial_compression_ratio)
         return height, width
 
     def __del__(self) -> None:
@@ -157,7 +162,7 @@ class LTXVideoGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -174,6 +179,8 @@ class LTXVideoGeneration(ModelGeneration):
 
         self._assert_model_init()
         self._assert_args(height, width, num_frames)
+        assert self.pipeline is not None
+        assert self.pipe_upsample is not None
 
         self.running = True  # Mark running to avoid concurrent calls
 
@@ -199,7 +206,7 @@ class LTXVideoGeneration(ModelGeneration):
                 downscaled_width)
             seed = torch.Generator()
             seed.manual_seed(0)
-            latents = self.pipeline(
+            latents = self.pipeline(  # type: ignore[operator]
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=neg_prompt,
@@ -214,7 +221,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 2. Upscale generated video using latent up-sampler with fewer inference steps
             # The available latent up-sampler up-scales the height/width by 2x
             upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
-            upscaled_latents = self.pipe_upsample(
+            upscaled_latents = self.pipe_upsample(  # type: ignore[operator]
                 latents=latents,
                 output_type="latent"
             ).frames
@@ -222,7 +229,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 3. De-noise the upscaled video with few steps to improve texture (optional, but recommended)
             seed = torch.Generator()
             seed.manual_seed(0)
-            video_frames = self.pipeline(
+            video_frames = self.pipeline(  # type: ignore[operator]
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=negative_prompt,
@@ -296,6 +303,7 @@ class LTXVideoGeneration(ModelGeneration):
         img_base64 = data_json.get("img", None)
         if img_base64 is None:
             raise ValueError("Missing 'img' parameter.")
+        assert isinstance(img_base64, str)
         img = base64_to_img(img_base64)
 
         prompt = data_json.get("prompt", None)

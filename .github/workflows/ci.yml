@@ -55,15 +55,24 @@ jobs:
       if: always()
       run: |
         mypy --install-types --non-interactive --ignore-missing-imports . \
-          2>&1 | tee mypy-results.txt || true
+          2>&1 | tee mypy-results.txt
         ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null) || ERROR_COUNT=0
         WARNING_COUNT=$(grep -c ": warning:" mypy-results.txt 2>/dev/null) || WARNING_COUNT=0
         NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null) || NOTE_COUNT=0
+        FILE_COUNT=$(grep -oP '\d+(?= source file)' mypy-results.txt 2>/dev/null) || FILE_COUNT=0
+        if grep -q "no issues found" mypy-results.txt 2>/dev/null; then
+          STATUS="✅ No issues found"
+        else
+          STATUS="❌ Issues found"
+        fi
         {
           echo "## Mypy Type Checking"
           echo ""
+          echo "${STATUS}"
+          echo ""
           echo "| Metric | Count |"
           echo "|--------|-------|"
+          echo "| 📂 Files | ${FILE_COUNT} |"
           echo "| ❌ Errors | ${ERROR_COUNT} |"
           echo "| ⚠️ Warnings | ${WARNING_COUNT} |"
           echo "| 📝 Notes | ${NOTE_COUNT} |"

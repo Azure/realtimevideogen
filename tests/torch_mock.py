@@ -64,6 +64,9 @@ class TorchMock(MagicMock):
         # Define real exception class for torch.OutOfMemoryError
         self.OutOfMemoryError = type("OutOfMemoryError", (RuntimeError,), {})
 
+        # Define real type for torch.Tensor so isinstance() checks work
+        self.Tensor = type("Tensor", (), {})
+
         # Mock torch.cuda.memory_allocated
         self.cuda = MagicMock()
         self.cuda.memory_allocated.return_value = 0

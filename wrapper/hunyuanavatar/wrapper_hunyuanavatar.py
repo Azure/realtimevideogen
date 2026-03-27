@@ -35,7 +35,6 @@ from PIL import Image
 
 from xfuser.config import EngineConfig
 
-from model_timing import LoadTimer
 from model_timing import GenTimer
 
 from wrapper_usp import USPGeneration
@@ -153,13 +152,12 @@ class HunyuanAvatarGeneration(USPGeneration):
             self.device = torch.device(f"cuda:{dist.get_rank()}")
             self.rank = dist.get_rank()
 
-        self.load_timer = LoadTimer()
-
         self.load_timer.start("hunyuan_video_sampler")
         self.hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(
             f"{self.models_root_path}/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
             args=self.args,
             device=self.device)
+        assert self.hunyuan_video_sampler is not None
         self.load_timer.end("hunyuan_video_sampler")
 
         # Get the updated args
@@ -169,7 +167,9 @@ class HunyuanAvatarGeneration(USPGeneration):
         self.load_timer.start("wav2vec")
         self.wav2vec = WhisperModel.from_pretrained(
             f"{self.models_root_path}/whisper-tiny/"  # nosec B615 - local path
-        ).to(device=self.device, dtype=torch.float32)
+        )
+        assert self.wav2vec is not None
+        self.wav2vec = self.wav2vec.to(device=self.device, dtype=torch.float32)  # type: ignore[call-arg]
         self.wav2vec.requires_grad_(False)
         self.load_timer.end("wav2vec")
 
@@ -233,7 +233,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         audio_cfg_scale: float = 5.0,  # TODO not used
         job_id: Optional[str] = None,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> List[Image.Image]:
+    ) -> Union[List[Image.Image], np.ndarray, str, bytes, None]:
         """
         Generate a video from an image, a piece of audio, and a text prompt.
         Args:
@@ -318,7 +318,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         audio_path: str,
         video_frames: np.ndarray,
         output_type: str = "pil",  # "pil", "video_binary", "video_path"
-    ) -> Union[List[Image.Image], str, bytes, None]:
+    ) -> Union[List[Image.Image], np.ndarray, str, bytes, None]:
         gen_timer.start("output")
         try:
             if output_type == "pil":
