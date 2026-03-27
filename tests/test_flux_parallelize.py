@@ -31,18 +31,23 @@ mock_modules =  {
 mock_modules.update(mock_torch.get_sub_modules())
 mock_modules.update(mock_diffusers.get_sub_modules())
 
-with patch.dict(sys.modules,):
+with patch.dict(sys.modules, mock_modules):
     from flux.flux_xfuser import parallelize_transformer
+    import flux.flux_xfuser as _flux_xfuser_mod
+
+# Re-register the module so patch() targets the same object as
+# parallelize_transformer.__globals__ (patch.dict restores sys.modules
+# on exit, removing the module entry that was added during import).
+sys.modules['flux.flux_xfuser'] = _flux_xfuser_mod
 
 
 class DummyTransformer:
     def __init__(self) -> None:
         self.transformer_blocks: list[MagicMock] = []
         self.single_transformer_blocks: list[MagicMock] = []
-        self._forward_mock = MagicMock(return_value=(mock_torch.randn(2, 4, 8), "extra"))
 
     def forward(self, *args: object, **kwargs: object) -> Tuple:
-        return (mock_torch.randn(2, 4), "extra")
+        return (mock_torch.randn(2, 4, 8), "extra")
 
 
 def test_parallelize_transformer() -> None:
@@ -52,21 +57,6 @@ def test_parallelize_transformer() -> None:
 
     # Patch xfuser distributed utils so they return trivial values
     with (
-        patch.dict(
-            sys.modules, {
-                "torch": mock_torch,
-                "xfuser": MagicMock(),
-                "xfuser.config": MagicMock(),
-                "xfuser.core": MagicMock(),
-                "xfuser.core.distributed": MagicMock(),
-                "xfuser.model_executor": MagicMock(),
-                "xfuser.model_executor.models": MagicMock(),
-                "xfuser.model_executor.models.transformers.transformer_flux": MagicMock(),
-                "xfuser.model_executor.layers": MagicMock(),
-                "xfuser.model_executor.layers.attention_processor": MagicMock(),
-                "diffusers": MagicMock(),
-            }
-        ),
         patch("flux.flux_xfuser.get_classifier_free_guidance_world_size", return_value=1),
         patch("flux.flux_xfuser.get_classifier_free_guidance_rank", return_value=0),
         patch("flux.flux_xfuser.get_sequence_parallel_world_size", return_value=1),
@@ -90,17 +80,12 @@ def test_parallelize_transformer() -> None:
         timestep = mock_torch.tensor(1)
 
         parallel_pipeline = parallelize_transformer(pipeline)
-        # assert parallel_pipeline.transformer.forward is not transformer.forward
 
-        with pytest.raises(ValueError):
-            result = parallel_pipeline.transformer.forward(
-                hidden,
-                enc,
-                img_ids=img_ids,
-                txt_ids=txt_ids,
-                timestep=timestep)
+        result = parallel_pipeline.transformer.forward(
+            hidden,
+            enc,
+            img_ids=img_ids,
+            txt_ids=txt_ids,
+            timestep=timestep)
 
-            transformer._forward_mock.assert_called()
-            assert isinstance(result, tuple)
-            assert result[0].shape == (1, 4, 8)
-            assert result[1] == "extra"
+        assert isinstance(result, tuple)

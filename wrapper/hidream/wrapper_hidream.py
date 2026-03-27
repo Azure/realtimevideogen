@@ -85,7 +85,7 @@ class HiDreamGeneration(ModelGeneration):
 
         self.load_timer.start("pipeline")
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer = AutoTokenizer.from_pretrained(  # type: ignore[assignment]
             "meta-llama/Meta-Llama-3.1-8B-Instruct")  # nosec B615
         assert self.tokenizer is not None
         self.text_encoder = LlamaForCausalLM.from_pretrained(
