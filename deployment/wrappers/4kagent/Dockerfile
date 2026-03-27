@@ -7,6 +7,20 @@ FROM ${DOCKER_REPO}/base:${BASE_TAG}
 ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
 
+# Install system libraries required to compile Pillow from source (e.g. libjpeg)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libjpeg-dev \
+        zlib1g-dev \
+        libtiff-dev \
+        libfreetype-dev \
+        liblcms2-dev \
+        libwebp-dev \
+        libopenjp2-7-dev \
+    && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Clone 4KAgent
 RUN git clone --depth 1 https://github.com/taco-group/4KAgent /4kagent/4KAgent
 
