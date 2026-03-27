@@ -41,7 +41,7 @@ class HunyuanFramepackF1Generation(HunyuanFramePackBase):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         img: Image.Image,
         prompt: str,
@@ -57,7 +57,7 @@ class HunyuanFramepackF1Generation(HunyuanFramePackBase):
         save_intermediate: Optional[str] = None,
         job_id: Optional[str] = None,
         output_type: str = "tensor",  # "tensor", "latent", "video_binary", "video_path"
-    ) -> torch.Tensor:
+    ) -> Optional[torch.Tensor]:
         """
         Generate a video from an input image and a prompt.
         Based on wrapper_hunyuanframepack.py and:

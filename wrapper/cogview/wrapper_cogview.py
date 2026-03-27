@@ -109,7 +109,8 @@ class CogViewGeneration(ModelGeneration):
             pretrained_model_name_or_path=self.MODEL_NAME,
             torch_dtype=self.param_dtype,
         )
-        self.pipeline = self.pipeline.to(self.device)
+        assert self.pipeline is not None
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
 
         # Enable memory optimizations
         """
@@ -133,6 +134,7 @@ class CogViewGeneration(ModelGeneration):
         # TODO this is not likely supported
         self.load_timer.start("compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
+        assert self.pipeline is not None
         if hasattr(self.pipeline, 'transformer'):
             self.pipeline.transformer = torch.compile(
                 self.pipeline.transformer,
@@ -167,7 +169,7 @@ class CogViewGeneration(ModelGeneration):
         )
 
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         height: int,
         width: int,
@@ -189,6 +191,7 @@ class CogViewGeneration(ModelGeneration):
 
         self._assert_model_init()
         self._assert_args(height, width)
+        assert self.pipeline is not None
 
         self.running = True  # Mark running to avoid concurrent calls
 
@@ -209,7 +212,7 @@ class CogViewGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(
+            output = self.pipeline(  # type: ignore[operator]
                 prompt=prompt,
                 height=height,
                 width=width,
