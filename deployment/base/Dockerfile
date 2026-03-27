@@ -9,6 +9,7 @@ ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONDA_DIR=/opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
+ENV PIP_ROOT_USER_ACTION=ignore
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
