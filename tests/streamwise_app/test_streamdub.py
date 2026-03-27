@@ -23,6 +23,14 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 from tests.torch_mock import TorchMock
+from tests.streamwise_app.app_test_helpers import check_app_root
+from tests.streamwise_app.app_test_helpers import check_health
+from tests.streamwise_app.app_test_helpers import check_files
+from tests.streamwise_app.app_test_helpers import check_unknown_route
+from tests.streamwise_app.app_test_helpers import check_job_submit_page
+from tests.streamwise_app.app_test_helpers import check_job_status_page
+from tests.streamwise_app.app_test_helpers import check_api_job_status
+from tests.streamwise_app.app_test_helpers import check_api_job_requests
 
 mock_torch = TorchMock()
 
@@ -56,14 +64,49 @@ def _test_app() -> Quart:
 @pytest.mark.asyncio
 async def test_app(test_app: Quart) -> None:
     """Check that GET / returns 200."""
-    client = test_app.test_client()
-    response = await client.get("/")
-    assert response is not None
-    assert response.status_code == HTTPStatus.OK
-    assert "text/html; charset=utf-8" == response.content_type
-    response_html = await response.get_data(as_text=True)
-    assert response_html.startswith("<!DOCTYPE html>\n<html lang=\"en\">")
-    assert "StreamDub" in response_html
+    await check_app_root(test_app, "StreamDub")
+
+
+@pytest.mark.asyncio
+async def test_health(test_app: Quart) -> None:
+    """Check /health."""
+    await check_health(test_app)
+
+
+@pytest.mark.asyncio
+async def test_files(test_app: Quart) -> None:
+    """Check /files endpoint."""
+    await check_files(test_app, "streamdub")
+
+
+@pytest.mark.asyncio
+async def test_unknown_route(test_app: Quart) -> None:
+    """Check that an unknown route returns 404."""
+    await check_unknown_route(test_app)
+
+
+@pytest.mark.asyncio
+async def test_job_submit_page(test_app: Quart) -> None:
+    """Check the web page for job submission."""
+    await check_job_submit_page(test_app)
+
+
+@pytest.mark.asyncio
+async def test_job_status_page(test_app: Quart) -> None:
+    """Check the web page for job status."""
+    await check_job_status_page(test_app)
+
+
+@pytest.mark.asyncio
+async def test_api_job_status(test_app: Quart) -> None:
+    """Check the API for job status (returns UNKNOWN for nonexistent jobs)."""
+    await check_api_job_status(test_app)
+
+
+@pytest.mark.asyncio
+async def test_api_job_requests(test_app: Quart) -> None:
+    """Check the API for job requests listing (returns empty for nonexistent jobs)."""
+    await check_api_job_requests(test_app)
 
 
 @pytest.mark.asyncio
