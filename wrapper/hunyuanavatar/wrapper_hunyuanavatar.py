@@ -157,6 +157,7 @@ class HunyuanAvatarGeneration(USPGeneration):
             f"{self.models_root_path}/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
             args=self.args,
             device=self.device)
+        assert self.hunyuan_video_sampler is not None
         self.load_timer.end("hunyuan_video_sampler")
 
         # Get the updated args
@@ -167,6 +168,7 @@ class HunyuanAvatarGeneration(USPGeneration):
         self.wav2vec = WhisperModel.from_pretrained(
             f"{self.models_root_path}/whisper-tiny/"  # nosec B615 - local path
         ).to(device=self.device, dtype=torch.float32)
+        assert self.wav2vec is not None
         self.wav2vec.requires_grad_(False)
         self.load_timer.end("wav2vec")
 
