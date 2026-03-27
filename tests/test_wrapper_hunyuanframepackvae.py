@@ -84,7 +84,7 @@ async def test_wrapper_hunyuanframepackvae() -> None:
     except EOFError:
         pass  # This is expected due to the mocks not providing actual latents
 
-    with pytest.raises(TypeError, match="isinstance"):
+    with pytest.raises(TypeError, match="Expected latents to be a torch.Tensor"):
         # TODO fix mocks
         await model.warmup()
 
