@@ -1,4 +1,4 @@
-# base image has CUDA, Miniconda, streamwise conda env with torch, and base_requirements
+# base image has CUDA and Python with torch and base_requirements
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
 ARG BASE_TAG=v1.0.0
 
@@ -8,19 +8,19 @@ ARG DOCKER_REPO
 ENV DOCKER_REPO=${DOCKER_REPO}
 
 # Install flash attention separately
-RUN conda run -n streamwise pip install psutil numpy
-RUN conda run -n streamwise pip install --no-build-isolation flash-attn==2.8.2 && \
-    conda run -n streamwise pip cache purge
+RUN pip install psutil numpy
+RUN pip install --no-build-isolation flash-attn==2.8.2 && \
+    pip cache purge
 
 RUN git clone https://github.com/microsoft/VibeVoice.git vibevoice
 WORKDIR /vibevoice
 
 COPY docker_files/requirements.txt /vibevoice/requirements.txt
-RUN conda run -n streamwise pip install -r /vibevoice/requirements.txt && \
-    conda run -n streamwise pip cache purge
+RUN pip install -r /vibevoice/requirements.txt && \
+    pip cache purge
 
-RUN conda run -n streamwise hf download microsoft/VibeVoice-1.5B --local-dir microsoft/VibeVoice-1.5B
-RUN conda run -n streamwise hf download Qwen/Qwen2.5-1.5B --local-dir Qwen/Qwen2.5-1.5B
+RUN hf download microsoft/VibeVoice-1.5B --local-dir microsoft/VibeVoice-1.5B
+RUN hf download Qwen/Qwen2.5-1.5B --local-dir Qwen/Qwen2.5-1.5B
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .
@@ -32,8 +32,6 @@ COPY docker_files/static ./static
 COPY docker_files/schedule /vibevoice/schedule
 COPY docker_files/voices /vibevoice/voices
 
-SHELL ["/bin/bash", "-c"]
-RUN echo "source activate streamwise" >> ~/.bashrc
 
 # docker run --gpus all -p 18080:8080 vibevoice
 # docker exec -it <container-id> ls -l /

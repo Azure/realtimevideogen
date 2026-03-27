@@ -1,4 +1,4 @@
-# base image has CUDA, Miniconda, and streamwise conda env with torch
+# base image has CUDA and Python with torch
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
 ARG APP_NAME=streamwiseapp
 ARG BASE_TAG=v1.0.0
@@ -26,7 +26,7 @@ RUN apt-get update && \
 
 # Main dependencies
 COPY requirements_streamwise.txt .
-RUN conda run -n streamwise pip install -r requirements_streamwise.txt
+RUN pip install -r requirements_streamwise.txt
 
 # Application specific
 ARG APP_NAME
@@ -35,8 +35,8 @@ ENV APP_NAME=${APP_NAME}
 WORKDIR /${APP_NAME}
 
 COPY requirements_${APP_NAME}.txt .
-RUN conda run -n streamwise pip install -r requirements_${APP_NAME}.txt && \
-    conda run -n streamwise pip cache purge
+RUN pip install -r requirements_${APP_NAME}.txt && \
+    pip cache purge
 
 # Application files
 COPY *.py .
@@ -49,9 +49,6 @@ COPY static ./static
 # TLS certificates (optional — populated by setup_image.sh --certfile/--keyfile or mounted at runtime)
 RUN mkdir -p /certs
 COPY certs /certs
-
-SHELL ["/bin/bash", "-c"]
-RUN echo "source activate streamwise" >> ~/.bashrc
 
 ENTRYPOINT bash run_httpserver.bash "$APP_NAME" --k8s_cluster incluster
 EXPOSE 18080
