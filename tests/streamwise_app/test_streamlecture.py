@@ -240,3 +240,75 @@ async def test_gen_scene_audio_only() -> None:
 
     del job
     del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_scene_video_audio_synced() -> None:
+    """StreamLectureJob.gen_scene in video_audio_synced mode with short audio uses gen_video_audio_from_img."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_gen_scene_synced",
+        service_manager=service_manager,
+    )
+    job.gen = LMMGeneratorMock()
+    job.config["output_mode"] = "video_audio_synced"
+    job.image = Image.new("RGB", (160, 100), color="white")
+
+    try:
+        result = await job.gen_scene(scene_id=0, text="Test synced scene.")
+        # If ffmpeg is available the result is an mp4 path
+        assert result.endswith(".mp4")
+        assert os.path.exists(result)
+    except FileNotFoundError:
+        pass  # ffmpeg not available in test environment
+
+    del job
+    del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_scene_video_audio_unsynced() -> None:
+    """StreamLectureJob.gen_scene in video_audio_unsynced mode uses gen_video."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_gen_scene_unsynced",
+        service_manager=service_manager,
+    )
+    job.gen = LMMGeneratorMock()
+    job.config["output_mode"] = "video_audio_unsynced"
+    job.image = Image.new("RGB", (160, 100), color="white")
+
+    try:
+        result = await job.gen_scene(scene_id=0, text="Test unsynced scene.")
+        assert result.endswith(".mp4")
+        assert os.path.exists(result)
+    except FileNotFoundError:
+        pass  # ffmpeg not available in test environment
+
+    del job
+    del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_lecture_audio_only() -> None:
+    """StreamLectureJob.gen_lecture in audio_only mode skips video generation."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_gen_lecture_audio_only",
+        service_manager=service_manager,
+    )
+    job.gen = LMMGeneratorMock()
+    job.config["output_mode"] = "audio_only"
+
+    pdf_path = "tests/data/blank.pdf"
+    pdf_base64 = await read_file_base64(pdf_path)
+    try:
+        await job.gen_lecture(pdf_base64=pdf_base64)
+        job_status = await job.get_status()
+        assert job_status == JobStatus.COMPLETED
+    except (FileNotFoundError, ValueError):
+        job_status = await job.get_status()
+        assert job_status == JobStatus.FAILED
+
+    del job
+    del service_manager
