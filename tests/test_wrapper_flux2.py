@@ -135,12 +135,11 @@ async def test_wrapper_flux2() -> None:
 
 @pytest.mark.asyncio
 async def test_wrapper_flux2_additional_coverage() -> None:
-    """Cover lines missed by test_wrapper_flux2: seed path, callbacks, parallelism, compile."""
+    """Cover seed path, step callbacks, parallelism init, and compile-disabled paths."""
     model = Flux2Generation()
     model.init()
     assert model.status == "ok"
 
-    # Cover line 138: generate() with an explicit seed >= 0 triggers set_seed().
     image = await model.generate(
         width=256,
         height=320,
@@ -148,8 +147,6 @@ async def test_wrapper_flux2_additional_coverage() -> None:
         seed=42)
     assert isinstance(image, Image.Image)
 
-    # Cover callback_gen_timer body: replace the pipeline side-effect so it
-    # invokes callback_on_step_end each step.
     pipeline_instance = model.pipeline
 
     def _pipeline_with_callback(*args: Any, **kwargs: Any) -> Any:
@@ -170,19 +167,18 @@ async def test_wrapper_flux2_additional_coverage() -> None:
         sampling_steps=2)
     assert isinstance(image, Image.Image)
 
-    # Cover lines 82-89: init_model_parallelism() body when world_size > 1.
-    # dist.is_initialized() returns a truthy MagicMock from the mock setup.
     model.world_size = 2
     model.init_model_parallelism()
 
-    # Cover line 94: model_compile() returns early when torch_compile is False.
     model.torch_compile = False
     model.model_compile()
 
-    # Cover line 96: model_compile() returns early when pipeline is None.
-    model2 = Flux2Generation()
-    assert model2.pipeline is None
-    model2.model_compile()  # torch_compile=True (default), pipeline=None → returns at line 96
-
     del model
-    del model2
+
+
+def test_wrapper_flux2_model_compile_no_pipeline() -> None:
+    """model_compile() with pipeline=None returns early (pipeline not yet loaded)."""
+    model = Flux2Generation()
+    assert model.pipeline is None
+    model.model_compile()
+    del model

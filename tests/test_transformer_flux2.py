@@ -6,8 +6,10 @@ import sys
 from typing import Any
 from unittest.mock import patch, MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/flux2")
@@ -143,6 +145,12 @@ _mock_embeddings.apply_rotary_emb.side_effect = lambda q, emb, sequence_dim: q  
 
 _mock_usp_module = MagicMock()
 
+# Build module dict from DiffusersMock and override the two entries that need
+# custom behaviour for these transformer tests.
+_diffusers_sub_modules = mock_diffusers.get_sub_modules()
+_diffusers_sub_modules["diffusers.models.transformers.transformer_flux2"] = _mock_transformer_module
+_diffusers_sub_modules["diffusers.models.embeddings"] = _mock_embeddings
+
 mock_modules = {
     'torch': mock_torch,
     'xfuser': MagicMock(),
@@ -155,13 +163,9 @@ mock_modules = {
     'xfuser.model_executor.layers': _mock_layers_module,
     'xfuser.model_executor.layers.attention_processor': _mock_attn_proc_module,
     'xfuser.model_executor.layers.usp': _mock_usp_module,
-    'diffusers': MagicMock(),
-    'diffusers.models': MagicMock(),
-    'diffusers.models.transformers': MagicMock(),
-    'diffusers.models.transformers.transformer_flux2': _mock_transformer_module,
-    'diffusers.models.embeddings': _mock_embeddings,
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(_diffusers_sub_modules)
 
 with patch.dict(sys.modules, mock_modules):
     from transformer_flux2 import (

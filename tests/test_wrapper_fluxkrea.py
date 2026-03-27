@@ -3,6 +3,8 @@
 import sys
 import pytest
 
+from typing import Any
+
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
@@ -34,6 +36,7 @@ mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from fluxkrea.wrapper_fluxkrea import FluxKreaGeneration
+    _fluxkrea_module = sys.modules['fluxkrea.wrapper_fluxkrea']
 
 
 @pytest.mark.asyncio
@@ -103,4 +106,56 @@ async def test_wrapper_fluxkrea() -> None:
         height=17,
         prompt="Test prompt")
 
+    del model
+
+
+@pytest.mark.asyncio
+async def test_wrapper_fluxkrea_additional_coverage() -> None:
+    """Cover seed path, step callbacks, parallelism init, and compile-disabled path."""
+    model = FluxKreaGeneration()
+    model.init()
+    assert model.status == "ok"
+
+    image = await model.generate(
+        width=256,
+        height=256,
+        prompt="Seed coverage test",
+        seed=42)
+    assert image is not None
+
+    pipeline_instance = model.pipeline
+
+    def _pipeline_with_callback(*args: Any, **kwargs: Any) -> Any:
+        n_steps = kwargs.get("num_inference_steps", 2)
+        callback = kwargs.get("callback_on_step_end")
+        if callback:
+            for step in range(n_steps):
+                callback(pipeline_instance, step, 0, {})
+        out = MagicMock()
+        out.images = [MagicMock()]
+        return out
+
+    pipeline_instance.side_effect = _pipeline_with_callback
+    image = await model.generate(
+        width=256,
+        height=256,
+        prompt="Callback coverage test",
+        sampling_steps=2)
+    assert image is not None
+
+    model.world_size = 2
+    with patch.object(_fluxkrea_module, 'parallelize_transformer'):
+        model.init_model_parallelism()
+
+    model.torch_compile = False
+    model.model_compile()
+
+    del model
+
+
+def test_wrapper_fluxkrea_model_compile_no_pipeline() -> None:
+    """model_compile() with pipeline=None returns early (pipeline not yet loaded)."""
+    model = FluxKreaGeneration()
+    assert model.pipeline is None
+    model.model_compile()
     del model

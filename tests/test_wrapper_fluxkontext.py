@@ -3,6 +3,8 @@
 import sys
 import pytest
 
+from typing import Any
+
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
@@ -38,6 +40,7 @@ mock_modules.update(mock_diffusers.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     from image_utils import img_to_base64
     from fluxkontext.wrapper_fluxkontext import FluxKontextGeneration
+    _fluxkontext_module = sys.modules['fluxkontext.wrapper_fluxkontext']
 
 
 @pytest.mark.asyncio
@@ -105,5 +108,52 @@ async def test_wrapper_fluxkontext() -> None:
             height=48,
             prompt="Test prompt",
         )
+
+    del model
+
+
+@pytest.mark.asyncio
+async def test_wrapper_fluxkontext_additional_coverage() -> None:
+    """Cover seed path, step callbacks, parallelism init, and compile-disabled path."""
+    model = FluxKontextGeneration()
+    model.init()
+    assert model.status == "ok"
+
+    img = Image.new("RGB", (256, 160))
+    image = await model.generate(
+        img=img,
+        width=256,
+        height=160,
+        prompt="Seed coverage test",
+        seed=42)
+    assert isinstance(image, Image.Image)
+
+    pipeline_instance = model.pipeline
+
+    def _pipeline_with_callback(*args: Any, **kwargs: Any) -> Any:
+        n_steps = kwargs.get("num_inference_steps", 2)
+        callback = kwargs.get("callback_on_step_end")
+        if callback:
+            for step in range(n_steps):
+                callback(pipeline_instance, step, 0, {})
+        out = MagicMock()
+        out.images = [Image.new("RGB", (kwargs.get("width", 64), kwargs.get("height", 64)))]
+        return out
+
+    pipeline_instance.side_effect = _pipeline_with_callback
+    image = await model.generate(
+        img=img,
+        width=256,
+        height=160,
+        prompt="Callback coverage test",
+        sampling_steps=2)
+    assert isinstance(image, Image.Image)
+
+    model.world_size = 2
+    with patch.object(_fluxkontext_module, 'parallelize_transformer'):
+        model.init_model_parallelism()
+
+    model.torch_compile = False
+    model.model_compile()
 
     del model
