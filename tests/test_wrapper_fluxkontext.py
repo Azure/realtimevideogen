@@ -113,7 +113,7 @@ async def test_wrapper_fluxkontext() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_fluxkontext_additional_coverage() -> None:
+async def test_additional_coverage() -> None:
     """Cover seed path, step callbacks, parallelism init, and compile-disabled path."""
     model = FluxKontextGeneration()
     model.init()

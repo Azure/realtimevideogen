@@ -93,7 +93,7 @@ async def test_wrapper_flux() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_flux_additional_coverage() -> None:
+async def test_additional_coverage() -> None:
     """Cover seed path, step callbacks, parallelism init, and compile-disabled path."""
     model = FluxGeneration()
     model.init()
@@ -136,7 +136,7 @@ async def test_wrapper_flux_additional_coverage() -> None:
     del model
 
 
-def test_wrapper_flux_model_compile_no_pipeline() -> None:
+def test_model_compile_no_pipeline() -> None:
     """model_compile() with pipeline=None raises ValueError."""
     model = FluxGeneration()
     assert model.pipeline is None

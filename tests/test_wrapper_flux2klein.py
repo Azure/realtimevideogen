@@ -103,7 +103,7 @@ async def test_wrapper_flux2klein() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrapper_flux2klein_additional_coverage() -> None:
+async def test_additional_coverage() -> None:
     """Cover seed path, step callbacks, parallelism init, and compile-disabled path."""
     model = Flux2KleinGeneration()
     model.init()
@@ -145,7 +145,7 @@ async def test_wrapper_flux2klein_additional_coverage() -> None:
     del model
 
 
-def test_wrapper_flux2klein_model_compile_no_pipeline() -> None:
+def test_model_compile_no_pipeline() -> None:
     """model_compile() with pipeline=None returns early (pipeline not yet loaded)."""
     model = Flux2KleinGeneration()
     assert model.pipeline is None
