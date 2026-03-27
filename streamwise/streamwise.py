@@ -348,9 +348,7 @@ async def service_timelines(service_name: str) -> QuartReturn:
             timestamps=timestamps)
     except Exception as ex:
         logging.error(f"Error fetching timestamps for {service_name}: {ex}")
-        abort(
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-            description=f"Error fetching timestamps for {service_name}: {ex}")
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @route("/service/timeline", methods=["GET"])

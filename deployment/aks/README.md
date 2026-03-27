@@ -94,8 +94,32 @@ IP_ADDRESS=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.publicIpAddress.value -o tsv)
 
-echo "AKS cluster: $AKS_CLUSTER"
-echo "Public IP:   $IP_ADDRESS"
+KEY_VAULT_NAME=$(az deployment group show \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --query properties.outputs.keyVaultName.value -o tsv)
+
+KUBELET_CLIENT_ID=$(az deployment group show \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --query properties.outputs.kubeletClientId.value -o tsv)
+
+AZ_TENANT_ID=$(az deployment group show \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --query properties.outputs.tenantId.value -o tsv)
+
+TLS_CERT_NAME=$(az deployment group show \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --query properties.outputs.tlsCertificateName.value -o tsv)
+
+echo "AKS cluster:       $AKS_CLUSTER"
+echo "Public IP:         $IP_ADDRESS"
+echo "Key Vault:         $KEY_VAULT_NAME"
+echo "Kubelet client ID: $KUBELET_CLIENT_ID"
+echo "Tenant ID:         $AZ_TENANT_ID"
+echo "TLS cert name:     $TLS_CERT_NAME"
 
 az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
 ```
@@ -138,77 +162,77 @@ kubectl apply -f deployment/k8s/local-pv.yaml
 kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 ```
 
-### 2.4 HTTPS / TLS Certificates (optional)
+### 2.4 HTTPS / TLS Certificates
 
-By default, StreamWise and app UIs are served over HTTP.
-To enable HTTPS, provide a TLS certificate — either embedded in the Docker image at build time, or mounted at runtime via a Kubernetes Secret.
+The Bicep template automatically provisions an Azure Key Vault, generates a self-signed TLS certificate inside it, and grants the AKS kubelet identity read access.
+The Secrets Store CSI Driver (enabled as an AKS addon by the Bicep template) mounts the certificate from Key Vault directly into each pod at `/certs/`, where the entrypoint scripts auto-detect it and enable HTTPS.
 
-#### Option A: Kubernetes TLS Secret (recommended for production)
+#### Step 1 — Wait for the certificate to finish generating
 
-Create a TLS Secret in the `rtgen` namespace from your certificate files:
-```bash
-# Using an existing certificate (e.g., from Let's Encrypt or your CA)
-kubectl create secret tls tls-secret -n rtgen \
-  --cert=/path/to/cert.pem \
-  --key=/path/to/key.pem
-```
-
-Then uncomment the `volumeMounts` and `volumes` blocks in the pod YAML:
-```bash
-# Edit deployment/aks/streamwise-pod.yaml  — uncomment the volumeMounts / volumes sections
-# then redeploy
-envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
-```
-
-The container auto-detects the mounted certificate at `/certs/tls.crt` / `/certs/tls.key` and switches to HTTPS automatically — no other change required.
-
-#### Option B: Embed certificate at image build time
-
-Pass `--certfile` and `--keyfile` when building the image.
-The certificate is copied into the image under `/certs/cert.pem` and `/certs/key.pem`:
+Key Vault certificate generation is asynchronous.
+Before deploying pods, confirm the certificate is ready:
 
 ```bash
-# StreamWise
-cd deployment/streamwise
-bash setup_image.sh --push \
-  --certfile /path/to/cert.pem \
-  --keyfile /path/to/key.pem
-
-# App (e.g., StreamCast)
-cd deployment/apps/streamcast
-bash setup_image.sh --push \
-  --certfile /path/to/cert.pem \
-  --keyfile /path/to/key.pem
+az keyvault certificate show \
+  --vault-name $KEY_VAULT_NAME --name $TLS_CERT_NAME \
+  --query attributes.enabled -o tsv
+# must return "true" before continuing
 ```
 
-> **Note:** Do not commit certificate files to source control.
-> Use Option A (Kubernetes Secret) in shared environments to keep keys out of images.
+#### Step 2 — Deploy the SecretProviderClass
 
-#### Generating a self-signed certificate (development / testing only)
+The `SecretProviderClass` tells the CSI driver which Key Vault and certificate to use.
+It also creates a K8s TLS Secret (`streamwise-tls-secret`) that is automatically rotated whenever the certificate is renewed in Key Vault.
 
 ```bash
-openssl req -x509 -newkey rsa:4096 -nodes \
-  -keyout key.pem -out cert.pem \
-  -days 365 \
-  -subj "/CN=$IP_ADDRESS" \
-  -addext "subjectAltName=IP:$IP_ADDRESS"
+# KEY_VAULT_NAME, KUBELET_CLIENT_ID, AZ_TENANT_ID, and TLS_CERT_NAME were
+# captured from the Bicep deployment outputs (see the output capture commands
+# in Step 1, after the az deployment group create command).
+envsubst < deployment/k8s/tls-secret-provider.yaml | kubectl apply -f -
 ```
 
-> Replace `$IP_ADDRESS` with a hostname (e.g. `-subj "/CN=streamwise.example.com"` and `-addext "subjectAltName=DNS:streamwise.example.com"`) if you are using a DNS name instead of an IP address.
+Verify the SecretProviderClass was created:
+```bash
+kubectl get secretproviderclass -n rtgen
+```
+
+#### Step 3 — Deploy pods (the certificate mounts automatically)
+
+The pod YAMLs (`streamwise-pod.yaml`, `streamcast-pod.yaml`) already include the CSI volume mount.
+No additional changes are needed — the certificate is detected at `/certs/tls.crt` and `/certs/tls.key` and HTTPS is enabled automatically.
+
+#### Using a custom or CA-signed certificate
+
+To replace the auto-generated self-signed certificate with your own:
+```bash
+# Import a certificate from a PEM file
+az keyvault certificate import \
+  --vault-name $KEY_VAULT_NAME \
+  --name $TLS_CERT_NAME \
+  --file /path/to/fullchain.pem
+
+# Or import a PKCS12 file
+az keyvault certificate import \
+  --vault-name $KEY_VAULT_NAME \
+  --name $TLS_CERT_NAME \
+  --file /path/to/certificate.pfx \
+  --password "$PFX_PASSWORD"
+```
+
+After import, the CSI driver picks up the new certificate within the rotation poll interval (2 minutes by default) and restarts affected pods automatically.
 
 #### Verify HTTPS is working
 
-After deploying, confirm the server responds over HTTPS:
 ```bash
-# StreamWise (adjust port and IP as needed)
+# StreamWise (self-signed cert: -k skips verification)
 curl -k https://$IP_ADDRESS:8081/health
 
 # StreamCast
 curl -k https://$IP_ADDRESS:8080/health
 ```
 
-> **Note:** Use `-k` (skip cert verification) for self-signed certificates.
-> For production, use a certificate issued by a trusted CA so browsers accept it without warnings.
+> **Note:** Browsers will show a security warning for the self-signed certificate.
+> Import the certificate into your browser's trust store, or replace it with a CA-signed certificate to eliminate warnings.
 
 ## Step 3: Deploy StreamWise (Cluster Manager)
 
@@ -242,7 +266,7 @@ kubectl exec -n rtgen streamwise -- cat /tmp/streamwise.log
 kubectl exec -it -n rtgen streamwise -- /bin/bash
 ```
 
-Open the web UI at: `http://$IP_ADDRESS:8081` (or `https://$IP_ADDRESS:8081` if HTTPS is enabled)
+Open the web UI at: `https://$IP_ADDRESS:8081`
 
 ### Remove StreamWise
 ```bash
@@ -253,6 +277,7 @@ kubectl delete -f deployment/k8s/streamwise-service-account.yaml
 ## Step 4: Deploy StreamCast
 
 Deploy using the same variable substitution approach as Step 3:
+
 
 ```bash
 kubectl apply -f deployment/k8s/streamwiseapp-service-account.yaml
@@ -265,7 +290,7 @@ kubectl get pods -n rtgen
 kubectl get svc -n rtgen
 ```
 
-Open the StreamCast UI at: `http://$IP_ADDRESS:8080` (or `https://$IP_ADDRESS:8080` if HTTPS is enabled)
+Open the StreamCast UI at: `https://$IP_ADDRESS:8080`
 
 ### Remove StreamCast
 ```bash
@@ -381,23 +406,23 @@ Deploy model services through the StreamWise web UI or REST API.
 > With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice on the MIG pool, leaving the full-GPU pool for heavy models.
 > For parallel execution of all services, add more GPU nodes to either pool.
 
-The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
+The Web UI is available at `https://$IP_ADDRESS:8081` to manage services.
 Use the REST API to deploy all services at once:
 ```bash
-curl -X POST "http://$IP_ADDRESS:8081/api/service"
+curl -k -X POST "https://$IP_ADDRESS:8081/api/service"
 ```
 
 Or deploy individual services with specific resource allocations:
 ```bash
 # Deploy a single service (whole GPU)
-curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
+curl -k -X POST "https://$IP_ADDRESS:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
   -d "memory=8" \
   -d "cpu=2"
 
 # Deploy with a MIG slice (partial GPU — requires MIG configured on the node; see Step 5.1)
-curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
+curl -k -X POST "https://$IP_ADDRESS:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
   -d "mig_profile=1g.10gb" \
@@ -406,10 +431,11 @@ curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
   -d "cpu=2"
 
 # Verify deployed services
-curl "http://$IP_ADDRESS:8081/api/services"
+curl -k "https://$IP_ADDRESS:8081/api/services"
 ```
 
-> **HTTPS:** If HTTPS is enabled, replace `http://` with `https://` and add `-k` for self-signed certificates, e.g. `curl -k -X POST "https://$IP_ADDRESS:8081/api/service"`.
+> **Note:** `-k` skips TLS certificate verification for the self-signed certificate.
+> Replace with `--cacert /path/to/cert.pem` to verify against the certificate, or omit `-k` entirely when using a CA-signed certificate.
 
 
 ## Troubleshooting

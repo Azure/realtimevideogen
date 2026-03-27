@@ -57,6 +57,15 @@ param vnetAddressPrefix string = '10.10.0.0/16'
 @description('Address prefix for the AKS node subnet. Only used when disableDefaultOutboundAccess is true.')
 param subnetAddressPrefix string = '10.10.0.0/24'
 
+// Key Vault name must be globally unique, 3-24 chars, alphanumeric + hyphens, start with letter.
+// The default uses a stable hash of the resource group ID so repeated deployments reuse the same vault.
+@description('Name of the Azure Key Vault for TLS certificates. Must be globally unique (3–24 chars).')
+@maxLength(24)
+param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
+
+@description('Name of the self-signed TLS certificate stored in Key Vault.')
+param tlsCertificateName string = 'streamwise-tls'
+
 
 // ---------------------------------------------------------------------------
 // Public IP – used by Kubernetes LoadBalancer services (StreamWise, StreamCast)
@@ -194,6 +203,76 @@ var networkProfile = disableDefaultOutboundAccess ? {
 
 
 // ---------------------------------------------------------------------------
+// Azure Key Vault – stores the TLS certificate used by StreamWise and apps.
+// RBAC authorization is used so that the AKS kubelet identity can read
+// certificates and secrets without a legacy access policy.
+// ---------------------------------------------------------------------------
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: keyVaultName
+  location: location
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+  }
+}
+
+// Self-signed TLS certificate.  Azure Key Vault generates and stores the
+// certificate with PEM encoding; the private key is exported alongside the
+// certificate so the Secrets Store CSI Driver can mount both.
+resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = {
+  parent: keyVault
+  name: tlsCertificateName
+  properties: {
+    certificatePolicy: {
+      keyProperties: {
+        exportable: true
+        keyType: 'RSA'
+        keySize: 4096
+        reuseKey: false
+      }
+      secretProperties: {
+        // PEM encoding: the corresponding secret contains both the private key
+        // and the certificate as concatenated PEM blocks.
+        contentType: 'application/x-pem-file'
+      }
+      x509CertificateProperties: {
+        subject: 'CN=streamwise'
+        validityInMonths: 12
+        keyUsage: [
+          'digitalSignature'
+          'keyEncipherment'
+        ]
+        // TLS server authentication EKU
+        ekus: [
+          '1.3.6.1.5.5.7.3.1'
+        ]
+      }
+      issuerParameters: {
+        // Self-signed; swap for 'Unknown' + issuerRef to use a CA
+        name: 'Self'
+      }
+      lifetimeActions: [
+        {
+          trigger: {
+            daysBeforeExpiry: 30
+          }
+          action: {
+            actionType: 'AutoRenew'
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+// ---------------------------------------------------------------------------
 // AKS Cluster
 // ---------------------------------------------------------------------------
 resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
@@ -215,6 +294,17 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
       }
     ]
     networkProfile: networkProfile
+    // Enable the Secrets Store CSI Driver with Azure Key Vault provider so
+    // that pods can mount Key Vault certificates directly as volume files.
+    addonProfiles: {
+      azureKeyvaultSecretsProvider: {
+        enabled: true
+        config: {
+          enableSecretRotation: 'true'
+          rotationPollInterval: '2m'
+        }
+      }
+    }
   }
 }
 
@@ -307,6 +397,44 @@ resource networkContributorAssignment 'Microsoft.Authorization/roleAssignments@2
 }
 
 // ---------------------------------------------------------------------------
+// Key Vault RBAC – grant the AKS kubelet identity read access to Key Vault
+// secrets and certificates so the Secrets Store CSI Driver can retrieve the
+// TLS certificate at pod startup.
+//
+//   Key Vault Secrets User  (4633458b-…) – read secrets (PEM bundle + key)
+//   Key Vault Certificate User (db79e9a7-…) – read certificate public part
+// ---------------------------------------------------------------------------
+var kvSecretsUserRoleId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '4633458b-17de-408a-b874-0445c86b69e6'
+)
+
+var kvCertificateUserRoleId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  'db79e9a7-68ee-4b58-9aeb-b90e7c24fcba'
+)
+
+resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, aksCluster.properties.identityProfile.kubeletidentity.objectId, kvSecretsUserRoleId)
+  properties: {
+    principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+    roleDefinitionId: kvSecretsUserRoleId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, aksCluster.properties.identityProfile.kubeletidentity.objectId, kvCertificateUserRoleId)
+  properties: {
+    principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+    roleDefinitionId: kvCertificateUserRoleId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------
 output clusterName string = aksCluster.name
@@ -314,3 +442,7 @@ output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
 output gpuNodePoolName string = gpuNodePool.name
 output gpuMigNodePoolName string = gpuMigNodePool.name
+output keyVaultName string = keyVault.name
+output tlsCertificateName string = tlsCertificate.name
+output kubeletClientId string = aksCluster.properties.identityProfile.kubeletidentity.clientId
+output tenantId string = subscription().tenantId

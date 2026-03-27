@@ -33,16 +33,21 @@ spec:
         cpu: "4"
         memory: "8Gi"
         ephemeral-storage: "32Gi"
-    # HTTPS (optional): uncomment volumeMounts below and create a TLS Secret:
-    #   kubectl create secret tls tls-secret -n rtgen --cert=cert.pem --key=key.pem
-    # volumeMounts:
-    # - name: tls-secret
-    #   mountPath: /certs
-    #   readOnly: true
-  # volumes:
-  # - name: tls-secret
-  #   secret:
-  #     secretName: tls-secret
+    # TLS certificate from Azure Key Vault via Secrets Store CSI Driver.
+    # The run_httpserver.bash entrypoint auto-detects /certs/tls.crt and
+    # /certs/tls.key and enables HTTPS automatically.
+    # Requires: deployment/k8s/tls-secret-provider.yaml applied first.
+    volumeMounts:
+    - name: tls-csi
+      mountPath: /certs
+      readOnly: true
+  volumes:
+  - name: tls-csi
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: streamwise-tls
   imagePullSecrets:
   - name: acr-secret
   nodeSelector:
