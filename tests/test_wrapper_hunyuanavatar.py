@@ -6,7 +6,9 @@ import tempfile
 import numpy as np
 import pytest
 
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
+from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 from tests.torch_mock import TorchMock
 
 from PIL import Image

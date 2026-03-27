@@ -6,21 +6,22 @@ Tests for wrapper/hunyuanavatar/encode_data.py
 import sys
 import numpy as np
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
 from PIL import Image
 
 mock_torch = TorchMock()
 
 mock_modules = {
-    'nvidia_smi': MagicMock(),
-    'torch': mock_torch,
-    'torchvision': MagicMock(),
-    'torchvision.transforms': MagicMock(),
-    'torchvision.transforms.functional': MagicMock(),
-    'transformers': MagicMock(),
-    'einops': MagicMock(),
-    'librosa': MagicMock(),
+    "nvidia_smi": MagicMock(),
+    "torch": mock_torch,
+    "torchvision": MagicMock(),
+    "torchvision.transforms": MagicMock(),
+    "torchvision.transforms.functional": MagicMock(),
+    "transformers": MagicMock(),
+    "einops": MagicMock(),
+    "librosa": MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
 
@@ -30,7 +31,7 @@ sys.path.append("wrapper/hunyuanavatar")
 with patch.dict(sys.modules, mock_modules):
     from hunyuanavatar.encode_data import get_audio_feature
     from hunyuanavatar.encode_data import VideoAudioTextLoaderVal
-    _encode_data_module = sys.modules['hunyuanavatar.encode_data']
+    _encode_data_module = sys.modules["hunyuanavatar.encode_data"]
 
 
 def test_get_audio_feature_basic() -> None:
