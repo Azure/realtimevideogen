@@ -73,6 +73,104 @@ async def test_app(test_app: Quart) -> None:
 
 
 @pytest.mark.asyncio
+async def test_health(test_app: Quart) -> None:
+    """Check /health."""
+    client = test_app.test_client()
+    response = await client.get("/health")
+    assert response is not None
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert response_json == {
+        "host": None,
+        "jobs": {},
+        "k8s_cluster": None,
+        "port": None,
+        "services": {},
+        "status": "ok"
+    }
+
+
+@pytest.mark.asyncio
+async def test_files(test_app: Quart) -> None:
+    """Check /files endpoint."""
+    client = test_app.test_client()
+
+    if not os.path.exists("/tmp/streamedit"):
+        os.makedirs("/tmp/streamedit", exist_ok=True)
+
+    response = await client.get("/files")
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert "files" in response_json
+
+    response = await client.get("/file/testfile.txt")
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    response_json = await response.get_json()
+    assert response_json == {"error": "File '/tmp/streamedit/testfile.txt' not found"}
+
+    response = await client.get("/file_stream/job_id/testfile2.txt")
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    response_json = await response.get_json()
+    assert response_json == {"error": "File not found"}
+
+    response = await client.get("/file_view/job_id/testfile3.txt")
+    assert response.status_code == HTTPStatus.OK
+    assert response.content_type == "text/html; charset=utf-8"
+    response_text = await response.get_data(as_text=True)
+    assert response_text.startswith("<!DOCTYPE html>\n<html>")
+    assert "<title>File viewer: testfile3.txt</title>" in response_text
+
+
+@pytest.mark.asyncio
+async def test_unknown_route(test_app: Quart) -> None:
+    """Check that an unknown route returns 404."""
+    client = test_app.test_client()
+    response = await client.get("/does-not-exist")
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_job_submit_page(test_app: Quart) -> None:
+    """Check the web page for job submission."""
+    client = test_app.test_client()
+    response = await client.get("/job")
+    assert response.status_code == HTTPStatus.OK
+    text = await response.get_data(as_text=True)
+    assert len(text) > 0
+
+
+@pytest.mark.asyncio
+async def test_job_status_page(test_app: Quart) -> None:
+    """Check the web page for job status."""
+    client = test_app.test_client()
+    job_id = "testjobid"
+    response = await client.get(f"/job/{job_id}")
+    assert response.status_code == HTTPStatus.OK
+    text = await response.get_data(as_text=True)
+    assert len(text) > 0
+
+
+@pytest.mark.asyncio
+async def test_api_job_status(test_app: Quart) -> None:
+    """Check the API for job status (returns UNKNOWN for nonexistent jobs)."""
+    client = test_app.test_client()
+    job_id = "nonexistent_job_id"
+    response = await client.get(f"/api/job/{job_id}/status")
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert "status" in response_json
+
+
+@pytest.mark.asyncio
+async def test_api_job_requests(test_app: Quart) -> None:
+    """Check the API for job requests listing (returns empty for nonexistent jobs)."""
+    client = test_app.test_client()
+    job_id = "nonexistent_job_id"
+    response = await client.get(f"/api/job/{job_id}/requests")
+    assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.asyncio
 async def test_submit_job(test_app: Quart) -> None:
     """Check the API for job requests."""
     client = test_app.test_client()

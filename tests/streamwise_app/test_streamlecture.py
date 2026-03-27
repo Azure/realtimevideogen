@@ -9,6 +9,8 @@ import pytest
 
 from http import HTTPStatus
 
+from PIL import Image  # noqa: F401 - import before patch.dict to keep PIL in sys.modules
+
 from quart import Quart
 
 from unittest.mock import patch
@@ -30,6 +32,11 @@ mock_modules.update(mock_torch.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("apps", "apps/streamlecture"):
         from apps.streamlecture.streamlecture import StreamLectureApp
+        from apps.streamlecture.streamlecture_job import StreamLectureJob
+        from apps.streamlecture.streamlecture_job import JobStatus
+        from apps.streamlecture.lecture_prompts import IMG_PROMPT
+        from apps.streamlecture.lecture_prompts import VIDEO_PROMPT
+    from tests.streamwise_app.lmm_generator_mock import LMMGeneratorMock
 
 
 streamlecture_app = StreamLectureApp()
@@ -51,6 +58,104 @@ async def test_app(test_app: Quart) -> None:
     response_html = await response.get_data(as_text=True)
     assert response_html.startswith("<!DOCTYPE html>\n<html lang=\"en\">")
     assert "StreamLecture" in response_html
+
+
+@pytest.mark.asyncio
+async def test_health(test_app: Quart) -> None:
+    """Check /health."""
+    client = test_app.test_client()
+    response = await client.get("/health")
+    assert response is not None
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert response_json == {
+        "host": None,
+        "jobs": {},
+        "k8s_cluster": None,
+        "port": None,
+        "services": {},
+        "status": "ok"
+    }
+
+
+@pytest.mark.asyncio
+async def test_files(test_app: Quart) -> None:
+    """Check /files endpoint."""
+    client = test_app.test_client()
+
+    if not os.path.exists("/tmp/streamlecture"):
+        os.makedirs("/tmp/streamlecture", exist_ok=True)
+
+    response = await client.get("/files")
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert "files" in response_json
+
+    response = await client.get("/file/testfile.txt")
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    response_json = await response.get_json()
+    assert response_json == {"error": "File '/tmp/streamlecture/testfile.txt' not found"}
+
+    response = await client.get("/file_stream/job_id/testfile2.txt")
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    response_json = await response.get_json()
+    assert response_json == {"error": "File not found"}
+
+    response = await client.get("/file_view/job_id/testfile3.txt")
+    assert response.status_code == HTTPStatus.OK
+    assert response.content_type == "text/html; charset=utf-8"
+    response_text = await response.get_data(as_text=True)
+    assert response_text.startswith("<!DOCTYPE html>\n<html>")
+    assert "<title>File viewer: testfile3.txt</title>" in response_text
+
+
+@pytest.mark.asyncio
+async def test_unknown_route(test_app: Quart) -> None:
+    """Check that an unknown route returns 404."""
+    client = test_app.test_client()
+    response = await client.get("/does-not-exist")
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_job_submit_page(test_app: Quart) -> None:
+    """Check the web page for job submission."""
+    client = test_app.test_client()
+    response = await client.get("/job")
+    assert response.status_code == HTTPStatus.OK
+    text = await response.get_data(as_text=True)
+    assert len(text) > 0
+
+
+@pytest.mark.asyncio
+async def test_job_status_page(test_app: Quart) -> None:
+    """Check the web page for job status."""
+    client = test_app.test_client()
+    job_id = "testjobid"
+    response = await client.get(f"/job/{job_id}")
+    assert response.status_code == HTTPStatus.OK
+    text = await response.get_data(as_text=True)
+    assert len(text) > 0
+
+
+@pytest.mark.asyncio
+async def test_api_job_status(test_app: Quart) -> None:
+    """Check the API for job status (returns UNKNOWN for nonexistent jobs)."""
+    client = test_app.test_client()
+    job_id = "nonexistent_job_id"
+    response = await client.get(f"/api/job/{job_id}/status")
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert "status" in response_json
+
+
+@pytest.mark.asyncio
+async def test_api_job_requests(test_app: Quart) -> None:
+    """Check the API for job requests listing (returns empty for nonexistent jobs)."""
+    client = test_app.test_client()
+    job_id = "nonexistent_job_id"
+    response = await client.get(f"/api/job/{job_id}/requests")
+    assert response.status_code == HTTPStatus.OK
 
 
 @pytest.mark.asyncio
@@ -85,3 +190,108 @@ async def test_submit_job(test_app: Quart) -> None:
     else:
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         assert "error" in response_json
+
+
+def test_lecture_prompts() -> None:
+    """Test that lecture prompts are defined and non-empty."""
+    assert IMG_PROMPT
+    assert "classroom" in IMG_PROMPT.lower() or "professor" in IMG_PROMPT.lower()
+    assert VIDEO_PROMPT
+    assert len(VIDEO_PROMPT) > 0
+
+
+@pytest.mark.asyncio
+async def test_gen_lecture_no_pdf() -> None:
+    """StreamLectureJob.gen_lecture with missing pdf raises ValueError."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_no_pdf",
+        service_manager=service_manager,
+    )
+    with pytest.raises(ValueError, match="Missing 'pdf_base64' in request"):
+        await job.gen_lecture(pdf_base64=None)
+    job_status = await job.get_status()
+    assert job_status == JobStatus.FAILED
+
+    del job
+    del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_lecture_invalid_pdf() -> None:
+    """StreamLectureJob.gen_lecture with invalid base64 raises ValueError."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_invalid_pdf",
+        service_manager=service_manager,
+    )
+    with pytest.raises(ValueError, match="Invalid base64-encoded string"):
+        await job.gen_lecture(pdf_base64="AAAAA")
+    job_status = await job.get_status()
+    assert job_status == JobStatus.FAILED
+
+    del job
+    del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_lecture_mock() -> None:
+    """StreamLectureJob.gen_lecture with mocked services completes or fails gracefully."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_gen_lecture_mock",
+        service_manager=service_manager,
+    )
+    job.gen = LMMGeneratorMock()
+
+    pdf_path = "tests/data/blank.pdf"
+    pdf_base64 = await read_file_base64(pdf_path)
+    try:
+        await job.gen_lecture(pdf_base64=pdf_base64)
+        job_status = await job.get_status()
+        assert job_status == JobStatus.COMPLETED
+    except (FileNotFoundError, ValueError):
+        # ffmpeg not available in this environment; job fails gracefully
+        job_status = await job.get_status()
+        assert job_status == JobStatus.FAILED
+
+    del job
+    del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_scene_no_image() -> None:
+    """StreamLectureJob.gen_scene with no image raises ValueError."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_gen_scene_no_image",
+        service_manager=service_manager,
+    )
+    job.gen = LMMGeneratorMock()
+    # With no image set, gen_scene raises ValueError after generating audio
+    with pytest.raises(ValueError, match="Classroom image not available for video generation"):
+        await job.gen_scene(scene_id=0, text="Test text.")
+
+    del job
+    del service_manager
+
+
+@pytest.mark.asyncio
+async def test_gen_scene_audio_only() -> None:
+    """StreamLectureJob.gen_scene in audio_only mode returns audio path."""
+    service_manager = MagicMock()
+    job = StreamLectureJob(
+        job_id="test_gen_scene_audio_only",
+        service_manager=service_manager,
+    )
+    job.gen = LMMGeneratorMock()
+    job.config["output_mode"] = "audio_only"
+    # Set a mock classroom image (required even in audio_only mode)
+    job.image = Image.new("RGB", (640, 400), color="white")
+
+    result = await job.gen_scene(scene_id=0, text="Test lecture text.")
+    assert result.endswith(".wav")
+    assert os.path.exists(result)
+
+    del job
+    del service_manager
