@@ -50,5 +50,5 @@ COPY static ./static
 RUN mkdir -p /certs
 COPY certs /certs
 
-ENTRYPOINT bash run_httpserver.bash "$APP_NAME" --k8s_cluster incluster
+ENTRYPOINT ["bash", "-c", "exec bash run_httpserver.bash \"$APP_NAME\" --k8s_cluster incluster"]
 EXPOSE 18080
