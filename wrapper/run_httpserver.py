@@ -1759,7 +1759,7 @@ async def run_httpserver(
         config.keyfile = keyfile
 
     scheme = "https" if certfile else "http"
-    logging.info(f"[{rank}] Starting HTTP server on {scheme}://{host}:{port} with routes:")
+    logging.info(f"[{rank}] Starting {scheme.upper()} server on {scheme}://{host}:{port} with routes:")
     for rule in app.url_map.iter_rules():
         logging.info(f"[{rank}] - {rule.rule}")
 
@@ -1795,8 +1795,8 @@ async def main() -> None:
             http_task = asyncio.create_task(run_httpserver(
                 host=args.host,
                 port=args.port,
-                certfile=getattr(args, "certfile", None),
-                keyfile=getattr(args, "keyfile", None),
+                certfile=args.certfile,
+                keyfile=args.keyfile,
             ))
 
             await init_model(args, engine_config)

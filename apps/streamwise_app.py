@@ -216,7 +216,7 @@ class StreamWiseApp(ABC):
         args: Any
     ) -> None:
         """Main entry point for StreamWise application."""
-        scheme = "https" if getattr(args, "certfile", None) else "http"
+        scheme = "https" if args.certfile else "http"
         logging.info(
             f"Starting {self.app_name} app on {scheme}://{args.host}:{args.port} "
             f"with K8S cluster '{args.k8s_cluster}'"
@@ -236,8 +236,8 @@ class StreamWiseApp(ABC):
             http_task = asyncio.create_task(self.run_httpserver(
                 host=args.host,
                 port=args.port,
-                certfile=getattr(args, "certfile", None),
-                keyfile=getattr(args, "keyfile", None),
+                certfile=args.certfile,
+                keyfile=args.keyfile,
             ))
             await http_task
         except OSError as os_err:
