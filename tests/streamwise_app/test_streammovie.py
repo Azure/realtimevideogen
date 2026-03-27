@@ -285,8 +285,18 @@ async def test_api_job_requests(test_app: Quart) -> None:
 
 
 @pytest.mark.asyncio
+async def test_job_submit_page(test_app: Quart) -> None:
+    """Check the web page for job submission."""
+    client = test_app.test_client()
+    response = await client.get("/job")
+    assert response.status_code == HTTPStatus.OK
+    text = await response.get_data(as_text=True)
+    assert len(text) > 0
+
+
+@pytest.mark.asyncio
 async def test_submit_job_page(test_app: Quart) -> None:
-    """Check that GET /job returns the submit job form."""
+    """Check that GET /job returns the submit job form with movie_description field."""
     client = test_app.test_client()
     response = await client.get("/job")
     assert response.status_code == HTTPStatus.OK
