@@ -167,8 +167,9 @@ class HunyuanAvatarGeneration(USPGeneration):
         self.load_timer.start("wav2vec")
         self.wav2vec = WhisperModel.from_pretrained(
             f"{self.models_root_path}/whisper-tiny/"  # nosec B615 - local path
-        ).to(device=self.device, dtype=torch.float32)
+        )
         assert self.wav2vec is not None
+        self.wav2vec = self.wav2vec.to(device=self.device, dtype=torch.float32)  # type: ignore[call-arg]
         self.wav2vec.requires_grad_(False)
         self.load_timer.end("wav2vec")
 
