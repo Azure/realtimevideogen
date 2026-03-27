@@ -6,6 +6,7 @@ https://github.com/taco-group/4KAgent
 import asyncio
 import logging
 import os
+import shutil
 import sys
 import tempfile
 
@@ -96,7 +97,7 @@ class Upscale4KAgent(ModelGeneration):
                 "profile does not require a VLM."
             )
 
-        logging.info("Loaded 4KAgent from %s.", self.fourk_agent_dir)
+        logging.info(f"Loaded 4KAgent from {self.fourk_agent_dir}.")
 
     def _write_config(self) -> None:
         """Write config.yml populated with API keys from environment variables."""
@@ -126,7 +127,7 @@ class Upscale4KAgent(ModelGeneration):
         config_path = os.path.join(self.fourk_agent_dir, "config.yml")
         with open(config_path, "w") as fh:
             yaml.dump(config, fh, default_flow_style=False)
-        logging.info("Wrote 4KAgent config to %s.", config_path)
+        logging.info(f"Wrote 4KAgent config to {config_path}.")
 
     def init_model_parallelism(self) -> None:
         if self.world_size > 1:
@@ -143,7 +144,7 @@ class Upscale4KAgent(ModelGeneration):
 
     @torch.inference_mode()
     async def warmup(self) -> None:
-        logging.info("[%s] Warmup for 4KAgent.", self.rank)
+        logging.info(f"[{self.rank}] Warmup for 4KAgent.")
         warmup_image = Image.new("RGB", (256, 192), color=(128, 128, 128))
         await self.generate(image=warmup_image)
 
@@ -177,33 +178,42 @@ class Upscale4KAgent(ModelGeneration):
             raise ValueError("An input image is required for 4KAgent generation.")
 
         self.running = True
+        input_path: Optional[str] = None
+        output_dir: Optional[str] = None
         try:
-            with tempfile.TemporaryDirectory(prefix="4kagent_in_") as input_dir:
-                with tempfile.TemporaryDirectory(prefix="4kagent_out_") as output_dir:
-                    gen_timer.start("save_input")
-                    input_path = Path(input_dir) / "input.png"
-                    await asyncio.to_thread(image.save, str(input_path))
-                    gen_timer.end("save_input")
+            gen_timer.start("save_input")
+            if job_id:
+                input_path = f"/tmp/{job_id}.png"
+            else:
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                    input_path = tmp.name
+            await asyncio.to_thread(image.save, input_path)
+            gen_timer.end("save_input")
 
-                    gen_timer.start("inference")
-                    await asyncio.to_thread(
-                        self._run_4kagent,
-                        input_path,
-                        Path(output_dir),
-                        profile_name,
-                        tool_run_gpu_id,
-                    )
-                    gen_timer.end("inference")
+            output_dir = tempfile.mkdtemp(prefix="4kagent_out_")
 
-                    # Load and return the result before the temp dirs are removed.
-                    gen_timer.start("load_result")
-                    result = await asyncio.to_thread(self._load_result, output_dir)
-                    gen_timer.end("load_result")
+            gen_timer.start("inference")
+            await asyncio.to_thread(
+                self._run_4kagent,
+                Path(input_path),
+                Path(output_dir),
+                profile_name,
+                tool_run_gpu_id,
+            )
+            gen_timer.end("inference")
 
-                    return result
+            gen_timer.start("load_result")
+            result = await asyncio.to_thread(self._load_result, output_dir)
+            gen_timer.end("load_result")
+
+            return result
         finally:
             self.running = False
             gen_timer.end("total")
+            if input_path and os.path.exists(input_path):
+                os.unlink(input_path)
+            if output_dir and os.path.exists(output_dir):
+                shutil.rmtree(output_dir, ignore_errors=True)
 
     def _run_4kagent(
         self,
@@ -223,8 +233,7 @@ class Upscale4KAgent(ModelGeneration):
         assert self.fourk_agent_dir is not None
         from pipeline.the4kagent_pipeline import The4KAgent  # noqa: PLC0415
         logging.info(
-            "[%s] Running 4KAgent: profile=%s, tool_gpu=%s.",
-            self.rank, profile_name, tool_run_gpu_id,
+            f"[{self.rank}] Running 4KAgent: profile={profile_name}, tool_gpu={tool_run_gpu_id}.",
         )
         agent = The4KAgent(
             input_path=input_path,
@@ -251,7 +260,7 @@ class Upscale4KAgent(ModelGeneration):
                 "4KAgent may have failed or the output structure changed."
             )
         result_path = result_candidates[-1]
-        logging.info("[%s] Loading result from %s.", self.rank, result_path)
+        logging.info(f"[{self.rank}] Loading result from {result_path}.")
         # .copy() ensures the image is fully loaded before the temp dir is removed.
         return Image.open(result_path).copy()
 
