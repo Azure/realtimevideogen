@@ -47,7 +47,7 @@ with patch.dict(sys.modules, mock_modules):
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avater() -> None:
+async def test_basic() -> None:
     model = HunyuanAvatarGeneration()
     assert model is not None
     assert model.model_name == "hunyuanavatar"
@@ -87,7 +87,7 @@ async def test_hunyuan_avater() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_get_rest_args_validation() -> None:
+async def test_get_rest_args_validation() -> None:
     model = HunyuanAvatarGeneration()
 
     with pytest.raises(ValueError):
@@ -118,7 +118,7 @@ async def test_hunyuan_avatar_get_rest_args_validation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_get_rest_args_extra_params() -> None:
+async def test_get_rest_args_extra_params() -> None:
     """Test get_rest_args with all optional parameters."""
     model = HunyuanAvatarGeneration()
     img = Image.new("RGB", (40, 30))
@@ -146,7 +146,7 @@ async def test_hunyuan_avatar_get_rest_args_extra_params() -> None:
     assert result["args"]["job_id"] == "test_job_001"
 
 
-def test_hunyuan_avatar_assert_model_init() -> None:
+def test_assert_model_init() -> None:
     """Test _assert_model_init raises before model components are loaded."""
     model = HunyuanAvatarGeneration()
     # Components are None, so raises AssertionError
@@ -154,7 +154,7 @@ def test_hunyuan_avatar_assert_model_init() -> None:
         model._assert_model_init()
 
 
-def test_hunyuan_avatar_assert_model_init_partial() -> None:
+def test_assert_model_init_partial() -> None:
     """Test _assert_model_init raises when only some components are initialized."""
     model = HunyuanAvatarGeneration()
     model.hunyuan_video_sampler = MagicMock()
@@ -182,7 +182,7 @@ def test_hunyuan_avatar_assert_model_init_partial() -> None:
     model._assert_model_init()
 
 
-def test_hunyuan_avatar_del_with_components() -> None:
+def test_del_with_components() -> None:
     """Test __del__ properly cleans up initialized components."""
     model = HunyuanAvatarGeneration()
     model.hunyuan_video_sampler = MagicMock()
@@ -201,7 +201,7 @@ def test_hunyuan_avatar_del_with_components() -> None:
     assert model.text_encoder_2 is None
 
 
-def test_hunyuan_avatar_init_parallelism_no_master_addr() -> None:
+def test_init_parallelism_no_master_addr() -> None:
     """Test init_parallelism returns early when MASTER_ADDR is not set."""
     model = HunyuanAvatarGeneration()
     env_without_master = {k: v for k, v in os.environ.items() if k != "MASTER_ADDR"}
@@ -210,7 +210,7 @@ def test_hunyuan_avatar_init_parallelism_no_master_addr() -> None:
         model.init_parallelism()
 
 
-def test_hunyuan_avatar_init_parallelism_world_size_one() -> None:
+def test_init_parallelism_world_size_one() -> None:
     """Test init_parallelism with world_size=1 returns after setting device."""
     model = HunyuanAvatarGeneration()
     env = {"MASTER_ADDR": "localhost", "RANK": "0", "LOCAL_RANK": "0", "WORLD_SIZE": "1"}
@@ -220,7 +220,7 @@ def test_hunyuan_avatar_init_parallelism_world_size_one() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_output_video_pil() -> None:
+async def test_output_video_pil() -> None:
     """Test _output_video returns frames directly for pil output type."""
     model = HunyuanAvatarGeneration()
     gen_timer = GenTimer()
@@ -236,7 +236,7 @@ async def test_hunyuan_avatar_output_video_pil() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_output_video_unknown_type() -> None:
+async def test_output_video_unknown_type() -> None:
     """Test _output_video returns None for unknown output type."""
     model = HunyuanAvatarGeneration()
     gen_timer = GenTimer()
@@ -252,7 +252,7 @@ async def test_hunyuan_avatar_output_video_unknown_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_output_video_video_path() -> None:
+async def test_output_video_video_path() -> None:
     """Test _output_video with video_path output type."""
     model = HunyuanAvatarGeneration()
     gen_timer = GenTimer()
@@ -270,7 +270,7 @@ async def test_hunyuan_avatar_output_video_video_path() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_output_video_video_binary() -> None:
+async def test_output_video_video_binary() -> None:
     """Test _output_video with video_binary output type."""
     model = HunyuanAvatarGeneration()
     gen_timer = GenTimer()
@@ -296,7 +296,7 @@ async def test_hunyuan_avatar_output_video_video_binary() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_output_video_no_job_id() -> None:
+async def test_output_video_no_job_id() -> None:
     """Test _output_video with video_path output type and no job_id creates temp file."""
     model = HunyuanAvatarGeneration()
     gen_timer = GenTimer()
@@ -317,7 +317,7 @@ async def test_hunyuan_avatar_output_video_no_job_id() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_generate_assert_model_not_init() -> None:
+async def test_generate_assert_model_not_init() -> None:
     """Test generate raises AssertionError when model is not initialized."""
     model = HunyuanAvatarGeneration()
     with pytest.raises(AssertionError):
@@ -329,7 +329,7 @@ async def test_hunyuan_avatar_generate_assert_model_not_init() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_generate_with_mocked_model() -> None:
+async def test_generate_with_mocked_model() -> None:
     """Test generate with mocked model components."""
     model = HunyuanAvatarGeneration()
 
@@ -379,7 +379,7 @@ async def test_hunyuan_avatar_generate_with_mocked_model() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hunyuan_avatar_generate_audio_too_long() -> None:
+async def test_generate_audio_too_long() -> None:
     """Test generate raises ValueError when audio exceeds MAX_FRAMES."""
     model = HunyuanAvatarGeneration()
     model.hunyuan_video_sampler = MagicMock()
