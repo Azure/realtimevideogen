@@ -18,7 +18,6 @@ import torch
 import torch.distributed as dist
 from torch import inference_mode
 
-from wrapper_model import GenerationInterruptedError
 from wrapper_usp import USPGeneration
 
 from flux_xfuser import parallelize_transformer
@@ -131,10 +130,10 @@ class FluxGeneration(USPGeneration):
 
     def _get_vae_scale_factor(self) -> int:
         if not self.pipeline:
-            raise ValueError("Pipeline not initialized.")
+            raise ValueError("Model not initialized.")
         vae_scale_factor = getattr(self.pipeline, "vae_scale_factor", None)
         if vae_scale_factor is None:
-            raise ValueError("Pipeline does not have vae_scale_factor.")
+            raise ValueError("Model does not have vae_scale_factor.")
         return vae_scale_factor
 
     def _assert_args(
@@ -205,9 +204,7 @@ class FluxGeneration(USPGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
+                self.check_interrupted()
                 return callback_kwargs
 
             logging.info(

@@ -18,7 +18,6 @@ import torch.distributed as dist
 from torch import inference_mode
 
 from wrapper_model import ModelGeneration
-from wrapper_model import GenerationInterruptedError
 
 from transformers import AutoModelForCausalLM
 # from hunyuan_image_3_pipeline import HunyuanImage3Text2ImagePipeline
@@ -104,7 +103,7 @@ class HunyuanImageGeneration(ModelGeneration):
             return
 
         self.load_timer.start("model")
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model = AutoModelForCausalLM.from_pretrained(  # type: ignore[assignment]
             self.HF_MODEL_NAME,
             attn_implementation="sdpa",  # Use "flash_attention_2" if FlashAttention is installed
             trust_remote_code=True,
@@ -114,8 +113,9 @@ class HunyuanImageGeneration(ModelGeneration):
             # low_cpu_mem_usage=True, # TODO ?
             moe_drop_tokens=True,
         )  # nosec B615 - local path
-        self.model.load_tokenizer(self.HF_MODEL_NAME)
-        self.pipeline = self.model.pipeline
+        assert self.model is not None
+        self.model.load_tokenizer(self.HF_MODEL_NAME)  # type: ignore[attr-defined]
+        self.pipeline = self.model.pipeline  # type: ignore[attr-defined]
         self.load_timer.end("model")
 
     def model_compile(self) -> None:
@@ -125,7 +125,7 @@ class HunyuanImageGeneration(ModelGeneration):
 
         if self.model:
             self.load_timer.start("dit_compile")
-            self.model = torch.compile(
+            self.model = torch.compile(  # type: ignore[call-overload]
                 self.model,
                 mode="max-autotune-no-cudagraphs"
             )
@@ -140,7 +140,7 @@ class HunyuanImageGeneration(ModelGeneration):
         # width_latent = width // self.pipeline.vae_scale_factor
         # self.model.vae is AutoencoderKLConv3D
         assert self.model is not None
-        vae_config = self.model.vae.config
+        vae_config = self.model.vae.config  # type: ignore[attr-defined]
         if width % vae_config.ffactor_spatial != 0:
             raise ValueError(f"Width {width} not supported. Must be multiple of {vae_config.ffactor_spatial}.")
         if height % vae_config.ffactor_spatial != 0:
@@ -183,11 +183,11 @@ class HunyuanImageGeneration(ModelGeneration):
         cfg: float = 0.5,
         seed: Optional[int] = None,
         job_id: Optional[str] = None,
-    ) -> Image.Image:
+    ) -> Optional[Image.Image]:
         """Generate an image using HunyuanImage 3."""
         if self.rank > 0:
             logging.info(f"[{self.rank}] Image generation only rank 0.")
-            return
+            return None
 
         gen_timer = self._new_gen_timer(job_id)
 
@@ -214,9 +214,7 @@ class HunyuanImageGeneration(ModelGeneration):
 
                 if step < sampling_steps - 1:
                     gen_timer.start(f"step_{step + 1:03d}")
-                if self.interrupted:  # type: ignore[has-type]
-                    self.interrupted = False
-                    raise GenerationInterruptedError(f"Generation interrupted at step {step + 1}")
+                self.check_interrupted()
                 return callback_kwargs
 
             image = await asyncio.to_thread(

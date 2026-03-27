@@ -23,7 +23,6 @@ with temp_sys_path("wrapper"):
 
 with patch.dict(sys.modules, {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'torch': mock_torch,
     'torch.distributed': MagicMock(),
     'imageio': MagicMock(),

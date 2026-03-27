@@ -27,14 +27,14 @@ class ImageResize(ModelGeneration):
         await self.generate(image=dummy_image)
 
     @override
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         image: Image.Image,
         video: Optional[List[Image.Image]] = None,
         height: int = 1024,
         width: int = 1024,
         job_id: Optional[str] = None,
-    ) -> Image.Image:
+    ) -> Union[Image.Image, List[Image.Image]]:
         gen_timer = self._new_gen_timer(job_id)
 
         self.running = True
@@ -65,11 +65,13 @@ class ImageResize(ModelGeneration):
         img_base64 = data_json.get("img", None)
         img = None
         if img_base64 is not None:
+            assert isinstance(img_base64, str)
             img = base64_to_img(img_base64)
 
         video_base64 = data_json.get("video", None)
         video = None
         if video_base64 is not None:
+            assert isinstance(video_base64, str)
             video = base64_to_video_frames(video_base64)
 
         return {

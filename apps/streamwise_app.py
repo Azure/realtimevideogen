@@ -26,6 +26,7 @@ from typing import List
 from typing import Tuple
 from typing import Type
 from typing import Union
+from typing import cast
 
 from http import HTTPStatus
 
@@ -94,7 +95,7 @@ PORT = 18080
 K8S_CLUSTER = "incluster"
 
 
-def status_history_to_times(status_history: Dict[float, JobStatus]) -> Dict[str, datetime]:
+def status_history_to_times(status_history: Dict[float, str]) -> Dict[str, datetime]:
     """Convert status history timestamps to datetime objects."""
     times: Dict[str, datetime] = {}
     for timestamp_float, status_str in status_history.items():
@@ -154,10 +155,11 @@ class StreamWiseApp(ABC):
             if task.done() and task.exception():
                 ex = task.exception()
                 assert ex is not None
+                app_ex = cast(Exception, ex)
                 return {
                     "status": "error",
-                    "error": str(ex),
-                }, self.get_http_status_from_exception(ex)
+                    "error": str(app_ex),
+                }, self.get_http_status_from_exception(app_ex)
 
             return {
                 "status": "success",
@@ -257,7 +259,8 @@ class StreamWiseApp(ABC):
         config.accesslog = "-"
 
         # Increase max request body size to 128 MB (default is 16 MB)
-        config.limit_max_request_size = 128 * 1024 * 1024
+        config.wsgi_max_body_size = 128 * 1024 * 1024
+        config.limit_max_request_size = 128 * 1024 * 1024  # type: ignore[attr-defined]
         self.app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
 
         await serve(self.app, config)
@@ -631,12 +634,12 @@ class StreamWiseApp(ABC):
                 times=times,
                 files=files)
 
-        @route("/api/job/<job_id>/status/history", methods=["GET"])
-        async def get_job_status_history(job_id: str) -> Dict[float, JobStatus]:
+        @route("/api/job/<job_id>/status/history", methods=["GET"])  # type: ignore[type-var]
+        async def get_job_status_history(job_id: str) -> Dict[float, str]:
             """Get the status of a job asynchronously."""
             job_dir = f"{self.tmp_dir}/{job_id}"
             status_file = f"{job_dir}/status.txt"
-            ret: Dict[float, JobStatus] = {}
+            ret: Dict[float, str] = {}
             if not await aiofiles.os.path.exists(status_file):
                 return ret
 

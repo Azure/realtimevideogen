@@ -411,7 +411,7 @@ async def test_gen_movie_missing_description() -> None:
     job = _make_job("test_gen_movie_no_desc")
 
     with pytest.raises(ValueError, match="Missing 'movie_description'"):
-        await job.gen_movie(None)  # type: ignore[arg-type]
+        await job.gen_movie(None)
 
     job_status = await job.get_status()
     assert job_status == JobStatus.FAILED

@@ -109,7 +109,8 @@ class JanusProGeneration(ModelGeneration):
             language_config=language_config,
             trust_remote_code=True
         )  # nosec B615
-        self.vl_gpt = self.vl_gpt.to(self.param_dtype)
+        assert self.vl_gpt is not None
+        self.vl_gpt = self.vl_gpt.to(self.param_dtype)  # type: ignore[arg-type]
         self.vl_gpt = self.vl_gpt.to(self.device)
         self.vl_gpt = self.vl_gpt.eval()
         self.load_timer.end("model")
@@ -170,7 +171,7 @@ class JanusProGeneration(ModelGeneration):
 
     @override
     @inference_mode()
-    async def generate(  # type: ignore[override]
+    async def generate(
         self,
         prompt: str,
         temperature: float = 1.0,
@@ -223,7 +224,8 @@ class JanusProGeneration(ModelGeneration):
                 tokens[i, :] = input_ids
                 if i % 2 != 0:
                     tokens[i, 1:-1] = self.vl_chat_processor.pad_id
-            inputs_embeds = self.vl_gpt.language_model.get_input_embeddings()(tokens)
+            get_input_emb = self.vl_gpt.language_model.get_input_embeddings  # type: ignore[union-attr]
+            inputs_embeds = get_input_emb()(tokens)  # type: ignore[operator]
             gen_timer.end("tokenize")
 
             gen_timer.start("generate_tokens")
@@ -231,14 +233,14 @@ class JanusProGeneration(ModelGeneration):
             pkv = None
             for ix in range(image_token_num_per_image):
                 gen_timer.start(f"generate_token_{ix:03d}")
-                outputs = self.vl_gpt.language_model.model(
+                outputs = self.vl_gpt.language_model.model(  # type: ignore[operator, union-attr]
                     inputs_embeds=inputs_embeds,
                     use_cache=True,
                     past_key_values=pkv
                 )
                 pkv = outputs.past_key_values
                 hidden_states = outputs.last_hidden_state
-                logits = self.vl_gpt.gen_head(hidden_states[:, -1, :])
+                logits = self.vl_gpt.gen_head(hidden_states[:, -1, :])  # type: ignore[operator]
                 logit_cond = logits[0::2, :]
                 logit_uncond = logits[1::2, :]
                 logits = logit_uncond + cfg_weight * (logit_cond - logit_uncond)
@@ -250,7 +252,7 @@ class JanusProGeneration(ModelGeneration):
                     next_token.unsqueeze(dim=1)
                 ], dim=1).view(-1)
 
-                img_embeds = self.vl_gpt.prepare_gen_img_embeds(next_token)
+                img_embeds = self.vl_gpt.prepare_gen_img_embeds(next_token)  # type: ignore[operator]
                 inputs_embeds = img_embeds.unsqueeze(dim=1)
                 gen_timer.end(f"generate_token_{ix:03d}")
             gen_timer.end("generate_tokens")
@@ -258,7 +260,7 @@ class JanusProGeneration(ModelGeneration):
             gen_timer.start("decode_images")
             # TODO fix failure
             # shape '[2, 24, 24, 8]' is invalid for input of size 1600.
-            patches = self.vl_gpt.gen_vision_model.decode_code(
+            patches = self.vl_gpt.gen_vision_model.decode_code(  # type: ignore[operator, union-attr]
                 generated_tokens.to(dtype=torch.int),
                 shape=[parallel_size, 8, width // patch_size, height // patch_size]
             )

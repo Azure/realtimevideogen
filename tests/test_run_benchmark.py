@@ -7,15 +7,16 @@ from unittest.mock import patch
 from unittest.mock import MagicMock
 
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/flux")
 sys.path.append("wrapper/wan")
 
-with patch.dict(sys.modules, {
-    'torch': mock_torch,
+mock_modules = {
     'torch.profiler': MagicMock(),
     'torch.hub': MagicMock(),
     'torch.version': MagicMock(),
@@ -33,7 +34,6 @@ with patch.dict(sys.modules, {
     'xfuser.model_executor.models.transformers.transformer_flux': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
     'wan.modules': MagicMock(),
     'wan.modules.t5': MagicMock(),
     'wan.modules.clip': MagicMock(),
@@ -45,7 +45,11 @@ with patch.dict(sys.modules, {
     'wan.distributed': MagicMock(),
     'wan.distributed.fsdp': MagicMock(),
     'wan.distributed.xdit_context_parallel': MagicMock(),
-}):
+}
+mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
+
+with patch.dict(sys.modules, mock_modules):
     from flux.run_flux_benchmark import main as run_flux_benchmark_main
     from wan.run_wan_benchmark import main as run_wan_benchmark_main
     from wan.run_wan_benchmark_batching import main as run_wan_benchmark_batching_main

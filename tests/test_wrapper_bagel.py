@@ -6,20 +6,20 @@ import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from tests.torch_mock import TorchMock
+from tests.diffusers_mock import DiffusersMock
 
 from PIL import Image
 
 mock_torch = TorchMock()
+mock_diffusers = DiffusersMock()
 
 sys.path.append("wrapper")
 sys.path.append("wrapper/bagel")
 
 mock_modules = {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
-    'torch': mock_torch,
     'xfuser': MagicMock(),
     'xfuser.config': MagicMock(),
     'xfuser.core': MagicMock(),
@@ -27,7 +27,6 @@ mock_modules = {
     'xfuser.model_executor': MagicMock(),
     'xfuser.model_executor.layers': MagicMock(),
     'xfuser.model_executor.layers.attention_processor': MagicMock(),
-    'diffusers': MagicMock(),
     'modeling': MagicMock(),
     'modeling.autoencoder': MagicMock(),
     'modeling.qwen2': MagicMock(),
@@ -41,6 +40,7 @@ mock_modules = {
     'safetensors.torch': MagicMock(),
 }
 mock_modules.update(mock_torch.get_sub_modules())
+mock_modules.update(mock_diffusers.get_sub_modules())
 
 with patch.dict(sys.modules, mock_modules):
     from image_utils import img_to_base64
@@ -57,7 +57,7 @@ async def test_basic() -> None:
     img = Image.new("RGB", (40, 30))
     img_base64 = img_to_base64(img)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             imgs=[img],
             width=128,
@@ -84,18 +84,20 @@ async def test_basic() -> None:
         })
 
     # Success case
-    await model.get_rest_args({
+    args = await model.get_rest_args({
         "job_id": "unittest",
         "prompt": "Test prompt",
         "width": 80,
         "height": 60,
         "imgs": [img_base64]
     })
+    assert "args" in args
+    assert args["task"] == "bagel"
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.warmup()
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Model not initialized"):
         await model.generate(
             imgs=[img],
             width=256,

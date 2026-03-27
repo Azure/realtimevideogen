@@ -15,7 +15,6 @@ sys.path.append("kokoro")
 mock_modules = {
     'kokoro.KPipeline': MagicMock(),
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,

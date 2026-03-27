@@ -13,7 +13,6 @@ mock_torch = TorchMock()
 
 with patch.dict(sys.modules, {
     'nvidia_smi': MagicMock(),
-    'colorlog': MagicMock(),
     'imageio': MagicMock(),
     'cv2': MagicMock(),
     'torch': mock_torch,
@@ -71,7 +70,6 @@ async def test_http_server() -> None:
         'nvidia_smi': MagicMock(),
         'torch': mock_torch,
         'torch.distributed': MagicMock(),
-        'colorlog': MagicMock(),
         'imageio': MagicMock(),
         'xfuser': MagicMock(),
         'xfuser.config': MagicMock(),

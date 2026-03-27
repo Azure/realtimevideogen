@@ -22,6 +22,7 @@ from typing import Dict
 from typing import Optional
 from typing import Union
 from typing import Tuple
+from typing import cast
 import math
 
 from PIL import Image
@@ -632,7 +633,7 @@ class GenVideoChunked:
         # Id
         frame_text = f"{self.video_id:03d}.{subvideo_id:03d}"
         ft_frames = [
-            add_text_to_frame(frame, text=frame_text, position="top-left")
+            cast(Image.Image, add_text_to_frame(frame, text=frame_text, position="top-left"))
             for frame in ft_frames
         ]
 
@@ -640,7 +641,7 @@ class GenVideoChunked:
         width, height = ft_frames[0].size
         frame_text = f"{width}x{height} {len(ft_frames)} frames"
         ft_frames = [
-            add_text_to_frame(frame, text=frame_text, position="top-right")
+            cast(Image.Image, add_text_to_frame(frame, text=frame_text, position="top-right"))
             for frame in ft_frames
         ]
         return ft_frames
@@ -929,13 +930,13 @@ async def gen_sub_scene(
         # We are adding this pre Fantasy Talking which could make it worse
         frame_text = f"{scene_id:03d}.{sub_scene_id:03d}"
         sub_scene_ft_frames = [
-            add_text_to_frame(frame, text=frame_text, position="top-left")
+            cast(Image.Image, add_text_to_frame(frame, text=frame_text, position="top-left"))
             for frame in sub_scene_ft_frames
         ]
         width, height = sub_scene_ft_frames[0].size
         frame_text = f"{width}x{height} {len(sub_scene_ft_frames)} frames"
         sub_scene_ft_frames = [
-            add_text_to_frame(frame, text=frame_text, position="top-right")
+            cast(Image.Image, add_text_to_frame(frame, text=frame_text, position="top-right"))
             for frame in sub_scene_ft_frames
         ]
 
