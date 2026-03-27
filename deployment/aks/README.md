@@ -138,6 +138,78 @@ kubectl apply -f deployment/k8s/local-pv.yaml
 kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 ```
 
+### 2.4 HTTPS / TLS Certificates (optional)
+
+By default, StreamWise and app UIs are served over HTTP.
+To enable HTTPS, provide a TLS certificate — either embedded in the Docker image at build time, or mounted at runtime via a Kubernetes Secret.
+
+#### Option A: Kubernetes TLS Secret (recommended for production)
+
+Create a TLS Secret in the `rtgen` namespace from your certificate files:
+```bash
+# Using an existing certificate (e.g., from Let's Encrypt or your CA)
+kubectl create secret tls tls-secret -n rtgen \
+  --cert=/path/to/cert.pem \
+  --key=/path/to/key.pem
+```
+
+Then uncomment the `volumeMounts` and `volumes` blocks in the pod YAML:
+```bash
+# Edit deployment/aks/streamwise-pod.yaml  — uncomment the volumeMounts / volumes sections
+# then redeploy
+envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
+```
+
+The container auto-detects the mounted certificate at `/certs/tls.crt` / `/certs/tls.key` and switches to HTTPS automatically — no other change required.
+
+#### Option B: Embed certificate at image build time
+
+Pass `--certfile` and `--keyfile` when building the image.
+The certificate is copied into the image under `/certs/cert.pem` and `/certs/key.pem`:
+
+```bash
+# StreamWise
+cd deployment/streamwise
+bash setup_image.sh --push \
+  --certfile /path/to/cert.pem \
+  --keyfile /path/to/key.pem
+
+# App (e.g., StreamCast)
+cd deployment/apps/streamcast
+bash setup_image.sh --push \
+  --certfile /path/to/cert.pem \
+  --keyfile /path/to/key.pem
+```
+
+> **Note:** Do not commit certificate files to source control.
+> Use Option A (Kubernetes Secret) in shared environments to keep keys out of images.
+
+#### Generating a self-signed certificate (development / testing only)
+
+```bash
+openssl req -x509 -newkey rsa:4096 -nodes \
+  -keyout key.pem -out cert.pem \
+  -days 365 \
+  -subj "/CN=$IP_ADDRESS" \
+  -addext "subjectAltName=IP:$IP_ADDRESS"
+```
+
+> Replace `$IP_ADDRESS` with a hostname (e.g. `-subj "/CN=streamwise.example.com"` and `-addext "subjectAltName=DNS:streamwise.example.com"`) if you are using a DNS name instead of an IP address.
+
+#### Verify HTTPS is working
+
+After deploying, confirm the server responds over HTTPS:
+```bash
+# StreamWise (adjust port and IP as needed)
+curl -k https://$IP_ADDRESS:8081/health
+
+# StreamCast
+curl -k https://$IP_ADDRESS:8080/health
+```
+
+> **Note:** Use `-k` (skip cert verification) for self-signed certificates.
+> For production, use a certificate issued by a trusted CA so browsers accept it without warnings.
+
 ## Step 3: Deploy StreamWise (Cluster Manager)
 
 Set the environment variables needed by the YAML templates, then deploy.
@@ -170,7 +242,7 @@ kubectl exec -n rtgen streamwise -- cat /tmp/streamwise.log
 kubectl exec -it -n rtgen streamwise -- /bin/bash
 ```
 
-Open the web UI at: `http://$IP_ADDRESS:8081`
+Open the web UI at: `http://$IP_ADDRESS:8081` (or `https://$IP_ADDRESS:8081` if HTTPS is enabled)
 
 ### Remove StreamWise
 ```bash
@@ -193,7 +265,7 @@ kubectl get pods -n rtgen
 kubectl get svc -n rtgen
 ```
 
-Open the StreamCast UI at: `http://$IP_ADDRESS:8080`
+Open the StreamCast UI at: `http://$IP_ADDRESS:8080` (or `https://$IP_ADDRESS:8080` if HTTPS is enabled)
 
 ### Remove StreamCast
 ```bash
@@ -336,6 +408,8 @@ curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
 # Verify deployed services
 curl "http://$IP_ADDRESS:8081/api/services"
 ```
+
+> **HTTPS:** If HTTPS is enabled, replace `http://` with `https://` and add `-k` for self-signed certificates, e.g. `curl -k -X POST "https://$IP_ADDRESS:8081/api/service"`.
 
 
 ## Troubleshooting

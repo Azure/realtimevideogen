@@ -284,6 +284,28 @@ cd deployment/streamwise
 bash setup_image.sh --push
 ```
 
+Available flags for StreamWise and app builds:
+
+| Flag | Description |
+|------|-------------|
+| `--push` | Push the image to ACR after building |
+| `--certfile <path>` | Embed a TLS certificate file in the image for HTTPS |
+| `--keyfile <path>` | Embed the corresponding TLS private key file |
+
+To build a StreamWise or app image with an embedded TLS certificate:
+```bash
+# StreamWise with embedded HTTPS certificate
+cd deployment/streamwise
+bash setup_image.sh --push --certfile /path/to/cert.pem --keyfile /path/to/key.pem
+
+# App with embedded HTTPS certificate
+cd deployment/apps/streamcast
+bash setup_image.sh --push --certfile /path/to/cert.pem --keyfile /path/to/key.pem
+```
+
+> **Note:** For Kubernetes deployments, the recommended approach is to mount a K8s TLS Secret at `/certs/` rather than embedding the certificate in the image.
+> See the [HTTPS setup guide](aks/README.md#24-https--tls-certificates-optional) for details.
+
 ### Push an Image Manually
 
 If you built an image without `--push`, push it separately:

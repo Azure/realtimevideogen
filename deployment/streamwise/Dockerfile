@@ -22,6 +22,10 @@ COPY *.json .
 COPY templates ./templates
 COPY static ./static
 
+# TLS certificates (optional — populated by setup_image.sh --certfile/--keyfile or mounted at runtime)
+RUN mkdir -p /certs
+COPY certs /certs
+
 SHELL ["/bin/bash", "-c"]
 RUN echo "source activate streamwise" >> ~/.bashrc
 

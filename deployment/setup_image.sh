@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Argument parsing
 usage() {
-  echo "Usage: $0 <IMAGE_NAME> [--push] [--platform linux/amd64|linux/arm64]"
+  echo "Usage: $0 <IMAGE_NAME> [--push] [--platform linux/amd64|linux/arm64] [--certfile <path>] [--keyfile <path>]"
   exit 1
 }
 
@@ -17,6 +17,8 @@ IMAGE_NAME="${1:-}"
 
 PUSH_IMAGE=false
 PLATFORM=$(detect_platform)
+CERT_FILE=""
+KEY_FILE=""
 
 shift || true
 
@@ -32,12 +34,32 @@ while [[ $# -gt 0 ]]; do
       PLATFORM="$1"
       shift
       ;;
+    --certfile)
+      shift
+      CERT_FILE="$1"
+      shift
+      ;;
+    --keyfile)
+      shift
+      KEY_FILE="$1"
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       usage
       ;;
   esac
 done
+
+# Validate cert flags: both must be provided together
+if [[ -n "$CERT_FILE" ]] && [[ -z "$KEY_FILE" ]]; then
+  echo "ERROR: --certfile requires --keyfile to be specified as well"
+  exit 1
+fi
+if [[ -z "$CERT_FILE" ]] && [[ -n "$KEY_FILE" ]]; then
+  echo "ERROR: --keyfile requires --certfile to be specified as well"
+  exit 1
+fi
 
 # Main script
 MAIN_DIR=$(realpath "$SCRIPT_DIR/..")
@@ -69,6 +91,16 @@ if [[ "$IMAGE_NAME" == "streamwise" ]]; then
   [[ -d "$APP_DIR/static" ]] && cp -R "$APP_DIR/static" "$IMAGE_DIR/docker_files/"
   [[ -d "$APP_DIR/templates" ]] && cp -R "$APP_DIR/templates" "$IMAGE_DIR/docker_files/"
   cp "$MAIN_DIR/services.json" "$IMAGE_DIR/docker_files/"
+
+  # Certs directory (empty by default; populated with --certfile/--keyfile for embedded HTTPS)
+  mkdir -p "$IMAGE_DIR/docker_files/certs"
+  if [[ -n "$CERT_FILE" ]] && [[ -n "$KEY_FILE" ]]; then
+    [[ -f "$CERT_FILE" ]] || { echo "ERROR: Certificate file not found: $CERT_FILE"; exit 1; }
+    [[ -f "$KEY_FILE" ]] || { echo "ERROR: Key file not found: $KEY_FILE"; exit 1; }
+    cp "$CERT_FILE" "$IMAGE_DIR/docker_files/certs/cert.pem"
+    cp "$KEY_FILE" "$IMAGE_DIR/docker_files/certs/key.pem"
+    echo "Embedding TLS certificate: $CERT_FILE"
+  fi
 fi
 
 BUILD_ARGS=(

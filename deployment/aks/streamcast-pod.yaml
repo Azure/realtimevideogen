@@ -29,6 +29,16 @@ spec:
         cpu: "4"
         memory: "8Gi"
         ephemeral-storage: "32Gi"
+    # HTTPS (optional): uncomment volumeMounts below and create a TLS Secret:
+    #   kubectl create secret tls tls-secret -n rtgen --cert=cert.pem --key=key.pem
+    # volumeMounts:
+    # - name: tls-secret
+    #   mountPath: /certs
+    #   readOnly: true
+  # volumes:
+  # - name: tls-secret
+  #   secret:
+  #     secretName: tls-secret
   imagePullSecrets:
   - name: acr-secret
   nodeSelector:
