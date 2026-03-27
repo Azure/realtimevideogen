@@ -236,3 +236,107 @@ async def test_wrapper_wan22_generate_raises_without_init() -> None:
 
     del model
     gc.collect()
+
+
+def test_wrapper_wan22_assert_model_init_wan_s2v_none() -> None:
+    """Test _assert_model_init raises when wan_s2v is None after init."""
+    model = Wan22VideoGeneration()
+    model.init()
+    model.wan_s2v = None
+    with pytest.raises(ValueError, match="WanS2V model not initialized"):
+        model._assert_model_init()
+
+
+def test_wrapper_wan22_model_compile_no_op_no_torch_compile() -> None:
+    """Test model_compile is no-op when torch_compile=False."""
+    model = Wan22VideoGeneration()
+    model.init()
+    model.torch_compile = False
+    model.model_compile()  # should not raise
+
+
+def test_wrapper_wan22_model_compile_no_op_no_wan_s2v() -> None:
+    """Test model_compile is no-op when wan_s2v is None."""
+    model = Wan22VideoGeneration()
+    model.init()
+    model.torch_compile = True
+    model.wan_s2v = None
+    model.model_compile()  # should not raise (wan_s2v is None guard)
+
+
+def test_wrapper_wan22_model_compile_with_torch_compile() -> None:
+    """Test model_compile calls torch.compile when torch_compile=True and wan_s2v is set."""
+    model = Wan22VideoGeneration()
+    model.init()
+    model.torch_compile = True
+    assert model.wan_s2v is not None
+    model.model_compile()  # torch.compile is mocked, should not raise
+
+
+@pytest.mark.asyncio
+async def test_wrapper_wan22_get_rest_args_img_not_string() -> None:
+    """Test get_rest_args raises when img is not a string."""
+    model = Wan22VideoGeneration()
+    model.init()
+
+    with pytest.raises(ValueError, match="'img' parameter must be a base64-encoded string"):
+        await model.get_rest_args({"img": 12345})
+
+
+@pytest.mark.asyncio
+async def test_wrapper_wan22_get_rest_args_audio_not_string() -> None:
+    """Test get_rest_args raises when audio is not a string."""
+    model = Wan22VideoGeneration()
+    model.init()
+
+    img = Image.new("RGB", (40, 30))
+    img_base64 = img_to_base64(img)
+
+    with pytest.raises(ValueError, match="'audio' parameter must be a base64-encoded string"):
+        await model.get_rest_args({
+            "img": img_base64,
+            "prompt": "test",
+            "audio": 99999,
+        })
+
+
+@pytest.mark.asyncio
+async def test_wrapper_wan22_get_rest_args_tts_prompt_audio_not_string() -> None:
+    """Test get_rest_args raises when tts_prompt_audio is not a string."""
+    model = Wan22VideoGeneration()
+    model.init()
+
+    img = Image.new("RGB", (40, 30))
+    img_base64 = img_to_base64(img)
+
+    with pytest.raises(ValueError, match="'tts_prompt_audio' must be a base64-encoded string"):
+        await model.get_rest_args({
+            "img": img_base64,
+            "prompt": "test",
+            "enable_tts": True,
+            "tts_prompt_audio": 99999,
+        })
+
+
+@pytest.mark.asyncio
+async def test_wrapper_wan22_get_rest_args_with_job_id() -> None:
+    """Test get_rest_args passes a deterministic audio destination when job_id is given."""
+    model = Wan22VideoGeneration()
+    model.init()
+
+    img = Image.new("RGB", (40, 30))
+    img_base64 = img_to_base64(img)
+
+    mock_media_utils.base64_to_audio_file.reset_mock()
+
+    await model.get_rest_args({
+        "img": img_base64,
+        "prompt": "test",
+        "audio": "dGVzdA==",
+        "job_id": "myjob123",
+    })
+
+    # Verify that the audio file helper was called with the expected destination path
+    mock_media_utils.base64_to_audio_file.assert_called_once_with(
+        "dGVzdA==", audio_path="/tmp/myjob123.wav"
+    )
