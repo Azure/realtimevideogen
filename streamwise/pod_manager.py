@@ -33,6 +33,7 @@ from kubernetes_asyncio.client import V1Volume
 from kubernetes_asyncio.client import V1EnvVarSource
 from kubernetes_asyncio.client import V1EnvVar
 from kubernetes_asyncio.client import V1SecretKeySelector
+from kubernetes_asyncio.client import V1CSIVolumeSource
 from kubernetes_asyncio.client import V1EmptyDirVolumeSource
 from kubernetes_asyncio.client import V1ObjectMeta
 from kubernetes_asyncio.client import V1DeleteOptions
@@ -59,6 +60,29 @@ from k8s_utils import load_k8s_config
 
 from streamwise_apps import STREAMWISE_APPS
 from streamwise_apps import VLLM_SERVICES
+
+
+def get_tls_cert_settings() -> Tuple[V1VolumeMount, V1Volume]:
+    """Get the TLS certificate volume mount and volume using the Secrets Store CSI Driver.
+
+    Fetches the certificate from Azure Key Vault (via SecretProviderClass 'streamwise-tls')
+    and mounts it at /certs so the run_httpserver.bash entrypoint auto-detects it for HTTPS.
+    Requires: deployment/k8s/tls-secret-provider.yaml applied first.
+    """
+    volume_mount = V1VolumeMount(
+        name="tls-csi",
+        mount_path="/certs",
+        read_only=True
+    )
+    volume = V1Volume(
+        name="tls-csi",
+        csi=V1CSIVolumeSource(
+            driver="secrets-store.csi.k8s.io",
+            read_only=True,
+            volume_attributes={"secretProviderClass": "streamwise-tls"}
+        )
+    )
+    return volume_mount, volume
 
 
 def get_vllm_settings() -> Tuple[List[V1VolumeMount], List[V1Volume]]:
@@ -399,18 +423,31 @@ async def add_pod(
 
     # vLLM specific settings
     args = None
-    volume_mounts = None
-    volumes = None
+    volume_mounts: List[V1VolumeMount] = []
+    volumes: List[V1Volume] = []
     if container_name == "gemma":
         if not gpu or gpu <= 0:
             return jsonify({"error": "Gemma requires at least one GPU"}), HTTPStatus.BAD_REQUEST
-        args, volume_mounts, volumes = get_gemma_settings(gpu)
+        args, vllm_mounts, vllm_volumes = get_gemma_settings(gpu)
+        volume_mounts.extend(vllm_mounts)
+        volumes.extend(vllm_volumes)
     elif container_name == "llama32":
         if not gpu or gpu <= 0:
             return jsonify({"error": "Llama 3.2 requires at least one GPU"}), HTTPStatus.BAD_REQUEST
-        args, volume_mounts, volumes = get_llama32_settings(gpu)
+        args, vllm_mounts, vllm_volumes = get_llama32_settings(gpu)
+        volume_mounts.extend(vllm_mounts)
+        volumes.extend(vllm_volumes)
     elif container_name == "whisper":
-        args, volume_mounts, volumes = get_whisper_settings()
+        args, vllm_mounts, vllm_volumes = get_whisper_settings()
+        volume_mounts.extend(vllm_mounts)
+        volumes.extend(vllm_volumes)
+
+    # Mount TLS certificate from Azure Key Vault (Secrets Store CSI Driver) at /certs so
+    # the run_httpserver.bash entrypoint auto-enables HTTPS. Requires the SecretProviderClass
+    # from deployment/k8s/tls-secret-provider.yaml to be applied first.
+    tls_mount, tls_volume = get_tls_cert_settings()
+    volume_mounts.append(tls_mount)
+    volumes.append(tls_volume)
 
     containers = [
         V1Container(

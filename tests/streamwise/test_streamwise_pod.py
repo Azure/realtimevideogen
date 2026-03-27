@@ -27,6 +27,7 @@ with patch.dict(sys.modules, mock_modules):
         from streamwise.pod_manager import get_gemma_settings
         from streamwise.pod_manager import get_llama32_settings
         from streamwise.pod_manager import get_mig_resource_name
+        from streamwise.pod_manager import get_tls_cert_settings
         from streamwise.pod_manager import MIG_PROFILES
 
 
@@ -128,6 +129,17 @@ def test_mig_profiles_set() -> None:
     assert "1g.10gb" in MIG_PROFILES
     assert "7g.80gb" in MIG_PROFILES
     assert "invalid" not in MIG_PROFILES
+
+
+def test_get_tls_cert_settings() -> None:
+    volume_mount, volume = get_tls_cert_settings()
+    assert volume_mount.mount_path == "/certs"
+    assert volume_mount.read_only is True
+    assert volume_mount.name == "tls-csi"
+    assert volume.name == "tls-csi"
+    assert volume.csi.driver == "secrets-store.csi.k8s.io"
+    assert volume.csi.read_only is True
+    assert volume.csi.volume_attributes == {"secretProviderClass": "streamwise-tls"}
 
 
 @pytest.mark.asyncio
