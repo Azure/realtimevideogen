@@ -4,7 +4,7 @@ This guide provides step-by-step instructions for deploying StreamWise and Strea
 
 GitHub Copilot CLI can do the full deployment with a prompt like:
 ```bash
-copilot -p "Deploy the full StreamWise stack on a new AKS cluster in eastus2 with 2 Spot Standard_NC96ads_A100_v4 VMs. Setup MIG for one of the VMs. Use resource group my-rg, ACR myacr in acr-rg RG, and HF token hf_XYZ. Support HTTPS. Reboot the GPU VMs after they come up." --allow-all
+copilot -p "Deploy the full StreamWise stack on a new AKS cluster in eastus2 with 2 Spot Standard_NC96ads_A100_v4 VMs. Setup MIG for one of the VMs. Use resource group my-rg, ACR myacr in acr-rg RG, and HF token hf_XYZ. Reboot the GPU VMs after they come up." --allow-all
 ```
 
 ## Prerequisites
@@ -82,7 +82,8 @@ Some available GPU VM sizes:
 > Attach the ACR manually with:
 > `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
 >
-> **Note:** HTTPS/TLS is **disabled by default**. To enable Key Vault, the self-signed TLS certificate, OIDC issuer, workload identity, and federated identity credentials, add `enableSecureSetup=true` to the deployment parameters:
+> **Optional – HTTPS/TLS:** By default the cluster is deployed **without TLS** (HTTP only, `enableSecureSetup=false`).
+> To enable Key Vault, a self-signed TLS certificate, OIDC issuer, workload identity, and federated identity credentials, add `enableSecureSetup=true`:
 > ```bash
 > az deployment group create \
 >   --name AKSDeployment \
@@ -93,7 +94,7 @@ Some available GPU VM sizes:
 >     acrName=$ACR_NAME \
 >     enableSecureSetup=true
 > ```
-> After deployment, run [`setup-letsencrypt.sh`](setup-letsencrypt.sh) to obtain a browser-trusted CA-signed certificate (see Step 2.4), or use `quick-deploy.sh` with `LETSENCRYPT_EMAIL` set.
+> After deployment, run [`setup-letsencrypt.sh`](setup-letsencrypt.sh) to obtain a browser-trusted CA-signed certificate (see Step 2.4).
 > For manual steps, see [deployment/k8s/certs.md](../k8s/certs.md).
 
 After deployment, retrieve the outputs and get cluster credentials:
@@ -108,41 +109,28 @@ IP_ADDRESS=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.publicIpAddress.value -o tsv)
 
-PUBLIC_FQDN=$(az deployment group show \
-  --name AKSDeployment \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.publicFqdn.value -o tsv)
+echo "AKS cluster:  $AKS_CLUSTER"
+echo "Public IP:    $IP_ADDRESS"
 
+az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
+```
+
+When `enableSecureSetup=true`, also retrieve the TLS-related outputs:
+```bash
 KEY_VAULT_NAME=$(az deployment group show \
   --name AKSDeployment \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.keyVaultName.value -o tsv)
 
-CSI_ADDON_CLIENT_ID=$(az deployment group show \
+PUBLIC_FQDN=$(az deployment group show \
   --name AKSDeployment \
   --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.csiAddonClientId.value -o tsv)
+  --query properties.outputs.publicFqdn.value -o tsv)
 
-AZ_TENANT_ID=$(az deployment group show \
-  --name AKSDeployment \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.tenantId.value -o tsv)
-
-TLS_CERT_NAME=$(az deployment group show \
-  --name AKSDeployment \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.tlsCertificateName.value -o tsv)
-
-echo "AKS cluster:           $AKS_CLUSTER"
-echo "Public IP:             $IP_ADDRESS"
-echo "Public FQDN:           $PUBLIC_FQDN"
-echo "Key Vault:             $KEY_VAULT_NAME"
-echo "CSI addon client ID:   $CSI_ADDON_CLIENT_ID"
-echo "Tenant ID:             $AZ_TENANT_ID"
-echo "TLS cert name:         $TLS_CERT_NAME"
-
-az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
+echo "Key Vault:    $KEY_VAULT_NAME"
+echo "Public FQDN:  $PUBLIC_FQDN"
 ```
+
 
 **Verify AKS deployment:**
 ```bash
@@ -182,16 +170,17 @@ kubectl apply -f deployment/k8s/local-pv.yaml
 kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 ```
 
-### 2.4 HTTPS / TLS Certificates
+### 2.4 HTTPS / TLS Certificates (optional)
 
-The Bicep template provisions an Azure Key Vault with a self-signed fallback certificate and opens port 80 on the NSG for ACME challenges.
-The **recommended approach** is to use cert-manager + Let's Encrypt to obtain a CA-signed certificate that browsers trust without warnings.
+By default the cluster runs **without TLS** (HTTP only).
+To enable HTTPS, first deploy with `enableSecureSetup=true` (see the optional note in Step 1).
+This provisions an Azure Key Vault with a self-signed fallback certificate and opens port 80 on the NSG for ACME challenges.
 
-**Automated (recommended):** After deploying the cluster with `enableSecureSetup=true` and the pods (Steps 3–4), run:
+**Automated:** After deploying with `enableSecureSetup=true` and the pods (Steps 3–4), run:
 
 ```bash
 export LETSENCRYPT_EMAIL=your@email.com   # REQUIRED: monitored address for expiry notices
-export PUBLIC_FQDN                        # already set from Step 1 outputs
+export PUBLIC_FQDN                        # set from Step 1 TLS outputs
 export LOAD_BALANCER_IP=$IP_ADDRESS
 export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
@@ -201,7 +190,7 @@ bash deployment/aks/setup-letsencrypt.sh
 This installs cert-manager, the nginx-ingress controller, creates Let's Encrypt ClusterIssuers,
 requests the certificate, and restarts the pods — all in one step.  After completion, `https://$PUBLIC_FQDN:8081` will serve a browser-trusted certificate with no warnings.
 
-> **Tip:** `quick-deploy.sh` does this automatically when `LETSENCRYPT_EMAIL` is set.
+> **Tip:** `quick-deploy.sh` handles this automatically when `ENABLE_SECURE=true` and `LETSENCRYPT_EMAIL` is set.
 
 **Manual:** See [HTTPS / TLS Certificates](../k8s/certs.md) for step-by-step instructions (useful for troubleshooting or custom setups).
 
@@ -237,7 +226,8 @@ kubectl exec -n rtgen streamwise -- cat /tmp/streamwise.log
 kubectl exec -it -n rtgen streamwise -- /bin/bash
 ```
 
-Open the web UI at: `https://$PUBLIC_FQDN:8081` (CA-signed cert) or `https://$IP_ADDRESS:8081` (self-signed cert, add `-k` to curl)
+Open the web UI at: `http://$IP_ADDRESS:8081`
+(With HTTPS enabled: `https://$PUBLIC_FQDN:8081` for CA-signed cert, or `https://$IP_ADDRESS:8081` for self-signed cert with `-k`)
 
 ### Remove StreamWise
 ```bash
@@ -261,7 +251,8 @@ kubectl get pods -n rtgen
 kubectl get svc -n rtgen
 ```
 
-Open the StreamCast UI at: `https://$PUBLIC_FQDN:8080` (CA-signed cert) or `https://$IP_ADDRESS:8080` (self-signed cert, add `-k` to curl)
+Open the StreamCast UI at: `http://$IP_ADDRESS:8080`
+(With HTTPS enabled: `https://$PUBLIC_FQDN:8080` for CA-signed cert, or `https://$IP_ADDRESS:8080` for self-signed cert with `-k`)
 
 ### Remove StreamCast
 ```bash
@@ -377,27 +368,23 @@ Deploy model services through the StreamWise web UI or REST API.
 > With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice on the MIG pool, leaving the full-GPU pool for heavy models.
 > For parallel execution of all services, add more GPU nodes to either pool.
 
-The Web UI is available at `https://$PUBLIC_FQDN:8081` (CA-signed) or `https://$IP_ADDRESS:8081` (self-signed, use `-k`) to manage services.
+The Web UI is available at `http://$IP_ADDRESS:8081` to manage services.
 Use the REST API to deploy all services at once:
 ```bash
-# With a CA-signed certificate (no -k needed)
-curl -X POST "https://$PUBLIC_FQDN:8081/api/service"
-
-# With a self-signed certificate (skip TLS verification)
-curl -k -X POST "https://$IP_ADDRESS:8081/api/service"
+curl -X POST "http://$IP_ADDRESS:8081/api/service"
 ```
 
 Or deploy individual services with specific resource allocations:
 ```bash
 # Deploy a single service (whole GPU)
-curl -X POST "https://$PUBLIC_FQDN:8081/api/pod" \
+curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
   -d "memory=8" \
   -d "cpu=2"
 
 # Deploy with a MIG slice (partial GPU — requires MIG configured on the node; see Step 5.1)
-curl -X POST "https://$PUBLIC_FQDN:8081/api/pod" \
+curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
   -d "mig_profile=1g.10gb" \
@@ -406,11 +393,10 @@ curl -X POST "https://$PUBLIC_FQDN:8081/api/pod" \
   -d "cpu=2"
 
 # Verify deployed services
-curl "https://$PUBLIC_FQDN:8081/api/services"
+curl "http://$IP_ADDRESS:8081/api/services"
 ```
 
-> **Note:** Use the `$PUBLIC_FQDN` address with a CA-signed certificate (no `-k` flag needed).
-> Use `$IP_ADDRESS` with `-k` if you are using the self-signed fallback certificate.
+> **Note (HTTPS):** With `enableSecureSetup=true`, use `https://$PUBLIC_FQDN:8081` (CA-signed cert) or `https://$IP_ADDRESS:8081 -k` (self-signed cert).
 
 
 ## Troubleshooting
@@ -461,12 +447,11 @@ Edit the configuration variables at the top, then run from the repository root:
 bash deployment/aks/quick-deploy.sh
 ```
 
-> **CA-signed HTTPS:** Set `LETSENCRYPT_EMAIL` in the configuration section to
-> automatically provision a browser-trusted Let's Encrypt certificate.
-> When unset, the script falls back to the self-signed certificate from Key Vault
-> (browsers will show a security warning).
+By default the script deploys **without TLS** (HTTP only).
+To enable HTTPS, set `ENABLE_SECURE=true` in the configuration section.
+To also obtain a browser-trusted CA-signed certificate, additionally set `LETSENCRYPT_EMAIL`.
 
-For CA-signed certificates on an existing cluster, run the standalone script:
+For CA-signed certificates on an existing cluster deployed with `enableSecureSetup=true`, run the standalone script:
 
 ```bash
 export LETSENCRYPT_EMAIL=your@email.com

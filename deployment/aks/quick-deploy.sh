@@ -14,10 +14,11 @@ export GPU_VM_SIZE="Standard_NC96ads_A100_v4"  # see VM sizes table in README.md
 export SYSTEM_VM_SIZE="Standard_D16ds_v5"      # override if unavailable in your region
 export GPU_POOL="spota100"
 export MIG_POOL="spota100mig"
-# TLS: set LETSENCRYPT_EMAIL to enable CA-signed certificates (recommended).
-# When set, the script installs cert-manager + nginx-ingress and obtains a
+# HTTPS/TLS: set ENABLE_SECURE=true to provision Key Vault and TLS certificates.
+# By default the cluster is deployed without TLS (HTTP only).
+export ENABLE_SECURE="false"
+# CA-signed cert: set LETSENCRYPT_EMAIL when ENABLE_SECURE=true to obtain a
 # browser-trusted Let's Encrypt certificate automatically.
-# Leave empty to use the self-signed fallback from Key Vault (dev/testing only).
 export LETSENCRYPT_EMAIL=""                    # e.g. "team@example.com"
 # ────────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ az deployment group create \
     gpuMigNodeCount=1 \
     acrName=$ACR_NAME \
     acrResourceGroup=$ACR_RG \
-    enableSecureSetup=true
+    enableSecureSetup=$ENABLE_SECURE
 
 # If ACR role assignment failed (redeployment), attach manually:
 az aks update -g $AZ_RESOURCE_GROUP -n "$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)" \
@@ -49,9 +50,12 @@ az aks update -g $AZ_RESOURCE_GROUP -n "$(az aks list -g $AZ_RESOURCE_GROUP --qu
 AKS_CLUSTER=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROUP \
   --query properties.outputs.clusterName.value -o tsv)
 IP_ADDRESS=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip --query ipAddress -o tsv)
-PUBLIC_FQDN=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip --query dnsSettings.fqdn -o tsv)
-KEY_VAULT_NAME=$(az keyvault list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
+
+if [ "$ENABLE_SECURE" = "true" ]; then
+  PUBLIC_FQDN=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip --query dnsSettings.fqdn -o tsv)
+  KEY_VAULT_NAME=$(az keyvault list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)
+fi
 
 az aks get-credentials -g $AZ_RESOURCE_GROUP -n "$AKS_CLUSTER" --overwrite-existing
 
@@ -67,29 +71,31 @@ kubectl apply -f deployment/k8s/streamwiseapp-service-account.yaml
 kubectl create namespace gpu-resources
 kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 
-# 5. TLS certificate setup
+# 5. TLS certificate setup (only when ENABLE_SECURE=true)
 export LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
-if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
-  # CA-signed certificate via cert-manager + Let's Encrypt (recommended).
-  # Install the self-signed fallback first so pods can start while cert-manager
-  # provisions the CA-signed certificate (takes 1-3 minutes).
-  echo ">>> Bootstrapping with self-signed cert while Let's Encrypt provisions..."
-  az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
-  az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
-  openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
-  kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
-    --dry-run=client -o yaml | kubectl apply -f -
-  rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
-else
-  # Self-signed fallback from Key Vault (dev/testing only — browsers will warn).
-  echo ">>> Using self-signed certificate from Key Vault (set LETSENCRYPT_EMAIL for CA-signed)."
-  az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
-  az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
-  openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
-  kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
-    --dry-run=client -o yaml | kubectl apply -f -
-  rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+if [ "$ENABLE_SECURE" = "true" ]; then
+  if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+    # CA-signed certificate via cert-manager + Let's Encrypt.
+    # Install the self-signed fallback first so pods can start while cert-manager
+    # provisions the CA-signed certificate (takes 1-3 minutes).
+    echo ">>> Bootstrapping with self-signed cert while Let's Encrypt provisions..."
+    az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+    az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
+    openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+    kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
+      --dry-run=client -o yaml | kubectl apply -f -
+    rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+  else
+    # Self-signed certificate from Key Vault.
+    echo ">>> Using self-signed certificate from Key Vault (set LETSENCRYPT_EMAIL for CA-signed)."
+    az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+    az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
+    openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+    kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
+      --dry-run=client -o yaml | kubectl apply -f -
+    rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+  fi
 fi
 
 # 6. Deploy StreamWise + StreamCast
@@ -128,20 +134,26 @@ kubectl exec gpu-debug -- chroot /host nvidia-smi mig -cgi 2g.20gb,2g.20gb,1g.10
 kubectl taint node "$GPU_NODE" mig-setup=true:NoExecute-
 kubectl delete pod gpu-debug --ignore-not-found
 
-# 9. CA-signed certificate (if LETSENCRYPT_EMAIL is set)
-if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+# 9. CA-signed certificate (only when ENABLE_SECURE=true and LETSENCRYPT_EMAIL is set)
+if [ "$ENABLE_SECURE" = "true" ] && [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
   echo ">>> Setting up Let's Encrypt CA-signed certificate..."
   bash deployment/aks/setup-letsencrypt.sh
 fi
 
 echo "==========================================="
 echo "Deployment complete!"
-echo "StreamWise: https://$PUBLIC_FQDN:8081"
-echo "StreamCast: https://$PUBLIC_FQDN:8080"
-echo "Public IP:  $IP_ADDRESS"
-if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
-  echo "TLS:        CA-signed (Let's Encrypt) — browser-trusted"
+if [ "$ENABLE_SECURE" = "true" ]; then
+  echo "StreamWise: https://$PUBLIC_FQDN:8081"
+  echo "StreamCast: https://$PUBLIC_FQDN:8080"
+  if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+    echo "TLS:        CA-signed (Let's Encrypt) — browser-trusted"
+  else
+    echo "TLS:        Self-signed (use -k with curl)"
+  fi
 else
-  echo "TLS:        Self-signed (use -k with curl) — set LETSENCRYPT_EMAIL for CA-signed"
+  echo "StreamWise: http://$IP_ADDRESS:8081"
+  echo "StreamCast: http://$IP_ADDRESS:8080"
+  echo "TLS:        Disabled (set ENABLE_SECURE=true for HTTPS)"
 fi
+echo "Public IP:  $IP_ADDRESS"
 echo "==========================================="
