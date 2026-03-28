@@ -227,7 +227,6 @@ kubectl exec -it -n rtgen streamwise -- /bin/bash
 ```
 
 Open the web UI at: `http://$IP_ADDRESS:8081`
-(With HTTPS enabled: `https://$PUBLIC_FQDN:8081` for CA-signed cert, or `https://$IP_ADDRESS:8081` for self-signed cert with `-k`)
 
 ### Remove StreamWise
 ```bash
@@ -252,7 +251,6 @@ kubectl get svc -n rtgen
 ```
 
 Open the StreamCast UI at: `http://$IP_ADDRESS:8080`
-(With HTTPS enabled: `https://$PUBLIC_FQDN:8080` for CA-signed cert, or `https://$IP_ADDRESS:8080` for self-signed cert with `-k`)
 
 ### Remove StreamCast
 ```bash
@@ -318,18 +316,9 @@ kubectl node-shell <node-name>
 
 Sometimes the NVIDIA setup with torch is not correct and we need to restart the VM:
 ```bash
-MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
-
-# Restart a specific instance in the full-GPU pool
-VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
-  --query "[?contains(name, 'aks-spoth100-') && !contains(name, 'mig')].name | [0]" -o tsv)
+# Restart a specific instance (reuse VMSS_FULL and VMSS_MIG from above)
 INSTANCE_ID=0
 az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_FULL --instance-ids $INSTANCE_ID
-
-# Restart a specific instance in the MIG pool
-VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
-  --query "[?contains(name, 'aks-spoth100mig-')].name | [0]" -o tsv)
-INSTANCE_ID=0
 az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids $INSTANCE_ID
 ```
 
@@ -374,29 +363,20 @@ Use the REST API to deploy all services at once:
 curl -X POST "http://$IP_ADDRESS:8081/api/service"
 ```
 
-Or deploy individual services with specific resource allocations:
+Or deploy individual services:
 ```bash
-# Deploy a single service (whole GPU)
+# Whole GPU
 curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
-  -d "container_name=kokoro" \
-  -d "gpu=1" \
-  -d "memory=8" \
-  -d "cpu=2"
+  -d "container_name=kokoro" -d "gpu=1" -d "memory=8" -d "cpu=2"
 
-# Deploy with a MIG slice (partial GPU — requires MIG configured on the node; see Step 5.1)
+# MIG slice (requires MIG configured on the node; see Step 5.1)
 curl -X POST "http://$IP_ADDRESS:8081/api/pod" \
-  -d "container_name=kokoro" \
-  -d "gpu=1" \
-  -d "mig_profile=1g.10gb" \
-  -d "gpu_type=h100" \
-  -d "memory=8" \
-  -d "cpu=2"
+  -d "container_name=kokoro" -d "gpu=1" -d "mig_profile=1g.10gb" \
+  -d "gpu_type=h100" -d "memory=8" -d "cpu=2"
 
-# Verify deployed services
+# List deployed services
 curl "http://$IP_ADDRESS:8081/api/services"
 ```
-
-> **Note (HTTPS):** With `enableSecureSetup=true`, use `https://$PUBLIC_FQDN:8081` (CA-signed cert) or `https://$IP_ADDRESS:8081 -k` (self-signed cert).
 
 
 ## Troubleshooting

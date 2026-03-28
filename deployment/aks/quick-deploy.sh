@@ -80,22 +80,15 @@ if [ "$ENABLE_SECURE" = "true" ]; then
     # Install the self-signed fallback first so pods can start while cert-manager
     # provisions the CA-signed certificate (takes 1-3 minutes).
     echo ">>> Bootstrapping with self-signed cert while Let's Encrypt provisions..."
-    az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
-    az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
-    openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
-    kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
-      --dry-run=client -o yaml | kubectl apply -f -
-    rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
   else
-    # Self-signed certificate from Key Vault.
     echo ">>> Using self-signed certificate from Key Vault (set LETSENCRYPT_EMAIL for CA-signed)."
-    az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
-    az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
-    openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
-    kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
-      --dry-run=client -o yaml | kubectl apply -f -
-    rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
   fi
+  az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+  az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
+  openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+  kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
+    --dry-run=client -o yaml | kubectl apply -f -
+  rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
 fi
 
 # 6. Deploy StreamWise + StreamCast
