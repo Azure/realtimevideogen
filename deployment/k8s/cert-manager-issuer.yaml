@@ -1,0 +1,63 @@
+# cert-manager ClusterIssuers for Let's Encrypt.
+#
+# Prerequisites:
+#   1. Install cert-manager (once per cluster):
+#        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+#        kubectl wait --namespace cert-manager \
+#          --for=condition=ready pod --selector=app.kubernetes.io/instance=cert-manager \
+#          --timeout=120s
+#
+#   2. Set LETSENCRYPT_EMAIL to a valid, monitored email address for expiry
+#      notifications and account recovery (use a shared team mailbox):
+#        export LETSENCRYPT_EMAIL=your@email.com
+#
+#   3. Apply this file:
+#        envsubst < deployment/k8s/cert-manager-issuer.yaml | kubectl apply -f -
+#
+# Two issuers are provided:
+#   - letsencrypt-staging : use during initial setup to avoid rate limits
+#   - letsencrypt-prod    : use for the final, browser-trusted certificate
+#
+# The HTTP-01 solver creates a temporary LoadBalancer service on port 80 using
+# the existing static public IP so that Let's Encrypt can validate domain
+# ownership.  Port 80 must be reachable from the Internet (the Bicep NSG
+# already allows this via the AllowAcmeHttp01Inbound rule).
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: ${LETSENCRYPT_EMAIL}
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+    - http01:
+        ingress:
+          serviceType: LoadBalancer
+          serviceAnnotations:
+            # Reuse the existing static public IP so that Let's Encrypt can
+            # resolve the FQDN (e.g. streamwise-<hash>.<region>.cloudapp.azure.com)
+            # to this IP and validate the HTTP-01 challenge on port 80.
+            service.beta.kubernetes.io/azure-load-balancer-ipv4: "${LOAD_BALANCER_IP}"
+            service.beta.kubernetes.io/azure-load-balancer-resource-group: "${RESOURCE_GROUP_NAME}"
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ${LETSENCRYPT_EMAIL}
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+    - http01:
+        ingress:
+          serviceType: LoadBalancer
+          serviceAnnotations:
+            service.beta.kubernetes.io/azure-load-balancer-ipv4: "${LOAD_BALANCER_IP}"
+            service.beta.kubernetes.io/azure-load-balancer-resource-group: "${RESOURCE_GROUP_NAME}"

@@ -63,12 +63,22 @@ param subnetAddressPrefix string = '10.10.0.0/24'
 @maxLength(24)
 param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
 
-@description('Name of the self-signed TLS certificate stored in Key Vault.')
+@description('Name of the TLS certificate stored in Key Vault (used as a fallback or for manual cert import).')
 param tlsCertificateName string = 'streamwise-tls'
+
+@description('''DNS label prefix applied to the pods public IP address.
+The resulting FQDN (<dnsLabelPrefix>.<region>.cloudapp.azure.com) is required for
+cert-manager / Let\'s Encrypt CA-signed certificates.
+Defaults to a unique, stable label derived from the resource-group ID (12 hex chars
+give ~4 billion combinations, which is sufficient for any single organisation).
+Set to an empty string to omit the DNS label (self-signed cert only).''')
+param dnsLabelPrefix string = 'streamwise-${take(uniqueString(resourceGroup().id), 12)}'
 
 
 // ---------------------------------------------------------------------------
 // Public IP – used by Kubernetes LoadBalancer services (StreamWise, StreamCast)
+// A DNS label is attached when dnsLabelPrefix is non-empty, which provides the
+// FQDN required by cert-manager / Let's Encrypt for CA-signed TLS certificates.
 // ---------------------------------------------------------------------------
 resource publicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: 'aks-pods-public-ip'
@@ -78,6 +88,11 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   }
   properties: {
     publicIPAllocationMethod: 'Static'
+    // Setting dnsSettings to null (when dnsLabelPrefix is empty) is the standard
+    // Bicep pattern for conditional properties — ARM treats null as property omission.
+    dnsSettings: !empty(dnsLabelPrefix) ? {
+      domainNameLabel: dnsLabelPrefix
+    } : null
     ipTags: [
       {
         ipTagType: 'FirstPartyUsage'
@@ -130,6 +145,8 @@ resource natGateway 'Microsoft.Network/natGateways@2023-11-01' = if (disableDefa
 // are reachable from the Internet.  Without this explicit NSG, corporate
 // policy may attach a default-deny NSG to the subnet that blocks traffic
 // even when the NIC-level NSG (managed by AKS) allows it.
+// Port 80 is also opened to allow the cert-manager ACME HTTP-01 solver to
+// respond to Let's Encrypt validation challenges for CA-signed certificates.
 // ---------------------------------------------------------------------------
 resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disableDefaultOutboundAccess) {
   name: 'aks-node-subnet-nsg'
@@ -147,6 +164,19 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
           sourceAddressPrefix: 'Internet'
           destinationAddressPrefix: publicIp.properties.ipAddress
           destinationPortRange: '8000-9000'
+        }
+      }
+      {
+        name: 'AllowAcmeHttp01Inbound'
+        properties: {
+          priority: 110
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'Internet'
+          destinationAddressPrefix: publicIp.properties.ipAddress
+          destinationPortRange: '80'
         }
       }
     ]
@@ -222,9 +252,12 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-// Self-signed TLS certificate.  Azure Key Vault generates and stores the
-// certificate with PEM encoding; the private key is exported alongside the
-// certificate so the Secrets Store CSI Driver can mount both.
+// Fallback self-signed TLS certificate stored in Key Vault.
+// This is used when cert-manager / Let's Encrypt is not configured, or as an
+// initial placeholder until the CA-signed certificate is provisioned.
+// To replace with a CA-signed certificate, either:
+//   a) Follow the cert-manager guide in deployment/k8s/certs.md (recommended), or
+//   b) Import a PEM/PFX file: az keyvault certificate import ...
 resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = {
   parent: keyVault
   name: tlsCertificateName
@@ -254,7 +287,8 @@ resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = {
         ]
       }
       issuerParameters: {
-        // Self-signed; swap for 'Unknown' + issuerRef to use a CA
+        // Self-signed fallback; the cert-manager guide in deployment/k8s/certs.md
+        // shows how to replace this with a CA-signed certificate.
         name: 'Self'
       }
       lifetimeActions: [
@@ -440,6 +474,7 @@ resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@20
 output clusterName string = aksCluster.name
 output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
+output publicFqdn string = !empty(dnsLabelPrefix) ? publicIp.properties.dnsSettings.fqdn : ''
 output gpuNodePoolName string = gpuNodePool.name
 output gpuMigNodePoolName string = gpuMigNodePool.name
 output keyVaultName string = keyVault.name

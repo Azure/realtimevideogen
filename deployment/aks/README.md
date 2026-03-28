@@ -94,6 +94,11 @@ IP_ADDRESS=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.publicIpAddress.value -o tsv)
 
+PUBLIC_FQDN=$(az deployment group show \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --query properties.outputs.publicFqdn.value -o tsv)
+
 KEY_VAULT_NAME=$(az deployment group show \
   --name AKSDeployment \
   --resource-group $AZ_RESOURCE_GROUP \
@@ -116,6 +121,7 @@ TLS_CERT_NAME=$(az deployment group show \
 
 echo "AKS cluster:       $AKS_CLUSTER"
 echo "Public IP:         $IP_ADDRESS"
+echo "Public FQDN:       $PUBLIC_FQDN"
 echo "Key Vault:         $KEY_VAULT_NAME"
 echo "Kubelet client ID: $KUBELET_CLIENT_ID"
 echo "Tenant ID:         $AZ_TENANT_ID"
@@ -164,7 +170,9 @@ kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 
 ### 2.4 HTTPS / TLS Certificates
 
-The Bicep template provisions an Azure Key Vault and generates a self-signed TLS certificate.
+The Bicep template provisions an Azure Key Vault with a self-signed fallback certificate and opens port 80 on the NSG for ACME challenges.
+The **recommended approach** is to use cert-manager + Let's Encrypt to obtain a CA-signed certificate that browsers trust without warnings.
+
 See [HTTPS / TLS Certificates](../k8s/certs.md) for the full setup guide.
 
 ## Step 3: Deploy StreamWise (Cluster Manager)
@@ -199,7 +207,7 @@ kubectl exec -n rtgen streamwise -- cat /tmp/streamwise.log
 kubectl exec -it -n rtgen streamwise -- /bin/bash
 ```
 
-Open the web UI at: `https://$IP_ADDRESS:8081`
+Open the web UI at: `https://$PUBLIC_FQDN:8081` (CA-signed cert) or `https://$IP_ADDRESS:8081` (self-signed cert, add `-k` to curl)
 
 ### Remove StreamWise
 ```bash
@@ -223,7 +231,7 @@ kubectl get pods -n rtgen
 kubectl get svc -n rtgen
 ```
 
-Open the StreamCast UI at: `https://$IP_ADDRESS:8080`
+Open the StreamCast UI at: `https://$PUBLIC_FQDN:8080` (CA-signed cert) or `https://$IP_ADDRESS:8080` (self-signed cert, add `-k` to curl)
 
 ### Remove StreamCast
 ```bash
@@ -339,23 +347,27 @@ Deploy model services through the StreamWise web UI or REST API.
 > With the [recommended MIG layout](../k8s/MIG.md) (2 × `2g.20gb` + 3 × `1g.10gb` on an 80 GB GPU), Kokoro, YOLO, and similar services each consume only a single MIG slice on the MIG pool, leaving the full-GPU pool for heavy models.
 > For parallel execution of all services, add more GPU nodes to either pool.
 
-The Web UI is available at `https://$IP_ADDRESS:8081` to manage services.
+The Web UI is available at `https://$PUBLIC_FQDN:8081` (CA-signed) or `https://$IP_ADDRESS:8081` (self-signed, use `-k`) to manage services.
 Use the REST API to deploy all services at once:
 ```bash
+# With a CA-signed certificate (no -k needed)
+curl -X POST "https://$PUBLIC_FQDN:8081/api/service"
+
+# With a self-signed certificate (skip TLS verification)
 curl -k -X POST "https://$IP_ADDRESS:8081/api/service"
 ```
 
 Or deploy individual services with specific resource allocations:
 ```bash
 # Deploy a single service (whole GPU)
-curl -k -X POST "https://$IP_ADDRESS:8081/api/pod" \
+curl -X POST "https://$PUBLIC_FQDN:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
   -d "memory=8" \
   -d "cpu=2"
 
 # Deploy with a MIG slice (partial GPU — requires MIG configured on the node; see Step 5.1)
-curl -k -X POST "https://$IP_ADDRESS:8081/api/pod" \
+curl -X POST "https://$PUBLIC_FQDN:8081/api/pod" \
   -d "container_name=kokoro" \
   -d "gpu=1" \
   -d "mig_profile=1g.10gb" \
@@ -364,11 +376,11 @@ curl -k -X POST "https://$IP_ADDRESS:8081/api/pod" \
   -d "cpu=2"
 
 # Verify deployed services
-curl -k "https://$IP_ADDRESS:8081/api/services"
+curl "https://$PUBLIC_FQDN:8081/api/services"
 ```
 
-> **Note:** `-k` skips TLS certificate verification for the self-signed certificate.
-> Replace with `--cacert /path/to/cert.pem` to verify against the certificate, or omit `-k` entirely when using a CA-signed certificate.
+> **Note:** Use the `$PUBLIC_FQDN` address with a CA-signed certificate (no `-k` flag needed).
+> Use `$IP_ADDRESS` with `-k` if you are using the self-signed fallback certificate.
 
 
 ## Troubleshooting
