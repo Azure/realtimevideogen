@@ -81,6 +81,19 @@ Some available GPU VM sizes:
 > If the ACR role assignment fails (e.g. on redeployment), the cluster itself will still be created successfully.
 > Attach the ACR manually with:
 > `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
+>
+> **Note:** HTTPS/TLS is **disabled by default**. To enable Key Vault, the self-signed TLS certificate, OIDC issuer, workload identity, and federated identity credentials, add `enableSecureSetup=true` to the deployment parameters:
+> ```bash
+> az deployment group create \
+>   --name AKSDeployment \
+>   --resource-group $AZ_RESOURCE_GROUP \
+>   --template-file deployment/aks/aks.bicep \
+>   --parameters \
+>     clusterName=my-cluster \
+>     acrName=$ACR_NAME \
+>     enableSecureSetup=true
+> ```
+> See [deployment/k8s/certs.md](../k8s/certs.md) for the follow-up steps to deploy the `SecretProviderClass` and verify HTTPS.
 
 After deployment, retrieve the outputs and get cluster credentials:
 ```bash
@@ -104,10 +117,10 @@ KEY_VAULT_NAME=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.keyVaultName.value -o tsv)
 
-KUBELET_CLIENT_ID=$(az deployment group show \
+CSI_ADDON_CLIENT_ID=$(az deployment group show \
   --name AKSDeployment \
   --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.kubeletClientId.value -o tsv)
+  --query properties.outputs.csiAddonClientId.value -o tsv)
 
 AZ_TENANT_ID=$(az deployment group show \
   --name AKSDeployment \
@@ -119,13 +132,13 @@ TLS_CERT_NAME=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.tlsCertificateName.value -o tsv)
 
-echo "AKS cluster:       $AKS_CLUSTER"
-echo "Public IP:         $IP_ADDRESS"
-echo "Public FQDN:       $PUBLIC_FQDN"
-echo "Key Vault:         $KEY_VAULT_NAME"
-echo "Kubelet client ID: $KUBELET_CLIENT_ID"
-echo "Tenant ID:         $AZ_TENANT_ID"
-echo "TLS cert name:     $TLS_CERT_NAME"
+echo "AKS cluster:           $AKS_CLUSTER"
+echo "Public IP:             $IP_ADDRESS"
+echo "Public FQDN:           $PUBLIC_FQDN"
+echo "Key Vault:             $KEY_VAULT_NAME"
+echo "CSI addon client ID:   $CSI_ADDON_CLIENT_ID"
+echo "Tenant ID:             $AZ_TENANT_ID"
+echo "TLS cert name:         $TLS_CERT_NAME"
 
 az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
 ```

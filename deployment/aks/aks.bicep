@@ -66,13 +66,18 @@ param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
 @description('Name of the TLS certificate stored in Key Vault (used as a fallback or for manual cert import).')
 param tlsCertificateName string = 'streamwise-tls'
 
+// When true, provisions Azure Key Vault, a self-signed TLS certificate, enables
+// the Secrets Store CSI Driver addon with OIDC issuer + workload identity, and
+// grants the CSI addon identity read access to Key Vault.  Set to true to
+// enable HTTPS/TLS (see deployment/aks/README.md for the deploy command).
+param enableSecureSetup bool = false
+
 @description('''DNS label prefix applied to the pods public IP address.
 The resulting FQDN (<dnsLabelPrefix>.<region>.cloudapp.azure.com) is required for
 cert-manager / Let\'s Encrypt CA-signed certificates.
-Defaults to a unique, stable label derived from the resource-group ID (12 hex chars
-give ~4 billion combinations, which is sufficient for any single organisation).
+Defaults to a unique, stable label derived from the resource-group ID.
 Set to an empty string to omit the DNS label (self-signed cert only).''')
-param dnsLabelPrefix string = 'streamwise-${take(uniqueString(resourceGroup().id), 12)}'
+param dnsLabelPrefix string = 'streamwise-${take(uniqueString(resourceGroup().id), 6)}'
 
 
 // ---------------------------------------------------------------------------
@@ -236,8 +241,9 @@ var networkProfile = disableDefaultOutboundAccess ? {
 // Azure Key Vault – stores the TLS certificate used by StreamWise and apps.
 // RBAC authorization is used so that the AKS kubelet identity can read
 // certificates and secrets without a legacy access policy.
+// Only provisioned when enableSecureSetup is true.
 // ---------------------------------------------------------------------------
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (enableSecureSetup) {
   name: keyVaultName
   location: location
   properties: {
@@ -258,7 +264,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 // To replace with a CA-signed certificate, either:
 //   a) Follow the cert-manager guide in deployment/k8s/certs.md (recommended), or
 //   b) Import a PEM/PFX file: az keyvault certificate import ...
-resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = {
+// Only provisioned when enableSecureSetup is true.
+resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = if (enableSecureSetup) {
   parent: keyVault
   name: tlsCertificateName
   properties: {
@@ -330,7 +337,8 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
     networkProfile: networkProfile
     // Enable the Secrets Store CSI Driver with Azure Key Vault provider so
     // that pods can mount Key Vault certificates directly as volume files.
-    addonProfiles: {
+    // Only enabled when enableSecureSetup is true.
+    addonProfiles: enableSecureSetup ? {
       azureKeyvaultSecretsProvider: {
         enabled: true
         config: {
@@ -338,7 +346,19 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
           rotationPollInterval: '2m'
         }
       }
-    }
+    } : {}
+    // Enable OIDC issuer and workload identity so that the Secrets Store CSI
+    // Driver can authenticate to Azure Key Vault using the addon's managed
+    // identity via the clientID field in SecretProviderClass.
+    // Only enabled when enableSecureSetup is true.
+    oidcIssuerProfile: enableSecureSetup ? {
+      enabled: true
+    } : null
+    securityProfile: enableSecureSetup ? {
+      workloadIdentity: {
+        enabled: true
+      }
+    } : null
   }
 }
 
@@ -431,12 +451,19 @@ resource networkContributorAssignment 'Microsoft.Authorization/roleAssignments@2
 }
 
 // ---------------------------------------------------------------------------
-// Key Vault RBAC – grant the AKS kubelet identity read access to Key Vault
-// secrets and certificates so the Secrets Store CSI Driver can retrieve the
-// TLS certificate at pod startup.
+// Key Vault RBAC – grant the Secrets Store CSI Driver addon identity read
+// access to Key Vault secrets and certificates so it can retrieve the TLS
+// certificate at pod startup via the clientID in SecretProviderClass.
+//
+// The addon creates its own user-assigned managed identity
+// (addonProfiles.azureKeyvaultSecretsProvider.identity).  Using the addon
+// identity (not the kubelet identity) is required when the SecretProviderClass
+// specifies a clientID and workload identity is enabled.
 //
 //   Key Vault Secrets User  (4633458b-…) – read secrets (PEM bundle + key)
 //   Key Vault Certificate User (db79e9a7-…) – read certificate public part
+//
+// Only provisioned when enableSecureSetup is true.
 // ---------------------------------------------------------------------------
 var kvSecretsUserRoleId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
@@ -448,36 +475,72 @@ var kvCertificateUserRoleId = subscriptionResourceId(
   'db79e9a7-68ee-4b58-9aeb-b90e7c24fcba'
 )
 
-resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableSecureSetup) {
   scope: keyVault
   name: guid(keyVault.id, aksCluster.id, kvSecretsUserRoleId)
   properties: {
-    principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+    principalId: aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.objectId
     roleDefinitionId: kvSecretsUserRoleId
     principalType: 'ServicePrincipal'
   }
 }
 
-resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableSecureSetup) {
   scope: keyVault
   name: guid(keyVault.id, aksCluster.id, kvCertificateUserRoleId)
   properties: {
-    principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+    principalId: aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.objectId
     roleDefinitionId: kvCertificateUserRoleId
     principalType: 'ServicePrincipal'
   }
 }
 
 // ---------------------------------------------------------------------------
+// Federated Identity Credentials – required for workload identity exchange.
+//
+// When the CSI Driver mounts a Key Vault secret using clientID + workload
+// identity, it presents the pod's projected service account token as a
+// federated assertion to Azure AD.  Azure AD validates the assertion against
+// a federated credential registered on the CSI addon identity that matches:
+//   issuer  = the cluster OIDC issuer URL
+//   subject = system:serviceaccount:<namespace>:<service-account-name>
+//
+// One federated credential is required per Kubernetes service account whose
+// pod mounts the TLS CSI volume.  The addon identity and its federated
+// credentials live in the MC_ managed resource group created by AKS.
+// The module is scoped to that group and depends on the AKS cluster so
+// it runs after the cluster (and the CSI addon identity) is provisioned.
+// ---------------------------------------------------------------------------
+var mcResourceGroup = 'MC_${resourceGroup().name}_${clusterName}_${location}'
+
+module csiAddonFederatedCreds '../bicep/csi-federated-credentials.bicep' = if (enableSecureSetup) {
+  name: 'csi-addon-federated-creds'
+  scope: resourceGroup(mcResourceGroup)
+  dependsOn: [aksCluster]
+  params: {
+    clusterName: clusterName
+    // Guard with the same flag so the expression is only evaluated when
+    // oidcIssuerProfile is actually enabled on the cluster.
+    oidcIssuerUrl: enableSecureSetup ? aksCluster.properties.oidcIssuerProfile.issuerURL : ''
+  }
+}
+
+
+// ---------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------
+
+// Guard the CSI addon client ID behind the same flag to avoid evaluating the
+// nested property chain when azureKeyvaultSecretsProvider is not in addonProfiles.
+var csiAddonClientIdValue = enableSecureSetup ? aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.clientId : ''
+
 output clusterName string = aksCluster.name
 output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
 output publicFqdn string = !empty(dnsLabelPrefix) ? publicIp.properties.dnsSettings.fqdn : ''
 output gpuNodePoolName string = gpuNodePool.name
 output gpuMigNodePoolName string = gpuMigNodePool.name
-output keyVaultName string = keyVault.name
-output tlsCertificateName string = tlsCertificate.name
-output kubeletClientId string = aksCluster.properties.identityProfile.kubeletidentity.clientId
+output keyVaultName string = enableSecureSetup ? keyVault.name : ''
+output tlsCertificateName string = enableSecureSetup ? tlsCertificate.name : ''
+output csiAddonClientId string = csiAddonClientIdValue
 output tenantId string = subscription().tenantId

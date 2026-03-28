@@ -1,6 +1,6 @@
 # HTTPS / TLS Certificates
 
-The Bicep template automatically provisions an Azure Key Vault with a **fallback self-signed TLS certificate** and assigns the AKS kubelet identity read access.
+The Bicep template automatically provisions an Azure Key Vault with a **fallback self-signed TLS certificate** and configures the Secrets Store CSI Driver addon to authenticate via workload identity (when `enableSecureSetup=true`).
 For production use the recommended approach is to replace the self-signed certificate with a **CA-signed certificate issued by Let's Encrypt via cert-manager**, which eliminates browser security warnings entirely.
 
 ---
