@@ -76,16 +76,22 @@ export LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
 if [ "$ENABLE_SECURE" = "true" ]; then
   if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
-    # CA-signed certificate via cert-manager + Let's Encrypt.
-    # Install the self-signed fallback first so pods can start while cert-manager
-    # provisions the CA-signed certificate (takes 1-3 minutes).
     echo ">>> Bootstrapping with self-signed cert while Let's Encrypt provisions..."
   else
     echo ">>> Using self-signed certificate from Key Vault (set LETSENCRYPT_EMAIL for CA-signed)."
   fi
-  az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
-  az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
-  openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+  # Try Key Vault first; fall back to openssl-generated self-signed cert if the KV
+  # cert was not created (e.g. partial Bicep failure or concurrent write race).
+  if az keyvault certificate show --vault-name "$KEY_VAULT_NAME" --name streamwise-tls &>/dev/null; then
+    az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+    az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
+    openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+  else
+    echo ">>> Key Vault cert not found — generating self-signed cert with openssl."
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+      -keyout /tmp/tls.key -out /tmp/tls.crt \
+      -subj "/CN=$PUBLIC_FQDN" -addext "subjectAltName=DNS:$PUBLIC_FQDN"
+  fi
   kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
     --dry-run=client -o yaml | kubectl apply -f -
   rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
@@ -100,28 +106,39 @@ VMSS_FULL=$(az vmss list -g "$MC_RESOURCE_GROUP" \
   --query "[?contains(name, 'aks-${GPU_POOL}-') && !contains(name, 'mig')].name | [0]" -o tsv)
 VMSS_MIG=$(az vmss list -g "$MC_RESOURCE_GROUP" \
   --query "[?contains(name, 'aks-${MIG_POOL}-')].name | [0]" -o tsv)
-az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_FULL" --instance-ids 0
-az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_MIG" --instance-ids 0
+az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_FULL" --instance-ids \
+  "$(az vmss list-instances -g "$MC_RESOURCE_GROUP" -n "$VMSS_FULL" --query '[0].instanceId' -o tsv)"
+az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_MIG" --instance-ids \
+  "$(az vmss list-instances -g "$MC_RESOURCE_GROUP" -n "$VMSS_MIG" --query '[0].instanceId' -o tsv)"
 
-# Wait for nodes to come back
+# Wait for nodes to come back; Azure CNS needs ~30-60s after reboot to accept pods.
 kubectl wait --for=condition=Ready node -l kubernetes.azure.com/scalesetpriority=spot --timeout=300s
+echo ">>> Waiting for Azure CNS to stabilize after reboot..."
+sleep 45
 
 # 8. MIG setup (see deployment/k8s/MIG.md for detailed guide)
 GPU_NODE=$(kubectl get nodes -l gpu-config=mig -o jsonpath='{.items[0].metadata.name}')
 # Determine GPU_INDEX from VM size (last GPU, 0-indexed)
-# Standard_NC96ads_A100_v4 → 4 GPUs → GPU_INDEX=3
-# Standard_ND96ams_A100_v4 / H100 → 8 GPUs → GPU_INDEX=7
+case "$GPU_VM_SIZE" in
+  Standard_NC96ads_A100_v4) GPU_INDEX=3 ;;  # 4 GPUs
+  Standard_ND96ams_A100_v4|Standard_ND96isrf_H100_v5|Standard_ND96isr_H200_v5) GPU_INDEX=7 ;;  # 8 GPUs
+  *) GPU_INDEX=7 ; echo "WARNING: Unknown VM size '$GPU_VM_SIZE' — defaulting to GPU_INDEX=7" ;;
+esac
+echo ">>> MIG setup: GPU_INDEX=$GPU_INDEX on node $GPU_NODE"
 export GPU_NODE
 envsubst < deployment/k8s/gpu-debug-pod.yaml | kubectl apply -f -
-kubectl wait --for=condition=Ready pod/gpu-debug --timeout=120s
+kubectl wait --for=condition=Ready pod/gpu-debug --timeout=180s
 kubectl taint node "$GPU_NODE" mig-setup=true:NoExecute
 sleep 5
 kubectl exec gpu-debug -- chroot /host nvidia-smi -i "$GPU_INDEX" -mig 1
-az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_MIG" --instance-ids 0
+# Reboot required to activate MIG mode
+MIG_INSTANCE_ID=$(az vmss list-instances -g "$MC_RESOURCE_GROUP" -n "$VMSS_MIG" --query "[0].instanceId" -o tsv)
+az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_MIG" --instance-ids "$MIG_INSTANCE_ID"
 kubectl wait --for=condition=Ready "node/$GPU_NODE" --timeout=300s
+sleep 45  # wait for Azure CNS
 kubectl delete pod gpu-debug --ignore-not-found
 envsubst < deployment/k8s/gpu-debug-pod.yaml | kubectl apply -f -
-kubectl wait --for=condition=Ready pod/gpu-debug --timeout=120s
+kubectl wait --for=condition=Ready pod/gpu-debug --timeout=180s
 # For 80 GB GPUs (A100/H100): 2×2g.20gb + 3×1g.10gb
 kubectl exec gpu-debug -- chroot /host nvidia-smi mig -cgi 2g.20gb,2g.20gb,1g.10gb,1g.10gb,1g.10gb -C -i "$GPU_INDEX"
 kubectl taint node "$GPU_NODE" mig-setup=true:NoExecute-
