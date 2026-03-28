@@ -19,6 +19,7 @@ from typing import Tuple
 
 from kubernetes_asyncio.client import CoreV1Api
 from kubernetes_asyncio.client import ApiClient
+from kubernetes_asyncio.client import CustomObjectsApi
 
 from kubernetes_asyncio.client import V1Affinity
 from kubernetes_asyncio.client import V1Toleration
@@ -83,6 +84,39 @@ def get_tls_cert_settings() -> Tuple[V1VolumeMount, V1Volume]:
         )
     )
     return volume_mount, volume
+
+
+async def tls_cert_volume_exists(namespace: str, k8s_cluster: Optional[str] = None) -> bool:
+    """Check if the SecretProviderClass for TLS certificates exists in the namespace.
+
+    Returns True only if the SecretProviderClass 'streamwise-tls' custom resource is present,
+    meaning the Secrets Store CSI Driver is configured and the TLS volume can be mounted.
+
+    Args:
+        namespace: Kubernetes namespace to check for the SecretProviderClass.
+        k8s_cluster: Kubernetes cluster context name, or None for the default context.
+    """
+    try:
+        await load_k8s_config(k8s_cluster)
+        async with ApiClient() as api_client:
+            custom_api = CustomObjectsApi(api_client)
+            await custom_api.get_namespaced_custom_object(
+                group="secrets-store.csi.x-k8s.io",
+                version="v1",
+                namespace=namespace,
+                plural="secretproviderclasses",
+                name="streamwise-tls"
+            )
+        return True
+    except ApiException as api_ex:
+        if api_ex.status == 404:
+            logging.info("SecretProviderClass 'streamwise-tls' not found; skipping TLS volume mount.")
+        else:
+            logging.warning("Error checking TLS cert volume: %s", api_ex.reason)
+        return False
+    except Exception as ex:
+        logging.warning("Error checking TLS cert volume: %s", ex)
+        return False
 
 
 def get_vllm_settings() -> Tuple[List[V1VolumeMount], List[V1Volume]]:
@@ -305,7 +339,8 @@ async def add_pod(
     lb_ip: Optional[str] = None,
     lb_port: Optional[int] = None,
     namespace: str = "default",
-    k8s_cluster: Optional[str] = None
+    k8s_cluster: Optional[str] = None,
+    use_https: bool = False
 ) -> QuartReturn:
     """
     API interface to add a pod for the specified container.
@@ -443,11 +478,12 @@ async def add_pod(
         volumes.extend(vllm_volumes)
 
     # Mount TLS certificate from Azure Key Vault (Secrets Store CSI Driver) at /certs so
-    # the run_httpserver.bash entrypoint auto-enables HTTPS. Requires the SecretProviderClass
-    # from deployment/k8s/tls-secret-provider.yaml to be applied first.
-    tls_mount, tls_volume = get_tls_cert_settings()
-    volume_mounts.append(tls_mount)
-    volumes.append(tls_volume)
+    # the run_httpserver.bash entrypoint auto-enables HTTPS. Only mounted when HTTPS is
+    # enabled and the SecretProviderClass exists in the cluster.
+    if use_https and await tls_cert_volume_exists(namespace, k8s_cluster):
+        tls_mount, tls_volume = get_tls_cert_settings()
+        volume_mounts.append(tls_mount)
+        volumes.append(tls_volume)
 
     containers = [
         V1Container(
