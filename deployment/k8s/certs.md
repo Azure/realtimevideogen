@@ -3,6 +3,25 @@
 The Bicep template automatically provisions an Azure Key Vault with a **fallback self-signed TLS certificate** and configures the Secrets Store CSI Driver addon to authenticate via workload identity (when `enableSecureSetup=true`).
 For production use the recommended approach is to replace the self-signed certificate with a **CA-signed certificate issued by Let's Encrypt via cert-manager**, which eliminates browser security warnings entirely.
 
+## Automated setup (recommended)
+
+The script [`deployment/aks/setup-letsencrypt.sh`](../aks/setup-letsencrypt.sh) automates the
+entire process below (Steps 1–6) in a single command:
+
+```bash
+export LETSENCRYPT_EMAIL=your@email.com
+export PUBLIC_FQDN        # from Bicep outputs or az network public-ip show
+export LOAD_BALANCER_IP    # = $IP_ADDRESS
+export RESOURCE_GROUP_NAME # = $AZ_RESOURCE_GROUP
+
+bash deployment/aks/setup-letsencrypt.sh
+```
+
+Alternatively, set `LETSENCRYPT_EMAIL` in `quick-deploy.sh` and the script runs automatically
+as part of the end-to-end deployment.
+
+If you need finer control or want to troubleshoot, follow the manual steps below.
+
 ---
 
 ## Recommended: CA-signed certificate with cert-manager + Let's Encrypt
@@ -50,15 +69,33 @@ kubectl wait --namespace cert-manager \
   --timeout=120s
 ```
 
+### Step 2.5 — Install nginx-ingress controller
+
+cert-manager's HTTP-01 solver requires an Ingress controller to serve ACME
+challenges on port 80.  Install the nginx-ingress controller bound to the
+cluster's static public IP:
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  --set controller.service.loadBalancerIP=$IP_ADDRESS \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-resource-group"=$AZ_RESOURCE_GROUP \
+  --set controller.service.externalTrafficPolicy=Local
+
+# Wait for the ingress controller to be ready
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
+```
+
 ### Step 3 — Create the ClusterIssuers
 
 ```bash
 export LETSENCRYPT_EMAIL=your@email.com   # REQUIRED: replace with a real, monitored address.
                                            # Let's Encrypt sends expiry notifications and uses
                                            # this for account recovery — use a shared team mailbox.
-# LOAD_BALANCER_IP and RESOURCE_GROUP_NAME must be set (see set_properties.sh)
-export LOAD_BALANCER_IP=$IP_ADDRESS
-export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
 envsubst < deployment/k8s/cert-manager-issuer.yaml | kubectl apply -f -
 ```

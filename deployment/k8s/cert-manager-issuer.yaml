@@ -7,21 +7,30 @@
 #          --for=condition=ready pod --selector=app.kubernetes.io/instance=cert-manager \
 #          --timeout=120s
 #
-#   2. Set LETSENCRYPT_EMAIL to a valid, monitored email address for expiry
+#   2. Install the nginx-ingress controller bound to the static public IP:
+#        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#        helm install ingress-nginx ingress-nginx/ingress-nginx \
+#          --namespace ingress-nginx --create-namespace \
+#          --set controller.service.loadBalancerIP=$LOAD_BALANCER_IP \
+#          --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-resource-group"=$RESOURCE_GROUP_NAME \
+#          --set controller.service.externalTrafficPolicy=Local
+#
+#   3. Set LETSENCRYPT_EMAIL to a valid, monitored email address for expiry
 #      notifications and account recovery (use a shared team mailbox):
 #        export LETSENCRYPT_EMAIL=your@email.com
 #
-#   3. Apply this file:
+#   4. Apply this file:
 #        envsubst < deployment/k8s/cert-manager-issuer.yaml | kubectl apply -f -
 #
 # Two issuers are provided:
 #   - letsencrypt-staging : use during initial setup to avoid rate limits
 #   - letsencrypt-prod    : use for the final, browser-trusted certificate
 #
-# The HTTP-01 solver creates a temporary LoadBalancer service on port 80 using
-# the existing static public IP so that Let's Encrypt can validate domain
-# ownership.  Port 80 must be reachable from the Internet (the Bicep NSG
-# already allows this via the AllowAcmeHttp01Inbound rule).
+# The HTTP-01 solver uses the nginx Ingress controller to serve the ACME
+# validation challenge on port 80.  The ingress controller must be bound to
+# the same static public IP that the DNS label resolves to.
+# Port 80 must be reachable from the Internet (the Bicep NSG already allows
+# this via the AllowAcmeHttp01Inbound rule).
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -36,13 +45,7 @@ spec:
     solvers:
     - http01:
         ingress:
-          serviceType: LoadBalancer
-          serviceAnnotations:
-            # Reuse the existing static public IP so that Let's Encrypt can
-            # resolve the FQDN (e.g. streamwise-<hash>.<region>.cloudapp.azure.com)
-            # to this IP and validate the HTTP-01 challenge on port 80.
-            service.beta.kubernetes.io/azure-load-balancer-ipv4: "${LOAD_BALANCER_IP}"
-            service.beta.kubernetes.io/azure-load-balancer-resource-group: "${RESOURCE_GROUP_NAME}"
+          ingressClassName: nginx
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -57,7 +60,4 @@ spec:
     solvers:
     - http01:
         ingress:
-          serviceType: LoadBalancer
-          serviceAnnotations:
-            service.beta.kubernetes.io/azure-load-balancer-ipv4: "${LOAD_BALANCER_IP}"
-            service.beta.kubernetes.io/azure-load-balancer-resource-group: "${RESOURCE_GROUP_NAME}"
+          ingressClassName: nginx
