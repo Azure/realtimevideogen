@@ -68,9 +68,9 @@ param tlsCertificateName string = 'streamwise-tls'
 
 // When true, provisions Azure Key Vault, a self-signed TLS certificate, enables
 // the Secrets Store CSI Driver addon with OIDC issuer + workload identity, and
-// grants the CSI addon identity read access to Key Vault.  Set to false to
-// skip the entire secure setup (e.g. for quick testing without HTTPS).
-param enableSecureSetup bool = true
+// grants the CSI addon identity read access to Key Vault.  Set to true to
+// enable HTTPS/TLS (see deployment/aks/README.md for the deploy command).
+param enableSecureSetup bool = false
 
 
 // ---------------------------------------------------------------------------

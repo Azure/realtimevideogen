@@ -82,7 +82,18 @@ Some available GPU VM sizes:
 > Attach the ACR manually with:
 > `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
 
-> **Note:** HTTPS/TLS is enabled by default (`enableSecureSetup=true`). To skip the secure setup (e.g. for quick testing without HTTPS), add `enableSecureSetup=false` to the deployment parameters.
+> **Note:** HTTPS/TLS is **disabled by default**. To enable Key Vault, the self-signed TLS certificate, OIDC issuer, workload identity, and federated identity credentials, add `enableSecureSetup=true` to the deployment parameters:
+> ```bash
+> az deployment group create \
+>   --name AKSDeployment \
+>   --resource-group $AZ_RESOURCE_GROUP \
+>   --template-file deployment/aks/aks.bicep \
+>   --parameters \
+>     clusterName=my-cluster \
+>     acrName=$ACR_NAME \
+>     enableSecureSetup=true
+> ```
+> See [deployment/k8s/certs.md](../k8s/certs.md) for the follow-up steps to deploy the `SecretProviderClass` and verify HTTPS.
 
 After deployment, retrieve the outputs and get cluster credentials:
 ```bash
