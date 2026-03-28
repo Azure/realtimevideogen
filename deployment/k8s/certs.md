@@ -3,6 +3,25 @@
 The Bicep template automatically provisions an Azure Key Vault with a **fallback self-signed TLS certificate** and configures the Secrets Store CSI Driver addon to authenticate via workload identity (when `enableSecureSetup=true`).
 For production use the recommended approach is to replace the self-signed certificate with a **CA-signed certificate issued by Let's Encrypt via cert-manager**, which eliminates browser security warnings entirely.
 
+## Automated setup (recommended)
+
+The script [`deployment/aks/setup-letsencrypt.sh`](../aks/setup-letsencrypt.sh) automates the
+entire process below (Steps 1–6) in a single command:
+
+```bash
+export LETSENCRYPT_EMAIL=your@email.com
+export PUBLIC_FQDN        # from Bicep outputs or az network public-ip show
+export LOAD_BALANCER_IP    # = $IP_ADDRESS
+export RESOURCE_GROUP_NAME # = $AZ_RESOURCE_GROUP
+
+bash deployment/aks/setup-letsencrypt.sh
+```
+
+Alternatively, set `LETSENCRYPT_EMAIL` in `quick-deploy.sh` and the script runs automatically
+as part of the end-to-end deployment.
+
+If you need finer control or want to troubleshoot, follow the manual steps below.
+
 ---
 
 ## Recommended: CA-signed certificate with cert-manager + Let's Encrypt

@@ -66,10 +66,13 @@ param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
 @description('Name of the TLS certificate stored in Key Vault (used as a fallback or for manual cert import).')
 param tlsCertificateName string = 'streamwise-tls'
 
-// When true, provisions Azure Key Vault, a self-signed TLS certificate, enables
-// the Secrets Store CSI Driver addon with OIDC issuer + workload identity, and
-// grants the CSI addon identity read access to Key Vault.  Set to true to
-// enable HTTPS/TLS (see deployment/aks/README.md for the deploy command).
+// When true, provisions Azure Key Vault, a self-signed TLS certificate (as a
+// bootstrap fallback), enables the Secrets Store CSI Driver addon with OIDC
+// issuer + workload identity, opens port 80 for ACME HTTP-01 challenges, and
+// grants the CSI addon identity read access to Key Vault.
+// For browser-trusted HTTPS, run deployment/aks/setup-letsencrypt.sh after
+// cluster deployment to replace the self-signed cert with a CA-signed
+// Let's Encrypt certificate (or set LETSENCRYPT_EMAIL in quick-deploy.sh).
 param enableSecureSetup bool = false
 
 @description('''DNS label prefix applied to the pods public IP address.
@@ -259,11 +262,12 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (enableSecureSetup
 }
 
 // Fallback self-signed TLS certificate stored in Key Vault.
-// This is used when cert-manager / Let's Encrypt is not configured, or as an
-// initial placeholder until the CA-signed certificate is provisioned.
-// To replace with a CA-signed certificate, either:
-//   a) Follow the cert-manager guide in deployment/k8s/certs.md (recommended), or
-//   b) Import a PEM/PFX file: az keyvault certificate import ...
+// This bootstraps HTTPS immediately so pods can start while cert-manager
+// provisions the CA-signed Let's Encrypt certificate (1–3 minutes).
+// To replace with a CA-signed certificate:
+//   a) Run deployment/aks/setup-letsencrypt.sh (automated, recommended), or
+//   b) Follow the manual guide in deployment/k8s/certs.md, or
+//   c) Import a PEM/PFX file: az keyvault certificate import ...
 // Only provisioned when enableSecureSetup is true.
 resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = if (enableSecureSetup) {
   parent: keyVault

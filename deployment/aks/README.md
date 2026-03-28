@@ -93,7 +93,8 @@ Some available GPU VM sizes:
 >     acrName=$ACR_NAME \
 >     enableSecureSetup=true
 > ```
-> See [deployment/k8s/certs.md](../k8s/certs.md) for the follow-up steps to deploy the `SecretProviderClass` and verify HTTPS.
+> After deployment, run [`setup-letsencrypt.sh`](setup-letsencrypt.sh) to obtain a browser-trusted CA-signed certificate (see Step 2.4), or use `quick-deploy.sh` with `LETSENCRYPT_EMAIL` set.
+> For manual steps, see [deployment/k8s/certs.md](../k8s/certs.md).
 
 After deployment, retrieve the outputs and get cluster credentials:
 ```bash
@@ -186,7 +187,23 @@ kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 The Bicep template provisions an Azure Key Vault with a self-signed fallback certificate and opens port 80 on the NSG for ACME challenges.
 The **recommended approach** is to use cert-manager + Let's Encrypt to obtain a CA-signed certificate that browsers trust without warnings.
 
-See [HTTPS / TLS Certificates](../k8s/certs.md) for the full setup guide.
+**Automated (recommended):** After deploying the cluster with `enableSecureSetup=true` and the pods (Steps 3–4), run:
+
+```bash
+export LETSENCRYPT_EMAIL=your@email.com   # REQUIRED: monitored address for expiry notices
+export PUBLIC_FQDN                        # already set from Step 1 outputs
+export LOAD_BALANCER_IP=$IP_ADDRESS
+export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
+
+bash deployment/aks/setup-letsencrypt.sh
+```
+
+This installs cert-manager, the nginx-ingress controller, creates Let's Encrypt ClusterIssuers,
+requests the certificate, and restarts the pods — all in one step.  After completion, `https://$PUBLIC_FQDN:8081` will serve a browser-trusted certificate with no warnings.
+
+> **Tip:** `quick-deploy.sh` does this automatically when `LETSENCRYPT_EMAIL` is set.
+
+**Manual:** See [HTTPS / TLS Certificates](../k8s/certs.md) for step-by-step instructions (useful for troubleshooting or custom setups).
 
 ## Step 3: Deploy StreamWise (Cluster Manager)
 
@@ -442,4 +459,17 @@ Edit the configuration variables at the top, then run from the repository root:
 
 ```bash
 bash deployment/aks/quick-deploy.sh
+```
+
+> **CA-signed HTTPS:** Set `LETSENCRYPT_EMAIL` in the configuration section to
+> automatically provision a browser-trusted Let's Encrypt certificate.
+> When unset, the script falls back to the self-signed certificate from Key Vault
+> (browsers will show a security warning).
+
+For CA-signed certificates on an existing cluster, run the standalone script:
+
+```bash
+export LETSENCRYPT_EMAIL=your@email.com
+export PUBLIC_FQDN LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
+bash deployment/aks/setup-letsencrypt.sh
 ```

@@ -14,6 +14,11 @@ export GPU_VM_SIZE="Standard_NC96ads_A100_v4"  # see VM sizes table in README.md
 export SYSTEM_VM_SIZE="Standard_D16ds_v5"      # override if unavailable in your region
 export GPU_POOL="spota100"
 export MIG_POOL="spota100mig"
+# TLS: set LETSENCRYPT_EMAIL to enable CA-signed certificates (recommended).
+# When set, the script installs cert-manager + nginx-ingress and obtains a
+# browser-trusted Let's Encrypt certificate automatically.
+# Leave empty to use the self-signed fallback from Key Vault (dev/testing only).
+export LETSENCRYPT_EMAIL=""                    # e.g. "team@example.com"
 # ────────────────────────────────────────────────────────────────────────
 
 source deployment/set_properties.sh  # loads ACR_URL etc.
@@ -61,16 +66,32 @@ kubectl apply -f deployment/k8s/streamwiseapp-service-account.yaml
 kubectl create namespace gpu-resources
 kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 
-# 5. TLS secret from Key Vault (self-signed — see deployment/k8s/certs.md for CA-signed)
-az keyvault certificate download --vault-name $KEY_VAULT_NAME --name streamwise-tls --encoding PEM -f /tmp/tls.crt
-az keyvault secret download --vault-name $KEY_VAULT_NAME --name streamwise-tls -f /tmp/bundle.pem
-openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
-kubectl create secret tls streamwise-tls-secret -n $K8S_NAMESPACE --cert=/tmp/tls.crt --key=/tmp/tls.key \
-  --dry-run=client -o yaml | kubectl apply -f -
-rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+# 5. TLS certificate setup
+export LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
+
+if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+  # CA-signed certificate via cert-manager + Let's Encrypt (recommended).
+  # Install the self-signed fallback first so pods can start while cert-manager
+  # provisions the CA-signed certificate (takes 1-3 minutes).
+  echo ">>> Bootstrapping with self-signed cert while Let's Encrypt provisions..."
+  az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+  az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
+  openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+  kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
+    --dry-run=client -o yaml | kubectl apply -f -
+  rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+else
+  # Self-signed fallback from Key Vault (dev/testing only — browsers will warn).
+  echo ">>> Using self-signed certificate from Key Vault (set LETSENCRYPT_EMAIL for CA-signed)."
+  az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+  az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
+  openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+  kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
+    --dry-run=client -o yaml | kubectl apply -f -
+  rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+fi
 
 # 6. Deploy StreamWise + StreamCast
-export LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
 envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
 
@@ -106,9 +127,20 @@ kubectl exec gpu-debug -- chroot /host nvidia-smi mig -cgi 2g.20gb,2g.20gb,1g.10
 kubectl taint node $GPU_NODE mig-setup=true:NoExecute-
 kubectl delete pod gpu-debug --ignore-not-found
 
+# 9. CA-signed certificate (if LETSENCRYPT_EMAIL is set)
+if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+  echo ">>> Setting up Let's Encrypt CA-signed certificate..."
+  bash deployment/aks/setup-letsencrypt.sh
+fi
+
 echo "==========================================="
 echo "Deployment complete!"
 echo "StreamWise: https://$PUBLIC_FQDN:8081"
 echo "StreamCast: https://$PUBLIC_FQDN:8080"
 echo "Public IP:  $IP_ADDRESS"
+if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+  echo "TLS:        CA-signed (Let's Encrypt) — browser-trusted"
+else
+  echo "TLS:        Self-signed (use -k with curl) — set LETSENCRYPT_EMAIL for CA-signed"
+fi
 echo "==========================================="
