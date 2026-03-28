@@ -17,6 +17,12 @@ client_session: ClientSession | None = None
 # submissions, etc.).
 SERVICE_SCHEME: str = "http"
 
+# Whether to verify SSL certificates when making outbound HTTPS requests.
+# Set to False when services use self-signed certificates (e.g. Key Vault
+# generated certs in AKS). Call set_verify_ssl(False) at startup alongside
+# set_service_scheme("https") to disable certificate verification.
+VERIFY_SSL: bool = True
+
 
 def set_service_scheme(scheme: str) -> None:
     """Set the URL scheme used for outbound service requests."""
@@ -26,11 +32,18 @@ def set_service_scheme(scheme: str) -> None:
     SERVICE_SCHEME = scheme
 
 
+def set_verify_ssl(verify: bool) -> None:
+    """Set whether to verify SSL certificates for outbound HTTPS requests."""
+    global VERIFY_SSL
+    VERIFY_SSL = verify
+
+
 def create_client_session_instance() -> ClientSession:
     connector = TCPConnector(
         limit=100,
         limit_per_host=10,
-        use_dns_cache=True)
+        use_dns_cache=True,
+        ssl=None if VERIFY_SSL else False)
     timeout = ClientTimeout(
         total=0.5,
         connect=0.5)

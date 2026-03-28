@@ -706,6 +706,7 @@ if __name__ == "__main__":
 
     if args.use_https:
         http_session_manager.set_service_scheme("https")
+        http_session_manager.set_verify_ssl(False)
 
     try:
         scheme = "https" if args.certfile else "http"

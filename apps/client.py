@@ -45,6 +45,7 @@ sys.path.append("..")  # noqa: E402
 from console_utils import setup_logging
 from console_utils import bytes_to_human
 
+import k8s_utils
 from k8s_utils import NoActiveContainerError
 from k8s_utils import NoRunnableContainerError
 from k8s_utils import ServiceNotFoundError
@@ -239,7 +240,8 @@ class ServiceRequestWorker:
             limit=100,
             limit_per_host=10,
             use_dns_cache=True,
-            force_close=True)
+            force_close=True,
+            ssl=None if k8s_utils.VERIFY_SSL else False)
         self.session: Optional[ClientSession] = ClientSession(
             connector=connector,
             timeout=SERVICE_LONG_TIMEOUT)

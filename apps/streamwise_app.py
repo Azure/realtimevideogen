@@ -221,6 +221,7 @@ class StreamWiseApp(ABC):
         """Main entry point for StreamWise application."""
         if args.use_https:
             k8s_utils.set_service_scheme("https")
+            k8s_utils.set_verify_ssl(False)
 
         scheme = "https" if args.certfile else "http"
         logging.info(

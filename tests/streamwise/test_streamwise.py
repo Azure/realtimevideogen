@@ -704,3 +704,29 @@ def test_set_service_scheme_invalid() -> None:
     import pytest as pt
     with pt.raises(ValueError, match="Invalid service scheme"):
         http_session_manager.set_service_scheme("ftp")
+
+
+def test_verify_ssl_default() -> None:
+    """VERIFY_SSL defaults to True."""
+    assert http_session_manager.VERIFY_SSL is True
+
+
+def test_set_verify_ssl_false() -> None:
+    """set_verify_ssl(False) disables SSL certificate verification."""
+    original = http_session_manager.VERIFY_SSL
+    try:
+        http_session_manager.set_verify_ssl(False)
+        assert http_session_manager.VERIFY_SSL is False
+    finally:
+        http_session_manager.set_verify_ssl(original)
+
+
+def test_set_verify_ssl_true() -> None:
+    """set_verify_ssl(True) re-enables SSL certificate verification."""
+    original = http_session_manager.VERIFY_SSL
+    try:
+        http_session_manager.set_verify_ssl(False)
+        http_session_manager.set_verify_ssl(True)
+        assert http_session_manager.VERIFY_SSL is True
+    finally:
+        http_session_manager.set_verify_ssl(original)

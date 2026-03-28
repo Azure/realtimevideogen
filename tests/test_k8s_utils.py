@@ -239,3 +239,29 @@ def test_set_service_scheme_invalid() -> None:
     """set_service_scheme raises ValueError for unsupported schemes."""
     with pytest.raises(ValueError, match="Invalid service scheme"):
         k8s_utils.set_service_scheme("ftp")
+
+
+def test_verify_ssl_default() -> None:
+    """VERIFY_SSL defaults to True."""
+    assert k8s_utils.VERIFY_SSL is True
+
+
+def test_set_verify_ssl_false() -> None:
+    """set_verify_ssl(False) disables SSL certificate verification."""
+    original = k8s_utils.VERIFY_SSL
+    try:
+        k8s_utils.set_verify_ssl(False)
+        assert k8s_utils.VERIFY_SSL is False
+    finally:
+        k8s_utils.set_verify_ssl(original)
+
+
+def test_set_verify_ssl_true() -> None:
+    """set_verify_ssl(True) re-enables SSL certificate verification."""
+    original = k8s_utils.VERIFY_SSL
+    try:
+        k8s_utils.set_verify_ssl(False)
+        k8s_utils.set_verify_ssl(True)
+        assert k8s_utils.VERIFY_SSL is True
+    finally:
+        k8s_utils.set_verify_ssl(original)
