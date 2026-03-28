@@ -1,6 +1,6 @@
 # HTTPS / TLS Certificates
 
-The Bicep template automatically provisions an Azure Key Vault, generates a self-signed TLS certificate inside it, and grants the AKS kubelet identity read access.
+The Bicep template automatically provisions an Azure Key Vault, generates a self-signed TLS certificate inside it, and grants the Secrets Store CSI Driver addon's managed identity read access.
 The Secrets Store CSI Driver (enabled as an AKS addon by the Bicep template) mounts the certificate from Key Vault directly into each pod at `/certs/`, where the entrypoint scripts auto-detect it and enable HTTPS.
 
 ---
@@ -23,7 +23,7 @@ The `SecretProviderClass` tells the CSI driver which Key Vault and certificate t
 It also creates a K8s TLS Secret (`streamwise-tls-secret`) that is automatically rotated whenever the certificate is renewed in Key Vault.
 
 ```bash
-# KEY_VAULT_NAME, KUBELET_CLIENT_ID, AZ_TENANT_ID, and TLS_CERT_NAME were
+# KEY_VAULT_NAME, CSI_ADDON_CLIENT_ID, AZ_TENANT_ID, and TLS_CERT_NAME were
 # captured from the Bicep deployment outputs (see the output capture commands
 # after the az deployment group create command in the AKS README).
 envsubst < deployment/k8s/tls-secret-provider.yaml | kubectl apply -f -

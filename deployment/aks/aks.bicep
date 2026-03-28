@@ -137,7 +137,7 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
   properties: {
     securityRules: [
       {
-        name: 'AllowServicePortsInbound'
+        name: 'AllowK8sNodePortsInbound'
         properties: {
           priority: 100
           direction: 'Inbound'
@@ -145,8 +145,12 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
           protocol: 'Tcp'
           sourcePortRange: '*'
           sourceAddressPrefix: 'Internet'
-          destinationAddressPrefix: publicIp.properties.ipAddress
-          destinationPortRange: '8000-9000'
+          // Azure evaluates subnet NSG rules AFTER the Load Balancer performs
+          // DNAT, so the destination is the node's private IP (not the public
+          // Load Balancer IP). Kubernetes assigns NodePorts in the 30000-32767
+          // range for LoadBalancer-type Services.
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '30000-32767'
         }
       }
     ]
@@ -305,6 +309,17 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
         }
       }
     }
+    // Enable OIDC issuer and workload identity so that the Secrets Store CSI
+    // Driver can authenticate to Azure Key Vault using the addon's managed
+    // identity via the clientID field in SecretProviderClass.
+    oidcIssuerProfile: {
+      enabled: true
+    }
+    securityProfile: {
+      workloadIdentity: {
+        enabled: true
+      }
+    }
   }
 }
 
@@ -397,9 +412,14 @@ resource networkContributorAssignment 'Microsoft.Authorization/roleAssignments@2
 }
 
 // ---------------------------------------------------------------------------
-// Key Vault RBAC – grant the AKS kubelet identity read access to Key Vault
-// secrets and certificates so the Secrets Store CSI Driver can retrieve the
-// TLS certificate at pod startup.
+// Key Vault RBAC – grant the Secrets Store CSI Driver addon identity read
+// access to Key Vault secrets and certificates so it can retrieve the TLS
+// certificate at pod startup via the clientID in SecretProviderClass.
+//
+// The addon creates its own user-assigned managed identity
+// (addonProfiles.azureKeyvaultSecretsProvider.identity).  Using the addon
+// identity (not the kubelet identity) is required when the SecretProviderClass
+// specifies a clientID and workload identity is enabled.
 //
 //   Key Vault Secrets User  (4633458b-…) – read secrets (PEM bundle + key)
 //   Key Vault Certificate User (db79e9a7-…) – read certificate public part
@@ -418,7 +438,7 @@ resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-0
   scope: keyVault
   name: guid(keyVault.id, aksCluster.id, kvSecretsUserRoleId)
   properties: {
-    principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+    principalId: aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.objectId
     roleDefinitionId: kvSecretsUserRoleId
     principalType: 'ServicePrincipal'
   }
@@ -428,7 +448,7 @@ resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@20
   scope: keyVault
   name: guid(keyVault.id, aksCluster.id, kvCertificateUserRoleId)
   properties: {
-    principalId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+    principalId: aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.objectId
     roleDefinitionId: kvCertificateUserRoleId
     principalType: 'ServicePrincipal'
   }
@@ -444,5 +464,5 @@ output gpuNodePoolName string = gpuNodePool.name
 output gpuMigNodePoolName string = gpuMigNodePool.name
 output keyVaultName string = keyVault.name
 output tlsCertificateName string = tlsCertificate.name
-output kubeletClientId string = aksCluster.properties.identityProfile.kubeletidentity.clientId
+output csiAddonClientId string = aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.clientId
 output tenantId string = subscription().tenantId

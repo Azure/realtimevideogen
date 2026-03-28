@@ -38,7 +38,7 @@ The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - A **full-GPU spot node pool** (e.g., `spoth100`): all GPUs in standard mode; for heavy models (Wan, Flux, Gemma, etc.) — starts at 0 nodes
 - A **MIG spot node pool** (e.g., `spoth100mig`): same VM size but designated for mixed-mode use — 7 standard GPUs + 1 MIG-partitioned GPU for lightweight services — starts at 0 nodes
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
-- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
+- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on NodePort range 30000–32767 (the port range Kubernetes uses for `LoadBalancer`-type Services), attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
 
 Separate node pools are needed because MIG mode is configured per node: putting the MIG node in its own pool prevents MIG changes on one VMSS instance from affecting the full-GPU instances.
@@ -99,10 +99,10 @@ KEY_VAULT_NAME=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.keyVaultName.value -o tsv)
 
-KUBELET_CLIENT_ID=$(az deployment group show \
+CSI_ADDON_CLIENT_ID=$(az deployment group show \
   --name AKSDeployment \
   --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.kubeletClientId.value -o tsv)
+  --query properties.outputs.csiAddonClientId.value -o tsv)
 
 AZ_TENANT_ID=$(az deployment group show \
   --name AKSDeployment \
@@ -114,12 +114,12 @@ TLS_CERT_NAME=$(az deployment group show \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.tlsCertificateName.value -o tsv)
 
-echo "AKS cluster:       $AKS_CLUSTER"
-echo "Public IP:         $IP_ADDRESS"
-echo "Key Vault:         $KEY_VAULT_NAME"
-echo "Kubelet client ID: $KUBELET_CLIENT_ID"
-echo "Tenant ID:         $AZ_TENANT_ID"
-echo "TLS cert name:     $TLS_CERT_NAME"
+echo "AKS cluster:           $AKS_CLUSTER"
+echo "Public IP:             $IP_ADDRESS"
+echo "Key Vault:             $KEY_VAULT_NAME"
+echo "CSI addon client ID:   $CSI_ADDON_CLIENT_ID"
+echo "Tenant ID:             $AZ_TENANT_ID"
+echo "TLS cert name:         $TLS_CERT_NAME"
 
 az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
 ```
