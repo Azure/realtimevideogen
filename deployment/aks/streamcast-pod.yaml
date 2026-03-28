@@ -29,21 +29,26 @@ spec:
         cpu: "4"
         memory: "8Gi"
         ephemeral-storage: "32Gi"
-    # TLS certificate from Azure Key Vault via Secrets Store CSI Driver.
-    # The run_httpserver.bash entrypoint auto-detects /certs/tls.crt and
-    # /certs/tls.key and enables HTTPS automatically.
-    # Requires: deployment/k8s/tls-secret-provider.yaml applied first.
+    # TLS certificate mounted from the Kubernetes TLS secret "streamwise-tls-secret".
+    # The secret is populated by cert-manager (CA-signed, recommended) or by
+    # manually running: kubectl create secret tls streamwise-tls-secret -n rtgen
+    #                     --cert=cert.pem --key=key.pem
+    # run_httpserver.bash auto-detects /certs/tls.crt and /certs/tls.key
+    # and enables HTTPS automatically.
+    # See deployment/k8s/certs.md for the full setup guide.
     volumeMounts:
-    - name: tls-csi
+    - name: tls-cert
       mountPath: /certs
       readOnly: true
   volumes:
-  - name: tls-csi
-    csi:
-      driver: secrets-store.csi.k8s.io
-      readOnly: true
-      volumeAttributes:
-        secretProviderClass: streamwise-tls
+  - name: tls-cert
+    secret:
+      secretName: streamwise-tls-secret
+      items:
+      - key: tls.crt
+        path: tls.crt
+      - key: tls.key
+        path: tls.key
   imagePullSecrets:
   - name: acr-secret
   nodeSelector:
