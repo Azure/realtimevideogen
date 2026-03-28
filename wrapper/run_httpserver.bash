@@ -41,6 +41,16 @@ export PYTHONUNBUFFERED=1
 # H100: 9.0
 export TORCH_CUDA_ARCH_LIST="8.0 9.0"
 
+# Auto-detect SSL certificates mounted at /certs/ (K8s TLS Secret or build-time embedded)
+CERT_ARGS=()
+if [[ -f "/certs/tls.crt" ]] && [[ -f "/certs/tls.key" ]]; then
+    echo "HTTPS enabled: /certs/tls.crt"
+    CERT_ARGS=(--certfile /certs/tls.crt --keyfile /certs/tls.key)
+elif [[ -f "/certs/cert.pem" ]] && [[ -f "/certs/key.pem" ]]; then
+    echo "HTTPS enabled: /certs/cert.pem"
+    CERT_ARGS=(--certfile /certs/cert.pem --keyfile /certs/key.pem)
+fi
+
 if [[ $NUM_GPUS -gt 8 ]]; then
     # Multiple server setup
     # TODO we need to get total number of GPUs across all nodes
@@ -59,6 +69,7 @@ if [[ $NUM_GPUS -gt 8 ]]; then
     --ulysses_degree "${GPUS_PER_SERVER}" \
     --ring_degree "${NUM_SERVERS}" \
     --use_torch_compile \
+    ${CERT_ARGS[@]+"${CERT_ARGS[@]}"} \
     "$@"
 elif [[ $NUM_GPUS -gt 1 ]]; then
     # Single-node multi-GPU setup
@@ -68,8 +79,10 @@ elif [[ $NUM_GPUS -gt 1 ]]; then
     --ulysses_degree "${NUM_GPUS}" \
     --ring_degree 1 \
     --use_torch_compile \
+    ${CERT_ARGS[@]+"${CERT_ARGS[@]}"} \
     "$@"
 else
     python3 -u run_httpserver.py \
+    ${CERT_ARGS[@]+"${CERT_ARGS[@]}"} \
     "$@"
 fi
