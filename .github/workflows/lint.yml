@@ -44,6 +44,9 @@ jobs:
     - name: Install markdownlint-cli
       run: npm install -g markdownlint-cli
 
+    - name: Install Bicep CLI
+      run: az bicep install
+
     - name: Run Python lint
       if: always()
       run: flake8 . tests --output-file=flake8-results.txt --tee
@@ -145,6 +148,25 @@ jobs:
       run: |
         cat markdownlint-results.txt | reviewdog -efm="%f:%l:%c %m" -efm="%f:%l %m" -name="Markdown" -reporter=github-check -level=warning || true
 
+    - name: Run Bicep lint
+      if: always()
+      run: |
+        > biceplint-results.txt
+        EXIT=0
+        for f in $(git ls-files '*.bicep'); do
+          OUTPUT=$(az bicep lint --file "$f" 2>&1) || EXIT=1
+          echo "$OUTPUT" | grep -v '^[[:space:]]*$' >> biceplint-results.txt || true
+        done
+        cat biceplint-results.txt
+        exit $EXIT
+
+    - name: Bicep reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat biceplint-results.txt | reviewdog -efm="%f(%l,%c) : %m" -name="Bicep" -reporter=github-check -level=warning || true
+
     - name: Lint summary
       if: always()
       run: |
@@ -182,6 +204,12 @@ jobs:
           else
             echo "| Markdown | :white_check_mark: |"
           fi
+          if [ -s biceplint-results.txt ]; then
+            BICEP_COUNT=$(wc -l < biceplint-results.txt)
+            echo "| Bicep | :x: ${BICEP_COUNT} issue(s) |"
+          else
+            echo "| Bicep | :white_check_mark: |"
+          fi
           echo ""
           if [ -s flake8-results.txt ]; then
             echo "**Python details:**"
@@ -211,6 +239,12 @@ jobs:
             echo "**Markdown details:**"
             echo '```'
             head -20 markdownlint-results.txt
+            echo '```'
+          fi
+          if [ -s biceplint-results.txt ]; then
+            echo "**Bicep details:**"
+            echo '```'
+            head -20 biceplint-results.txt
             echo '```'
           fi
         } | tee lint-summary.md >> "$GITHUB_STEP_SUMMARY"
