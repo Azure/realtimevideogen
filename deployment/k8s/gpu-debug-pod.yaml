@@ -10,8 +10,8 @@ spec:
   - operator: Exists
   containers:
   - name: debug
-    image: ubuntu:22.04
-    command: ["/bin/bash", "-c", "sleep 3600"]
+    image: mcr.microsoft.com/azurelinux/base/core:3.0
+    command: ["sleep", "3600"]
     securityContext:
       privileged: true
     volumeMounts:
