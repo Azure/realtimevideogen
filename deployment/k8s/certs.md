@@ -50,15 +50,33 @@ kubectl wait --namespace cert-manager \
   --timeout=120s
 ```
 
+### Step 2.5 — Install nginx-ingress controller
+
+cert-manager's HTTP-01 solver requires an Ingress controller to serve ACME
+challenges on port 80.  Install the nginx-ingress controller bound to the
+cluster's static public IP:
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  --set controller.service.loadBalancerIP=$IP_ADDRESS \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-resource-group"=$AZ_RESOURCE_GROUP \
+  --set controller.service.externalTrafficPolicy=Local
+
+# Wait for the ingress controller to be ready
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
+```
+
 ### Step 3 — Create the ClusterIssuers
 
 ```bash
 export LETSENCRYPT_EMAIL=your@email.com   # REQUIRED: replace with a real, monitored address.
                                            # Let's Encrypt sends expiry notifications and uses
                                            # this for account recovery — use a shared team mailbox.
-# LOAD_BALANCER_IP and RESOURCE_GROUP_NAME must be set (see set_properties.sh)
-export LOAD_BALANCER_IP=$IP_ADDRESS
-export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 
 envsubst < deployment/k8s/cert-manager-issuer.yaml | kubectl apply -f -
 ```

@@ -4,7 +4,7 @@ This guide provides step-by-step instructions for deploying StreamWise and Strea
 
 GitHub Copilot CLI can do the full deployment with a prompt like:
 ```bash
-copilot -p "Deploy the full StreamWise stack on a new AKS cluster in swedencentral with 2 Spot H100 VMs. Use resource group aks-agent, ACR rtgen in acr RG, and HF token hf_XYZ. Reboot the GPU VMs after they come up." --allow-all
+copilot -p "Deploy the full StreamWise stack on a new AKS cluster in eastus2 with 2 Spot Standard_NC96ads_A100_v4 VMs. Setup MIG for one of the VMs. Use resource group my-rg, ACR myacr in acr-rg RG, and HF token hf_XYZ. Support HTTPS. Reboot the GPU VMs after they come up." --allow-all
 ```
 
 ## Prerequisites
@@ -70,8 +70,8 @@ Some available GPU VM sizes:
 
 | VM Size | GPU |
 |---------|-----|
-| `Standard_NC96ads_A100_v4` | NVIDIA A100 |
-| `Standard_ND96ams_A100_v4` | NVIDIA A100 (InfiniBand) |
+| `Standard_NC96ads_A100_v4` | NVIDIA A100 (4 GPUs, PCIe) |
+| `Standard_ND96ams_A100_v4` | NVIDIA A100 (8 GPUs, NVLink) |
 | `Standard_ND96isrf_H100_v5` | NVIDIA H100 |
 | `Standard_ND96isr_H200_v5` | NVIDIA H200 |
 | `Standard_ND128isr_NDR_GB200_v6`| NVIDIA GB200 |
@@ -81,6 +81,11 @@ Some available GPU VM sizes:
 > If the ACR role assignment fails (e.g. on redeployment), the cluster itself will still be created successfully.
 > Attach the ACR manually with:
 > `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
+>
+> **Note:** The system node pool defaults to `Standard_D16s_v5`.
+> If that SKU is not available in your subscription/region, override it:
+> `systemNodeVmSize=Standard_D16ds_v5` (or any available D-series SKU).
+> Check available sizes with: `az vm list-skus -l <region> --size Standard_D16 -o table`
 >
 > **Note:** HTTPS/TLS is **disabled by default**. To enable Key Vault, the self-signed TLS certificate, OIDC issuer, workload identity, and federated identity credentials, add `enableSecureSetup=true` to the deployment parameters:
 > ```bash
@@ -432,4 +437,124 @@ kubectl delete namespace rtgen
 
 # Delete entire resource group (includes AKS cluster and all resources)
 az group delete --name $AZ_RESOURCE_GROUP --yes --no-wait
+```
+
+## Quick Deploy (End-to-End Script)
+
+The following is a streamlined script that performs the entire deployment from scratch.
+Copy and adapt the variables at the top, then run the full script.
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── Configuration (edit these) ──────────────────────────────────────────
+export AZ_RESOURCE_GROUP="my-rg"
+export AZ_REGION="eastus2"
+export ACR_NAME="myacr"
+export ACR_RG="$AZ_RESOURCE_GROUP"            # set to ACR resource group if different
+export HF_TOKEN="hf_..."
+export K8S_NAMESPACE="rtgen"
+export GPU_VM_SIZE="Standard_NC96ads_A100_v4"  # see VM sizes table above
+export SYSTEM_VM_SIZE="Standard_D16ds_v5"      # override if unavailable in your region
+export GPU_POOL="spota100"
+export MIG_POOL="spota100mig"
+# ────────────────────────────────────────────────────────────────────────
+
+source deployment/set_properties.sh  # loads ACR_URL etc.
+
+# 1. Create RG & deploy AKS cluster
+az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
+az deployment group create \
+  --name AKSDeployment \
+  --resource-group $AZ_RESOURCE_GROUP \
+  --template-file deployment/aks/aks.bicep \
+  --parameters \
+    systemNodeVmSize=$SYSTEM_VM_SIZE \
+    gpuNodeVmSize=$GPU_VM_SIZE \
+    gpuNodePoolName=$GPU_POOL \
+    gpuMigNodePoolName=$MIG_POOL \
+    gpuNodeCount=1 \
+    gpuMigNodeCount=1 \
+    acrName=$ACR_NAME \
+    acrResourceGroup=$ACR_RG \
+    enableSecureSetup=true
+
+# If ACR role assignment failed (redeployment), attach manually:
+az aks update -g $AZ_RESOURCE_GROUP -n $(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv) \
+  --attach-acr $ACR_NAME || true
+
+# 2. Retrieve outputs
+AKS_CLUSTER=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROUP \
+  --query properties.outputs.clusterName.value -o tsv)
+IP_ADDRESS=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip --query ipAddress -o tsv)
+PUBLIC_FQDN=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip --query dnsSettings.fqdn -o tsv)
+KEY_VAULT_NAME=$(az keyvault list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)
+MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
+
+az aks get-credentials -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --overwrite-existing
+
+# 3. K8s prerequisites
+kubectl create namespace $K8S_NAMESPACE
+kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token=$HF_TOKEN
+kubectl apply -f deployment/k8s/local-pv.yaml
+kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
+kubectl apply -f deployment/k8s/streamwise-service-account.yaml
+kubectl apply -f deployment/k8s/streamwiseapp-service-account.yaml
+
+# 4. NVIDIA device plugin
+kubectl create namespace gpu-resources
+kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
+
+# 5. TLS secret from Key Vault (self-signed — see deployment/k8s/certs.md for CA-signed)
+az keyvault certificate download --vault-name $KEY_VAULT_NAME --name streamwise-tls --encoding PEM -f /tmp/tls.crt
+az keyvault secret download --vault-name $KEY_VAULT_NAME --name streamwise-tls -f /tmp/bundle.pem
+openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
+kubectl create secret tls streamwise-tls-secret -n $K8S_NAMESPACE --cert=/tmp/tls.crt --key=/tmp/tls.key \
+  --dry-run=client -o yaml | kubectl apply -f -
+rm -f /tmp/tls.crt /tmp/bundle.pem /tmp/tls.key
+
+# 6. Deploy StreamWise + StreamCast
+export LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
+envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
+envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
+
+# 7. Reboot GPU VMs (fixes NVIDIA driver/torch issues on first boot)
+VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-${GPU_POOL}-') && !contains(name, 'mig')].name | [0]" -o tsv)
+VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
+  --query "[?contains(name, 'aks-${MIG_POOL}-')].name | [0]" -o tsv)
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_FULL --instance-ids 0
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids 0
+
+# Wait for nodes to come back
+kubectl wait --for=condition=Ready node -l kubernetes.azure.com/scalesetpriority=spot --timeout=300s
+
+# 8. MIG setup (see deployment/k8s/MIG.md for detailed guide)
+GPU_NODE=$(kubectl get nodes -l gpu-config=mig -o jsonpath='{.items[0].metadata.name}')
+# Determine GPU_INDEX from VM size (last GPU, 0-indexed)
+# Standard_NC96ads_A100_v4 → 4 GPUs → GPU_INDEX=3
+# Standard_ND96ams_A100_v4 / H100 → 8 GPUs → GPU_INDEX=7
+export GPU_NODE
+envsubst < deployment/k8s/gpu-debug-pod.yaml | kubectl apply -f -
+kubectl wait --for=condition=Ready pod/gpu-debug --timeout=120s
+kubectl taint node $GPU_NODE mig-setup=true:NoExecute
+sleep 5
+kubectl exec gpu-debug -- chroot /host nvidia-smi -i $GPU_INDEX -mig 1
+az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids 0
+kubectl wait --for=condition=Ready node/$GPU_NODE --timeout=300s
+kubectl delete pod gpu-debug --ignore-not-found
+envsubst < deployment/k8s/gpu-debug-pod.yaml | kubectl apply -f -
+kubectl wait --for=condition=Ready pod/gpu-debug --timeout=120s
+# For 80 GB GPUs (A100/H100): 2×2g.20gb + 3×1g.10gb
+kubectl exec gpu-debug -- chroot /host nvidia-smi mig -cgi 2g.20gb,2g.20gb,1g.10gb,1g.10gb,1g.10gb -C -i $GPU_INDEX
+kubectl taint node $GPU_NODE mig-setup=true:NoExecute-
+kubectl delete pod gpu-debug --ignore-not-found
+
+echo "==========================================="
+echo "Deployment complete!"
+echo "StreamWise: https://$PUBLIC_FQDN:8081"
+echo "StreamCast: https://$PUBLIC_FQDN:8080"
+echo "Public IP:  $IP_ADDRESS"
+echo "==========================================="
 ```
