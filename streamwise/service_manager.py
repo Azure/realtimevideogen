@@ -320,7 +320,7 @@ async def get_services_ns(
                     })
                 else:
                     for container_port in container.ports:
-                        url = f"http://{pod_ip}:{container_port.container_port}"
+                        url = f"{http_session_manager.SERVICE_SCHEME}://{pod_ip}:{container_port.container_port}"
 
                         ret.append({
                             "namespace": namespace,

@@ -650,9 +650,11 @@ def test_streamwise_arg_parser_https_args() -> None:
     parser.add_argument("--port", type=int, default=sw.PORT)
     parser.add_argument("--certfile", type=str, default=None)
     parser.add_argument("--keyfile", type=str, default=None)
+    parser.add_argument("--use-https", action="store_true", default=False)
     args = parser.parse_args(["--certfile", "/tmp/cert.pem", "--keyfile", "/tmp/key.pem"])
     assert args.certfile == "/tmp/cert.pem"
     assert args.keyfile == "/tmp/key.pem"
+    assert args.use_https is False
 
 
 def test_streamwise_arg_parser_https_defaults() -> None:
@@ -664,6 +666,41 @@ def test_streamwise_arg_parser_https_defaults() -> None:
     parser.add_argument("--port", type=int, default=sw.PORT)
     parser.add_argument("--certfile", type=str, default=None)
     parser.add_argument("--keyfile", type=str, default=None)
+    parser.add_argument("--use-https", action="store_true", default=False)
     args = parser.parse_args([])
     assert args.certfile is None
     assert args.keyfile is None
+    assert args.use_https is False
+
+
+def test_set_service_scheme_https() -> None:
+    """set_service_scheme sets SERVICE_SCHEME to https."""
+    original = http_session_manager.SERVICE_SCHEME
+    try:
+        http_session_manager.set_service_scheme("https")
+        assert http_session_manager.SERVICE_SCHEME == "https"
+    finally:
+        http_session_manager.set_service_scheme(original)
+
+
+def test_set_service_scheme_http() -> None:
+    """set_service_scheme sets SERVICE_SCHEME back to http."""
+    original = http_session_manager.SERVICE_SCHEME
+    try:
+        http_session_manager.set_service_scheme("https")
+        http_session_manager.set_service_scheme("http")
+        assert http_session_manager.SERVICE_SCHEME == "http"
+    finally:
+        http_session_manager.set_service_scheme(original)
+
+
+def test_set_service_scheme_default() -> None:
+    """SERVICE_SCHEME defaults to http."""
+    assert http_session_manager.SERVICE_SCHEME == "http"
+
+
+def test_set_service_scheme_invalid() -> None:
+    """set_service_scheme raises ValueError for invalid schemes."""
+    import pytest as pt
+    with pt.raises(ValueError, match="Invalid service scheme"):
+        http_session_manager.set_service_scheme("ftp")
