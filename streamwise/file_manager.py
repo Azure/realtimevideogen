@@ -25,6 +25,7 @@ from quart import render_template
 from http import HTTPStatus
 
 from http_session_manager import get_global_session
+import http_session_manager
 
 sys.path.append("..")
 import quart_utils
@@ -47,7 +48,7 @@ async def get_audio_waveform(container_ip: str, container_port: int, file_name: 
 
     # Download the WAV file into a local temp file
     temp_wav_path = f"/tmp/waveform_{file_name}"
-    url = f"http://{container_ip}:{container_port}/file/{file_name}"
+    url = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/file/{file_name}"
     try:
         session = await get_global_session()
         async with session.get(url, timeout=CLIENT_TIMEOUT) as response:
@@ -82,7 +83,7 @@ async def get_video_info(container_ip: str, container_port: int, file_name: str)
     if not file_name or not file_name.endswith((".mp4", ".avi", ".mkv", ".webm")):
         return jsonify({"error": f"Invalid file name: {file_name}"}), HTTPStatus.BAD_REQUEST
 
-    url = f"http://{container_ip}:{container_port}/file/{file_name}"
+    url = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/file/{file_name}"
     try:
         session = await get_global_session()
         async with session.get(url, timeout=CLIENT_TIMEOUT) as response:
@@ -141,7 +142,7 @@ async def download_service_file(
     if not container_ip or not container_port or not file_name:
         return jsonify({"error": "Container IP, port and file name are required"}), HTTPStatus.BAD_REQUEST
 
-    url = f"http://{container_ip}:{container_port}/file/{file_name}"
+    url = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/file/{file_name}"
     try:
         session = await get_global_session()
         timeout = ClientTimeout(total=1.0, connect=1.0)
@@ -170,7 +171,7 @@ async def get_file_info(
     container_port: int,
     file_name: str
 ) -> Optional[Dict[str, Any]]:
-    url = f"http://{container_ip}:{container_port}/file_info/{file_name}"
+    url = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/file_info/{file_name}"
     try:
         session = await get_global_session()
         async with session.get(url, timeout=CLIENT_TIMEOUT) as response:
@@ -203,7 +204,7 @@ async def file_view(
     file_info = None
     error: Optional[str] = None
     try:
-        url_data = f"http://{container_ip}:{container_port}/file/{file_name}"
+        url_data = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/file/{file_name}"
         session = await get_global_session()
         timeout = ClientTimeout(total=1.0, connect=1.0)
         async with session.get(url_data, timeout=timeout) as file_response:
@@ -246,7 +247,7 @@ async def file_stream(
     file_name: str
 ) -> QuartReturn:
     """Stream a file from a container."""
-    url = f"http://{container_ip}:{container_port}/file/{file_name}"
+    url = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/file/{file_name}"
     try:
         session = await get_global_session()
         async with session.get(url, timeout=CLIENT_TIMEOUT) as response:

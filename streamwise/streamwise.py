@@ -696,11 +696,17 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=PORT, help="Port to bind the server to")
     parser.add_argument("--certfile", type=str, default=None, help="Path to SSL certificate file for HTTPS")
     parser.add_argument("--keyfile", type=str, default=None, help="Path to SSL private key file for HTTPS")
+    parser.add_argument("--use-https", action="store_true", default=False,
+                        help="Use HTTPS for outbound service connections (health checks, file fetches, jobs)")
     args = parser.parse_args()
 
     k8s_cluster = args.k8s_cluster
     host = args.host
     port = args.port
+
+    if args.use_https:
+        http_session_manager.set_service_scheme("https")
+        http_session_manager.set_verify_ssl(False)
 
     try:
         scheme = "https" if args.certfile else "http"

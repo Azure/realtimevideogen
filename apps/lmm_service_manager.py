@@ -26,6 +26,7 @@ sys.path.append("..")  # noqa: E402
 sys.path.append("../..")  # noqa: E402
 
 from console_utils import setup_logging
+import k8s_utils
 from k8s_utils import K8sService
 from k8s_utils import K8sContainer
 from k8s_utils import get_k8s_services
@@ -67,7 +68,8 @@ class LMMServiceManager:
             limit=100,
             limit_per_host=10,
             use_dns_cache=True,
-            force_close=True)
+            force_close=True,
+            ssl=k8s_utils.VERIFY_SSL)
         self.session: Optional[ClientSession] = ClientSession(
             connector=connector,
             timeout=SERVICE_LONG_TIMEOUT)

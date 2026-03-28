@@ -22,6 +22,7 @@ from k8s_utils import K8sContainer
 from k8s_utils import K8sService
 from k8s_utils import NoActiveContainerError
 from k8s_utils import is_k8s_node_ready
+import k8s_utils
 
 
 def test_parse_k8s_resource_quantity() -> None:
@@ -198,3 +199,69 @@ def test_is_k8s_node_ready() -> None:
 def test_get_svc_name_from_container_name() -> None:
     assert get_svc_name_from_container_name("flux-1234") == "flux_1234"
     assert get_svc_name_from_container_name("model-serving-abcde_5678") == "model_serving_abcde_5678"
+
+
+def test_service_scheme_default() -> None:
+    """SERVICE_SCHEME defaults to http."""
+    assert k8s_utils.SERVICE_SCHEME == "http"
+
+
+def test_set_service_scheme_https() -> None:
+    """set_service_scheme switches K8sContainer.get_url() to https."""
+    original = k8s_utils.SERVICE_SCHEME
+    try:
+        k8s_utils.set_service_scheme("https")
+        assert k8s_utils.SERVICE_SCHEME == "https"
+        container = K8sContainer("test")
+        container.ip = "1.2.3.4"
+        container.port = 8080
+        assert container.get_url() == "https://1.2.3.4:8080"
+    finally:
+        k8s_utils.set_service_scheme(original)
+
+
+def test_set_service_scheme_http() -> None:
+    """set_service_scheme can be reset back to http."""
+    original = k8s_utils.SERVICE_SCHEME
+    try:
+        k8s_utils.set_service_scheme("https")
+        k8s_utils.set_service_scheme("http")
+        assert k8s_utils.SERVICE_SCHEME == "http"
+        container = K8sContainer("test")
+        container.ip = "1.2.3.4"
+        container.port = 8080
+        assert container.get_url() == "http://1.2.3.4:8080"
+    finally:
+        k8s_utils.set_service_scheme(original)
+
+
+def test_set_service_scheme_invalid() -> None:
+    """set_service_scheme raises ValueError for unsupported schemes."""
+    with pytest.raises(ValueError, match="Invalid service scheme"):
+        k8s_utils.set_service_scheme("ftp")
+
+
+def test_verify_ssl_default() -> None:
+    """VERIFY_SSL defaults to True."""
+    assert k8s_utils.VERIFY_SSL is True
+
+
+def test_set_verify_ssl_false() -> None:
+    """set_verify_ssl(False) disables SSL certificate verification."""
+    original = k8s_utils.VERIFY_SSL
+    try:
+        k8s_utils.set_verify_ssl(False)
+        assert k8s_utils.VERIFY_SSL is False
+    finally:
+        k8s_utils.set_verify_ssl(original)
+
+
+def test_set_verify_ssl_true() -> None:
+    """set_verify_ssl(True) re-enables SSL certificate verification."""
+    original = k8s_utils.VERIFY_SSL
+    try:
+        k8s_utils.set_verify_ssl(False)
+        k8s_utils.set_verify_ssl(True)
+        assert k8s_utils.VERIFY_SSL is True
+    finally:
+        k8s_utils.set_verify_ssl(original)
