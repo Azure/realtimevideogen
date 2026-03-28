@@ -33,7 +33,7 @@ set -euo pipefail
 : "${PUBLIC_FQDN:?PUBLIC_FQDN must be set (e.g. streamwise-abc123.eastus2.cloudapp.azure.com)}"
 : "${LOAD_BALANCER_IP:?LOAD_BALANCER_IP must be set (static public IP address)}"
 : "${RESOURCE_GROUP_NAME:?RESOURCE_GROUP_NAME must be set (Azure resource group)}"
-: "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL must be set (email for Let's Encrypt notifications)}"
+: "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL must be set (email for Lets Encrypt notifications)}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-rtgen}"
 export PUBLIC_FQDN LOAD_BALANCER_IP RESOURCE_GROUP_NAME K8S_NAMESPACE LETSENCRYPT_EMAIL
 

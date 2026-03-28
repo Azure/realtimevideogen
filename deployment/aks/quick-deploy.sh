@@ -21,6 +21,7 @@ export MIG_POOL="spota100mig"
 export LETSENCRYPT_EMAIL=""                    # e.g. "team@example.com"
 # ────────────────────────────────────────────────────────────────────────
 
+# shellcheck source=deployment/set_properties.sh.template
 source deployment/set_properties.sh  # loads ACR_URL etc.
 
 # 1. Create RG & deploy AKS cluster
@@ -52,11 +53,11 @@ PUBLIC_FQDN=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-pu
 KEY_VAULT_NAME=$(az keyvault list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
 
-az aks get-credentials -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --overwrite-existing
+az aks get-credentials -g $AZ_RESOURCE_GROUP -n "$AKS_CLUSTER" --overwrite-existing
 
 # 3. K8s prerequisites
 kubectl create namespace $K8S_NAMESPACE
-kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token=$HF_TOKEN
+kubectl create secret generic hf-token -n $K8S_NAMESPACE --from-literal=token="$HF_TOKEN"
 kubectl apply -f deployment/k8s/local-pv.yaml
 kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 kubectl apply -f deployment/k8s/streamwise-service-account.yaml
@@ -96,12 +97,12 @@ envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
 envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
 
 # 7. Reboot GPU VMs (fixes NVIDIA driver/torch issues on first boot)
-VMSS_FULL=$(az vmss list -g $MC_RESOURCE_GROUP \
+VMSS_FULL=$(az vmss list -g "$MC_RESOURCE_GROUP" \
   --query "[?contains(name, 'aks-${GPU_POOL}-') && !contains(name, 'mig')].name | [0]" -o tsv)
-VMSS_MIG=$(az vmss list -g $MC_RESOURCE_GROUP \
+VMSS_MIG=$(az vmss list -g "$MC_RESOURCE_GROUP" \
   --query "[?contains(name, 'aks-${MIG_POOL}-')].name | [0]" -o tsv)
-az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_FULL --instance-ids 0
-az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids 0
+az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_FULL" --instance-ids 0
+az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_MIG" --instance-ids 0
 
 # Wait for nodes to come back
 kubectl wait --for=condition=Ready node -l kubernetes.azure.com/scalesetpriority=spot --timeout=300s
@@ -114,17 +115,17 @@ GPU_NODE=$(kubectl get nodes -l gpu-config=mig -o jsonpath='{.items[0].metadata.
 export GPU_NODE
 envsubst < deployment/k8s/gpu-debug-pod.yaml | kubectl apply -f -
 kubectl wait --for=condition=Ready pod/gpu-debug --timeout=120s
-kubectl taint node $GPU_NODE mig-setup=true:NoExecute
+kubectl taint node "$GPU_NODE" mig-setup=true:NoExecute
 sleep 5
-kubectl exec gpu-debug -- chroot /host nvidia-smi -i $GPU_INDEX -mig 1
-az vmss restart -g $MC_RESOURCE_GROUP --name $VMSS_MIG --instance-ids 0
-kubectl wait --for=condition=Ready node/$GPU_NODE --timeout=300s
+kubectl exec gpu-debug -- chroot /host nvidia-smi -i "$GPU_INDEX" -mig 1
+az vmss restart -g "$MC_RESOURCE_GROUP" --name "$VMSS_MIG" --instance-ids 0
+kubectl wait --for=condition=Ready "node/$GPU_NODE" --timeout=300s
 kubectl delete pod gpu-debug --ignore-not-found
 envsubst < deployment/k8s/gpu-debug-pod.yaml | kubectl apply -f -
 kubectl wait --for=condition=Ready pod/gpu-debug --timeout=120s
 # For 80 GB GPUs (A100/H100): 2×2g.20gb + 3×1g.10gb
-kubectl exec gpu-debug -- chroot /host nvidia-smi mig -cgi 2g.20gb,2g.20gb,1g.10gb,1g.10gb,1g.10gb -C -i $GPU_INDEX
-kubectl taint node $GPU_NODE mig-setup=true:NoExecute-
+kubectl exec gpu-debug -- chroot /host nvidia-smi mig -cgi 2g.20gb,2g.20gb,1g.10gb,1g.10gb,1g.10gb -C -i "$GPU_INDEX"
+kubectl taint node "$GPU_NODE" mig-setup=true:NoExecute-
 kubectl delete pod gpu-debug --ignore-not-found
 
 # 9. CA-signed certificate (if LETSENCRYPT_EMAIL is set)
