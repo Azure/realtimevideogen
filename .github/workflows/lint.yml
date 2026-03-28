@@ -154,9 +154,8 @@ jobs:
         > biceplint-results.txt
         EXIT=0
         for f in $(git ls-files '*.bicep'); do
-          if ! az bicep lint --file "$f" >> biceplint-results.txt 2>&1; then
-            EXIT=1
-          fi
+          OUTPUT=$(az bicep lint --file "$f" 2>&1) || EXIT=1
+          echo "$OUTPUT" | grep -v '^[[:space:]]*$' >> biceplint-results.txt || true
         done
         cat biceplint-results.txt
         exit $EXIT
