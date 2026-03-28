@@ -1,7 +1,13 @@
 # HTTPS / TLS Certificates
 
-The Bicep template automatically provisions an Azure Key Vault, generates a self-signed TLS certificate inside it, and grants the Secrets Store CSI Driver addon's managed identity read access.
-The Secrets Store CSI Driver (enabled as an AKS addon by the Bicep template) mounts the certificate from Key Vault directly into each pod at `/certs/`, where the entrypoint scripts auto-detect it and enable HTTPS.
+The Bicep template automatically provisions an Azure Key Vault, generates a self-signed TLS certificate inside it, and configures the Secrets Store CSI Driver addon to authenticate via workload identity.
+This includes:
+- Key Vault + self-signed certificate
+- OIDC issuer and workload identity enabled on the cluster
+- Key Vault RBAC for the CSI addon identity (Secrets User + Certificate User)
+- Federated identity credentials on the CSI addon identity for each pod service account, so the CSI Driver can exchange projected pod tokens for Azure AD tokens
+
+The Secrets Store CSI Driver mounts the certificate from Key Vault directly into each pod at `/certs/`, where the entrypoint scripts auto-detect it and enable HTTPS.
 
 ---
 

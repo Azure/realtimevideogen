@@ -463,8 +463,44 @@ resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@20
 }
 
 // ---------------------------------------------------------------------------
+// Federated Identity Credentials – required for workload identity exchange.
+//
+// When the CSI Driver mounts a Key Vault secret using clientID + workload
+// identity, it presents the pod's projected service account token as a
+// federated assertion to Azure AD.  Azure AD validates the assertion against
+// a federated credential registered on the CSI addon identity that matches:
+//   issuer  = the cluster OIDC issuer URL
+//   subject = system:serviceaccount:<namespace>:<service-account-name>
+//
+// One federated credential is required per Kubernetes service account whose
+// pod mounts the TLS CSI volume.  The addon identity and its federated
+// credentials live in the MC_ managed resource group created by AKS.
+// The module is scoped to that group and depends on the AKS cluster so
+// it runs after the cluster (and the CSI addon identity) is provisioned.
+// ---------------------------------------------------------------------------
+var mcResourceGroup = 'MC_${resourceGroup().name}_${clusterName}_${location}'
+
+module csiAddonFederatedCreds '../bicep/csi-federated-credentials.bicep' = if (enableSecureSetup) {
+  name: 'csi-addon-federated-creds'
+  scope: resourceGroup(mcResourceGroup)
+  dependsOn: [aksCluster]
+  params: {
+    clusterName: clusterName
+    // Guard with the same flag so the expression is only evaluated when
+    // oidcIssuerProfile is actually enabled on the cluster.
+    oidcIssuerUrl: enableSecureSetup ? aksCluster.properties.oidcIssuerProfile.issuerURL : ''
+  }
+}
+
+
+// ---------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------
+
+// Guard the CSI addon client ID behind the same flag to avoid evaluating the
+// nested property chain when azureKeyvaultSecretsProvider is not in addonProfiles.
+var csiAddonClientIdValue = enableSecureSetup ? aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.clientId : ''
+
 output clusterName string = aksCluster.name
 output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
@@ -472,5 +508,5 @@ output gpuNodePoolName string = gpuNodePool.name
 output gpuMigNodePoolName string = gpuMigNodePool.name
 output keyVaultName string = enableSecureSetup ? keyVault.name : ''
 output tlsCertificateName string = enableSecureSetup ? tlsCertificate.name : ''
-output csiAddonClientId string = enableSecureSetup ? aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.clientId : ''
+output csiAddonClientId string = csiAddonClientIdValue
 output tenantId string = subscription().tenantId
