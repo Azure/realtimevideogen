@@ -70,6 +70,7 @@ from media_utils import get_image_file_info
 from media_utils import get_text_file_info
 
 import quart_utils
+import k8s_utils
 
 from quart_utils import QuartReturn
 
@@ -200,6 +201,8 @@ class StreamWiseApp(ABC):
         parser.add_argument("--port", type=int, default=PORT, help="Port to bind the server to")
         parser.add_argument("--certfile", type=str, default=None, help="Path to SSL certificate file for HTTPS")
         parser.add_argument("--keyfile", type=str, default=None, help="Path to SSL private key file for HTTPS")
+        parser.add_argument("--use-https", action="store_true", default=False,
+                            help="Use HTTPS for outbound service connections (health checks, job submissions)")
         return parser.parse_args()
 
     def get_http_status_from_exception(
@@ -216,6 +219,10 @@ class StreamWiseApp(ABC):
         args: Any
     ) -> None:
         """Main entry point for StreamWise application."""
+        if args.use_https:
+            k8s_utils.set_service_scheme("https")
+            k8s_utils.set_verify_ssl(False)
+
         scheme = "https" if args.certfile else "http"
         logging.info(
             f"Starting {self.app_name} app on {scheme}://{args.host}:{args.port} "

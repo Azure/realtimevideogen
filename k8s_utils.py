@@ -15,6 +15,32 @@ from kubernetes_asyncio.client import ApiClient
 from kubernetes_asyncio.client import CoreV1Api
 
 
+# URL scheme used when constructing outbound service URLs (http or https).
+# Call set_service_scheme("https") at startup to enable HTTPS for all
+# service URL lookups (K8sContainer.get_url, get_k8s_containers, etc.).
+SERVICE_SCHEME: str = "http"
+
+# Whether to verify SSL certificates when making outbound HTTPS requests.
+# Set to False when services use self-signed certificates (e.g. Key Vault
+# generated certs in AKS). Call set_verify_ssl(False) at startup alongside
+# set_service_scheme("https") to disable certificate verification.
+VERIFY_SSL: bool = True
+
+
+def set_service_scheme(scheme: str) -> None:
+    """Set the URL scheme used for K8s service URLs."""
+    global SERVICE_SCHEME
+    if scheme not in ("http", "https"):
+        raise ValueError(f"Invalid service scheme: {scheme!r}. Must be 'http' or 'https'.")
+    SERVICE_SCHEME = scheme
+
+
+def set_verify_ssl(verify: bool) -> None:
+    """Set whether to verify SSL certificates for outbound HTTPS requests."""
+    global VERIFY_SSL
+    VERIFY_SSL = verify
+
+
 class NoActiveContainerError(Exception):
     """Exception for no active containers."""
     def __init__(
@@ -79,7 +105,7 @@ class K8sContainer:
     def get_url(self) -> Optional[str]:
         if self.ip is None or self.port is None:
             return None
-        return f"http://{self.ip}:{self.port}"
+        return f"{SERVICE_SCHEME}://{self.ip}:{self.port}"
 
     def is_active(self) -> bool:
         if self.status is None:
@@ -365,7 +391,7 @@ async def get_k8s_pods(
                     for container_port in container.ports:
                         if pod_ip and container_port and container_port.container_port:
                             # Assumes one open port per container
-                            url = f"http://{pod_ip}:{container_port.container_port}"
+                            url = f"{SERVICE_SCHEME}://{pod_ip}:{container_port.container_port}"
                 ret.append({
                     "namespace": namespace,
                     "pod_name": pod_name,
@@ -401,7 +427,7 @@ async def get_k8s_load_balancers(
                 spec_port = service.spec.ports[0]
                 external_url = None
                 if external_ip and spec_port:
-                    external_url = f"http://{external_ip}:{spec_port.port}"
+                    external_url = f"{SERVICE_SCHEME}://{external_ip}:{spec_port.port}"
                 lb_info = {
                     "namespace": service.metadata.namespace,
                     "svc_name": service.metadata.name,

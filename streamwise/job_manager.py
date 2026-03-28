@@ -42,7 +42,7 @@ async def submit_job(
         if not payload_json:
             return jsonify({"error": "No job data provided"}), HTTPStatus.BAD_REQUEST
 
-        url = f"http://{container_ip}:{container_port}/{service_name}"
+        url = f"{http_session_manager.SERVICE_SCHEME}://{container_ip}:{container_port}/{service_name}"
         session = await http_session_manager.get_global_session()
         async with session.post(url, json=payload_json, headers=JSON_HEADER, timeout=GENERATION_TIMEOUT) as response:
             content_type = response.headers.get("Content-Type", "application/octet-stream")
