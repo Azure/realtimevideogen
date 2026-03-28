@@ -1,0 +1,43 @@
+# cert-manager Certificate resource – requests a CA-signed TLS certificate
+# from Let's Encrypt for the cluster's public FQDN.
+#
+# Prerequisites:
+#   - cert-manager installed and ClusterIssuers applied
+#     (see deployment/k8s/cert-manager-issuer.yaml)
+#   - PUBLIC_FQDN exported (e.g. streamwise-abc123.eastus.cloudapp.azure.com)
+#
+# Usage:
+#   envsubst < deployment/k8s/streamwise-certificate.yaml | kubectl apply -f -
+#
+# After applying, cert-manager will:
+#   1. Create an ACME HTTP-01 solver pod + service on port 80.
+#   2. Complete the Let's Encrypt domain validation.
+#   3. Store the signed certificate and private key in the Kubernetes TLS
+#      secret "streamwise-tls-secret" in namespace "rtgen".
+#   4. Automatically renew the certificate 30 days before it expires.
+#
+# The pods (streamwise, streamcast) mount this secret at /certs/ and
+# run_httpserver.bash enables HTTPS automatically.
+#
+# Staging vs production:
+#   Switch issuerRef.name to "letsencrypt-staging" during initial testing to
+#   avoid hitting Let's Encrypt rate limits.  Staging certificates are NOT
+#   trusted by browsers but the issuance process is identical.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: streamwise-tls
+  namespace: rtgen
+spec:
+  # Secret name must match the volume secretName in the pod YAMLs.
+  secretName: streamwise-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  # Renew 30 days before expiry (Let's Encrypt certs are valid for 90 days).
+  # Renewing with 30 days' notice gives ample time for retries if the renewal
+  # attempt temporarily fails.  Adjust this value if your policy requires earlier renewal.
+  renewBefore: 720h
+  dnsNames:
+  - ${PUBLIC_FQDN}
