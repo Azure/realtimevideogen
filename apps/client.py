@@ -241,7 +241,7 @@ class ServiceRequestWorker:
             limit_per_host=10,
             use_dns_cache=True,
             force_close=True,
-            ssl=None if k8s_utils.VERIFY_SSL else False)
+            ssl=k8s_utils.VERIFY_SSL)
         self.session: Optional[ClientSession] = ClientSession(
             connector=connector,
             timeout=SERVICE_LONG_TIMEOUT)

@@ -43,7 +43,7 @@ def create_client_session_instance() -> ClientSession:
         limit=100,
         limit_per_host=10,
         use_dns_cache=True,
-        ssl=None if VERIFY_SSL else False)
+        ssl=VERIFY_SSL)
     timeout = ClientTimeout(
         total=0.5,
         connect=0.5)
