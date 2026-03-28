@@ -25,10 +25,10 @@ shift
 CERT_ARGS=()
 if [[ -f "/certs/tls.crt" ]] && [[ -f "/certs/tls.key" ]]; then
     echo "HTTPS enabled: /certs/tls.crt"
-    CERT_ARGS=(--certfile /certs/tls.crt --keyfile /certs/tls.key)
+    CERT_ARGS=(--certfile /certs/tls.crt --keyfile /certs/tls.key --use-https)
 elif [[ -f "/certs/cert.pem" ]] && [[ -f "/certs/key.pem" ]]; then
     echo "HTTPS enabled: /certs/cert.pem"
-    CERT_ARGS=(--certfile /certs/cert.pem --keyfile /certs/key.pem)
+    CERT_ARGS=(--certfile /certs/cert.pem --keyfile /certs/key.pem --use-https)
 fi
 
 python3 -u "$APP_NAME.py" \
