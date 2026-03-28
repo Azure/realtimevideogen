@@ -38,7 +38,7 @@ The Bicep template ([aks.bicep](aks.bicep)) provisions:
 - A **full-GPU spot node pool** (e.g., `spoth100`): all GPUs in standard mode; for heavy models (Wan, Flux, Gemma, etc.) — starts at 0 nodes
 - A **MIG spot node pool** (e.g., `spoth100mig`): same VM size but designated for mixed-mode use — 7 standard GPUs + 1 MIG-partitioned GPU for lightweight services — starts at 0 nodes
 - A static public IP (`aks-pods-public-ip`) for LoadBalancer services
-- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on NodePort range 30000–32767 (the port range Kubernetes uses for `LoadBalancer`-type Services), attached to the node subnet so that LoadBalancer services are reachable from the Internet
+- A Network Security Group (`aks-node-subnet-nsg`) allowing inbound TCP on ports 8000–9000, attached to the node subnet so that LoadBalancer services are reachable from the Internet
 - ACR attachment via role assignment
 
 Separate node pools are needed because MIG mode is configured per node: putting the MIG node in its own pool prevents MIG changes on one VMSS instance from affecting the full-GPU instances.
@@ -81,6 +81,8 @@ Some available GPU VM sizes:
 > If the ACR role assignment fails (e.g. on redeployment), the cluster itself will still be created successfully.
 > Attach the ACR manually with:
 > `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
+
+> **Note:** HTTPS/TLS is enabled by default (`enableSecureSetup=true`). To skip the secure setup (e.g. for quick testing without HTTPS), add `enableSecureSetup=false` to the deployment parameters.
 
 After deployment, retrieve the outputs and get cluster credentials:
 ```bash

@@ -66,6 +66,12 @@ param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
 @description('Name of the self-signed TLS certificate stored in Key Vault.')
 param tlsCertificateName string = 'streamwise-tls'
 
+// When true, provisions Azure Key Vault, a self-signed TLS certificate, enables
+// the Secrets Store CSI Driver addon with OIDC issuer + workload identity, and
+// grants the CSI addon identity read access to Key Vault.  Set to false to
+// skip the entire secure setup (e.g. for quick testing without HTTPS).
+param enableSecureSetup bool = true
+
 
 // ---------------------------------------------------------------------------
 // Public IP – used by Kubernetes LoadBalancer services (StreamWise, StreamCast)
@@ -137,7 +143,7 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
   properties: {
     securityRules: [
       {
-        name: 'AllowK8sNodePortsInbound'
+        name: 'AllowServicePortsInbound'
         properties: {
           priority: 100
           direction: 'Inbound'
@@ -145,12 +151,8 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
           protocol: 'Tcp'
           sourcePortRange: '*'
           sourceAddressPrefix: 'Internet'
-          // Azure evaluates subnet NSG rules AFTER the Load Balancer performs
-          // DNAT, so the destination is the node's private IP (not the public
-          // Load Balancer IP). Kubernetes assigns NodePorts in the 30000-32767
-          // range for LoadBalancer-type Services.
-          destinationAddressPrefix: 'VirtualNetwork'
-          destinationPortRange: '30000-32767'
+          destinationAddressPrefix: publicIp.properties.ipAddress
+          destinationPortRange: '8000-9000'
         }
       }
     ]
@@ -210,8 +212,9 @@ var networkProfile = disableDefaultOutboundAccess ? {
 // Azure Key Vault – stores the TLS certificate used by StreamWise and apps.
 // RBAC authorization is used so that the AKS kubelet identity can read
 // certificates and secrets without a legacy access policy.
+// Only provisioned when enableSecureSetup is true.
 // ---------------------------------------------------------------------------
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (enableSecureSetup) {
   name: keyVaultName
   location: location
   properties: {
@@ -229,7 +232,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 // Self-signed TLS certificate.  Azure Key Vault generates and stores the
 // certificate with PEM encoding; the private key is exported alongside the
 // certificate so the Secrets Store CSI Driver can mount both.
-resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = {
+// Only provisioned when enableSecureSetup is true.
+resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = if (enableSecureSetup) {
   parent: keyVault
   name: tlsCertificateName
   properties: {
@@ -300,7 +304,8 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
     networkProfile: networkProfile
     // Enable the Secrets Store CSI Driver with Azure Key Vault provider so
     // that pods can mount Key Vault certificates directly as volume files.
-    addonProfiles: {
+    // Only enabled when enableSecureSetup is true.
+    addonProfiles: enableSecureSetup ? {
       azureKeyvaultSecretsProvider: {
         enabled: true
         config: {
@@ -308,18 +313,19 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
           rotationPollInterval: '2m'
         }
       }
-    }
+    } : {}
     // Enable OIDC issuer and workload identity so that the Secrets Store CSI
     // Driver can authenticate to Azure Key Vault using the addon's managed
     // identity via the clientID field in SecretProviderClass.
-    oidcIssuerProfile: {
+    // Only enabled when enableSecureSetup is true.
+    oidcIssuerProfile: enableSecureSetup ? {
       enabled: true
-    }
-    securityProfile: {
+    } : null
+    securityProfile: enableSecureSetup ? {
       workloadIdentity: {
         enabled: true
       }
-    }
+    } : null
   }
 }
 
@@ -423,6 +429,8 @@ resource networkContributorAssignment 'Microsoft.Authorization/roleAssignments@2
 //
 //   Key Vault Secrets User  (4633458b-…) – read secrets (PEM bundle + key)
 //   Key Vault Certificate User (db79e9a7-…) – read certificate public part
+//
+// Only provisioned when enableSecureSetup is true.
 // ---------------------------------------------------------------------------
 var kvSecretsUserRoleId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
@@ -434,7 +442,7 @@ var kvCertificateUserRoleId = subscriptionResourceId(
   'db79e9a7-68ee-4b58-9aeb-b90e7c24fcba'
 )
 
-resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableSecureSetup) {
   scope: keyVault
   name: guid(keyVault.id, aksCluster.id, kvSecretsUserRoleId)
   properties: {
@@ -444,7 +452,7 @@ resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-0
   }
 }
 
-resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource kvCertificateUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableSecureSetup) {
   scope: keyVault
   name: guid(keyVault.id, aksCluster.id, kvCertificateUserRoleId)
   properties: {
@@ -462,7 +470,7 @@ output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
 output gpuNodePoolName string = gpuNodePool.name
 output gpuMigNodePoolName string = gpuMigNodePool.name
-output keyVaultName string = keyVault.name
-output tlsCertificateName string = tlsCertificate.name
-output csiAddonClientId string = aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.clientId
+output keyVaultName string = enableSecureSetup ? keyVault.name : ''
+output tlsCertificateName string = enableSecureSetup ? tlsCertificate.name : ''
+output csiAddonClientId string = enableSecureSetup ? aksCluster.properties.addonProfiles.azureKeyvaultSecretsProvider.identity.clientId : ''
 output tenantId string = subscription().tenantId
