@@ -230,7 +230,7 @@ resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDef
 // Subnet ID used by both node pools when disableDefaultOutboundAccess is true.
 // Evaluates to null (property omitted) when the custom VNet is not provisioned.
 // ---------------------------------------------------------------------------
-var nodeSubnetId = disableDefaultOutboundAccess ? aksVnet.properties.subnets[0].id : null
+var nodeSubnetId = disableDefaultOutboundAccess ? any(aksVnet).properties.subnets[0].id : null
 
 // When disableDefaultOutboundAccess is false, networkProfile is null so it is
 // omitted from the ARM template and AKS uses its default settings
@@ -269,6 +269,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (enableSecureSetup
 //   b) Follow the manual guide in deployment/k8s/certs.md, or
 //   c) Import a PEM/PFX file: az keyvault certificate import ...
 // Only provisioned when enableSecureSetup is true.
+#disable-next-line BCP081
 resource tlsCertificate 'Microsoft.KeyVault/vaults/certificates@2023-07-01' = if (enableSecureSetup) {
   parent: keyVault
   name: tlsCertificateName
@@ -520,7 +521,6 @@ var mcResourceGroup = 'MC_${resourceGroup().name}_${clusterName}_${location}'
 module csiAddonFederatedCreds '../bicep/csi-federated-credentials.bicep' = if (enableSecureSetup) {
   name: 'csi-addon-federated-creds'
   scope: resourceGroup(mcResourceGroup)
-  dependsOn: [aksCluster]
   params: {
     clusterName: clusterName
     // Guard with the same flag so the expression is only evaluated when
