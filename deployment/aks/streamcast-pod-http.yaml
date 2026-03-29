@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: streamcast
+  namespace: rtgen
+  labels:
+    app: streamcast
+spec:
+  containers:
+  - name: streamcast
+    image: ${ACR_URL}/streamcast:v0.5.0
+    ports:
+    - containerPort: 18080
+      protocol: TCP
+    env:
+    - name: HUGGING_FACE_HUB_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: hf-token
+          key: token
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: none
+    resources:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+        ephemeral-storage: "16Gi"
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+        ephemeral-storage: "32Gi"
+  imagePullSecrets:
+  - name: acr-secret
+  nodeSelector:
+    kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+  affinity: {}
+  tolerations: []
+  serviceAccountName: streamwiseapp-service-account
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamcast-svc
+  namespace: rtgen
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: ${RESOURCE_GROUP_NAME}
+spec:
+  type: LoadBalancer
+  loadBalancerIP: ${LOAD_BALANCER_IP}
+  selector:
+    app: streamcast
+  ports:
+  - port: 8080
+    targetPort: 18080
+    protocol: TCP

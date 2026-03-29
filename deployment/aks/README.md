@@ -173,26 +173,39 @@ kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 ### 2.4 HTTPS / TLS Certificates (optional)
 
 By default the cluster runs **without TLS** (HTTP only).
-To enable HTTPS, first deploy with `enableSecureSetup=true` (see the optional note in Step 1).
-This provisions an Azure Key Vault with a self-signed fallback certificate and opens port 80 on the NSG for ACME challenges.
+There are two approaches to enable HTTPS:
 
-**Automated:** After deploying with `enableSecureSetup=true` and the pods (Steps 3–4), run:
+#### Option A: Azure Front Door (Recommended)
 
-```bash
-export LETSENCRYPT_EMAIL=your@email.com   # REQUIRED: monitored address for expiry notices
-export PUBLIC_FQDN                        # set from Step 1 TLS outputs
-export LOAD_BALANCER_IP=$IP_ADDRESS
-export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
+Azure Front Door provides browser-trusted HTTPS with a managed certificate on the \*.azurefd.net\ domain.
+No cert-manager, Key Vault, or Let's Encrypt needed.  Works on all Azure subscriptions including those with NRMS restrictions.
 
-bash deployment/aks/setup-letsencrypt.sh
-```
+Use the dedicated Bicep template:
 
-This installs cert-manager, the nginx-ingress controller, creates Let's Encrypt ClusterIssuers,
-requests the certificate, and restarts the pods — all in one step.  After completion, `https://$PUBLIC_FQDN:8081` will serve a browser-trusted certificate with no warnings.
+\\ash
+az deployment group create \\
+  --resource-group \ \\
+  --template-file deployment/aks/aks-frontdoor.bicep \\
+  --parameters acrName=\ acrResourceGroup=\
+This deploys AKS + Front Door in one step.  Deploy pods using the HTTP-only YAML variants:
 
-> **Tip:** `quick-deploy.sh` handles this automatically when `ENABLE_SECURE=true` and `LETSENCRYPT_EMAIL` is set.
+\\ash
+envsubst < deployment/aks/streamwise-pod-http.yaml | kubectl apply -f -
+envsubst < deployment/aks/streamcast-pod-http.yaml | kubectl apply -f -
+\
+The deployment outputs the Front Door URLs (e.g. \https://streamwise-xxx.azurefd.net\).
 
-**Manual:** See [HTTPS / TLS Certificates](../k8s/certs.md) for step-by-step instructions (useful for troubleshooting or custom setups).
+#### Option B: Self-signed certificate (pod-level TLS)
+
+Deploy with \nableSecureSetup=true\ to provision an Azure Key Vault with a self-signed certificate.
+Pods serve HTTPS directly via the TLS secret.  Browsers will show a certificate warning.
+
+> **Note:** Let's Encrypt CA-signed certificates require port 80 reachable from the public Internet.
+> Corporate Azure subscriptions with NRMS rules block this at the platform level.
+> Use Option A (Front Door) instead for browser-trusted HTTPS on corporate subscriptions.
+
+**Manual cert setup:** See [HTTPS / TLS Certificates](../k8s/certs.md) for step-by-step instructions.
+
 
 ## Step 3: Deploy StreamWise (Cluster Manager)
 

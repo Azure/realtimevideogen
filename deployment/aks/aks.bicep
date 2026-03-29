@@ -66,20 +66,20 @@ param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
 @description('Name of the TLS certificate stored in Key Vault (used as a fallback or for manual cert import).')
 param tlsCertificateName string = 'streamwise-tls'
 
-// When true, provisions Azure Key Vault, a self-signed TLS certificate (as a
-// bootstrap fallback), enables the Secrets Store CSI Driver addon with OIDC
-// issuer + workload identity, opens port 80 for ACME HTTP-01 challenges, and
-// grants the CSI addon identity read access to Key Vault.
-// For browser-trusted HTTPS, run deployment/aks/setup-letsencrypt.sh after
-// cluster deployment to replace the self-signed cert with a CA-signed
-// Let's Encrypt certificate (or set LETSENCRYPT_EMAIL in quick-deploy.sh).
+// When true, provisions Azure Key Vault, a self-signed TLS certificate,
+// enables the Secrets Store CSI Driver addon with OIDC issuer + workload
+// identity, and grants the CSI addon identity read access to Key Vault.
+//
+// For browser-trusted HTTPS on corporate subscriptions (where Let's Encrypt
+// is blocked by NRMS rules), use Azure Front Door instead — see
+// aks-frontdoor.bicep for a turnkey deployment with managed HTTPS.
 param enableSecureSetup bool = false
 
 @description('''DNS label prefix applied to the pods public IP address.
-The resulting FQDN (<dnsLabelPrefix>.<region>.cloudapp.azure.com) is required for
-cert-manager / Let\'s Encrypt CA-signed certificates.
+The resulting FQDN (<dnsLabelPrefix>.<region>.cloudapp.azure.com) can be
+used as a friendly hostname for the cluster services.
 Defaults to a unique, stable label derived from the resource-group ID.
-Set to an empty string to omit the DNS label (self-signed cert only).''')
+Set to an empty string to omit the DNS label.''')
 param dnsLabelPrefix string = 'streamwise-${take(uniqueString(resourceGroup().id), 6)}'
 
 
