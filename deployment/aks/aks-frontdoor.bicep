@@ -1,19 +1,24 @@
-// aks-frontdoor.bicep — AKS cluster + Azure Front Door (managed HTTPS).
-//
-// Deploys a lightweight AKS cluster (system node pool only, no GPUs) behind
-// Azure Front Door Standard.  Front Door provides browser-trusted HTTPS via
-// its managed certificate on the *.azurefd.net domain — no Let's Encrypt,
-// Key Vault, or cert-manager needed.
+// aks-frontdoor.bicep — AKS cluster + Azure Front Door Premium (managed HTTPS
+// via Private Link, bypasses NRMS restrictions).
 //
 // Architecture:
-//   Client  ──HTTPS──▶  Front Door (*.azurefd.net, managed cert)
+//   Client  ──HTTPS──▶  Front Door Premium (*.azurefd.net, managed cert)
 //                          │
-//                          │  HTTP (forwardingProtocol: HttpOnly)
+//                          │  Private Link (Azure backbone — no public inbound)
 //                          ▼
-//                       AKS LoadBalancer (public IP, ports 8080 / 8081)
+//                       Private Link Service
+//                          │
+//                          ▼
+//                       AKS Internal Load Balancer (HTTP)
 //                          │
 //                          ▼
 //                       Pods: StreamWise (:18181), StreamCast (:18080)
+//
+// This Bicep deploys Phase 1 (AKS cluster + networking).
+// After deploying pods, run the companion script to create the Private Link
+// Service and Front Door Premium (Phase 2):
+//
+//   bash deployment/aks/setup-frontdoor.sh
 //
 // Usage:
 //   az deployment group create \
@@ -51,8 +56,8 @@ param vnetAddressPrefix string = '10.10.0.0/16'
 @description('Address prefix for the AKS node subnet.')
 param subnetAddressPrefix string = '10.10.0.0/24'
 
-@description('Name of the Front Door profile.')
-param frontDoorName string = 'afd-${take(uniqueString(resourceGroup().id), 10)}'
+@description('Address prefix for the Private Link Service subnet.')
+param plsSubnetAddressPrefix string = '10.10.1.0/24'
 
 
 // ---------------------------------------------------------------------------
@@ -200,6 +205,20 @@ resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDef
           }
         }
       }
+      {
+        // Dedicated subnet for Private Link Service.
+        // privateLinkServiceNetworkPolicies must be Disabled so that
+        // PLS resources can be created in this subnet.
+        name: 'pls-subnet'
+        properties: {
+          addressPrefix: plsSubnetAddressPrefix
+          privateLinkServiceNetworkPolicies: 'Disabled'
+          defaultOutboundAccess: false
+          natGateway: {
+            id: natGateway.id
+          }
+        }
+      }
     ]
   }
 }
@@ -268,150 +287,10 @@ resource networkContributorAssignment 'Microsoft.Authorization/roleAssignments@2
 
 
 // ---------------------------------------------------------------------------
-// Azure Front Door Standard – managed HTTPS on *.azurefd.net
-//
-// Two endpoints (streamwise, streamcast) each route HTTPS to the AKS
-// LoadBalancer origin on the appropriate HTTP port.
-// ---------------------------------------------------------------------------
-resource frontDoor 'Microsoft.Cdn/profiles@2024-09-01' = {
-  name: frontDoorName
-  location: 'global'
-  sku: {
-    name: 'Standard_AzureFrontDoor'
-  }
-}
-
-// -- StreamWise endpoint (port 8081) --
-resource streamwiseEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-09-01' = {
-  parent: frontDoor
-  name: 'streamwise'
-  location: 'global'
-}
-
-resource streamwiseOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-09-01' = {
-  parent: frontDoor
-  name: 'streamwise-origin-group'
-  properties: {
-    healthProbeSettings: {
-      probePath: '/health'
-      probeProtocol: 'Http'
-      probeIntervalInSeconds: 30
-      probeRequestType: 'GET'
-    }
-    loadBalancingSettings: {
-      sampleSize: 4
-      successfulSamplesRequired: 3
-      additionalLatencyInMilliseconds: 50
-    }
-  }
-}
-
-resource streamwiseOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-09-01' = {
-  parent: streamwiseOriginGroup
-  name: 'aks-streamwise'
-  properties: {
-    hostName: publicIp.properties.ipAddress
-    httpPort: 8081
-    httpsPort: 443
-    originHostHeader: publicIp.properties.ipAddress
-    priority: 1
-    weight: 1000
-    enforceCertificateNameCheck: false
-  }
-}
-
-resource streamwiseRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-09-01' = {
-  parent: streamwiseEndpoint
-  name: 'streamwise-route'
-  properties: {
-    originGroup: {
-      id: streamwiseOriginGroup.id
-    }
-    supportedProtocols: [
-      'Http'
-      'Https'
-    ]
-    patternsToMatch: [
-      '/*'
-    ]
-    forwardingProtocol: 'HttpOnly'
-    httpsRedirect: 'Enabled'
-    linkToDefaultDomain: 'Enabled'
-  }
-  dependsOn: [
-    streamwiseOrigin
-  ]
-}
-
-// -- StreamCast endpoint (port 8080) --
-resource streamcastEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-09-01' = {
-  parent: frontDoor
-  name: 'streamcast'
-  location: 'global'
-}
-
-resource streamcastOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-09-01' = {
-  parent: frontDoor
-  name: 'streamcast-origin-group'
-  properties: {
-    healthProbeSettings: {
-      probePath: '/health'
-      probeProtocol: 'Http'
-      probeIntervalInSeconds: 30
-      probeRequestType: 'GET'
-    }
-    loadBalancingSettings: {
-      sampleSize: 4
-      successfulSamplesRequired: 3
-      additionalLatencyInMilliseconds: 50
-    }
-  }
-}
-
-resource streamcastOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-09-01' = {
-  parent: streamcastOriginGroup
-  name: 'aks-streamcast'
-  properties: {
-    hostName: publicIp.properties.ipAddress
-    httpPort: 8080
-    httpsPort: 443
-    originHostHeader: publicIp.properties.ipAddress
-    priority: 1
-    weight: 1000
-    enforceCertificateNameCheck: false
-  }
-}
-
-resource streamcastRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-09-01' = {
-  parent: streamcastEndpoint
-  name: 'streamcast-route'
-  properties: {
-    originGroup: {
-      id: streamcastOriginGroup.id
-    }
-    supportedProtocols: [
-      'Http'
-      'Https'
-    ]
-    patternsToMatch: [
-      '/*'
-    ]
-    forwardingProtocol: 'HttpOnly'
-    httpsRedirect: 'Enabled'
-    linkToDefaultDomain: 'Enabled'
-  }
-  dependsOn: [
-    streamcastOrigin
-  ]
-}
-
-
-// ---------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------
 output clusterName string = aksCluster.name
 output publicIpAddress string = publicIp.properties.ipAddress
 output publicIpName string = publicIp.name
-output frontDoorName string = frontDoor.name
-output streamwiseUrl string = 'https://${streamwiseEndpoint.properties.hostName}'
-output streamcastUrl string = 'https://${streamcastEndpoint.properties.hostName}'
+output plsSubnetId string = disableDefaultOutboundAccess ? '${aksVnet.id}/subnets/pls-subnet' : ''
+output vnetName string = disableDefaultOutboundAccess ? aksVnet.name : ''
