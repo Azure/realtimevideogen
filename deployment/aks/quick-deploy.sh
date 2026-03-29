@@ -19,11 +19,22 @@ export MIG_POOL="spota100mig"
 export ENABLE_SECURE="false"
 # CA-signed cert: set LETSENCRYPT_EMAIL when ENABLE_SECURE=true to obtain a
 # browser-trusted Let's Encrypt certificate automatically.
+# NOTE: Let's Encrypt requires port 80 reachable from the public Internet.
+# Corporate Azure subscriptions with NRMS rules may block this — the script
+# will fall back to a self-signed certificate automatically.
 export LETSENCRYPT_EMAIL=""                    # e.g. "team@example.com"
 # ────────────────────────────────────────────────────────────────────────
 
 # shellcheck source=deployment/set_properties.sh.template
 source deployment/set_properties.sh  # loads ACR_URL etc.
+
+# Pre-flight: check required tools
+for cmd in az kubectl envsubst openssl; do
+  command -v "$cmd" &>/dev/null || { echo "ERROR: '$cmd' not found. Install it first."; exit 1; }
+done
+if [ "$ENABLE_SECURE" = "true" ] && [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+  command -v helm &>/dev/null || { echo "ERROR: 'helm' required for Let's Encrypt. Install: https://helm.sh/docs/intro/install/"; exit 1; }
+fi
 
 # 1. Create RG & deploy AKS cluster
 az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
@@ -40,11 +51,30 @@ az deployment group create \
     gpuMigNodeCount=1 \
     acrName=$ACR_NAME \
     acrResourceGroup=$ACR_RG \
-    enableSecureSetup=$ENABLE_SECURE
+    enableSecureSetup=$ENABLE_SECURE \
+  || {
+    # Known non-fatal failures:
+    #   - ACR role assignment: "RoleAssignmentUpdateNotPermitted" (redeployment)
+    #   - Federated creds: "ConcurrentFederatedIdentityCredentialsWrites" (race)
+    # The AKS cluster itself is created successfully in both cases.
+    echo ">>> Bicep reported errors (cluster may still be OK — checking...)"
+    if ! az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv &>/dev/null; then
+      echo "ERROR: AKS cluster was not created. Check the deployment errors above."
+      exit 1
+    fi
+    echo ">>> AKS cluster exists — continuing with manual fixups."
+  }
 
-# If ACR role assignment failed (redeployment), attach manually:
-az aks update -g $AZ_RESOURCE_GROUP -n "$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)" \
-  --attach-acr $ACR_NAME || true
+# If ACR role assignment failed (redeployment), attach manually.
+# Retry in a loop in case an AKS operation is still in progress (node pool scaling).
+for attempt in 1 2 3 4 5; do
+  if az aks update -g $AZ_RESOURCE_GROUP -n "$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)" \
+    --attach-acr $ACR_NAME 2>/dev/null; then
+    break
+  fi
+  echo ">>> ACR attach attempt $attempt failed (likely in-progress operation) — retrying in 30s..."
+  sleep 30
+done
 
 # 2. Retrieve outputs
 AKS_CLUSTER=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROUP \
@@ -82,15 +112,28 @@ if [ "$ENABLE_SECURE" = "true" ]; then
   fi
   # Try Key Vault first; fall back to openssl-generated self-signed cert if the KV
   # cert was not created (e.g. partial Bicep failure or concurrent write race).
-  if az keyvault certificate show --vault-name "$KEY_VAULT_NAME" --name streamwise-tls &>/dev/null; then
+  # The KV cert may still be generating — wait up to 2 minutes.
+  KV_CERT_READY="false"
+  for i in $(seq 1 24); do
+    if az keyvault certificate show --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --query attributes.enabled -o tsv 2>/dev/null | grep -q true; then
+      KV_CERT_READY="true"
+      break
+    fi
+    echo ">>> Waiting for KV cert (attempt $i/24)..."
+    sleep 5
+  done
+
+  if [ "$KV_CERT_READY" = "true" ]; then
+    echo ">>> Downloading TLS certificate from Key Vault..."
     az keyvault certificate download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls --encoding PEM -f /tmp/tls.crt
     az keyvault secret download --vault-name "$KEY_VAULT_NAME" --name streamwise-tls -f /tmp/bundle.pem
     openssl pkey -in /tmp/bundle.pem -out /tmp/tls.key
   else
-    echo ">>> Key Vault cert not found — generating self-signed cert with openssl."
+    echo ">>> Key Vault cert not ready — generating self-signed cert with openssl."
+    CERT_CN="${PUBLIC_FQDN:-streamwise}"
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
       -keyout /tmp/tls.key -out /tmp/tls.crt \
-      -subj "/CN=$PUBLIC_FQDN" -addext "subjectAltName=DNS:$PUBLIC_FQDN"
+      -subj "/CN=$CERT_CN" -addext "subjectAltName=DNS:$CERT_CN"
   fi
   kubectl create secret tls streamwise-tls-secret -n "$K8S_NAMESPACE" --cert=/tmp/tls.crt --key=/tmp/tls.key \
     --dry-run=client -o yaml | kubectl apply -f -
@@ -147,7 +190,17 @@ kubectl delete pod gpu-debug --ignore-not-found
 # 9. CA-signed certificate (only when ENABLE_SECURE=true and LETSENCRYPT_EMAIL is set)
 if [ "$ENABLE_SECURE" = "true" ] && [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
   echo ">>> Setting up Let's Encrypt CA-signed certificate..."
-  bash deployment/aks/setup-letsencrypt.sh
+  if bash deployment/aks/setup-letsencrypt.sh; then
+    echo ">>> Let's Encrypt setup succeeded."
+    # Redeploy pods to pick up the new cert (setup-letsencrypt.sh deletes them)
+    envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
+    envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
+    kubectl wait --for=condition=Ready pod/streamwise pod/streamcast -n "$K8S_NAMESPACE" --timeout=300s
+  else
+    echo ">>> Let's Encrypt failed (common on corporate subscriptions with NRMS rules"
+    echo "    that block port 80 from the Internet). Continuing with self-signed cert."
+    echo "    To retry later: bash deployment/aks/setup-letsencrypt.sh"
+  fi
 fi
 
 echo "==========================================="
@@ -155,10 +208,14 @@ echo "Deployment complete!"
 if [ "$ENABLE_SECURE" = "true" ]; then
   echo "StreamWise: https://$PUBLIC_FQDN:8081"
   echo "StreamCast: https://$PUBLIC_FQDN:8080"
-  if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+  # Check if the cert is CA-signed or self-signed
+  CERT_ISSUER=$(kubectl get secret streamwise-tls-secret -n "$K8S_NAMESPACE" \
+    -o jsonpath='{.data.tls\.crt}' | base64 -d | openssl x509 -noout -issuer 2>/dev/null || true)
+  if echo "$CERT_ISSUER" | grep -qi "let's encrypt\|R[0-9]\|E[0-9]"; then
     echo "TLS:        CA-signed (Let's Encrypt) — browser-trusted"
   else
-    echo "TLS:        Self-signed (use -k with curl)"
+    echo "TLS:        Self-signed — accept the warning in your browser or use curl -k"
+    echo "            To get a CA-signed cert: bash deployment/aks/setup-letsencrypt.sh"
   fi
 else
   echo "StreamWise: http://$IP_ADDRESS:8081"

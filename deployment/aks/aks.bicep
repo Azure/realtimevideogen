@@ -155,6 +155,15 @@ resource natGateway 'Microsoft.Network/natGateways@2023-11-01' = if (disableDefa
 // even when the NIC-level NSG (managed by AKS) allows it.
 // Port 80 is also opened to allow the cert-manager ACME HTTP-01 solver to
 // respond to Let's Encrypt validation challenges for CA-signed certificates.
+//
+// IMPORTANT – NodePort rule:
+// Azure LoadBalancer performs DNAT: inbound traffic on the Service port
+// (e.g. 8081) is translated to the node's private IP + a NodePort
+// (30000–32767).  The subnet NSG evaluates the DNAT'd packet, so a rule
+// matching the public IP on 8000–9000 is not sufficient — we also need a
+// rule allowing TCP 30000–32767 to the VirtualNetwork.  Without this,
+// services are reachable from CorpNet (NRMS-Rule-103 allows everything)
+// but NOT from the public Internet.
 // ---------------------------------------------------------------------------
 resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disableDefaultOutboundAccess) {
   name: 'aks-node-subnet-nsg'
@@ -172,6 +181,23 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
           sourceAddressPrefix: 'Internet'
           destinationAddressPrefix: publicIp.properties.ipAddress
           destinationPortRange: '8000-9000'
+        }
+      }
+      {
+        // Azure LB DNATs inbound traffic to NodePort (30000–32767) on node
+        // private IPs.  The subnet NSG evaluates the post-DNAT packet, so
+        // we must allow the NodePort range to VirtualNetwork for external
+        // (Internet) clients to reach LoadBalancer services.
+        name: 'AllowK8sNodePorts'
+        properties: {
+          priority: 102
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'Internet'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '30000-32767'
         }
       }
       {
