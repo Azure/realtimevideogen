@@ -39,7 +39,7 @@ echo ""
 echo ">>> Deploying StreamWise and StreamCast with internal LoadBalancer..."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
+RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" ACR_URL="$ACR_URL" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
 
 echo ">>> Waiting for pods and internal LB IPs..."
 kubectl wait --for=condition=Ready pod/streamwise pod/streamcast -n "$K8S_NAMESPACE" --timeout=300s
