@@ -31,6 +31,8 @@ spec:
       value: none
     - name: LB_RESOURCE_GROUP
       value: ${RESOURCE_GROUP_NAME}
+    - name: LB_IP_ADDRESS
+      value: "${LB_IP_ADDRESS}"
     resources:
       requests:
         cpu: "2"

@@ -39,7 +39,7 @@ echo ""
 echo ">>> Deploying StreamWise and StreamCast with internal LoadBalancer..."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-K8S_NAMESPACE="$K8S_NAMESPACE" RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" ACR_URL="$ACR_URL" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
+LB_IP_ADDRESS="" K8S_NAMESPACE="$K8S_NAMESPACE" RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" ACR_URL="$ACR_URL" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
 
 echo ">>> Waiting for pods and internal LB IPs..."
 kubectl wait --for=condition=Ready pod/streamwise pod/streamcast -n "$K8S_NAMESPACE" --timeout=300s
@@ -179,6 +179,14 @@ SW_URL=$(az afd endpoint show --profile-name "$AFD_NAME" -g "$AZ_RESOURCE_GROUP"
   --endpoint-name streamwise --query hostName -o tsv)
 SC_URL=$(az afd endpoint show --profile-name "$AFD_NAME" -g "$AZ_RESOURCE_GROUP" \
   --endpoint-name streamcast --query hostName -o tsv)
+
+# -- 6. Update StreamWise with the Front Door hostname -----------------------
+# Set LB_IP_ADDRESS so the StreamWise UI shows the correct public endpoint.
+echo ">>> Updating StreamWise with Front Door hostname ($SW_URL)..."
+kubectl delete pod streamwise -n "$K8S_NAMESPACE" --ignore-not-found
+LB_IP_ADDRESS="$SW_URL" K8S_NAMESPACE="$K8S_NAMESPACE" RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" ACR_URL="$ACR_URL" \
+  envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
+kubectl wait --for=condition=Ready pod/streamwise -n "$K8S_NAMESPACE" --timeout=300s
 
 echo ""
 echo "==========================================="
