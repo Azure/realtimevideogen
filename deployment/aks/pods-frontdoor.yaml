@@ -1,0 +1,114 @@
+# pods-frontdoor.yaml — StreamWise and StreamCast pods with internal
+# LoadBalancer services for Azure Front Door + Private Link setup.
+#
+# The services use an internal (private) Azure Load Balancer so that
+# Front Door reaches the pods through Private Link (Azure backbone) rather
+# than the public Internet, bypassing NRMS restrictions.
+#
+# Deploy after running setup-frontdoor.sh (or call directly):
+#   RESOURCE_GROUP_NAME=<rg> ACR_URL=<acr> envsubst < pods-frontdoor.yaml | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: streamwise
+  namespace: rtgen
+  labels:
+    app: streamwise
+spec:
+  containers:
+  - name: streamwise
+    image: ${ACR_URL}/streamwise:v0.5.0
+    ports:
+    - containerPort: 18181
+      protocol: TCP
+    env:
+    - name: HUGGING_FACE_HUB_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: hf-token
+          key: token
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: none
+    - name: LB_RESOURCE_GROUP
+      value: ${RESOURCE_GROUP_NAME}
+    resources:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+        ephemeral-storage: "16Gi"
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+        ephemeral-storage: "32Gi"
+  nodeSelector:
+    kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+  serviceAccountName: streamwise-service-account
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamwise-svc
+  namespace: rtgen
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: streamwise
+  ports:
+  - port: 8081
+    targetPort: 18181
+    protocol: TCP
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: streamcast
+  namespace: rtgen
+  labels:
+    app: streamcast
+spec:
+  containers:
+  - name: streamcast
+    image: ${ACR_URL}/streamcast:v0.5.0
+    ports:
+    - containerPort: 18080
+      protocol: TCP
+    env:
+    - name: HUGGING_FACE_HUB_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: hf-token
+          key: token
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: none
+    resources:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+        ephemeral-storage: "16Gi"
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+        ephemeral-storage: "32Gi"
+  nodeSelector:
+    kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+  serviceAccountName: streamwiseapp-service-account
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamcast-svc
+  namespace: rtgen
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: streamcast
+  ports:
+  - port: 8080
+    targetPort: 18080
+    protocol: TCP

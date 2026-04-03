@@ -48,6 +48,7 @@ spec:
   - name: tls-cert
     secret:
       secretName: streamwise-tls-secret
+      optional: true
       items:
       - key: tls.crt
         path: tls.crt

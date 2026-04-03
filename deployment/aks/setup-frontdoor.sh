@@ -3,7 +3,7 @@
 # to the AKS internal load balancer.
 #
 # Prerequisites:
-#   - AKS cluster deployed with aks-frontdoor.bicep
+#   - AKS cluster deployed with aks.bicep (enableFrontDoor=true)
 #   - kubectl configured to talk to the cluster
 #   - K8s namespace, HF secret, and service accounts created
 #
@@ -38,117 +38,8 @@ echo ""
 # -- 1. Deploy pods with internal LB services --------------------------------
 echo ">>> Deploying StreamWise and StreamCast with internal LoadBalancer..."
 
-# StreamWise internal LB service
-cat <<'EOF' | RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" LOAD_BALANCER_IP="" ACR_URL="$ACR_URL" envsubst | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: streamwise
-  namespace: rtgen
-  labels:
-    app: streamwise
-spec:
-  containers:
-  - name: streamwise
-    image: ${ACR_URL}/streamwise:v0.5.0
-    ports:
-    - containerPort: 18181
-      protocol: TCP
-    env:
-    - name: HUGGING_FACE_HUB_TOKEN
-      valueFrom:
-        secretKeyRef:
-          name: hf-token
-          key: token
-    - name: NVIDIA_VISIBLE_DEVICES
-      value: none
-    - name: LB_RESOURCE_GROUP
-      value: ${RESOURCE_GROUP_NAME}
-    resources:
-      requests:
-        cpu: "2"
-        memory: "4Gi"
-        ephemeral-storage: "16Gi"
-      limits:
-        cpu: "4"
-        memory: "8Gi"
-        ephemeral-storage: "32Gi"
-  nodeSelector:
-    kubernetes.io/os: linux
-    kubernetes.io/arch: amd64
-  serviceAccountName: streamwise-service-account
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: streamwise-svc
-  namespace: rtgen
-  annotations:
-    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-spec:
-  type: LoadBalancer
-  selector:
-    app: streamwise
-  ports:
-  - port: 8081
-    targetPort: 18181
-    protocol: TCP
-EOF
-
-# StreamCast internal LB service
-cat <<'EOF' | ACR_URL="$ACR_URL" envsubst | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: streamcast
-  namespace: rtgen
-  labels:
-    app: streamcast
-spec:
-  containers:
-  - name: streamcast
-    image: ${ACR_URL}/streamcast:v0.5.0
-    ports:
-    - containerPort: 18080
-      protocol: TCP
-    env:
-    - name: HUGGING_FACE_HUB_TOKEN
-      valueFrom:
-        secretKeyRef:
-          name: hf-token
-          key: token
-    - name: NVIDIA_VISIBLE_DEVICES
-      value: none
-    resources:
-      requests:
-        cpu: "2"
-        memory: "4Gi"
-        ephemeral-storage: "16Gi"
-      limits:
-        cpu: "4"
-        memory: "8Gi"
-        ephemeral-storage: "32Gi"
-  nodeSelector:
-    kubernetes.io/os: linux
-    kubernetes.io/arch: amd64
-  serviceAccountName: streamwiseapp-service-account
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: streamcast-svc
-  namespace: rtgen
-  annotations:
-    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-spec:
-  type: LoadBalancer
-  selector:
-    app: streamcast
-  ports:
-  - port: 8080
-    targetPort: 18080
-    protocol: TCP
-EOF
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
 
 echo ">>> Waiting for pods and internal LB IPs..."
 kubectl wait --for=condition=Ready pod/streamwise pod/streamcast -n "$K8S_NAMESPACE" --timeout=300s

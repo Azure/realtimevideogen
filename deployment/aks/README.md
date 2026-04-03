@@ -177,27 +177,29 @@ There are two approaches to enable HTTPS:
 
 #### Option A: Azure Front Door (Recommended)
 
-Azure Front Door provides browser-trusted HTTPS with a managed certificate on the \*.azurefd.net\ domain.
+Azure Front Door provides browser-trusted HTTPS with a managed certificate on the `*.azurefd.net` domain.
 No cert-manager, Key Vault, or Let's Encrypt needed.  Works on all Azure subscriptions including those with NRMS restrictions.
 
-Use the dedicated Bicep template:
+Deploy the cluster with Front Door support enabled:
 
-\\ash
-az deployment group create \\
-  --resource-group \ \\
-  --template-file deployment/aks/aks-frontdoor.bicep \\
-  --parameters acrName=\ acrResourceGroup=\
-This deploys AKS + Front Door in one step.  Deploy pods using the HTTP-only YAML variants:
+```bash
+az deployment group create \
+  --resource-group <rg> \
+  --template-file deployment/aks/aks.bicep \
+  --parameters acrName=<acr> acrResourceGroup=<acr-rg> enableFrontDoor=true
+```
 
-\\ash
-envsubst < deployment/aks/streamwise-pod-http.yaml | kubectl apply -f -
-envsubst < deployment/aks/streamcast-pod-http.yaml | kubectl apply -f -
-\
-The deployment outputs the Front Door URLs (e.g. \https://streamwise-xxx.azurefd.net\).
+Then deploy pods and create the Private Link Service and Front Door profile:
+
+```bash
+bash deployment/aks/setup-frontdoor.sh
+```
+
+The script outputs the Front Door URLs (e.g. `https://streamwise-xxx.azurefd.net`).
 
 #### Option B: Self-signed certificate (pod-level TLS)
 
-Deploy with \nableSecureSetup=true\ to provision an Azure Key Vault with a self-signed certificate.
+Deploy with `enableSecureSetup=true` to provision an Azure Key Vault with a self-signed certificate.
 Pods serve HTTPS directly via the TLS secret.  Browsers will show a certificate warning.
 
 > **Note:** Let's Encrypt CA-signed certificates require port 80 reachable from the public Internet.

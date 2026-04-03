@@ -71,9 +71,18 @@ param tlsCertificateName string = 'streamwise-tls'
 // identity, and grants the CSI addon identity read access to Key Vault.
 //
 // For browser-trusted HTTPS on corporate subscriptions (where Let's Encrypt
-// is blocked by NRMS rules), use Azure Front Door instead — see
-// aks-frontdoor.bicep for a turnkey deployment with managed HTTPS.
+// is blocked by NRMS rules), use enableFrontDoor instead — it provisions a
+// Private Link Service subnet and an NSG rule for Front Door backend traffic.
 param enableSecureSetup bool = false
+
+// When true, adds a Private Link Service subnet (pls-subnet) to the VNet and
+// an NSG rule allowing Azure Front Door backend traffic.  After deploying the
+// cluster, run deployment/aks/setup-frontdoor.sh to create the Private Link
+// Service and Front Door Premium profile.
+param enableFrontDoor bool = false
+
+@description('Address prefix for the Private Link Service subnet. Only used when enableFrontDoor is true.')
+param plsSubnetAddressPrefix string = '10.10.1.0/24'
 
 @description('''DNS label prefix applied to the pods public IP address.
 The resulting FQDN (<dnsLabelPrefix>.<region>.cloudapp.azure.com) can be
@@ -165,55 +174,79 @@ resource natGateway 'Microsoft.Network/natGateways@2023-11-01' = if (disableDefa
 // services are reachable from CorpNet (NRMS-Rule-103 allows everything)
 // but NOT from the public Internet.
 // ---------------------------------------------------------------------------
+var baseNsgRules = [
+  {
+    name: 'AllowServicePortsInbound'
+    properties: {
+      priority: 100
+      direction: 'Inbound'
+      access: 'Allow'
+      protocol: 'Tcp'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: publicIp.properties.ipAddress
+      destinationPortRange: '8000-9000'
+    }
+  }
+  {
+    // Azure LB DNATs inbound traffic to NodePort (30000–32767) on node
+    // private IPs.  The subnet NSG evaluates the post-DNAT packet, so
+    // we must allow the NodePort range to VirtualNetwork for external
+    // (Internet) clients to reach LoadBalancer services.
+    name: 'AllowK8sNodePorts'
+    properties: {
+      priority: 102
+      direction: 'Inbound'
+      access: 'Allow'
+      protocol: 'Tcp'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: 'VirtualNetwork'
+      destinationPortRange: '30000-32767'
+    }
+  }
+  {
+    name: 'AllowAcmeHttp01Inbound'
+    properties: {
+      priority: 110
+      direction: 'Inbound'
+      access: 'Allow'
+      protocol: 'Tcp'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: publicIp.properties.ipAddress
+      destinationPortRange: '80'
+    }
+  }
+]
+
+// When enableFrontDoor is true, allow Azure Front Door health probes and
+// forwarded requests (originating from AzureFrontDoor.Backend service tag)
+// to reach service ports and K8s NodePorts via Private Link.
+var frontDoorNsgRule = {
+  name: 'AllowFrontDoorBackend'
+  properties: {
+    priority: 112
+    direction: 'Inbound'
+    access: 'Allow'
+    protocol: 'Tcp'
+    sourcePortRange: '*'
+    sourceAddressPrefix: 'AzureFrontDoor.Backend'
+    destinationAddressPrefix: 'VirtualNetwork'
+    destinationPortRanges: [
+      '8080-8081'
+      '30000-32767'
+    ]
+  }
+}
+
+var nsgSecurityRules = enableFrontDoor ? concat(baseNsgRules, [frontDoorNsgRule]) : baseNsgRules
+
 resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disableDefaultOutboundAccess) {
   name: 'aks-node-subnet-nsg'
   location: location
   properties: {
-    securityRules: [
-      {
-        name: 'AllowServicePortsInbound'
-        properties: {
-          priority: 100
-          direction: 'Inbound'
-          access: 'Allow'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          sourceAddressPrefix: 'Internet'
-          destinationAddressPrefix: publicIp.properties.ipAddress
-          destinationPortRange: '8000-9000'
-        }
-      }
-      {
-        // Azure LB DNATs inbound traffic to NodePort (30000–32767) on node
-        // private IPs.  The subnet NSG evaluates the post-DNAT packet, so
-        // we must allow the NodePort range to VirtualNetwork for external
-        // (Internet) clients to reach LoadBalancer services.
-        name: 'AllowK8sNodePorts'
-        properties: {
-          priority: 102
-          direction: 'Inbound'
-          access: 'Allow'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          sourceAddressPrefix: 'Internet'
-          destinationAddressPrefix: 'VirtualNetwork'
-          destinationPortRange: '30000-32767'
-        }
-      }
-      {
-        name: 'AllowAcmeHttp01Inbound'
-        properties: {
-          priority: 110
-          direction: 'Inbound'
-          access: 'Allow'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          sourceAddressPrefix: 'Internet'
-          destinationAddressPrefix: publicIp.properties.ipAddress
-          destinationPortRange: '80'
-        }
-      }
-    ]
+    securityRules: nsgSecurityRules
   }
 }
 
@@ -222,7 +255,40 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
 // The node subnet has defaultOutboundAccess disabled and uses the NAT gateway
 // for controlled outbound connectivity.  The NSG above is attached to the
 // subnet to ensure LoadBalancer service ports are reachable.
+// When enableFrontDoor is true, a dedicated pls-subnet is also added for the
+// Private Link Service resource (privateLinkServiceNetworkPolicies must be
+// Disabled on that subnet).
 // ---------------------------------------------------------------------------
+var nodeSubnetDef = {
+  name: 'aks-node-subnet'
+  properties: {
+    addressPrefix: subnetAddressPrefix
+    // [S360 - SFI-NS2.6.1] disable default outbound access for all subnets
+    defaultOutboundAccess: false
+    natGateway: {
+      id: natGateway.id
+    }
+    networkSecurityGroup: {
+      id: aksNsg.id
+    }
+  }
+}
+
+var plsSubnetDef = {
+  // Dedicated subnet for Private Link Service.
+  // privateLinkServiceNetworkPolicies must be Disabled so that PLS resources
+  // can be created in this subnet.
+  name: 'pls-subnet'
+  properties: {
+    addressPrefix: plsSubnetAddressPrefix
+    privateLinkServiceNetworkPolicies: 'Disabled'
+    defaultOutboundAccess: false
+    natGateway: {
+      id: natGateway.id
+    }
+  }
+}
+
 resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDefaultOutboundAccess) {
   name: 'aks-vnet'
   location: location
@@ -232,22 +298,7 @@ resource aksVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = if (disableDef
         vnetAddressPrefix
       ]
     }
-    subnets: [
-      {
-        name: 'aks-node-subnet'
-        properties: {
-          addressPrefix: subnetAddressPrefix
-          // [S360 - SFI-NS2.6.1] disable default outbound access for all subnets
-          defaultOutboundAccess: false
-          natGateway: {
-            id: natGateway.id
-          }
-          networkSecurityGroup: {
-            id: aksNsg.id
-          }
-        }
-      }
-    ]
+    subnets: enableFrontDoor ? [nodeSubnetDef, plsSubnetDef] : [nodeSubnetDef]
   }
 }
 
@@ -574,3 +625,5 @@ output keyVaultName string = enableSecureSetup ? keyVault.name : ''
 output tlsCertificateName string = enableSecureSetup ? tlsCertificate.name : ''
 output csiAddonClientId string = csiAddonClientIdValue
 output tenantId string = subscription().tenantId
+output vnetName string = disableDefaultOutboundAccess ? aksVnet.name : ''
+output plsSubnetId string = (disableDefaultOutboundAccess && enableFrontDoor) ? '${aksVnet.id}/subnets/pls-subnet' : ''
