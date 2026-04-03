@@ -87,7 +87,7 @@ EOF
 )
 
 # Write policy to temp file
-TMPFILE=$(mktemp /tmp/cert-policy-XXXXXX.json)
+TMPFILE=$(mktemp --suffix=.json)
 echo "$POLICY" > "$TMPFILE"
 
 if az keyvault certificate show \

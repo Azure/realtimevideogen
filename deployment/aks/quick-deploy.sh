@@ -68,11 +68,15 @@ az deployment group create \
 
 # If ACR role assignment failed (redeployment), attach manually.
 # Retry in a loop in case an AKS operation is still in progress (node pool scaling).
-AKS_ATTACH_CLUSTER_NAME="$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)"
+AKS_ATTACH_CLUSTER_NAME="$(az aks list -g "$AZ_RESOURCE_GROUP" --query "[0].name" -o tsv)"
+if [ -z "$AKS_ATTACH_CLUSTER_NAME" ]; then
+  echo "ERROR: Could not determine AKS cluster name for ACR attachment." >&2
+  exit 1
+fi
 acr_attach_succeeded=false
 for attempt in 1 2 3 4 5; do
-  if az aks update -g $AZ_RESOURCE_GROUP -n "$AKS_ATTACH_CLUSTER_NAME" \
-    --attach-acr $ACR_NAME 2>/dev/null; then
+  if az aks update -g "$AZ_RESOURCE_GROUP" -n "$AKS_ATTACH_CLUSTER_NAME" \
+    --attach-acr "$ACR_NAME" 2>/dev/null; then
     acr_attach_succeeded=true
     break
   fi
