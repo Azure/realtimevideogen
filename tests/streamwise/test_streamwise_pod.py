@@ -9,16 +9,17 @@ import urllib.parse
 
 from http import HTTPStatus
 
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock, MagicMock
 
 from tests.test_utils import temp_sys_path
-from tests.k8s_mock import K8sMock
+from tests.k8s_mock import K8sMock, MockApiException
 
 mock_k8s = K8sMock()
 
 mock_modules = {}
 mock_modules.update(mock_k8s.get_sub_modules())
 mock_k8s_client = mock_modules["kubernetes_asyncio.client"]
+mock_custom_api = mock_k8s_client.CustomObjectsApi.return_value
 with patch.dict(sys.modules, mock_modules):
     with temp_sys_path("streamwise"):
         from streamwise import streamwise as sw
@@ -29,6 +30,7 @@ with patch.dict(sys.modules, mock_modules):
         from streamwise.pod_manager import get_llama32_settings
         from streamwise.pod_manager import get_mig_resource_name
         from streamwise.pod_manager import get_tls_cert_settings
+        from streamwise.pod_manager import tls_cert_volume_exists
         from streamwise.pod_manager import MIG_PROFILES
 
 
@@ -36,6 +38,7 @@ with patch.dict(sys.modules, mock_modules):
 def setup_k8s_cluster() -> None:
     # for some reason k8s_config.load_kube_config() is not async mocked
     sw.k8s_cluster = "unittest"
+    sw.use_https = False
 
 
 def test_get_gpu_type_affinity() -> None:
@@ -151,6 +154,99 @@ def test_get_tls_cert_settings() -> None:
         volume_attributes={"secretProviderClass": "streamwise-tls"},
     )
     mock_k8s_client.V1Volume.assert_called_once_with(name="tls-csi", csi=mock_k8s_client.V1CSIVolumeSource.return_value)
+
+
+@pytest.mark.asyncio
+async def test_tls_cert_volume_exists_found() -> None:
+    """tls_cert_volume_exists returns True when the SecretProviderClass is found."""
+    mock_custom_api.get_namespaced_custom_object = AsyncMock(return_value={"metadata": {"name": "streamwise-tls"}})
+    result = await tls_cert_volume_exists("rtgen", "unittest")
+    assert result is True
+    mock_custom_api.get_namespaced_custom_object.assert_called_once_with(
+        group="secrets-store.csi.x-k8s.io",
+        version="v1",
+        namespace="rtgen",
+        plural="secretproviderclasses",
+        name="streamwise-tls"
+    )
+
+
+@pytest.mark.asyncio
+async def test_tls_cert_volume_exists_not_found() -> None:
+    """tls_cert_volume_exists returns False when the SecretProviderClass is absent (404)."""
+    mock_custom_api.get_namespaced_custom_object = AsyncMock(
+        side_effect=MockApiException(status=404, reason="Not Found")
+    )
+    result = await tls_cert_volume_exists("rtgen", "unittest")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_tls_cert_volume_exists_error() -> None:
+    """tls_cert_volume_exists returns False on unexpected errors."""
+    mock_custom_api.get_namespaced_custom_object = AsyncMock(
+        side_effect=Exception("connection refused")
+    )
+    result = await tls_cert_volume_exists("rtgen", "unittest")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_api_add_pod_no_tls_when_use_https_false() -> None:
+    """Pod creation without use_https=True must not call get_tls_cert_settings."""
+    sw.use_https = False
+    with patch.object(sw.pod_manager, "get_tls_cert_settings") as mock_get_tls, \
+         patch.object(sw.pod_manager, "tls_cert_volume_exists", new=AsyncMock(return_value=True)):
+
+        app = sw.app
+        client = app.test_client()
+        form_data = {"container_name": "qwenimageedit"}
+        response = await client.post(
+            "/api/pod",
+            data=urllib.parse.urlencode(form_data),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == HTTPStatus.OK
+        mock_get_tls.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_api_add_pod_tls_added_when_use_https_and_volume_exists() -> None:
+    """Pod creation with use_https=True and existing SecretProviderClass must mount TLS volume."""
+    sw.use_https = True
+    with patch.object(sw.pod_manager, "get_tls_cert_settings") as mock_get_tls, \
+         patch.object(sw.pod_manager, "tls_cert_volume_exists", new=AsyncMock(return_value=True)):
+        mock_get_tls.return_value = (MagicMock(), MagicMock())
+
+        app = sw.app
+        client = app.test_client()
+        form_data = {"container_name": "qwenimageedit"}
+        response = await client.post(
+            "/api/pod",
+            data=urllib.parse.urlencode(form_data),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == HTTPStatus.OK
+        mock_get_tls.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_api_add_pod_no_tls_when_volume_missing() -> None:
+    """Pod creation with use_https=True but missing SecretProviderClass must not mount TLS volume."""
+    sw.use_https = True
+    with patch.object(sw.pod_manager, "get_tls_cert_settings") as mock_get_tls, \
+         patch.object(sw.pod_manager, "tls_cert_volume_exists", new=AsyncMock(return_value=False)):
+
+        app = sw.app
+        client = app.test_client()
+        form_data = {"container_name": "qwenimageedit"}
+        response = await client.post(
+            "/api/pod",
+            data=urllib.parse.urlencode(form_data),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == HTTPStatus.OK
+        mock_get_tls.assert_not_called()
 
 
 @pytest.mark.asyncio

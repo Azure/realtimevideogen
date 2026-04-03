@@ -83,6 +83,9 @@ k8s_cluster = K8S_CLUSTER
 # This needs to be created using deployment/helm/deploy.sh
 NAMESPACE = "rtgen"
 
+# Set to True when the server is started with --certfile (HTTPS mode)
+use_https: bool = False
+
 
 # Template filters
 @template_filter("get_friendly_container_name")
@@ -664,6 +667,7 @@ async def api_add_pod() -> QuartReturn:
             lb_port=int(lb_port) if lb_port else None,
             namespace=NAMESPACE,
             k8s_cluster=k8s_cluster,
+            use_https=use_https,
         )
     except ApiException as api_ex:
         body = json.loads(api_ex.body) if api_ex.body else {}
@@ -703,6 +707,7 @@ if __name__ == "__main__":
     k8s_cluster = args.k8s_cluster
     host = args.host
     port = args.port
+    use_https = bool(args.certfile)
 
     if args.use_https:
         http_session_manager.set_service_scheme("https")

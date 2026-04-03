@@ -65,6 +65,9 @@ class K8sMock(MagicMock):
         mock_core_api.create_namespaced_pod = AsyncMock(return_value=[])
         mock_core_api.create_namespaced_service = AsyncMock(return_value=MagicMock(status="Success"))
 
+        mock_custom_api = MagicMock()
+        mock_custom_api.get_namespaced_custom_object = AsyncMock(return_value=MagicMock())
+
         mock_rbac_api = MagicMock()
         mock_rbac_api.read_cluster_role = AsyncMock()
         mock_rbac_api.read_cluster_role_binding = AsyncMock()
@@ -72,6 +75,7 @@ class K8sMock(MagicMock):
         mock_k8s_client = MagicMock()
         mock_k8s_client.ApiClient.return_value = mock_api_client_cm
         mock_k8s_client.CoreV1Api.return_value = mock_core_api
+        mock_k8s_client.CustomObjectsApi.return_value = mock_custom_api
         mock_k8s_client.RbacAuthorizationV1Api.return_value = mock_rbac_api
 
         mock_k8s_config = MagicMock()
