@@ -39,7 +39,7 @@ echo ""
 echo ">>> Deploying StreamWise and StreamCast with internal LoadBalancer..."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" ACR_URL="$ACR_URL" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
+K8S_NAMESPACE="$K8S_NAMESPACE" RESOURCE_GROUP_NAME="$AZ_RESOURCE_GROUP" ACR_URL="$ACR_URL" envsubst < "$SCRIPT_DIR/pods-frontdoor.yaml" | kubectl apply -f -
 
 echo ">>> Waiting for pods and internal LB IPs..."
 kubectl wait --for=condition=Ready pod/streamwise pod/streamcast -n "$K8S_NAMESPACE" --timeout=300s
@@ -53,6 +53,13 @@ for i in $(seq 1 30); do
   fi
   sleep 10
 done
+
+if [ -z "$SW_IP" ] || [ -z "$SC_IP" ]; then
+  echo "ERROR: Internal load balancer IPs were not assigned within the timeout." >&2
+  echo "       StreamWise ILB IP: ${SW_IP:-<empty>}" >&2
+  echo "       StreamCast ILB IP: ${SC_IP:-<empty>}" >&2
+  exit 1
+fi
 echo "    StreamWise ILB IP: $SW_IP"
 echo "    StreamCast ILB IP: $SC_IP"
 

@@ -58,7 +58,8 @@ az deployment group create \
     #   - Federated creds: "ConcurrentFederatedIdentityCredentialsWrites" (race)
     # The AKS cluster itself is created successfully in both cases.
     echo ">>> Bicep reported errors (cluster may still be OK — checking...)"
-    if ! az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv &>/dev/null; then
+    AKS_CHECK=$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv 2>/dev/null || true)
+    if [ -z "$AKS_CHECK" ]; then
       echo "ERROR: AKS cluster was not created. Check the deployment errors above."
       exit 1
     fi
@@ -67,14 +68,25 @@ az deployment group create \
 
 # If ACR role assignment failed (redeployment), attach manually.
 # Retry in a loop in case an AKS operation is still in progress (node pool scaling).
+AKS_ATTACH_CLUSTER_NAME="$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)"
+acr_attach_succeeded=false
 for attempt in 1 2 3 4 5; do
-  if az aks update -g $AZ_RESOURCE_GROUP -n "$(az aks list -g $AZ_RESOURCE_GROUP --query "[0].name" -o tsv)" \
+  if az aks update -g $AZ_RESOURCE_GROUP -n "$AKS_ATTACH_CLUSTER_NAME" \
     --attach-acr $ACR_NAME 2>/dev/null; then
+    acr_attach_succeeded=true
     break
   fi
   echo ">>> ACR attach attempt $attempt failed (likely in-progress operation) — retrying in 30s..."
   sleep 30
 done
+
+if [ "$acr_attach_succeeded" != "true" ]; then
+  echo "ERROR: Failed to attach ACR '$ACR_NAME' to AKS cluster '$AKS_ATTACH_CLUSTER_NAME' after 5 attempts." >&2
+  echo "ERROR: Image pulls may fail until this is fixed." >&2
+  echo "ERROR: Run the following command after any in-progress AKS operation completes:" >&2
+  echo "  az aks update -g $AZ_RESOURCE_GROUP -n \"$AKS_ATTACH_CLUSTER_NAME\" --attach-acr $ACR_NAME" >&2
+  exit 1
+fi
 
 # 2. Retrieve outputs
 AKS_CLUSTER=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROUP \

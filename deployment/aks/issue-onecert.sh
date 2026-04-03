@@ -3,14 +3,62 @@
 #
 # Prerequisites: Register the domain at https://aka.ms/onecert first!
 #
-# Usage: bash deployment/aks/issue-onecert.sh
+# Usage:
+#   bash deployment/aks/issue-onecert.sh --vault-name <vault-name> --fqdn <fqdn>
+#   or set VAULT_NAME and FQDN environment variables before running.
 set -euo pipefail
 
-VAULT_NAME="kv-6rqfam6evyy5y"
-CERT_NAME="streamwise-tls"
-FQDN="streamwise-6rqfam.eastus2.cloudapp.azure.com"
+usage() {
+  cat <<EOF
+Usage:
+  bash deployment/aks/issue-onecert.sh --vault-name <vault-name> --fqdn <fqdn> \\
+    [--cert-name <cert-name>] [--issuer-name <issuer-name>]
+
+Required:
+  --vault-name <vault-name>   Azure Key Vault name
+  --fqdn <fqdn>               Fully qualified domain name for the certificate
+
+Optional:
+  --cert-name <cert-name>     Certificate name in Key Vault (default: streamwise-tls)
+  --issuer-name <issuer-name> OneCert issuer name (default: Testpublic)
+  --help                      Show this help message
+
+Environment variable alternatives:
+  VAULT_NAME, FQDN, CERT_NAME, ONECERT_ISSUER, K8S_NAMESPACE
+EOF
+}
+
+VAULT_NAME="${VAULT_NAME:-}"
+FQDN="${FQDN:-}"
+CERT_NAME="${CERT_NAME:-streamwise-tls}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-rtgen}"
 ISSUER_NAME="${ONECERT_ISSUER:-Testpublic}"  # Use "Test" for PrivateCA
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --vault-name)
+      VAULT_NAME="$2"; shift 2 ;;
+    --fqdn)
+      FQDN="$2"; shift 2 ;;
+    --cert-name)
+      CERT_NAME="$2"; shift 2 ;;
+    --issuer-name)
+      ISSUER_NAME="$2"; shift 2 ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      echo "ERROR: Unknown argument: $1" >&2; usage; exit 1 ;;
+  esac
+done
+
+if [ -z "$VAULT_NAME" ]; then
+  echo "ERROR: VAULT_NAME must be provided via --vault-name or the VAULT_NAME environment variable." >&2
+  usage; exit 1
+fi
+if [ -z "$FQDN" ]; then
+  echo "ERROR: FQDN must be provided via --fqdn or the FQDN environment variable." >&2
+  usage; exit 1
+fi
 
 echo "=== OneCertV2 Certificate Issuance ==="
 echo "Vault:   $VAULT_NAME"
@@ -42,11 +90,17 @@ EOF
 TMPFILE=$(mktemp /tmp/cert-policy-XXXXXX.json)
 echo "$POLICY" > "$TMPFILE"
 
-az keyvault certificate create \
-  --vault-name "$VAULT_NAME" \
-  --name "$CERT_NAME" \
-  --policy "@$TMPFILE" \
-  --only-show-errors || true
+if az keyvault certificate show \
+    --vault-name "$VAULT_NAME" --name "$CERT_NAME" \
+    --only-show-errors >/dev/null 2>&1; then
+  echo ">>> Certificate already exists in Key Vault; skipping creation."
+else
+  az keyvault certificate create \
+    --vault-name "$VAULT_NAME" \
+    --name "$CERT_NAME" \
+    --policy "@$TMPFILE" \
+    --only-show-errors
+fi
 
 rm -f "$TMPFILE"
 
@@ -100,9 +154,6 @@ echo "    Issuer:  $(echo "$CERT_PEM" | openssl x509 -noout -issuer 2>/dev/null)
 
 # -- 4. Update the Kubernetes TLS secret ------------------------------------
 echo ">>> Updating Kubernetes TLS secret..."
-TLS_CRT_B64=$(echo "$CHAIN_PEM" | base64 -w0)
-TLS_KEY_B64=$(echo "$KEY_PEM" | base64 -w0)
-
 kubectl create secret tls streamwise-tls-secret \
   --cert=<(echo "$CHAIN_PEM") \
   --key=<(echo "$KEY_PEM") \
