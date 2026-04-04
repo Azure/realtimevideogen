@@ -43,6 +43,8 @@ az aks update -g $AZ_RESOURCE_GROUP -n "$(az aks list -g $AZ_RESOURCE_GROUP --qu
 AKS_CLUSTER=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROUP \
   --query properties.outputs.clusterName.value -o tsv)
 IP_ADDRESS=$(az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip --query ipAddress -o tsv)
+PUBLIC_FQDN=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROUP \
+  --query properties.outputs.publicFqdn.value -o tsv)
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
 
 az aks get-credentials -g $AZ_RESOURCE_GROUP -n "$AKS_CLUSTER" --overwrite-existing
@@ -100,4 +102,5 @@ echo "Deployment complete!"
 echo "StreamWise: http://$IP_ADDRESS:8081"
 echo "StreamCast: http://$IP_ADDRESS:8080"
 echo "Public IP:  $IP_ADDRESS"
+echo "Public FQDN: $PUBLIC_FQDN"
 echo "==========================================="

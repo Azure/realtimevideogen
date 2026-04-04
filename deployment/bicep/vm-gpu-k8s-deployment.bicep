@@ -302,22 +302,6 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
         }
       }
       {
-        name: 'AllowBastionHostCommunicationOutBound'
-        properties: {
-          protocol: '*'
-          sourcePortRange: '*'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationPortRanges: [
-            '8080'
-            '5701'
-          ]
-          destinationAddressPrefix: 'VirtualNetwork'
-          access: 'Allow'
-          priority: 120
-          direction: 'Outbound'
-        }
-      }
-      {
         name: 'AllowGetSessionInformationOutBound'
         properties: {
           protocol: '*'
@@ -396,22 +380,6 @@ resource nsgs 'Microsoft.Network/networkSecurityGroups@2023-11-01' = [
             destinationAddressPrefix: 'AzureCloud'
             access: 'Allow'
             priority: 110
-            direction: 'Outbound'
-          }
-        }
-        {
-          name: 'AllowBastionHostCommunicationOutBound'
-          properties: {
-            protocol: '*'
-            sourcePortRange: '*'
-            sourceAddressPrefix: 'VirtualNetwork'
-            destinationPortRanges: [
-              '8080'
-              '5701'
-            ]
-            destinationAddressPrefix: 'VirtualNetwork'
-            access: 'Allow'
-            priority: 120
             direction: 'Outbound'
           }
         }
