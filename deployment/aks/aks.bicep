@@ -57,7 +57,7 @@ param vnetAddressPrefix string = '10.10.0.0/16'
 @description('Address prefix for the AKS node subnet. Only used when disableDefaultOutboundAccess is true.')
 param subnetAddressPrefix string = '10.10.0.0/24'
 
-@description('DNS label prefix applied to the pods public IP address: <dnsLabelPrefix>.<region>.cloudapp.azure.com)')
+@description('DNS label prefix applied to the pods public IP address: <dnsLabelPrefix>.<region>.cloudapp.azure.com')
 param dnsLabelPrefix string = 'streamwise-${take(uniqueString(resourceGroup().id), 6)}'
 
 
