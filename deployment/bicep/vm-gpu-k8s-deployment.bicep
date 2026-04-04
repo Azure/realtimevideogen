@@ -256,6 +256,7 @@ param publicKeys array = ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVi
 
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
   name: 'nsg'
+  location: resourceGroup().location
   properties: {
     securityRules: [
       {
