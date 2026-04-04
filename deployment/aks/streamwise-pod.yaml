@@ -33,26 +33,6 @@ spec:
         cpu: "4"
         memory: "8Gi"
         ephemeral-storage: "32Gi"
-    # TLS certificate mounted from the Kubernetes TLS secret "streamwise-tls-secret".
-    # The secret is populated by cert-manager (CA-signed, recommended) or by
-    # manually running: kubectl create secret tls streamwise-tls-secret -n rtgen
-    #                     --cert=cert.pem --key=key.pem
-    # run_httpserver.bash auto-detects /certs/tls.crt and /certs/tls.key
-    # and enables HTTPS automatically.
-    # See deployment/k8s/certs.md for the full setup guide.
-    volumeMounts:
-    - name: tls-cert
-      mountPath: /certs
-      readOnly: true
-  volumes:
-  - name: tls-cert
-    secret:
-      secretName: streamwise-tls-secret
-      items:
-      - key: tls.crt
-        path: tls.crt
-      - key: tls.key
-        path: tls.key
   imagePullSecrets:
   - name: acr-secret
   nodeSelector:

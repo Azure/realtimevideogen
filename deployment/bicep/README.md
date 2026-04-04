@@ -7,7 +7,7 @@ This directory contains Azure Bicep templates for deploying GPU-enabled VMs host
 We use [Azure Bicep](https://github.com/Azure/bicep) to deploy and manage the infrastructure:
 - GPU-enabled VMs for model serving
 - Kubernetes cluster setup across VMs
-- Networking and bastion host for secure access
+- Networking
 
 **Note:** For managed AKS deployment (recommended for most users), see [AKS Deployment Guide](../aks/README.md).
 
@@ -36,18 +36,7 @@ az group create --name $AZ_RESOURCE_GROUP --location $AZ_REGION
 az deployment group create --resource-group $AZ_RESOURCE_GROUP --parameters .\vm-gpu-k8s-deployment.bicepparam
 ```
 
-## Connect to VMs
-Connect to the control VM:
-```powershell
-az network bastion ssh -n gpu-bastion-host -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.4 --resource-port 22 --auth-type password --username azureuser
-```
-For the other VMs, just change the IP.
-
 ## Setup K8s dashboard tunnel
-Setup the tunnel in Azure Bastion:
-```powershell
-az network bastion tunnel -n gpu-bastion-host -g $AZ_RESOURCE_GROUP --target-ip 10.0.0.4 --resource-port 22 --port 12222
-```
 
 Open the SSH tunnel for the K8s dashboard:
 ```powershell

@@ -254,25 +254,6 @@ param adminPassword string = ''
 param publicKeys array = ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5']
 
 
-
-module nsg './bastion-nsg.bicep' = {
-  name: 'nsg'
-  params: {
-    location: resourceGroup().location
-    bastion_nsg_name: 'nsg'
-  }
-}
-
-module nsgs './bastion-nsg.bicep' = [
-  for (gpuRegion, index) in vmssGPURegionIndex: {
-    name: 'nsg-${gpuRegion}'
-    params: {
-      location: gpuRegion
-      bastion_nsg_name: 'nsg-${gpuRegion}'
-    }
-  }
-]
-
 resource publicIpInternet 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: 'public-ip-internet'
   location: resourceGroup().location
@@ -407,17 +388,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
           ]
         }
       }
-      {
-        name: 'AzureBastionSubnet'
-        properties: {
-          addressPrefix: '10.0.4.0/24'
-          networkSecurityGroup: {
-            id: nsg.outputs.nsgid
-          }
-          // [S360 - SFI-NS2.6.1] disable default outbound access for all subnets
-          defaultOutboundAccess: false
-        }
-      }
     ]
   }
 }
@@ -522,14 +492,6 @@ resource vnetPeeringsAll 'Microsoft.Network/virtualNetworks/virtualNetworkPeerin
   }
 ]
 
-
-module bastionModule 'bastion-host.bicep' = {
-  name: 'bastion'
-  params: {
-    resourceNamePrefix: 'gpu'
-    subnetid: vnet.properties.subnets[2].id
-  }
-}
 
 module vmssControlModule 'vmss-linux.bicep' = {
   name: 'vmss-control'

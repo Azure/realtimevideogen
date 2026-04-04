@@ -303,9 +303,6 @@ cd deployment/apps/streamcast
 bash setup_image.sh --push --certfile /path/to/cert.pem --keyfile /path/to/key.pem
 ```
 
-> **Note:** For Kubernetes deployments, the recommended approach is to mount a K8s TLS Secret at `/certs/` rather than embedding the certificate in the image.
-> See the [HTTPS setup guide](aks/README.md#24-https--tls-certificates-optional) for details.
-
 ### Push an Image Manually
 
 If you built an image without `--push`, push it separately:
