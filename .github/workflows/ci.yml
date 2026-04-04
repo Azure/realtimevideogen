@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: ['*']
+  schedule:
+  - cron: '0 4 * * *'  # Daily at 04:00 UTC (after Docker workflow at 03:00 UTC)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
