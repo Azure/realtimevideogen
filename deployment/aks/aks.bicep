@@ -245,9 +245,6 @@ resource aksNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = if (disab
 // The node subnet has defaultOutboundAccess disabled and uses the NAT gateway
 // for controlled outbound connectivity.  The NSG above is attached to the
 // subnet to ensure LoadBalancer service ports are reachable.
-// When enableFrontDoor is true, a dedicated pls-subnet is also added for the
-// Private Link Service resource (privateLinkServiceNetworkPolicies must be
-// Disabled on that subnet).
 // ---------------------------------------------------------------------------
 var nodeSubnetDef = {
   name: 'aks-node-subnet'
