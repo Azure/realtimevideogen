@@ -223,6 +223,7 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
         vnetSubnetID: nodeSubnetId
       }
     ]
+    networkProfile: networkProfile
   }
 }
 
