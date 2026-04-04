@@ -59,7 +59,7 @@ param subnetAddressPrefix string = '10.10.0.0/24'
 
 // Key Vault name must be globally unique, 3-24 chars, alphanumeric + hyphens, start with letter.
 // The default uses a stable hash of the resource group ID so repeated deployments reuse the same vault.
-@description('Name of the Azure Key Vault for TLS certificates. Must be globally unique (3–24 chars).')
+@description('Name of the Azure Key Vault for TLS certificates. Must be globally unique (3-24 chars).')
 @maxLength(24)
 param keyVaultName string = 'kv-${take(uniqueString(resourceGroup().id), 20)}'
 
@@ -69,26 +69,16 @@ param tlsCertificateName string = 'streamwise-tls'
 // When true, provisions Azure Key Vault, a self-signed TLS certificate,
 // enables the Secrets Store CSI Driver addon with OIDC issuer + workload
 // identity, and grants the CSI addon identity read access to Key Vault.
-//
-// For browser-trusted HTTPS on corporate subscriptions (where Let's Encrypt
-// is blocked by NRMS rules), use enableFrontDoor instead — it provisions a
-// Private Link Service subnet and an NSG rule for Front Door backend traffic.
 param enableSecureSetup bool = false
 
-// When true, adds a Private Link Service subnet (pls-subnet) to the VNet and
-// an NSG rule allowing Azure Front Door backend traffic.  After deploying the
-// cluster, run deployment/aks/setup-frontdoor.sh to create the Private Link
-// Service and Front Door Premium profile.
+// When true, adds a Private Link Service subnet (pls-subnet) to the VNet and an NSG rule allowing Azure Front Door backend traffic.
+// After deploying the cluster, run deployment/aks/setup-frontdoor.sh to create the Private Link Service and Front Door Premium profile.
 param enableFrontDoor bool = false
 
 @description('Address prefix for the Private Link Service subnet. Only used when enableFrontDoor is true.')
 param plsSubnetAddressPrefix string = '10.10.1.0/24'
 
-@description('''DNS label prefix applied to the pods public IP address.
-The resulting FQDN (<dnsLabelPrefix>.<region>.cloudapp.azure.com) can be
-used as a friendly hostname for the cluster services.
-Defaults to a unique, stable label derived from the resource-group ID.
-Set to an empty string to omit the DNS label.''')
+@description('DNS label prefix applied to the pods public IP address (<dnsLabelPrefix>.<region>.cloudapp.azure.com)')
 param dnsLabelPrefix string = 'streamwise-${take(uniqueString(resourceGroup().id), 6)}'
 
 
