@@ -254,6 +254,102 @@ param adminPassword string = ''
 param publicKeys array = ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5']
 
 
+resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
+  name: 'nsg'
+  properties: {
+    securityRules: [
+      {
+        name: 'Allow-Incoming-TLS'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '443'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: '*'
+          access: 'Allow'
+          direction: 'Inbound'
+          priority: 100
+        }
+      }
+      {
+        name: 'AllowSshRdpOutBound'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationPortRanges: [
+            '22'
+            '3389'
+          ]
+          destinationAddressPrefix: 'VirtualNetwork'
+          access: 'Allow'
+          priority: 100
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowAzureCloudCommunicationOutBound'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationPortRange: '443'
+          destinationAddressPrefix: 'AzureCloud'
+          access: 'Allow'
+          priority: 110
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowBastionHostCommunicationOutBound'
+        properties: {
+          protocol: '*'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'VirtualNetwork'
+          destinationPortRanges: [
+            '8080'
+            '5701'
+          ]
+          destinationAddressPrefix: 'VirtualNetwork'
+          access: 'Allow'
+          priority: 120
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowGetSessionInformationOutBound'
+        properties: {
+          protocol: '*'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'Internet'
+          destinationPortRanges: [
+            '80'
+            '443'
+          ]
+          access: 'Allow'
+          priority: 130
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowHostPort8181'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationPortRange: '8181'
+          destinationAddressPrefix: '*'
+          access: 'Allow'
+          priority: 140
+          direction: 'Inbound'
+        }
+      }
+    ]
+  }
+}
+
+
 resource publicIpInternet 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: 'public-ip-internet'
   location: resourceGroup().location
@@ -357,7 +453,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         properties: {
           addressPrefix: '10.0.0.0/24'
           networkSecurityGroup: {
-            id: nsg.outputs.nsgid
+            id: nsg.id
           }
           defaultOutboundAccess: false
           natGateway: {
@@ -375,7 +471,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         properties: {
           addressPrefix: '10.0.1.0/24'
           networkSecurityGroup: {
-            id: nsg.outputs.nsgid
+            id: nsg.id
           }
           defaultOutboundAccess: false
           natGateway: {
@@ -409,7 +505,7 @@ resource vnets 'Microsoft.Network/virtualNetworks@2024-05-01' = [
           properties: {
             addressPrefix: '10.${index+1}.1.0/24'
             networkSecurityGroup: {
-              id: nsgs[index].outputs.nsgid
+              id: nsg.id
             }
             defaultOutboundAccess: false
             natGateway: {
