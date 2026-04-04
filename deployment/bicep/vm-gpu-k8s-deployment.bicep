@@ -330,6 +330,19 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
           direction: 'Inbound'
         }
       }
+      {
+        name: 'AllowAzureLoadBalancerPort18181'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'AzureLoadBalancer'
+          destinationPortRange: '18181'
+          destinationAddressPrefix: '*'
+          access: 'Allow'
+          priority: 150
+          direction: 'Inbound'
+        }
+      }
     ]
   }
 }
@@ -409,6 +422,19 @@ resource nsgs 'Microsoft.Network/networkSecurityGroups@2023-11-01' = [
             destinationAddressPrefix: '*'
             access: 'Allow'
             priority: 140
+            direction: 'Inbound'
+          }
+        }
+        {
+          name: 'AllowAzureLoadBalancerPort18181'
+          properties: {
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            sourceAddressPrefix: 'AzureLoadBalancer'
+            destinationPortRange: '18181'
+            destinationAddressPrefix: '*'
+            access: 'Allow'
+            priority: 150
             direction: 'Inbound'
           }
         }
