@@ -146,7 +146,7 @@ class ThinkSoundGeneration(ModelGeneration):
             return
         self.load_timer.start("compile")
         assert self.diffusion_model is not None
-        self.diffusion_model = torch.compile(self.diffusion_model)  # type: ignore[assignment]
+        self.diffusion_model = torch.compile(self.diffusion_model)
         self.load_timer.end("compile")
 
     def _assert_model_init(self) -> None:
@@ -253,11 +253,11 @@ class ThinkSoundGeneration(ModelGeneration):
             # Extract video features
             clip_video = data['clip_video']
             clip_features = self.feature_extractor.encode_video_with_clip(clip_video.unsqueeze(0))
-            output['metaclip_features'] = clip_features  # type: ignore[assignment]
+            output['metaclip_features'] = clip_features
 
             sync_video = data['sync_video']
             sync_features = self.feature_extractor.encode_video_with_sync(sync_video.unsqueeze(0))
-            output['sync_features'] = sync_features  # type: ignore[assignment]
+            output['sync_features'] = sync_features
 
             # Extract text features
             caption_list = [data['caption']]
@@ -267,7 +267,7 @@ class ThinkSoundGeneration(ModelGeneration):
 
             caption_cot_list = [data['caption_cot']]
             t5_features = self.feature_extractor.encode_t5_text(caption_cot_list)
-            output['t5_features'] = t5_features  # type: ignore[assignment]
+            output['t5_features'] = t5_features
 
             # Convert tensors to numpy and save
             sample_output = {

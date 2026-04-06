@@ -168,21 +168,21 @@ class HunyuanFramePackBase(USPGeneration):
             subfolder='vae',
             torch_dtype=torch.float16).to(self.device)
         assert self.vae is not None
-        self.vae.eval().requires_grad_(False)  # type: ignore[union-attr]
+        self.vae.eval().requires_grad_(False)
 
         if not self.enable_tiling:
             logging.info(f"[{self.rank}] Disabling tiling for VAE.")
-            self.vae.disable_tiling()  # type: ignore[union-attr]
+            self.vae.disable_tiling()
         else:
             logging.info(f"[{self.rank}] Enabling tiling for VAE.")
-            self.vae.enable_tiling()  # type: ignore[union-attr]
+            self.vae.enable_tiling()
 
         if not self.enable_slicing:
             logging.info(f"[{self.rank}] Disabling slicing for VAE.")
-            self.vae.disable_slicing()  # type: ignore[union-attr]
+            self.vae.disable_slicing()
         else:
             logging.info(f"[{self.rank}] Enabling slicing for VAE.")
-            self.vae.enable_slicing()  # type: ignore[union-attr]
+            self.vae.enable_slicing()
         self.load_timer.end("vae")
 
         diff_memory = torch.cuda.memory_allocated() - prev_memory
@@ -225,6 +225,8 @@ class HunyuanFramePackBase(USPGeneration):
             return
 
         self.load_timer.start("dit_parallel")
+        assert self.transformer is not None
+        assert self.vae is not None
         temp_pipeline = HunyuanVideoFramepackPipeline(
             self.text_encoder,
             self.tokenizer,
@@ -260,7 +262,7 @@ class HunyuanFramePackBase(USPGeneration):
         logging.info(f"[{self.rank}] Compiling VAE with torch.compile().")
         self.load_timer.start("vae_compile")
         assert self.vae is not None
-        self.vae = torch.compile(  # type: ignore[call-overload]
+        self.vae = torch.compile(  # type: ignore[assignment]
             self.vae,
             mode="max-autotune-no-cudagraphs",
         )

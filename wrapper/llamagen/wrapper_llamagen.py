@@ -201,7 +201,7 @@ class LlamaGenGeneration(ModelGeneration):
 
         self.load_timer.start("model_compile")
         assert self.gpt_model is not None
-        self.gpt_model = torch.compile(  # type: ignore[assignment]
+        self.gpt_model = torch.compile(
             self.gpt_model,
             mode="reduce-overhead",
             fullgraph=True
@@ -345,7 +345,7 @@ class LlamaGenGeneration(ModelGeneration):
             gen_timer.start("decoding")
             assert self.vq_model is not None
             # output in [-1, 1]
-            samples = self.vq_model.decode_code(index_sample, qzshape)  # type: ignore [operator]
+            samples = self.vq_model.decode_code(index_sample, qzshape)
             sample = samples[0]
             gen_timer.end("decoding")
 

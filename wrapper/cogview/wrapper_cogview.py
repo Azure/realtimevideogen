@@ -110,7 +110,7 @@ class CogViewGeneration(ModelGeneration):
             torch_dtype=self.param_dtype,
         )
         assert self.pipeline is not None
-        self.pipeline = self.pipeline.to(self.device)  # type: ignore[union-attr]
+        self.pipeline = self.pipeline.to(self.device)
 
         # Enable memory optimizations
         """
@@ -212,7 +212,7 @@ class CogViewGeneration(ModelGeneration):
                 return callback_kwargs
 
             gen_timer.start(f"step_{0:03d}")
-            output = self.pipeline(  # type: ignore[operator]
+            output = self.pipeline(
                 prompt=prompt,
                 height=height,
                 width=width,

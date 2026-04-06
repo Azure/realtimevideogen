@@ -81,19 +81,19 @@ class LTXVideoGeneration(ModelGeneration):
             "Lightricks/LTX-Video-0.9.7-dev",
             torch_dtype=self.param_dtype)
         assert self.pipeline is not None
-        self.pipeline.to(self.device)  # type: ignore[union-attr]
+        self.pipeline.to(self.device)
         self.load_timer.end("pipeline")
 
         self.load_timer.start("upsample")
         self.pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained(
             "Lightricks/ltxv-spatial-upscaler-0.9.7",
-            vae=self.pipeline.vae,  # type: ignore[union-attr]
+            vae=self.pipeline.vae,
             torch_dtype=self.param_dtype)
         assert self.pipe_upsample is not None
-        self.pipe_upsample.to(self.device)  # type: ignore[union-attr]
+        self.pipe_upsample.to(self.device)
         self.load_timer.end("upsample")
 
-        self.pipeline.vae.enable_tiling()  # type: ignore[union-attr]
+        self.pipeline.vae.enable_tiling()
 
     def init_model_parallelism(self) -> None:
         if self.world_size > 1:
@@ -105,8 +105,8 @@ class LTXVideoGeneration(ModelGeneration):
         logging.info("Compiling transformer with torch.compile().")
         self.load_timer.start("dit_compile")
         assert self.pipeline is not None
-        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
-            self.pipeline.transformer,  # type: ignore[attr-defined]
+        self.pipeline.transformer = torch.compile(
+            self.pipeline.transformer,
             mode="max-autotune-no-cudagraphs",
         )
         self.load_timer.end("dit_compile")
@@ -117,7 +117,7 @@ class LTXVideoGeneration(ModelGeneration):
         width: int
     ) -> Tuple[int, int]:
         assert self.pipeline is not None
-        vae_spatial_compression_ratio = self.pipeline.vae_spatial_compression_ratio  # type: ignore[attr-defined]
+        vae_spatial_compression_ratio = self.pipeline.vae_spatial_compression_ratio
         height = height - (height % vae_spatial_compression_ratio)
         width = width - (width % vae_spatial_compression_ratio)
         return height, width
@@ -206,7 +206,7 @@ class LTXVideoGeneration(ModelGeneration):
                 downscaled_width)
             seed = torch.Generator()
             seed.manual_seed(0)
-            latents = self.pipeline(  # type: ignore[operator]
+            latents = self.pipeline(
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=neg_prompt,
@@ -221,7 +221,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 2. Upscale generated video using latent up-sampler with fewer inference steps
             # The available latent up-sampler up-scales the height/width by 2x
             upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
-            upscaled_latents = self.pipe_upsample(  # type: ignore[operator]
+            upscaled_latents = self.pipe_upsample(
                 latents=latents,
                 output_type="latent"
             ).frames
@@ -229,7 +229,7 @@ class LTXVideoGeneration(ModelGeneration):
             # Part 3. De-noise the upscaled video with few steps to improve texture (optional, but recommended)
             seed = torch.Generator()
             seed.manual_seed(0)
-            video_frames = self.pipeline(  # type: ignore[operator]
+            video_frames = self.pipeline(
                 conditions=[condition1],
                 prompt=prompt,
                 negative_prompt=negative_prompt,
