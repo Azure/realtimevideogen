@@ -47,12 +47,6 @@ PUBLIC_FQDN=$(az deployment group show --name AKSDeployment -g $AZ_RESOURCE_GROU
   --query properties.outputs.publicFqdn.value -o tsv)
 MC_RESOURCE_GROUP="MC_${AZ_RESOURCE_GROUP}_${AKS_CLUSTER}_${AZ_REGION}"
 
-# Export variables required by envsubst for the pod/service YAMLs.
-# RESOURCE_GROUP_NAME is the *main* RG (where aks.bicep creates the public IP),
-# NOT the MC_ managed-cluster RG.
-export LOAD_BALANCER_IP=$IP_ADDRESS
-export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
-
 az aks get-credentials -g $AZ_RESOURCE_GROUP -n "$AKS_CLUSTER" --overwrite-existing
 
 # 3. K8s prerequisites
@@ -68,6 +62,8 @@ kubectl create namespace gpu-resources
 kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 
 # 5. Deploy StreamWise + StreamCast
+export LOAD_BALANCER_IP=$IP_ADDRESS
+export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
 envsubst < deployment/aks/streamwise-pod.yaml | kubectl apply -f -
 envsubst < deployment/aks/streamcast-pod.yaml | kubectl apply -f -
 
