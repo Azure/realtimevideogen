@@ -16,7 +16,7 @@ It runs on a Kubernetes cluster with GPU nodes.
 | `deployment/aks/` | AKS-specific deployment (Bicep template, pod YAMLs, service accounts, NVIDIA plugin, PV/PVC). |
 | `deployment/helm/` | Helm chart for deploying GPU model microservices. |
 | `deployment/acr/` | ACR creation and image mirroring docs. |
-| `deployment/bicep/` | Shared Bicep modules (ACR role assignment, VM-based K8s, bastion, etc.). |
+| `deployment/bicep/` | Shared Bicep modules (ACR role assignment, VM-based K8s, etc.). |
 | `deployment/wrappers/` | Per-model Docker build contexts (Dockerfile + `setup_image.sh` for each model). |
 | `streamwise/` | StreamWise cluster manager source code. |
 | `simulator/` | Provisioning and scheduling simulator. |

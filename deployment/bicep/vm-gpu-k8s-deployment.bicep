@@ -254,24 +254,195 @@ param adminPassword string = ''
 param publicKeys array = ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5']
 
 
-
-module nsg './bastion-nsg.bicep' = {
+resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
   name: 'nsg'
-  params: {
-    location: resourceGroup().location
-    bastion_nsg_name: 'nsg'
+  location: resourceGroup().location
+  properties: {
+    securityRules: [
+      {
+        name: 'Allow-Incoming-TLS'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '443'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: '*'
+          access: 'Allow'
+          direction: 'Inbound'
+          priority: 100
+        }
+      }
+      {
+        name: 'AllowSshRdpOutBound'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationPortRanges: [
+            '22'
+            '3389'
+          ]
+          destinationAddressPrefix: 'VirtualNetwork'
+          access: 'Allow'
+          priority: 100
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowAzureCloudCommunicationOutBound'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationPortRange: '443'
+          destinationAddressPrefix: 'AzureCloud'
+          access: 'Allow'
+          priority: 110
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowGetSessionInformationOutBound'
+        properties: {
+          protocol: '*'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'Internet'
+          destinationPortRanges: [
+            '80'
+            '443'
+          ]
+          access: 'Allow'
+          priority: 130
+          direction: 'Outbound'
+        }
+      }
+      {
+        name: 'AllowHostPort8181'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationPortRange: '8181'
+          destinationAddressPrefix: '*'
+          access: 'Allow'
+          priority: 140
+          direction: 'Inbound'
+        }
+      }
+      {
+        name: 'AllowAzureLoadBalancerPort18181'
+        properties: {
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'AzureLoadBalancer'
+          destinationPortRange: '18181'
+          destinationAddressPrefix: '*'
+          access: 'Allow'
+          priority: 150
+          direction: 'Inbound'
+        }
+      }
+    ]
   }
 }
 
-module nsgs './bastion-nsg.bicep' = [
+// Create an NSG for each GPU region
+resource nsgs 'Microsoft.Network/networkSecurityGroups@2023-11-01' = [
   for (gpuRegion, index) in vmssGPURegionIndex: {
     name: 'nsg-${gpuRegion}'
-    params: {
-      location: gpuRegion
-      bastion_nsg_name: 'nsg-${gpuRegion}'
+    location: gpuRegion
+    properties: {
+      securityRules: [
+        {
+          name: 'Allow-Incoming-TLS'
+          properties: {
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '443'
+            sourceAddressPrefix: '*'
+            destinationAddressPrefix: '*'
+            access: 'Allow'
+            direction: 'Inbound'
+            priority: 100
+          }
+        }
+        {
+          name: 'AllowSshRdpOutBound'
+          properties: {
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            sourceAddressPrefix: '*'
+            destinationPortRanges: [
+              '22'
+              '3389'
+            ]
+            destinationAddressPrefix: 'VirtualNetwork'
+            access: 'Allow'
+            priority: 100
+            direction: 'Outbound'
+          }
+        }
+        {
+          name: 'AllowAzureCloudCommunicationOutBound'
+          properties: {
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            sourceAddressPrefix: '*'
+            destinationPortRange: '443'
+            destinationAddressPrefix: 'AzureCloud'
+            access: 'Allow'
+            priority: 110
+            direction: 'Outbound'
+          }
+        }
+        {
+          name: 'AllowGetSessionInformationOutBound'
+          properties: {
+            protocol: '*'
+            sourcePortRange: '*'
+            sourceAddressPrefix: '*'
+            destinationAddressPrefix: 'Internet'
+            destinationPortRanges: [
+              '80'
+              '443'
+            ]
+            access: 'Allow'
+            priority: 130
+            direction: 'Outbound'
+          }
+        }
+        {
+          name: 'AllowHostPort8181'
+          properties: {
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            sourceAddressPrefix: '*'
+            destinationPortRange: '8181'
+            destinationAddressPrefix: '*'
+            access: 'Allow'
+            priority: 140
+            direction: 'Inbound'
+          }
+        }
+        {
+          name: 'AllowAzureLoadBalancerPort18181'
+          properties: {
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            sourceAddressPrefix: 'AzureLoadBalancer'
+            destinationPortRange: '18181'
+            destinationAddressPrefix: '*'
+            access: 'Allow'
+            priority: 150
+            direction: 'Inbound'
+          }
+        }
+      ]
     }
   }
 ]
+
 
 resource publicIpInternet 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: 'public-ip-internet'
@@ -376,7 +547,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         properties: {
           addressPrefix: '10.0.0.0/24'
           networkSecurityGroup: {
-            id: nsg.outputs.nsgid
+            id: nsg.id
           }
           defaultOutboundAccess: false
           natGateway: {
@@ -394,7 +565,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         properties: {
           addressPrefix: '10.0.1.0/24'
           networkSecurityGroup: {
-            id: nsg.outputs.nsgid
+            id: nsg.id
           }
           defaultOutboundAccess: false
           natGateway: {
@@ -405,17 +576,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
               service: 'Microsoft.KeyVault'
             }
           ]
-        }
-      }
-      {
-        name: 'AzureBastionSubnet'
-        properties: {
-          addressPrefix: '10.0.4.0/24'
-          networkSecurityGroup: {
-            id: nsg.outputs.nsgid
-          }
-          // [S360 - SFI-NS2.6.1] disable default outbound access for all subnets
-          defaultOutboundAccess: false
         }
       }
     ]
@@ -439,7 +599,7 @@ resource vnets 'Microsoft.Network/virtualNetworks@2024-05-01' = [
           properties: {
             addressPrefix: '10.${index+1}.1.0/24'
             networkSecurityGroup: {
-              id: nsgs[index].outputs.nsgid
+              id: nsgs[index].id
             }
             defaultOutboundAccess: false
             natGateway: {
@@ -522,14 +682,6 @@ resource vnetPeeringsAll 'Microsoft.Network/virtualNetworks/virtualNetworkPeerin
   }
 ]
 
-
-module bastionModule 'bastion-host.bicep' = {
-  name: 'bastion'
-  params: {
-    resourceNamePrefix: 'gpu'
-    subnetid: vnet.properties.subnets[2].id
-  }
-}
 
 module vmssControlModule 'vmss-linux.bicep' = {
   name: 'vmss-control'

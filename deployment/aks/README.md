@@ -81,21 +81,6 @@ Some available GPU VM sizes:
 > If the ACR role assignment fails (e.g. on redeployment), the cluster itself will still be created successfully.
 > Attach the ACR manually with:
 > `az aks update -g $AZ_RESOURCE_GROUP -n <cluster> --attach-acr <acrName>`
->
-> **Optional – HTTPS/TLS:** By default the cluster is deployed **without TLS** (HTTP only, `enableSecureSetup=false`).
-> To enable Key Vault, a self-signed TLS certificate, OIDC issuer, workload identity, and federated identity credentials, add `enableSecureSetup=true`:
-> ```bash
-> az deployment group create \
->   --name AKSDeployment \
->   --resource-group $AZ_RESOURCE_GROUP \
->   --template-file deployment/aks/aks.bicep \
->   --parameters \
->     clusterName=my-cluster \
->     acrName=$ACR_NAME \
->     enableSecureSetup=true
-> ```
-> After deployment, run [`setup-letsencrypt.sh`](setup-letsencrypt.sh) to obtain a browser-trusted CA-signed certificate (see Step 2.4).
-> For manual steps, see [deployment/k8s/certs.md](../k8s/certs.md).
 
 After deployment, retrieve the outputs and get cluster credentials:
 ```bash
@@ -113,21 +98,11 @@ echo "AKS cluster:  $AKS_CLUSTER"
 echo "Public IP:    $IP_ADDRESS"
 
 az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $AKS_CLUSTER
-```
-
-When `enableSecureSetup=true`, also retrieve the TLS-related outputs:
-```bash
-KEY_VAULT_NAME=$(az deployment group show \
-  --name AKSDeployment \
-  --resource-group $AZ_RESOURCE_GROUP \
-  --query properties.outputs.keyVaultName.value -o tsv)
 
 PUBLIC_FQDN=$(az deployment group show \
   --name AKSDeployment \
   --resource-group $AZ_RESOURCE_GROUP \
   --query properties.outputs.publicFqdn.value -o tsv)
-
-echo "Key Vault:    $KEY_VAULT_NAME"
 echo "Public FQDN:  $PUBLIC_FQDN"
 ```
 
@@ -169,30 +144,6 @@ Deploy persistent volumes and claims (used by GPU model services for caching):
 kubectl apply -f deployment/k8s/local-pv.yaml
 kubectl apply -f deployment/k8s/local-pvc.yaml -n $K8S_NAMESPACE
 ```
-
-### 2.4 HTTPS / TLS Certificates (optional)
-
-By default the cluster runs **without TLS** (HTTP only).
-To enable HTTPS, first deploy with `enableSecureSetup=true` (see the optional note in Step 1).
-This provisions an Azure Key Vault with a self-signed fallback certificate and opens port 80 on the NSG for ACME challenges.
-
-**Automated:** After deploying with `enableSecureSetup=true` and the pods (Steps 3–4), run:
-
-```bash
-export LETSENCRYPT_EMAIL=your@email.com   # REQUIRED: monitored address for expiry notices
-export PUBLIC_FQDN                        # set from Step 1 TLS outputs
-export LOAD_BALANCER_IP=$IP_ADDRESS
-export RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
-
-bash deployment/aks/setup-letsencrypt.sh
-```
-
-This installs cert-manager, the nginx-ingress controller, creates Let's Encrypt ClusterIssuers,
-requests the certificate, and restarts the pods — all in one step.  After completion, `https://$PUBLIC_FQDN:8081` will serve a browser-trusted certificate with no warnings.
-
-> **Tip:** `quick-deploy.sh` handles this automatically when `ENABLE_SECURE=true` and `LETSENCRYPT_EMAIL` is set.
-
-**Manual:** See [HTTPS / TLS Certificates](../k8s/certs.md) for step-by-step instructions (useful for troubleshooting or custom setups).
 
 ## Step 3: Deploy StreamWise (Cluster Manager)
 
@@ -394,7 +345,7 @@ Common issues:
 - **GPU not available**: Ensure the GPU node pool is scaled up and the NVIDIA device plugin is running
 - **MIG node reports 0 GPUs**: The `mixed`-strategy device plugin cannot enumerate devices until MIG mode is enabled and MIG instances are created. Complete the full [MIG Setup Guide](../k8s/MIG.md) — once instances exist the plugin will register `nvidia.com/gpu` (full GPUs) and `nvidia.com/mig-<profile>` (MIG slices) within ~30–60 seconds
 - **Spot VM evicted**: Spot VMs may be evicted at any time. Re-run `az aks nodepool scale` to restore the node. After re-scaling a MIG node you must repeat the [MIG Setup Guide](../k8s/MIG.md) since MIG state does not persist across evictions
-- **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
+- **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group.
 - **Cannot reach LoadBalancer services (e.g. StreamWise at :8081)**: When `disableDefaultOutboundAccess` is true, the Bicep template creates an NSG (`aks-node-subnet-nsg`) allowing inbound TCP on the Kubernetes NodePort range. For `type: LoadBalancer` Services, the subnet NSG evaluates traffic destined to the node private IPs and the Service’s NodePort(s), not the public Load Balancer IP. If a corporate policy replaces or overrides this NSG on the subnet, add an inbound allow rule on the node subnet NSG such as: `az network nsg rule create -g $AZ_RESOURCE_GROUP --nsg-name <subnet-nsg> --name AllowK8sNodePorts --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes Internet --destination-address-prefixes VirtualNetwork --destination-port-ranges 30000-32767`. For tighter control, you can set explicit `nodePort` values on your Services and open only those ports instead of the full range. Azure evaluates both the subnet NSG and the NIC-level NSG (in the MC_ resource group) — traffic must be allowed by **both**.
 - **Secret errors**: Verify HF token is correctly configured with `kubectl get secret hf-token -n rtgen`
 - **ACR role assignment fails on redeployment**: The role already exists. Attach ACR manually: `az aks update -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --attach-acr <acrName>`
@@ -425,16 +376,4 @@ Edit the configuration variables at the top, then run from the repository root:
 
 ```bash
 bash deployment/aks/quick-deploy.sh
-```
-
-By default the script deploys **without TLS** (HTTP only).
-To enable HTTPS, set `ENABLE_SECURE=true` in the configuration section.
-To also obtain a browser-trusted CA-signed certificate, additionally set `LETSENCRYPT_EMAIL`.
-
-For CA-signed certificates on an existing cluster deployed with `enableSecureSetup=true`, run the standalone script:
-
-```bash
-export LETSENCRYPT_EMAIL=your@email.com
-export PUBLIC_FQDN LOAD_BALANCER_IP=$IP_ADDRESS RESOURCE_GROUP_NAME=$AZ_RESOURCE_GROUP
-bash deployment/aks/setup-letsencrypt.sh
 ```
