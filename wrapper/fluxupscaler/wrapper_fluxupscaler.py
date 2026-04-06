@@ -62,7 +62,7 @@ class FluxUpscalerGeneration(FluxGeneration):
 
     def __del__(self) -> None:
         if self.pipeline is not None:
-            del self.pipeline.transformer
+            del self.pipeline.transformer  # type: ignore[attr-defined]
             self.pipeline = None
         if self.controlnet is not None:
             del self.controlnet
@@ -93,7 +93,7 @@ class FluxUpscalerGeneration(FluxGeneration):
         if not self.pipeline:
             raise ValueError("Failed to load FluxControlNet pipeline.")
         assert isinstance(self.pipeline, FluxControlNetPipeline)
-        self.pipeline = self.pipeline.to(self.device)
+        self.pipeline = self.pipeline.to(self.device)  # type: ignore[attr-defined]
         self.load_timer.end("pipeline")
 
         logging.info(
@@ -126,8 +126,8 @@ class FluxUpscalerGeneration(FluxGeneration):
 
         self.load_timer.start("dit_compile")
         torch._inductor.config.reorder_for_compute_comm_overlap = True
-        self.pipeline.transformer = torch.compile(
-            self.pipeline.transformer,
+        self.pipeline.transformer = torch.compile(  # type: ignore[attr-defined]
+            self.pipeline.transformer,  # type: ignore[attr-defined]
             mode="max-autotune-no-cudagraphs"
         )
         self.load_timer.end("dit_compile")
@@ -298,7 +298,7 @@ class FluxUpscalerGeneration(FluxGeneration):
 
         assert self.pipeline is not None, "Flux pipeline not initialized."
         gen_timer.start(f"step_{img_id:03d}_{0:03d}")
-        output = self.pipeline(
+        output = self.pipeline(  # type: ignore[operator]
             control_image=img,
             height=height,
             width=width,

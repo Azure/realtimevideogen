@@ -94,21 +94,21 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
             torch_dtype=self.param_dtype,
         ).to(self.device)
         assert self.vae is not None
-        self.vae.eval().requires_grad_(False)
+        self.vae.eval().requires_grad_(False)  # type: ignore[union-attr]
 
         if not self.enable_tiling:
             logging.info(f"[{self.rank}] Disabling tiling for VAE.")
-            self.vae.disable_tiling()
+            self.vae.disable_tiling()  # type: ignore[union-attr]
         else:
             logging.info(f"[{self.rank}] Enabling tiling for VAE.")
-            self.vae.enable_tiling()
+            self.vae.enable_tiling()  # type: ignore[union-attr]
 
         if not self.enable_slicing:
             logging.info(f"[{self.rank}] Disabling slicing for VAE.")
-            self.vae.disable_slicing()
+            self.vae.disable_slicing()  # type: ignore[union-attr]
         else:
             logging.info(f"[{self.rank}] Enabling slicing for VAE.")
-            self.vae.enable_slicing()
+            self.vae.enable_slicing()  # type: ignore[union-attr]
         self.load_timer.end("vae")
 
         if torch.cuda.is_available():
@@ -126,7 +126,7 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
         logging.info(f"[{self.rank}] Compiling VAE with torch.compile().")
         self.load_timer.start("vae_compile")
         assert self.vae is not None
-        self.vae = torch.compile(  # type: ignore[assignment]
+        self.vae = torch.compile(  # type: ignore[assignment, call-overload]
             self.vae,
             mode="max-autotune-no-cudagraphs",
         )
@@ -194,10 +194,10 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
 
         try:
             gen_timer.start("vae_decoder")
-            latents = latents / self.vae.config.scaling_factor
-            latents = latents.to(self.vae.device, dtype=self.param_dtype)
+            latents = latents / self.vae.config.scaling_factor  # type: ignore[attr-defined]
+            latents = latents.to(self.vae.device, dtype=self.param_dtype)  # type: ignore[attr-defined]
             pixels = await asyncio.to_thread(
-                self.vae.decode,
+                self.vae.decode,  # type: ignore[attr-defined]
                 latents)
             pixels = pixels.sample
             gen_timer.end("vae_decoder")
@@ -269,8 +269,8 @@ class HunyuanFramepackVAEGeneration(ModelGeneration):
         try:
             gen_timer.start("vae_encoder")
             pixels = pixels.to(self.device, dtype=self.param_dtype)
-            latents = self.vae.encode(pixels).latent_dist.sample()
-            latents = latents * self.vae.config.scaling_factor
+            latents = self.vae.encode(pixels).latent_dist.sample()  # type: ignore[attr-defined]
+            latents = latents * self.vae.config.scaling_factor  # type: ignore[attr-defined]
             gen_timer.end("vae_encoder")
             return latents
         finally:

@@ -54,7 +54,7 @@ def usp_fantasytalking_forward(
 
     # embeddings
     x_embed_list = [
-        self.patch_embedding(u.unsqueeze(0))
+        self.patch_embedding(u.unsqueeze(0))  # type: ignore[operator]
         for u in x_list
     ]
     grid_sizes = torch.stack(
@@ -73,24 +73,24 @@ def usp_fantasytalking_forward(
 
     # time embeddings
     with amp.autocast(dtype=torch.float32, device_type="cuda"):
-        e = self.time_embedding(
+        e = self.time_embedding(  # type: ignore[operator]
             sinusoidal_embedding_1d(self.freq_dim, timestep).float()
         )
-        e0 = self.time_projection(e).unflatten(1, (6, self.dim))
+        e0 = self.time_projection(e).unflatten(1, (6, self.dim))  # type: ignore[operator]
         assert e.dtype == torch.float32 and e0.dtype == torch.float32
 
     # context
     context_lens = None
-    context = self.text_embedding(
+    context = self.text_embedding(  # type: ignore[operator]
         torch.stack([
-            torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))])
+            torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))])  # type: ignore[arg-type, operator]
             for u in context
         ])
     )
 
     if clip_fea is not None:
-        context_clip = self.img_emb(clip_fea)  # bs x 257 x dim
-        context = torch.concat([context_clip, context], dim=1)
+        context_clip = self.img_emb(clip_fea)  # bs x 257 x dim  # type: ignore[operator]
+        context = torch.concat([context_clip, context], dim=1)  # type: ignore[assignment, list-item]
 
     # Context Parallel
     sp_world = get_sequence_parallel_world_size()
@@ -144,7 +144,7 @@ def usp_fantasytalking_forward(
             return module(*inputs, **kwargs)
         return custom_forward
 
-    for block in self.blocks:
+    for block in self.blocks:  # type: ignore[union-attr]
         if self.training and use_gradient_checkpointing:
             x = torch.utils.checkpoint.checkpoint(
                 create_custom_forward(block),
@@ -156,12 +156,12 @@ def usp_fantasytalking_forward(
             x = block(x, **kwargs)
 
     # head
-    x = self.head(x, e)
+    x = self.head(x, e)  # type: ignore[operator]
 
     # Context Parallel
     x = get_sp_group().all_gather(x, dim=1)
 
     # unpatchify
-    x = self.unpatchify(x, grid_sizes)
+    x = self.unpatchify(x, grid_sizes)  # type: ignore[operator]
     x = torch.stack(x).float()
     return x

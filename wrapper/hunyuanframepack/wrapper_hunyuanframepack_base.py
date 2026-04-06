@@ -168,21 +168,21 @@ class HunyuanFramePackBase(USPGeneration):
             subfolder='vae',
             torch_dtype=torch.float16).to(self.device)
         assert self.vae is not None
-        self.vae.eval().requires_grad_(False)
+        self.vae.eval().requires_grad_(False)  # type: ignore[union-attr]
 
         if not self.enable_tiling:
             logging.info(f"[{self.rank}] Disabling tiling for VAE.")
-            self.vae.disable_tiling()
+            self.vae.disable_tiling()  # type: ignore[union-attr]
         else:
             logging.info(f"[{self.rank}] Enabling tiling for VAE.")
-            self.vae.enable_tiling()
+            self.vae.enable_tiling()  # type: ignore[union-attr]
 
         if not self.enable_slicing:
             logging.info(f"[{self.rank}] Disabling slicing for VAE.")
-            self.vae.disable_slicing()
+            self.vae.disable_slicing()  # type: ignore[union-attr]
         else:
             logging.info(f"[{self.rank}] Enabling slicing for VAE.")
-            self.vae.enable_slicing()
+            self.vae.enable_slicing()  # type: ignore[union-attr]
         self.load_timer.end("vae")
 
         diff_memory = torch.cuda.memory_allocated() - prev_memory
@@ -262,7 +262,7 @@ class HunyuanFramePackBase(USPGeneration):
         logging.info(f"[{self.rank}] Compiling VAE with torch.compile().")
         self.load_timer.start("vae_compile")
         assert self.vae is not None
-        self.vae = torch.compile(  # type: ignore[assignment]
+        self.vae = torch.compile(  # type: ignore[assignment, call-overload]
             self.vae,
             mode="max-autotune-no-cudagraphs",
         )

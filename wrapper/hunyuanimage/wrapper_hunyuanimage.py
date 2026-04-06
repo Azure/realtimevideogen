@@ -103,7 +103,7 @@ class HunyuanImageGeneration(ModelGeneration):
             return
 
         self.load_timer.start("model")
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model = AutoModelForCausalLM.from_pretrained(  # type: ignore[assignment]
             self.HF_MODEL_NAME,
             attn_implementation="sdpa",  # Use "flash_attention_2" if FlashAttention is installed
             trust_remote_code=True,
@@ -114,8 +114,8 @@ class HunyuanImageGeneration(ModelGeneration):
             moe_drop_tokens=True,
         )  # nosec B615 - local path
         assert self.model is not None
-        self.model.load_tokenizer(self.HF_MODEL_NAME)
-        self.pipeline = self.model.pipeline
+        self.model.load_tokenizer(self.HF_MODEL_NAME)  # type: ignore[attr-defined]
+        self.pipeline = self.model.pipeline  # type: ignore[attr-defined]
         self.load_timer.end("model")
 
     def model_compile(self) -> None:
@@ -125,7 +125,7 @@ class HunyuanImageGeneration(ModelGeneration):
 
         if self.model:
             self.load_timer.start("dit_compile")
-            self.model = torch.compile(
+            self.model = torch.compile(  # type: ignore[call-overload]
                 self.model,
                 mode="max-autotune-no-cudagraphs"
             )
@@ -140,7 +140,7 @@ class HunyuanImageGeneration(ModelGeneration):
         # width_latent = width // self.pipeline.vae_scale_factor
         # self.model.vae is AutoencoderKLConv3D
         assert self.model is not None
-        vae_config = self.model.vae.config
+        vae_config = self.model.vae.config  # type: ignore[attr-defined]
         if width % vae_config.ffactor_spatial != 0:
             raise ValueError(f"Width {width} not supported. Must be multiple of {vae_config.ffactor_spatial}.")
         if height % vae_config.ffactor_spatial != 0:
