@@ -31,7 +31,7 @@ class USPGeneration(ModelGeneration):
     def __init__(
         self,
         model_name: str,
-        engine_config: EngineConfig = None,
+        engine_config: Optional[EngineConfig] = None,
         param_dtype: torch.dtype = torch.bfloat16,
     ) -> None:
         super().__init__(model_name)

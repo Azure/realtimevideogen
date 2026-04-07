@@ -76,7 +76,7 @@ class HunyuanFramePackBase(USPGeneration):
         self,
         model_name: str = "hunyuanframepack",
         framepack_model_name: str = "lllyasviel/FramePackI2V_HY",
-        engine_config: EngineConfig = None,
+        engine_config: Optional[EngineConfig] = None,
         param_dtype: torch.dtype = torch.bfloat16,
         enable_tiling: bool = False,
         enable_slicing: bool = False,
@@ -134,6 +134,7 @@ class HunyuanFramePackBase(USPGeneration):
 
     def load_model(self) -> None:
         assert torch.cuda.is_available()
+        assert self.device is not None
 
         prev_memory = torch.cuda.memory_allocated()
         self.load_timer.start("text_encoder")
@@ -141,6 +142,7 @@ class HunyuanFramePackBase(USPGeneration):
             "hunyuanvideo-community/HunyuanVideo",
             subfolder="text_encoder",
             torch_dtype=torch.float16).to(self.device)  # nosec B615
+        assert self.text_encoder is not None
         self.text_encoder.eval().requires_grad_(False)
         self.load_timer.end("text_encoder")
         diff_memory = torch.cuda.memory_allocated() - prev_memory
@@ -215,6 +217,7 @@ class HunyuanFramePackBase(USPGeneration):
             torch_dtype=self.param_dtype
         )
         self.transformer = self.transformer.to(self.device)
+        assert self.transformer is not None
         self.transformer.eval().requires_grad_(False)
         self.load_timer.end("dit")
         diff_memory = torch.cuda.memory_allocated() - prev_memory
@@ -225,8 +228,15 @@ class HunyuanFramePackBase(USPGeneration):
             return
 
         self.load_timer.start("dit_parallel")
+        assert self.text_encoder is not None
+        assert self.tokenizer is not None
         assert self.transformer is not None
         assert self.vae is not None
+        assert self.scheduler is not None
+        assert self.text_encoder_2 is not None
+        assert self.tokenizer_2 is not None
+        assert self.image_encoder is not None
+        assert self.feature_extractor is not None
         temp_pipeline = HunyuanVideoFramepackPipeline(
             self.text_encoder,
             self.tokenizer,
@@ -238,6 +248,7 @@ class HunyuanFramePackBase(USPGeneration):
             self.image_encoder,
             self.feature_extractor,
         )
+        assert temp_pipeline is not None
         initialize_runtime_state(temp_pipeline, self.engine_config)
         get_runtime_state().set_video_input_parameters(
             batch_size=1,
@@ -496,6 +507,7 @@ class HunyuanFramePackBase(USPGeneration):
         # B, C, T, H, W (1, 16, X, 8, 8)
         LAT_CHANNELS = 16
         assert generator is not None
+        assert self.vae_stride is not None
         latents = torch.randn(
             (
                 batch_size,
