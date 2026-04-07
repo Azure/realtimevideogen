@@ -424,3 +424,6 @@ docker_files/
 *.pem
 *.crt
 *.key
+
+# Deployment config with real credentials (use set_properties.sh.template instead)
+deployment/set_properties.sh

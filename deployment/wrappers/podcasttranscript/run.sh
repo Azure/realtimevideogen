@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-LLM_IP="10.244.22.14"
+LLM_IP="10.0.0.1"
 LLM_URL="http://$LLM_IP:8000/v1"
 
 cat > payload_transcript.json <<EOF
