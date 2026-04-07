@@ -1,0 +1,18 @@
+{% macro render_gpu(num_gpus, mig_profile, health) %}
+    {%- if mig_profile %}
+        <span title="MIG slice: {{ mig_profile }}">
+            {%- if num_gpus and num_gpus > 1 %}
+                {{ num_gpus }}
+                &times;
+            {% endif %}
+            {{ health.gpu | format_gpu_model_mig(mig_profile) | safe }}
+        </span>
+    {%- elif not num_gpus or num_gpus == 0 %}
+        <span class="text-muted">-</span>
+    {%- else %}
+        {{ num_gpus }}
+        {%- if health and health.gpu %}
+            &times;{{ health.gpu | format_gpu_model | safe }}
+        {% endif %}
+    {%- endif %}
+{% endmacro %}

@@ -1,0 +1,409 @@
+trigger:
+- main
+
+pr:
+  branches:
+    include:
+    - "*"
+
+resources:
+  repositories:
+  - repository: self
+    type: git
+    ref: main
+
+jobs:
+- job: main
+  displayName: 'Test'
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.12'
+      addToPath: true
+    displayName: 'Use Python 3.12'
+
+  - task: UseNode@1
+    inputs:
+      versionSpec: '10.x'
+    displayName: 'Install Node.js'
+
+  - script: |
+      sudo apt-get update
+      sudo apt-get install -y ffmpeg
+      ffmpeg -version
+      dpkg -s ffmpeg
+      sudo apt-get clean
+      sudo rm -rf /var/lib/apt/lists/*
+    displayName: 'Install ffmpeg'
+
+  - script: |
+      python -m pip install --upgrade pip setuptools wheel
+      pip install -r requirements_dev.txt
+      pip cache purge
+    displayName: 'Install dependencies'
+
+  - script: |
+      df -h
+      free -h
+    displayName: 'Check space'
+
+  - script: |
+      export COVERAGE_FILE=.coverage.main
+      pytest --junitxml=test-results-main.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            --ignore=tests/simulator \
+            --ignore=tests/streamwise \
+            --ignore=tests/streamwise_app
+    displayName: 'Run tests: Main'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.simulator
+      pytest --junitxml=test-results-simulator.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/simulator/*.py
+    displayName: 'Run tests: Simulator'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamcast
+      pytest --junitxml=test-results-streamcast.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamcast.py
+    displayName: 'Run tests: StreamCast'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streampersona
+      pytest --junitxml=test-results-streampersona.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streampersona.py
+    displayName: 'Run tests: StreamPersona'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamshort
+      pytest --junitxml=test-results-streamshort.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamshort.py
+    displayName: 'Run tests: StreamShort'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamdub
+      pytest --junitxml=test-results-streamdub.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamdub.py
+    displayName: 'Run tests: StreamDub'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streammovie
+      pytest --junitxml=test-results-streammovie.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streammovie.py
+    displayName: 'Run tests: StreamMovie'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamedit
+      pytest --junitxml=test-results-streamedit.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamedit.py
+    displayName: 'Run tests: StreamEdit'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamchat
+      pytest --junitxml=test-results-streamchat.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamchat.py
+    displayName: 'Run tests: StreamChat'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamlecture
+      pytest --junitxml=test-results-streamlecture.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamlecture.py
+    displayName: 'Run tests: StreamLecture'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamanimate
+      pytest --junitxml=test-results-streamanimate.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise_app/test_streamanimate.py
+    displayName: 'Run tests: StreamAnimate'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamwise_app
+      pytest --junitxml=test-results-streamwise_app.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            --ignore=tests/streamwise_app/test_streamcast.py \
+            --ignore=tests/streamwise_app/test_streampersona.py \
+            --ignore=tests/streamwise_app/test_streamshort.py \
+            --ignore=tests/streamwise_app/test_streamdub.py \
+            --ignore=tests/streamwise_app/test_streammovie.py \
+            --ignore=tests/streamwise_app/test_streamedit.py \
+            --ignore=tests/streamwise_app/test_streamchat.py \
+            --ignore=tests/streamwise_app/test_streamlecture.py \
+            --ignore=tests/streamwise_app/test_streamanimate.py \
+            tests/streamwise_app
+    displayName: 'Run tests: StreamWise apps'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage.streamwise
+      pytest --junitxml=test-results-streamwise.xml \
+            --cov=. \
+            --cov-report=term \
+            -vv \
+            tests/streamwise/
+    displayName: 'Run tests: StreamWise'
+    condition: always()
+    timeoutInMinutes: 10
+
+  - script: |
+      export COVERAGE_FILE=.coverage
+      # coverage combine --keep .coverage.main .coverage.streamcast .coverage.streampersona .coverage.streamXXX .coverage.streamwise
+      coverage combine --keep .coverage.*
+      coverage xml -o coverage.xml --ignore-errors
+    displayName: 'Generate coverage report'
+    condition: always()
+
+  - script: |
+      ls -l test-results*.xml
+      ls -l .coverage*
+      md5sum .coverage*
+    displayName: 'List test files'
+    condition: always()
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: 'test-results*.xml'
+      testRunTitle: 'Unit Tests'
+    displayName: 'Publish test results'
+    condition: always()
+
+  - task: PublishCodeCoverageResults@2
+    inputs:
+      codeCoverageTool: 'Cobertura'
+      summaryFileLocation: 'coverage.xml'
+      pathToSources: '$(System.DefaultWorkingDirectory)'
+      reportDirectory: '.'
+    displayName: 'Publish code coverage results'
+    condition: always()
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: 'coverage.xml'
+      artifactName: 'coverage'
+      publishLocation: 'Container'
+    displayName: 'Publish coverage report'
+    condition: always()
+
+- job: lint
+  displayName: 'Lint'
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.12'
+      addToPath: true
+    displayName: 'Use Python 3.12'
+
+  - script: |
+      sudo apt-get update
+      sudo apt-get install -y shellcheck
+      sudo apt-get clean
+      sudo rm -rf /var/lib/apt/lists/*
+    displayName: 'Install shellcheck'
+
+  - script: |
+      python -m pip install --upgrade pip setuptools wheel
+      pip install -r requirements_dev.txt
+      pip install yamllint
+      pip cache purge
+    displayName: 'Install dependencies'
+
+  - script: |
+      shellcheck $(git ls-files '*.sh')
+      shellcheck $(git ls-files '*.bash')
+    displayName: 'Run shell lint'
+    condition: always()
+
+  - script: |
+      j2lint streamwise/templates/ --extensions html || true
+      j2lint apps/streamcast/templates/ --extensions html || true
+      j2lint apps/streampersona/templates/ --extensions html || true
+      j2lint apps/streamshort/templates/ --extensions html || true
+      j2lint apps/streamdub/templates/ --extensions html || true
+      j2lint apps/streammovie/templates/ --extensions html || true
+      j2lint apps/streamedit/templates/ --extensions html || true
+      j2lint apps/streamchat/templates/ --extensions html || true
+      j2lint apps/streamlecture/templates/ --extensions html || true
+      j2lint apps/streamanimate/templates/ --extensions html || true
+    displayName: 'HTML/Jinja lint'
+    condition: always()
+
+  - script: |
+      yamllint -c .yamllint.yml $(git ls-files '*.yml' '*.yaml') > yamllint-results.txt 2>&1
+      YAMLLINT_EXIT=$?
+      cat yamllint-results.txt
+      exit $YAMLLINT_EXIT
+    displayName: 'Run YAML lint'
+    condition: always()
+
+  - script: |
+      EXIT=0
+      for f in $(git ls-files '*.json'); do
+        if ! python -m json.tool "$f" > /dev/null; then
+          echo "INVALID: $f" >> jsonlint-results.txt
+          EXIT=1
+        fi
+      done
+      if [ "$EXIT" -eq 0 ]; then
+        echo "All JSON files are valid." > jsonlint-results.txt
+      fi
+      cat jsonlint-results.txt
+    displayName: 'Run JSON lint'
+    condition: always()
+
+  - script: |
+      flake8 . tests
+    displayName: 'Run Python lint'
+    condition: always()
+
+  - script: |
+      mypy --install-types --non-interactive --ignore-missing-imports . \
+        2>&1 | tee mypy-results.txt || true
+      ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null) || ERROR_COUNT=0
+      NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null) || NOTE_COUNT=0
+      echo "# Mypy Type Checking" > mypy-summary.md
+      echo "" >> mypy-summary.md
+      echo "| Metric | Count |" >> mypy-summary.md
+      echo "|--------|-------|" >> mypy-summary.md
+      echo "| Errors | ${ERROR_COUNT} |" >> mypy-summary.md
+      echo "| Notes  | ${NOTE_COUNT} |" >> mypy-summary.md
+      echo "" >> mypy-summary.md
+      echo '```' >> mypy-summary.md
+      cat mypy-results.txt >> mypy-summary.md
+      echo '```' >> mypy-summary.md
+      echo "##vso[task.uploadsummary type=CodeSummary;title=Mypy Results]$(pwd)/mypy-summary.md"
+    displayName: 'Run Python type checking'
+    condition: always()
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: 'mypy-results.txt'
+      artifactName: 'mypy'
+      publishLocation: 'Container'
+    displayName: 'Publish mypy results'
+    condition: always()
+
+- job: stats
+  displayName: 'Stats'
+  condition: always()
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - script: |
+      sudo apt-get update
+      sudo apt-get install -y cloc
+      cloc .
+    displayName: 'Install cloc'
+
+  - script: |
+      cloc . \
+        --exclude-dir=.git,venv,node_modules \
+        --out=cloc-report.txt
+      cat cloc-report.txt
+
+  - script: |
+      cat cloc-report.txt
+    displayName: 'Show lines of code'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: 'cloc-report.txt'
+      artifact: 'cloc-text'
+    displayName: 'Publish cloc report'
+
+  - script: |
+      cloc . \
+        --exclude-dir=.git,venv,node_modules \
+        --md \
+        --out=cloc-summary.md
+      cat cloc-summary.md
+    displayName: 'Lines of code (Markdown)'
+
+  - script: |
+      cat cloc-summary.md
+    displayName: 'Show lines of code (Markdown)'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: 'cloc-summary.md'
+      artifact: 'cloc-markdown'
+    displayName: 'Publish cloc report (Markdown)'
+
+  - script: |
+      set -e
+
+      if [ ! -f cloc-summary.md ]; then
+        echo "cloc-summary.md not found!"
+        exit 1
+      fi
+
+      echo "# Lines of Code Report" > cloc-summary-wrapper.md
+      echo "" >> cloc-summary-wrapper.md
+      cat cloc-summary.md >> cloc-summary-wrapper.md
+      mv cloc-summary-wrapper.md cloc-summary.md
+
+      echo "Uploading cloc summary..."
+      echo "##vso[task.uploadsummary type=CodeSummary;title=LoC Report]$(pwd)/cloc-summary.md"
+    displayName: 'Publish summary'

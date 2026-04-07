@@ -1,0 +1,406 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Lecture Generation{% endblock %}
+{% block submit_button_title %}Submit Lecture Generation{% endblock %}
+{% block submit_button_aria %}Submit Lecture Generation{% endblock %}
+{% block heading %}Lecture Generation 📄→📽️{% endblock %}
+{% block source_link %}
+                <p class="mb-2">
+                    <strong>Document:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='document.pdf') }}" 
+                    class="link-primary text-decoration-none">
+                    📑 View
+                    </a>
+                </p>
+{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="transcript-waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Video</h2>
+                <div id="video-preview-wrapper" class="d-flex justify-content-center">
+                    <div id="video-preview" style="min-height: 300px;"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="images-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🖼️ Image</h2>
+                <div id="transcript-images" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;">⏳ Waiting for image descriptions...</div>
+                <div id="transcript-image-preview" class="mt-3 text-center" style="min-height: 300px;"></div>
+            </div>
+
+            <div class="col-12 mb-3" id="characters-section" style="display: none;">
+                <h2 class="mt-5 mb-3">👤 Characters</h2>
+                <div id="transcript-characters" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
+            </div>
+
+            <div class="col-12" id="dialogue-section" style="display: none;">
+                <h2 class="mt-5 mb-3">💬🗨️ Dialogue</h2>
+                <div id="transcript-dialogue" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 800px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            const videoPreview = document.getElementById("video-preview");
+            const imagePreview = document.getElementById("transcript-image-preview");
+
+            const imagesBox = document.getElementById("transcript-images");
+            const charactersBox = document.getElementById("transcript-characters");
+            const dialogueBox = document.getElementById("transcript-dialogue");
+
+            const waitingSection = document.getElementById("transcript-waiting-section");
+            const videoSection = document.getElementById("video-section");
+            const imagesSection = document.getElementById("images-section");
+            const charactersSection = document.getElementById("characters-section");
+            const dialogueSection = document.getElementById("dialogue-section");
+
+            const colorClasses = [
+                "text-primary",
+                "text-success",
+                "text-danger",
+                "text-warning",
+                "text-info",
+                "text-secondary"
+            ];
+            const characterColors = {};
+            function getCharacterColor(name) {
+                if (!characterColors[name]) {
+                    const index = Object.keys(characterColors).length % colorClasses.length;
+                    characterColors[name] = colorClasses[index];
+                }
+                return characterColors[name];
+            }
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if video exists
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoPreview.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoPreview.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        videoSection.style.display = "block";
+
+                        // Adjust video size once metadata is loaded
+                        const videoEl = videoPreview.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch(err) {
+                    setTimeout(fetchVideo, 1000); // retry after 1 second
+                }
+            }
+            fetchVideo();
+
+            // Image
+            const imageUrl = "{{ url_for('file_stream', job_id=job_id, file_name='main_image.png') }}";
+            async function fetchImage() {
+                try {
+                    const res = await fetch(imageUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if image exists
+                    if (!res.ok) throw new Error(res.statusText);
+
+                    const img = imagePreview.querySelector("img");
+                    if (!img || img.src !== imageUrl + "?t=" + Date.now()) {
+                        imagePreview.innerHTML = `
+                            <img src="${imageUrl}?t=${Date.now()}" 
+                                alt="Transcript image" 
+                                class="img-fluid rounded shadow-sm" 
+                                style="max-height: 300px; object-fit: contain;">
+                        `;
+                        imagesSection.style.display = "block";
+                    }
+                } catch(err) {
+                    setTimeout(fetchImage, 1000); // retry after 1 second
+                }
+            }
+
+            fetchImage();
+
+            // Transcript
+            const transcriptUrl = "{{ url_for('file_stream', job_id=job_id, file_name='lecture_transcript.jsonl') }}";
+
+            async function fetchTranscript() {
+                try {
+                    const res = await fetch(transcriptUrl + "?t=" + Date.now());
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+
+                    const lines = text.split("\n")
+                        .filter(line => line.trim())
+                        .map(line => {
+                            try {
+                                return JSON.parse(line);
+                            } catch(e) {
+                                console.error("Invalid JSONL line:", line, e);
+                                return null;
+                            }
+                        })
+                        .filter(obj => obj !== null);
+
+                    // Separate arrays
+                    const images = [];
+                    const characters = [];
+                    const dialogues = [];
+                    for (const item of lines) {
+                        switch(item.type) {
+                            case "image":     images.push(item.content); break;
+                            case "character": characters.push(item); break;
+                            case "dialogue":  dialogues.push(item); break;
+                            default:
+                                errorBox.style.display = "block";
+                                errorBox.textContent = "Unknown transcript item type: " + item.type;
+                        }
+                    }
+
+                    // Show sections once data is available
+                    if (images.length > 0) {
+                        waitingSection.style.display = "none";
+                        imagesSection.style.display = "";
+                        imagesBox.innerHTML = images.map(i => `<div class="mb-2">${i}</div>`).join("");
+                    }
+
+                    // Characters
+                    if (characters.length > 0) {
+                        waitingSection.style.display = "none";
+                        charactersSection.style.display = "";
+
+                        // charactersBox.innerHTML = ""; // clear container
+
+                        characters.forEach((c, i) => {
+                            const color = getCharacterColor(c.name);
+                            const wrapperId = `character-wrapper-${i}`;
+                            let wrapper = document.getElementById(wrapperId);
+
+                            // Wrapper for each character
+                            if (!wrapper) {
+                                wrapper = document.createElement("div");
+                                wrapper.className = "mb-3 d-flex align-items-start";
+                                wrapper.id = wrapperId;
+
+                                // Left: image placeholder
+                                const imgWrapper = document.createElement("div");
+                                imgWrapper.className = "me-3";
+                                imgWrapper.style.width = "160px";
+                                imgWrapper.style.height = "100px";
+                                imgWrapper.style.display = "flex";
+                                imgWrapper.style.alignItems = "center";
+                                imgWrapper.style.justifyContent = "center";
+
+                                const img = document.createElement("img");
+                                img.alt = c.name;
+                                img.className = "rounded shadow-sm";
+                                img.width = 160;
+                                img.height = 100;
+                                img.style.maxWidth = "160px";
+                                img.style.maxHeight = "100px";
+                                img.style.visibility = "hidden";
+                                imgWrapper.appendChild(img);
+
+                                // Right: text info
+                                const textDiv = document.createElement("div");
+                                textDiv.innerHTML = `👤 <span class="${color}"><strong>${c.name}</strong></span> [${c.gender}]: ${c.description}`;
+
+                                wrapper.appendChild(imgWrapper);
+                                wrapper.appendChild(textDiv);
+                                charactersBox.appendChild(wrapper);
+                            }
+
+                            // Only check/update if not already loaded
+                            const img = wrapper.querySelector("img");
+                            if (img) {
+                                const imgUrl = `/file_stream/{{ job_id }}/character_${String(i+1).padStart(3,'0')}.png`;
+                                if (!img.src.endsWith(imgUrl)) {
+                                    fetch(imgUrl + "?t=" + Date.now(), { method: "HEAD" })
+                                        .then(res => {
+                                            if (res.ok) {
+                                                img.src = imgUrl;
+                                                img.style.visibility = "visible";
+                                            }
+                                        })
+                                        .catch(() => { /* ignore missing image */ });
+                                }
+                            }
+                        });
+                    }
+
+                    // Dialogues
+                    if (dialogues.length > 0) {
+                        waitingSection.style.display = "none";
+                        dialogueSection.style.display = "";
+
+                        const audioPromises = [];
+                        dialogues.forEach((d, i) => {
+                            const wrapperId = `dialogue-${i}`;
+                            let wrapper = document.getElementById(wrapperId);
+
+                            // Wrapper for each dialogue
+                            if (!wrapper) {
+                                wrapper = document.createElement("div");
+                                wrapper.className = "mb-3 d-flex align-items-center";
+                                wrapper.id = wrapperId;
+
+                                // Left: preloaded audio player
+                                const audioWrapper = document.createElement("div");
+                                audioWrapper.className = "me-3";
+                                audioWrapper.style.width = "200px";
+                                audioWrapper.style.height = "30px";
+
+                                const audioPlayer = document.createElement("audio");
+                                audioPlayer.controls = true;
+                                audioPlayer.className = "mt-1";
+                                audioPlayer.style.width = "200px";
+                                audioPlayer.style.height = "30px";
+                                audioPlayer.innerHTML = `
+                                    <source id="src-${i}" type="audio/wav">
+                                    Your browser does not support the audio element.
+                                `;
+                                audioWrapper.appendChild(audioPlayer);
+
+                                // Right: dialogue text
+                                const color = getCharacterColor(d.character);
+                                const textDiv = document.createElement("div");
+                                textDiv.innerHTML = `💬 <span class="${color}"><strong>${d.character}</strong></span>: ${d.content}`;
+
+                                wrapper.appendChild(audioWrapper);
+                                wrapper.appendChild(textDiv);
+                                dialogueBox.appendChild(wrapper);
+                            }
+
+                            // Only fetch audio if not already loaded
+                            const audioPlayer = wrapper.querySelector("audio");
+                            if (audioPlayer) {
+                                const source = audioPlayer.querySelector("source");
+                                const audioUrl = `/file_stream/{{ job_id }}/${String(i).padStart(3,'0')}.wav`;
+                                if (!source.src.endsWith(audioUrl)) {
+                                    const audioPromise = fetch(audioUrl + "?t=" + Date.now(), { method: "HEAD" })
+                                        .then(res => {
+                                            if (res.ok) {
+                                                source.src = audioUrl;
+                                                audioPlayer.style.display = "";
+                                                audioPlayer.load();
+                                            }
+                                        })
+                                        .catch(() => { /* ignore missing audio */ });
+                                    audioPromises.push(audioPromise);
+                                }
+                            }
+                        });
+
+                        // Scroll to bottom after all checks
+                        Promise.all(audioPromises).finally(() => {
+                            dialogueBox.scrollTop = dialogueBox.scrollHeight;
+                        });
+                    }
+                } catch(err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get lecture transcript from " + transcriptUrl + ": " + err.message;
+                }
+            }
+
+            let transcriptInterval = null;
+            async function refreshTranscriptLoop() {
+                await fetchTranscript();
+                const status = await getJobStatus();
+                if (status) {
+                    updateStatusBadge(status);
+                    if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                        clearInterval(transcriptInterval);
+                    }
+                }
+            }
+
+            refreshTranscriptLoop();
+
+            transcriptInterval = setInterval(refreshTranscriptLoop, 1000);
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+{% endblock %}

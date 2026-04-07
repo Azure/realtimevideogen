@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>LMM Gen AI Models</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+</head>
+<body style="font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 2rem;">
+    <div class="container mb-5">
+        <h1 class="mb-4 text-center">📄📽️ LMM Models 🔉🎬</h1>
+    </div>
+    {% if models_health %}
+        {% for model_name, health in models_health.items() %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">{{ model_name | get_friendly_container_name | safe }} {{ model_name | get_class_emoji | safe }}</h2>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% for key, value in health.items() %}
+                            {% if value is mapping %}
+                                <li>
+                                    <strong>{{ key | format_string | safe }}:</strong>
+                                    <ul>
+                                        {% for subkey, subval in value.items() %}
+                                            <li>{{ subkey | format_string }}: {{ subval }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                            {% elif value is sequence and value is not string %}
+                                <li>
+                                    <strong>{{ key | format_string | safe }}:</strong>
+                                    <ul>
+                                        {% for item in value %}
+                                            {% if item is mapping %}
+                                                <li>
+                                                    <ul>
+                                                        {% for subkey, subval in item.items() %}
+                                                            <li><strong>{{ subkey | format_string }}:</strong> {{ subval }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </li>
+                                            {% else %}
+                                                <li>{{ item }}</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                            {% else %}
+                                <li><strong>{{ key | format_string | safe }}:</strong> {{ value }}</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</body>
+</html>

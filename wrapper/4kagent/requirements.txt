@@ -1,0 +1,7 @@
+# Wrapper dependencies for 4KAgent
+PyYAML>=6.0
+# After this is HTTP server requirements
+colorlog
+nvidia-ml-py3
+quart
+hypercorn

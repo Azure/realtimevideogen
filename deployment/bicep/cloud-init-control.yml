@@ -1,0 +1,347 @@
+#cloud-config
+package_upgrade: true
+packages:
+- binutils
+- vim
+- git
+- jq
+- python-is-python3
+- python3-setuptools
+- python3-pip
+- unattended-upgrades
+- build-essential
+- cmake
+- unzip
+- net-tools
+- azure-cli
+write_files:
+- path: /etc/ssh/sshd_config
+  content: |
+        Port 22
+        Port 2222
+- path: /home/azureuser/.ssh/authorized_keys
+  permissions: '0644'
+  append: true
+  content: |
+         ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDcna8EJSmWpRYVislNdI4uFrx13LVmTbBhbVopkwmTQHRoWGrcH11Ga9+aUko14MmrNEQnagNUVJiyfkXh302VhEiGSaLmPNn+kxQWfQcPhR4TZqaQ2uJw8kZhNcHZxFR5Ylbk0xXX16Qhqm0/mmu9w/OoJjkTgRLGZqbL38vDrbEJ8yUExts0vHLCzVsfgLCkcRQNkOnrIy6pkrBHj2+MTUoWYVKunxxfQJTiGkONe8LIsQtp5hxXgqKbmE17Jb1x37g0GtCJ4j6U8Mo/Su20CIQde77egXt91PedCvf5UEeNH2itkeJ9FP8hk7pYBatvRp1+dZDignPALfIZz8K5
+- path: /home/azureuser/.bash_profile
+  append: true
+  content: |
+         source /mnt/azureuser/miniconda3/bin/activate
+         git config --global credential.helper store
+- path: /home/azureuser/.bashrc
+  append: true
+  content: |
+         source /mnt/azureuser/miniconda3/bin/activate
+         git config --global credential.helper store
+- path: /home/azureuser/install_conda.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        mkdir -p /mnt/azureuser
+        wget -O /mnt/azureuser/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+        chmod +x /mnt/azureuser/Miniconda3.sh
+        /mnt/azureuser/Miniconda3.sh -b -p /mnt/azureuser/miniconda3
+        chown -R azureuser:azureuser /mnt/azureuser/miniconda3
+- path: /home/azureuser/install_docker.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        mkdir -p /etc/apt/keyrings/
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+        attempt=1
+        max_attempts=5
+        while [[ ! -f /usr/bin/docker && $attempt -le $max_attempts ]]; do
+          echo "Installing Docker..."
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          attempt=$((attempt + 1))
+          if [[ ! -f /usr/bin/docker ]]; then
+            echo "Docker installation failed, retrying..."
+            sleep 30  # Wait for the lock to be released
+          fi
+        done
+        systemctl restart docker
+        chmod 777 /var/run/docker.sock
+- path: /home/azureuser/install_k8s.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        mkdir -p /etc/apt/keyrings/
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
+        attempt=1
+        max_attempts=5
+        while [[ ! -f /usr/bin/kubectl && $attempt -le $max_attempts ]]; do
+          echo "Installing Kubernetes..."
+          apt-get update
+          apt-get install -y kubelet kubeadm kubectl
+          attempt=$((attempt + 1))
+          if [[ ! -f /usr/bin/kubectl ]]; then
+            echo "Kubernetes installation failed, retrying..."
+            sleep 30  # Wait for the lock to be released
+          fi
+        done
+        systemctl enable --now kubelet
+        containerd config default | tee /etc/containerd/config.toml > /dev/null
+        systemctl restart containerd
+- path: /home/azureuser/start_k8s_master.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        kubeadm reset -f
+        IP=`ip -o -4 addr show eth0 | awk '{print $4}' | cut -d/ -f1`
+        kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=$IP
+        # kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=$IP --image-repository abc-xyz.azurecr.io
+        kubeadm token create --print-join-command
+- path: /home/azureuser/setup_kubectl.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        mkdir -p $HOME/.kube
+        rm -Rf $HOME/.kube/config
+        cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        chown $(id -u):$(id -g) $HOME/.kube/config
+        mkdir -p /home/azureuser/.kube
+        rm -Rf /home/azureuser/.kube/config
+        cp -i /etc/kubernetes/admin.conf /home/azureuser/.kube/config
+        chown azureuser:azureuser /home/azureuser/.kube/config
+- path: /home/azureuser/setup_k8s_net.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        modprobe br_netfilter
+        sysctl net.bridge.bridge-nf-call-iptables=1
+        sysctl net.ipv4.ip_forward=1
+        sysctl --system
+        kubectl delete -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+- path: /home/azureuser/setup_helm.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+        echo "Installing Helm..."
+        while ! command -v helm >/dev/null 2>&1; do
+          apt-get install -y apt-transport-https
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+          apt-get update
+          apt-get install -y helm
+        done
+- path: /home/azureuser/setup_k8s_metrics.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+        kubectl -n kube-system patch deployment metrics-server --type=json -p='[
+          {
+            "op": "add",
+            "path": "/spec/template/spec/containers/0/args/-",
+            "value": "--kubelet-insecure-tls"
+          },
+          {
+            "op": "add",
+            "path": "/spec/template/metadata/labels/app.kubernetes.io~1instance",
+            "value": "metrics-server"
+          },
+          {
+            "op": "add",
+            "path": "/spec/template/metadata/labels/app.kubernetes.io~1name",
+            "value": "metrics-server"
+          }
+        ]'
+- path: /home/azureuser/dashboard-admin.yaml
+  content: |
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: admin-user
+          namespace: kubernetes-dashboard
+        ---
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: admin-user-binding
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: cluster-admin
+        subjects:
+        - kind: ServiceAccount
+          name: admin-user
+          namespace: kubernetes-dashboard
+- path: /home/azureuser/setup_k8s_dashboard.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        kubectl delete namespace kubernetes-dashboard
+        helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --create-namespace --namespace kubernetes-dashboard
+        # Allow running the dashboard on the control plane node
+        kubectl taint nodes --all node-role.kubernetes.io/control-plane- --overwrite
+        kubectl apply -f /home/azureuser/dashboard-admin.yaml
+- path: /home/azureuser/setup_k8s_nvidia.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        helm repo add nvidia https://nvidia.github.io/k8s-device-plugin
+        helm repo add nfd https://kubernetes-sigs.github.io/node-feature-discovery/charts
+        helm repo update
+        helm install nvdp nvidia/nvidia-device-plugin \
+          --namespace nvidia-device-plugin \
+          --create-namespace \
+          --set resources.requests.cpu=500m \
+          --set resources.requests.memory=500Mi \
+          --set gfd.enabled=true \
+          --set gfd.attributes="{count,product}"
+        # --set nodeSelectorLabeling=true \
+
+        # helm install nfd nfd/node-feature-discovery \
+        #  --namespace node-feature-discovery \
+        #  --create-namespace
+
+        # This happens automatically with the nvidia-device-plugin gfd.enabled=true
+        # helm install gpu-feature-discovery nvidia/gpu-feature-discovery \
+        #  --namespace gpu-feature-discovery \
+        #  --create-namespace
+- path: /home/azureuser/setup_k8s_prometheus.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/bash
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm install prometheus-community/kube-prometheus-stack --create-namespace --namespace prometheus \
+        --generate-name \
+        --set prometheus.service.type=NodePort \
+        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+- path: /home/azureuser/save_k8s_join.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/env bash
+        # Get key vault name
+        METADATA_OAUTH_URL="http://169.254.169.254/metadata/instance?api-version=2021-02-01&format=json"
+        VM_METADATA=`curl -s $METADATA_OAUTH_URL -H "Metadata:true"`
+        SUBSCRIPTION_ID=$(echo "$VM_METADATA" | jq -r '.compute.subscriptionId')
+        RESOURCE_GROUP_NAME=$(echo "$VM_METADATA" | jq -r '.compute.resourceGroupName')
+        ARM_TOKEN=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/' -H "Metadata:true" | jq -r '.access_token')
+        ARM_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.KeyVault/vaults?api-version=2022-07-01"
+        VAULT_NAME=`curl -s -H "Authorization: Bearer ${ARM_TOKEN}" $ARM_URL | jq -r .value[0].name`
+        if [[ -z "$VAULT_NAME" || "$VAULT_NAME" == "null" ]]; then
+            echo "Key Vault not found in resource group $RESOURCE_GROUP_NAME"
+            exit 1
+        fi
+        # Store command in the key vault
+        KV_OAUTH_URL="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net"
+        KV_TOKEN=`curl -s $KV_OAUTH_URL -H Metadata:true | jq -r .access_token`
+        SECRET_NAME="kubejoincmd"
+        API_VERSION="7.4"
+        SECRET_VALUE=`kubeadm token create --print-join-command`
+        SECRET_URL="https://${VAULT_NAME}.vault.azure.net/secrets/${SECRET_NAME}?api-version=${API_VERSION}"
+        curl -s -X PUT $SECRET_URL -H "Authorization: Bearer ${KV_TOKEN}" -H "Content-Type: application/json" -d "{\"value\": \"${SECRET_VALUE}\"}" | jq .
+- path: /home/azureuser/start_dashboard_proxy.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/env bash
+        kubectl -n kubernetes-dashboard create token admin-user
+        kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
+- path: /home/azureuser/remove_k8s_node.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/env bash
+        NODE_NAME=$1
+        if [[ -z "$NODE_NAME" ]]; then
+          echo "Usage: $0 <node-name>"
+          exit 1
+        fi
+        kubectl delete node $NODE_NAME
+        for pod in $(kubectl get pods -A -o wide | grep $NODE_NAME | awk '{print $2":"$1}'); do
+          ns=${pod#*:}
+          name=${pod%:*}
+          echo "Deleting pod $name in namespace $ns"
+          kubectl delete pod "$name" -n "$ns" --grace-period=0 --force
+        done
+- path: /home/azureuser/get_vms.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/env bash
+        META_URL="http://169.254.169.254/metadata/instance/compute/resourceGroupName?api-version=2021-02-01&format=text"
+        RESOURCE_GROUP_NAME=$(curl -s -H Metadata:true $META_URL)
+        META_URL="http://169.254.169.254/metadata/instance/compute/subscriptionId?api-version=2021-02-01&format=text"
+        SUBSCRIPTION_ID=$(curl -s -H Metadata:true $META_URL)
+        az account set --subscription "$SUBSCRIPTION_ID"
+        for VMSS_NAME in $(az vmss list --resource-group "$RESOURCE_GROUP_NAME" --query "[].name" -o tsv); do
+          echo "VMSS: $VMSS_NAME"
+          az vmss nic list \
+            --resource-group "$RESOURCE_GROUP_NAME" \
+            --vmss-name "$VMSS_NAME" \
+            --query "[].{vmId:virtualMachine.id, ip:ipConfigurations[0].privateIpAddress}" -o tsv |
+          awk -v rg="$RESOURCE_GROUP_NAME" -v vmss="$VMSS_NAME" '{
+              split($1, parts, "/")
+              instanceId = parts[length(parts)]
+              ip = $2
+              cmd = "az vmss get-instance-view --resource-group " rg " --name " vmss " --instance-id " instanceId " --query computerName -o tsv"
+              cmd | getline hostname
+              close(cmd)
+              printf "  %s (%s): %s\n", instanceId, hostname, ip
+            }'
+        done
+- path: /home/azureuser/join_k8s_nodes.sh
+  permissions: '0755'
+  content: |
+        #!/usr/bin/env bash
+        METADATA_BASE="http://169.254.169.254/metadata/instance/compute"
+        HEADERS="-H Metadata:true"
+        API="?api-version=2021-02-01&format=text"
+
+        RESOURCE_GROUP_NAME=$(curl -s $HEADERS "${METADATA_BASE}/resourceGroupName${API}")
+        SUBSCRIPTION_ID=$(curl -s $HEADERS "${METADATA_BASE}/subscriptionId${API}")
+        az account set --subscription "$SUBSCRIPTION_ID"
+
+        NODE_IPS=()
+        for VMSS_NAME in $(az vmss list --resource-group "$RESOURCE_GROUP_NAME" --query "[].name" -o tsv); do
+          echo "$VMSS_NAME"
+
+          while read -r ip; do
+            [[ -n "$ip" ]] && NODE_IPS+=("$ip")
+          done < <(
+            az vmss nic list \
+              --resource-group "$RESOURCE_GROUP_NAME" \
+              --vmss-name "$VMSS_NAME" \
+              --query "[].ipConfigurations[0].privateIpAddress" -o tsv
+          )
+        done
+        echo "Found ${#NODE_IPS[@]} node IPs:"
+        printf '  %s\n' "${NODE_IPS[@]}"
+
+        readarray -t ACTIVE_NODES < <(kubectl get nodes --no-headers | awk '$2 == "Ready" { print tolower($1) }')
+
+        REGION_META_URL="http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+        JOIN_CMD=$(kubeadm token create --print-join-command)
+        SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=1 -o ConnectionAttempts=1"
+
+        for NODE_IP in "${NODE_IPS[@]}"; do
+          NODE_NAME=$(ssh $SSH_OPTS "$NODE_IP" hostname | tr '[:upper:]' '[:lower:]')
+
+          if printf '%s\n' "${ACTIVE_NODES[@]}" | grep -qx "$NODE_NAME"; then
+            echo "Node $NODE_NAME already ready, skipping..."
+            continue
+          fi
+
+          ssh $SSH_OPTS "$NODE_IP" "sudo bash reset_k8s_node.sh"
+          ssh $SSH_OPTS "$NODE_IP" "sudo $JOIN_CMD"
+
+          REGION=$(ssh $SSH_OPTS "$NODE_IP" curl -s $HEADERS "$REGION_META_URL" | jq -r .compute.location)
+          kubectl label node "$NODE_NAME" azure/region="$REGION" --overwrite
+        done
+runcmd:
+- chown -R azureuser:azureuser /home/azureuser/
+- bash /home/azureuser/install_conda.sh
+- bash /home/azureuser/install_docker.sh
+- bash /home/azureuser/install_k8s.sh
+- bash /home/azureuser/start_k8s_master.sh
+- bash /home/azureuser/setup_kubectl.sh
+- bash /home/azureuser/setup_k8s_net.sh
+- bash /home/azureuser/setup_helm.sh
+- bash /home/azureuser/setup_k8s_metrics.sh
+- bash /home/azureuser/setup_k8s_dashboard.sh
+- bash /home/azureuser/setup_k8s_nvidia.sh

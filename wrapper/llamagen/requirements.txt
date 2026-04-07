@@ -1,0 +1,11 @@
+pillow
+torch
+xfuser
+diffusers
+ftfy
+protobuf
+transformers
+accelerate
+sentencepiece
+pandas
+bs4

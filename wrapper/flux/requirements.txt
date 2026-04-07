@@ -1,0 +1,5 @@
+pillow
+torch
+protobuf
+xfuser
+diffusers

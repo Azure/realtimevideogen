@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Submit Generation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>const ansiUp = new AnsiUp();</script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+        <a class="btn btn-outline-info" href="{{ url_for('nodes_info') }}" title="Nodes" aria-label="Nodes">🖧</a>
+    </div>
+
+    <div class="container py-4">
+        {% if container_ip and container_port %}
+            {% for svc in svcs %}
+                {% if svc.pod_ip == container_ip %}
+                    <h1>
+                        {{ svc.container_name | get_class_emoji | safe }} Submit to
+                        {{ svc.container_name | get_friendly_container_name | safe }}
+                    </h1>
+                    <a href="{{ url_for('service_info', service_name=svc.container_name) }}">
+                        {{ container_ip }}:{{ container_port }}
+                    </a>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <h1>🎯 Submit Generation</h1>
+        {% endif %}
+
+        {% for svc in svcs %}
+            {% if svc.container_name and svc.pod_ip and svc.container_port %}
+                <input type="hidden"
+                    class="service-entry"
+                    data-name="{{ svc.container_name }}"
+                    data-ip="{{ svc.pod_ip }}"
+                    data-port="{{ svc.container_port }}"
+                    data-url="{{ url_for('api_submit_job', service_name=svc.container_name, container_ip=svc.pod_ip, container_port=svc.container_port) }}">
+            {% endif %}
+        {% endfor %}
+
+        <div class="row">
+            <!-- Left Column: Form -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <form id="job-form">
+                            <div class="row g-3 mb-3">
+                                <div class="col-12">
+                                    {% if container_ip and container_port %}
+                                        <select class="form-select d-none" id="service" required>
+                                            <option value="{{ container_ip }}">
+                                                {{ container_ip }}:{{ container_port }}
+                                            </option>
+                                        </select>
+                                    {% else %}
+                                        <label for="service" class="form-label">Service</label>
+                                        <select class="form-select" id="service" required>
+                                            <option value="" selected disabled>Select a container...</option>
+                                            {% for svc in svcs %}
+                                                <option value="{{ svc.pod_ip }}">
+                                                    {% if svc.pod_status == 'Running' %}
+                                                        <span class="text-success">✅</span>
+                                                    {% else %}
+                                                        <span class="text-danger">❌</span>
+                                                    {% endif %}
+                                                    {{ svc.container_name | get_class_emoji | safe }}
+                                                    {{ svc.container_name | get_friendly_container_name | safe }}
+                                                    {% if svc.gpu %}
+                                                        | {{ svc.gpu }}
+                                                        {% if svc.health and svc.health.gpu %}
+                                                            &times; {{ svc.health.gpu | format_gpu_model | safe }}
+                                                        {% elif svc.gpu == 1 %}
+                                                            GPU
+                                                        {% else %}
+                                                            GPUs
+                                                        {% endif %}
+                                                    {% endif %}
+                                                    | {{ svc.pod_ip }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    {% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label for="prompt" class="form-label">💬 Prompt</label>
+                                    <input type="text" class="form-control" id="prompt" name="prompt" placeholder="Optional prompt...">
+                                </div>
+                                <div class="col-12">
+                                    <label for="neg_prompt" class="form-label">🔕 Negative prompt</label>
+                                    <input type="text" class="form-control" id="neg_prompt" name="neg_prompt" placeholder="Optional negative prompt...">
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="image" class="form-label">🖼️ Image</label>
+                                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="video" class="form-label">📽️ Video </label>
+                                        <input type="file" class="form-control" id="video" name="video" accept="video/*">
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="audio" class="form-label">🔉 Audio</label>
+                                        <input type="file" class="form-control" id="audio" name="audio" accept="audio/*">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="document" class="form-label">📄 Document (PDF)</label>
+                                        <input type="file" class="form-control" id="document" name="document" accept="application/pdf">
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="audio" class="form-label">
+                                            🗣️ Voice
+                                            <span 
+                                                data-bs-toggle="tooltip" 
+                                                data-bs-html="true" 
+                                                title="Female: af_bella, af_heart, af_kore, af_nicole, woman_000
+Male: am_adam am_fenrir, am_michael, am_puck, girish_001, girish_002, ricardo_001, ricardo_002"
+                                                style="cursor: help; color: #0d6efd;">ℹ️</span>
+                                        </label>
+                                        <input type="text" class="form-control" id="voice" name="voice" placeholder="Voice for text to speech...">
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="width" class="form-label">📏 Width</label>
+                                        <select class="form-select" id="width" name="width" required>
+                                            <option value="120">120</option>
+                                            <option value="128">128</option>
+                                            <option value="200">200</option>
+                                            <option value="240">240</option>
+                                            <option value="256">256</option>
+                                            <option value="320" selected>320</option>
+                                            <option value="400">400</option>
+                                            <option value="384">384</option>
+                                            <option value="480">480</option>
+                                            <option value="512">512</option>
+                                            <option value="640">640</option>
+                                            <option value="720">720</option>
+                                            <option value="768">768</option>
+                                            <option value="800">800</option>
+                                            <option value="960">960</option>
+                                            <option value="1024">1024</option>
+                                            <option value="1280">1280</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="height" class="form-label">📏 Height</label>
+                                        <select class="form-select" id="height" name="height" required>
+                                            <option value="120">120</option>
+                                            <option value="128">128</option>
+                                            <option value="200" selected>200</option>
+                                            <option value="240">240</option>
+                                            <option value="256">256</option>
+                                            <option value="320">320</option>
+                                            <option value="400">400</option>
+                                            <option value="384">384</option>
+                                            <option value="480">480</option>
+                                            <option value="512">512</option>
+                                            <option value="640">640</option>
+                                            <option value="720">720</option>
+                                            <option value="768">768</option>
+                                            <option value="800">800</option>
+                                            <option value="960">960</option>
+                                            <option value="1024">1024</option>
+                                            <option value="1280">1280</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="aspect_ratio" class="form-label">📐 Aspect (W:H)</label>
+                                        <input type="text" class="form-control" id="aspect_ratio" readonly>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="num_frames" class="form-label">🎞️ Number of frames: <span id="num_frames_value">1</span></label>
+                                        <input type="range" class="form-range" id="num_frames" name="num_frames" min="1" max="128" value="1">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="num_steps" class="form-label">🔁 Number of steps: <span id="num_steps_value">10</span></label>
+                                        <input type="range" class="form-range" id="num_steps" name="num_steps" min="1" max="50" value="10">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="seed" class="form-label">🎲 Seed: <span id="seed_value">7</span></label>
+                                        <input type="range" class="form-range" id="seed" name="seed" min="0" max="1024" value="7">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-3">
+                                <button type="submit" class="btn btn-success btn-lg px-5">
+                                    🚀 Submit
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Request + Response -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <!-- Response Output -->
+                        <h5 class="card-title border-bottom pb-2 mb-3">📥 Response</h5>
+                        <pre id="output"
+                            class="form-control bg-light text-dark"
+                            style="max-height: 720px; overflow-y: auto; font-family: monospace;">No output.</pre>
+                        <!-- JSON Request -->
+                        <div class="accordion mt-4" id="requestAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingRequest">
+                                    <button class="accordion-button collapsed" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#collapseRequest"
+                                        aria-expanded="false" aria-controls="collapseRequest">
+                                        📤 Request
+                                    </button>
+                                </h2>
+                                <div id="collapseRequest" class="accordion-collapse collapse"
+                                    aria-labelledby="headingRequest" data-bs-parent="#requestAccordion">
+                                    <div class="accordion-body p-0">
+                                        <pre id="json_preview"
+                                            class="form-control bg-light text-dark border-0 rounded-0"
+                                            style="max-height: 300px; overflow-y: auto; font-family: monospace;">No request.</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            function updateAspectRatio() {
+                const width = parseInt(document.getElementById("width").value, 10);
+                const height = parseInt(document.getElementById("height").value, 10);
+                const ratioField = document.getElementById("aspect_ratio");
+                if (width && height) {
+                    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+                    const divisor = gcd(width, height);
+                    let simplifiedWidth = width / divisor;
+                    let simplifiedHeight = height / divisor;
+                    if (simplifiedWidth === 8 && simplifiedHeight === 5) {
+                        simplifiedWidth = 16;
+                        simplifiedHeight = 10;
+                    }
+                    ratioField.value = `${simplifiedWidth}:${simplifiedHeight}`;
+                } else {
+                    ratioField.value = "";
+                }
+            }
+            document.getElementById("width").addEventListener("change", updateAspectRatio);
+            document.getElementById("height").addEventListener("change", updateAspectRatio);
+            document.addEventListener("DOMContentLoaded", updateAspectRatio);
+
+            const framesSlider = document.getElementById('num_frames');
+            const framesValue = document.getElementById('num_frames_value');
+            const stepsSlider = document.getElementById('num_steps');
+            const stepsValue = document.getElementById('num_steps_value');
+            const seedSlider = document.getElementById('seed');
+            const seedValue = document.getElementById('seed_value');
+            framesSlider.addEventListener('input', () => {
+                framesValue.textContent = framesSlider.value;
+            });
+            stepsSlider.addEventListener('input', () => {
+                stepsValue.textContent = stepsSlider.value;
+            });
+            seedSlider.addEventListener('input', () => {
+                seedValue.textContent = seedSlider.value;
+            });
+
+            document.getElementById("job-form").addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                const serviceName = document.getElementById("service").value;
+                // This should take the hidden for data-name
+                const prompt = document.getElementById("prompt").value.trim();
+                const neg_prompt = document.getElementById("neg_prompt").value.trim();
+                const fileImage = document.getElementById("image").files[0];
+                const fileVideo = document.getElementById("video").files[0];
+                const fileAudio = document.getElementById("audio")?.files?.[0];
+                const fileDoc = document.getElementById("document").files[0];
+                const voice = document.getElementById("voice").value.trim();
+                const width = document.getElementById("width").value;
+                const height = document.getElementById("height").value;
+                const numFrames = document.getElementById("num_frames").value;
+                const numSteps = document.getElementById("num_steps").value;
+                const seed = document.getElementById("seed").value;
+                // Outputs
+                const jsonPreview = document.getElementById("json_preview")
+                const output = document.getElementById("output");
+                jsonPreview.textContent = "";
+                output.textContent = "";
+
+                if (!serviceName) {
+                    output.textContent = "❗ Please select a container.";
+                    return;
+                }
+
+                const hiddenInputs = document.querySelectorAll(".service-entry");
+                let apiUrl = null;
+                let containerName = null;
+                hiddenInputs.forEach(input => {
+                    if (input.dataset.ip === serviceName) {
+                        apiUrl = input.dataset.url;
+                        containerName = input.dataset.name;
+                    }
+                });
+
+                if (!apiUrl) {
+                    output.textContent = "❗ Failed to find service URL.";
+                    return;
+                }
+
+                const payload = {};
+                if (prompt) {
+                    payload.text = prompt;
+                    payload.prompt = prompt;
+                }
+                if (neg_prompt) {
+                    payload.neg_prompt = neg_prompt;
+                }
+                if (voice) {
+                    payload.voice = voice;
+                }
+
+                const fileToBase64 = (file) => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]); // Strip "data:*/*;base64,"
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                };
+
+                try {
+                    if (fileImage) {
+                        const base64Img = await fileToBase64(fileImage);
+                        const img = new Image();
+                        const imgLoaded = new Promise(resolve => {
+                            img.onload = () => {
+                                payload.img = base64Img;
+                                payload.width = img.width;
+                                payload.height = img.height;
+                                if (containerName === "bagel") {
+                                    payload.imgs = [base64Img];
+                                }
+                                resolve();
+                            };
+                        });
+                        img.src = "data:image/*;base64," + base64Img;
+                        await imgLoaded;
+                    }
+
+                    if (fileDoc) {
+                        payload.doc = await fileToBase64(fileDoc);
+                    }
+                    if (fileVideo) {
+                        payload.video = await fileToBase64(fileVideo);
+                    }
+                    if (fileAudio) {
+                        payload.audio = await fileToBase64(fileAudio);
+                    }
+                    if (numFrames && !isNaN(numFrames) && numFrames > 0) {
+                        payload.num_frames = parseInt(numFrames, 10);
+                    }
+                    if (numSteps && !isNaN(numSteps) && numSteps > 0) {
+                        payload.num_steps = parseInt(numSteps, 10);
+                        payload.sampling_steps = parseInt(numSteps, 10);
+                    }
+                    if (seed && !isNaN(seed) && seed >= 0) {
+                        payload.seed = parseInt(seed, 10);
+                    }
+                    if (width && !isNaN(width) && width > 0) {
+                        payload.width = parseInt(width, 10);
+                    }
+                    if (height && !isNaN(height) && height > 0) {
+                        payload.height = parseInt(height, 10);
+                    }
+
+                    if (containerName === "podcasttranscript") {
+                        hiddenInputs.forEach(input => {
+                            if (input.dataset.name.toLowerCase().includes("gemma")) {
+                                payload.llm_url = `http://${input.dataset.ip}:${input.dataset.port}/v1`;
+                                payload.llm_model = "google/gemma-3-27b-it";
+                                payload.multi_modal = true;
+                            }
+                        });
+                        payload.max_dialogues = 5;
+                        payload.max_words_per_dialogue = 20;
+                        if (prompt) {
+                            payload.pdf_url = prompt;
+                        }
+                    }
+
+                    if (Object.keys(payload).length === 0) {
+                        output.textContent = "❗ Please provide at least one input (prompt, image, video, or audio).";
+                        return;
+                    }
+
+                    jsonPreview.textContent = JSON.stringify(payload, null, 2);
+
+                    output.textContent = "⚙️ Generation in progress...";
+
+                    const startTime = performance.now();
+                    const response = await fetch(apiUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    const endTime = performance.now();
+                    const duration = ((endTime - startTime) / 1000).toFixed(2);
+                    const timingHtml = `<div class="text-muted small mt-2">⏱️ Completed in ${duration} seconds</div>`;
+
+                    const contentType = response.headers.get("Content-Type") || "";
+                    if (contentType.includes("application/json")) {
+                        const data = await response.json();
+                        if (data.error) {
+                            output.innerHTML = `<div class="alert alert-danger mb-0" role="alert"><strong>Error:</strong> ${data.error}</div>` + timingHtml;
+                        } else {
+                            output.innerHTML = `<pre class="bg-black text-white p-3 mb-0 rounded small">${JSON.stringify(data, null, 2)}</pre>` + timingHtml;
+                        }
+                    } else if (contentType.startsWith("audio/")) {
+                        const blob = await response.blob();
+                        const audioUrl = URL.createObjectURL(blob);
+                        output.innerHTML = `<audio controls src="${audioUrl}"></audio>` + timingHtml;
+                    } else if (contentType.startsWith("video/")) {
+                        const blob = await response.blob();
+                        const videoUrl = URL.createObjectURL(blob);
+                        output.innerHTML = `<video controls width="480px" src="${videoUrl}"></video>` + timingHtml;
+                    } else if (contentType.startsWith("image/")) {
+                        const blob = await response.blob();
+                        const imgUrl = URL.createObjectURL(blob);
+                        output.innerHTML = `<img src="${imgUrl}" alt="Returned Image" style="max-width: 100%;">` + timingHtml;
+                    }  else {
+                        const text = await response.text();
+                        output.textContent = `Unexpected content-type: ${contentType}\n\n${text}`;
+                    }
+                } catch (err) {
+                    output.textContent = "❌ Error: " + err;
+                }
+            });
+        </script>
+    </body>
+</html>

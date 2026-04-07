@@ -1,0 +1,45 @@
+ninja
+packaging
+
+# torch==2.7.1
+# torchvision==0.22.1
+# xformers==0.0.31
+
+torch==2.8.0
+torchvision==0.23.0
+xformers==0.0.32.post2
+
+# torch==2.9.0
+# torchvision==0.24.0
+# xformers==0.0.33
+
+# torch==2.10.0
+# torchvision==0.25.0
+# xformers==0.0.35
+
+xfuser==0.4.5
+diffusers==0.37.0
+transformers==4.53.0
+
+# flash-attn==2.8.3 # requires --no-build-isolation
+
+huggingface_hub
+torchaudio
+accelerate
+safetensors
+sentencepiece
+imageio[ffmpeg]
+imageio-ffmpeg
+modelscope
+flask
+quart
+hypercorn
+einops
+soundfile
+numpy
+pillow
+nvidia-ml-py3
+colorlog
+opencv-python-headless
+matplotlib
+langcodes[data]

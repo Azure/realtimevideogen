@@ -1,0 +1,40 @@
+# mypy: ignore-errors
+# Copy from https://github.com/microsoft/VibeVoice/blob/main/vibevoice/schedule/timestep_sampler.py
+
+import math
+import torch
+
+
+class UniformSampler:
+    def __init__(
+        self,
+        timesteps: int = 1000
+    ) -> None:
+        self.timesteps = timesteps
+
+    def sample(
+        self,
+        batch_size: int,
+        device: torch.device
+    ) -> torch.Tensor:
+        return torch.randint(0, self.timesteps, (batch_size,), device=device)
+
+
+class LogitNormalSampler:
+    def __init__(
+        self,
+        timesteps: int = 1000,
+        m: int = 0,
+        s: int = 1
+    ) -> None:
+        self.timesteps = timesteps
+        timesteps = torch.linspace(0, 1, timesteps)
+        logit = torch.log(timesteps / (1 - timesteps))
+        self.prob = torch.exp(-0.5 * (logit - m) ** 2 / s ** 2) / (s * math.sqrt(2 * math.pi))
+
+    def sample(
+        self,
+        batch_size: int,
+        device: torch.device
+    ) -> torch.Tensor:
+        return torch.multinomial(self.prob, batch_size, replacement=True).to(device)

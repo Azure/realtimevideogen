@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ service_name | get_friendly_container_name | safe }} timeline</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
+</head>
+
+<body style="font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 2rem;">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home">🏠</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('service_info', service_name=service_name) }}" title="{{ service_name | get_friendly_container_name  | safe }}">🌐</a>
+    </div>
+
+    <h1>
+        📅 Timeline for {{ service_name | get_friendly_container_name | safe }}
+        {{ service_name | get_class_emoji | safe }}
+    </h1>
+
+    <!-- Zoom Buttons -->
+    <div class="mb-3">
+        <button class="btn btn-outline-primary btn-sm" onclick="zoomTimeline(0.5)">🔍 Zoom In</button>
+        <button class="btn btn-outline-primary btn-sm" onclick="zoomTimeline(2)">🔎 Zoom Out</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="moveToNow()">📍 Now</button>
+    </div>
+
+    <!-- Timeline Container -->
+    <div id="div-timeline" style="height: 600px; border: 1px solid lightgray;"></div>
+
+    <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <script>
+        const rawItems = {{ timestamps | tojson }};
+        const itemsArray  = new vis.DataSet(
+            rawItems
+                .filter(
+                    item => item &&
+                    typeof item.start === 'number' && item.start >= 0 &&
+                    typeof item.end === 'number' && item.end >= item.start
+                )
+                .map(item => {
+                    return {
+                        id: item.id ?? `item-${Math.random()}`,
+                        content: `${item.className} ${item.content}` ?? 'Untitled',
+                        className: item.className ?? '',
+                        group: item.group ?? '',
+                        subgroup: item.subgroup ?? '',
+                        start: new Date(item.start * 1000),
+                        end: item.end ? new Date(item.end * 1000) : undefined,
+                        title: `${item.group} ${item.className} ${item.content ?? 'Untitled'}: ${(item.duration_seconds ?? 0).toFixed(3)}s`
+                    };
+                })
+        );
+
+        const groupSet = new Set(itemsArray .map(item => item.group));
+        const groups = new vis.DataSet(
+            Array.from(groupSet).map(groupId => ({
+                id: groupId,
+                content: groupId
+            }))
+        );
+
+
+        let timeline;
+
+        window.addEventListener("DOMContentLoaded", () => {
+            const container = document.getElementById('div-timeline');
+            const options = {
+                stack: true,
+                editable: false,
+                margin: { item: 10, axis: 5 },
+                orientation: 'top',
+                //nestedGroups: true,
+            };
+            timeline = new vis.Timeline(container, itemsArray , groups, options);
+        });
+
+        function zoomTimeline(scale) {
+            if (!timeline) return;
+            const range = timeline.getWindow();
+            const interval = range.end - range.start;
+            const newInterval = interval * scale;
+            const center = (range.start.valueOf() + range.end.valueOf()) / 2;
+            const newStart = new Date(center - newInterval / 2);
+            const newEnd = new Date(center + newInterval / 2);
+            timeline.setWindow(newStart, newEnd);
+        }
+
+        function moveToNow() {
+            if (!timeline) return;
+            const range = timeline.getWindow();
+            const interval = range.end - range.start;
+            const now = new Date();
+            const newStart = new Date(now - interval / 2);
+            const newEnd = new Date(now + interval / 2);
+            timeline.setWindow(newStart, newEnd);
+        }
+    </script>
+</body>
+</html>

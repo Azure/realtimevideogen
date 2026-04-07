@@ -1,0 +1,8 @@
+pdfplumber
+PyMuPDF
+sentencepiece
+protobuf
+openai
+requests
+azure-identity
+tenacity

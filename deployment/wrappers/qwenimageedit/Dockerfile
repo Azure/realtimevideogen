@@ -1,0 +1,30 @@
+# base image has CUDA and Python with torch and base_requirements
+ARG DOCKER_REPO=reposmustbeset.azurecr.io
+ARG BASE_TAG=v0.5.0
+
+FROM ${DOCKER_REPO}/base:${BASE_TAG}
+
+ARG DOCKER_REPO
+ENV DOCKER_REPO=${DOCKER_REPO}
+
+WORKDIR /qwenimageedit
+
+# Download Qwen Image Edit model from Hugging Face
+RUN hf download Qwen/Qwen-Image-Edit --local-dir Qwen/Qwen-Image-Edit
+
+COPY docker_files/requirements.txt .
+RUN pip install -r requirements.txt && \
+    pip cache purge
+
+COPY docker_files/*.py .
+COPY docker_files/*.bash .
+COPY docker_files/*.json .
+COPY docker_files/templates ./templates
+COPY docker_files/static ./static
+
+
+# docker run --gpus all -p 18080:8080 --name qwenimageedit_rest qwenimageedit
+# docker exec -it qwenimageedit_rest ls -l /
+# TODO detect number of GPUs and set nproc_per_node accordingly
+ENTRYPOINT ["bash", "run_httpserver.bash", "--qwenimageedit"]
+EXPOSE 8080

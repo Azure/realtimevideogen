@@ -1,0 +1,21 @@
+gpu,world,dp,up,ring,tp,compile,teacache,fbcache,steps,height,width,time
+NVIDIA A100-SXM4-80GB,8,1,8,1,1,True,False,False,20,1024,1024,1.64
+NVIDIA A100-SXM4-80GB,8,1,8,1,1,True,False,False,20,1024,1024,1.64
+NVIDIA A100-SXM4-80GB,8,1,8,1,1,True,False,False,20,1024,1024,1.64
+H200,8,1,8,1,1,False,False,False,20,1024,1024,1.67
+H200,8,1,8,1,1,False,False,False,20,1024,1024,1.71
+H200,8,1,8,1,1,False,False,False,20,1024,1024,1.74
+H200,4,1,4,1,1,False,False,False,20,1024,1024,1.82
+H200,4,1,4,1,1,False,False,False,20,1024,1024,1.84
+NVIDIA A100-SXM4-80GB,8,1,1,8,1,True,False,False,20,1024,1024,1.95
+NVIDIA A100-SXM4-80GB,8,1,1,8,1,True,False,False,20,1024,1024,1.96
+NVIDIA A100-SXM4-80GB,8,1,1,8,1,True,False,False,20,1024,1024,1.96
+NVIDIA A100-SXM4-80GB,8,1,8,1,1,True,False,False,20,1024,1024,2.08
+H200,8,1,4,2,1,False,False,False,20,1024,1024,2.16
+H200,8,1,4,2,1,False,False,False,20,1024,1024,2.16
+H200,8,1,4,2,1,False,False,False,20,1024,1024,2.26
+H200,8,1,1,8,1,False,False,False,20,1024,1024,2.28
+H200,16,1,8,2,1,False,False,False,20,1024,1024,2.30
+H200,16,1,8,2,1,False,False,False,20,1024,1024,2.30
+H200,8,1,8,1,1,False,False,False,20,1536,1536,2.32
+H200,8,1,8,1,1,False,False,False,20,1536,1536,2.34

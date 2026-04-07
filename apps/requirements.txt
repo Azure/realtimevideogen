@@ -1,0 +1,17 @@
+quart
+hypercorn
+pillow
+colorlog
+requests
+tabulate
+kubernetes
+kubernetes_asyncio
+asyncio
+aiohttp
+pydantic
+numpy
+scipy
+imageio
+imageio-ffmpeg
+soundfile
+openai

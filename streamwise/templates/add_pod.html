@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Add StreamWise Service</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+</head>
+
+{% set streamwise_apps = [
+    'streamwise',
+    'streamcast',
+    'streampersona',
+    'streamshort',
+    'streamdub',
+    'streammovie',
+    'streamlecture',
+    'streamanimate',
+    'streamchat',
+    'streamedit'
+] %}
+
+<body>
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home">🏠</a>
+    </div>
+
+    <div class="container">
+        <h1 class="mb-4 text-center">📄📽️ StreamWise Service Deployment 🔉🎬</h1>
+
+        {% if service_name not in streamwise_apps %}
+            <h2 class="mb-4">🫛 Single service</h1>
+            <form id="add-wrapper-form" method="post" action="/api/pod">
+                <div class="mb-3 row g-2 align-items-end">
+                    <div class="col-8">
+                        <label for="wrapper_container_name" class="form-label">Container</label>
+                        <select class="form-select" id="wrapper_container_name" name="container_name" required>
+                            <optgroup label="📄 Text generation">
+                                <option value="gemma">Gemma 3</option>
+                                <option value="llama32">Llama 3.2</option>
+                                <option value="podcasttranscript">Podcast Transcript</option>
+                                <option value="slidetranscript">Slide Transcript</option>
+                                <option value="whisper">Whisper</option>
+                            </optgroup>
+                            <optgroup label="🖼️ Image generation">
+                                <option value="flux">FLUX-dev</option>
+                                <option value="fluxkrea">FLUX Krea</option>
+                                <option value="flux2">FLUX.2</option>
+                                <option value="flux2klein">FLUX.2 Klein</option>
+                                <option value="hidream">HiDream I1</option>
+                                <option value="cogview">CogView4</option>
+                                <option value="qwenimage">Qwen Image</option>
+                                <option value="januspro">Janus Pro</option>
+                                <option value="llamagen">LlamaGen</option>
+                                <option value="hunyuanimage">Hunyuan Image 3</option>
+                            </optgroup>
+                            <optgroup label="🖼️ Image editing">
+                                <option value="yolo">YOLO</option>
+                                <option value="fluxupscaler">FLUX Upscaler</option>
+                                <option value="fluxkontext">FLUX Kontext</option>
+                                <option value="bagel">Bagel</option>
+                                <option value="qwenimageedit">Qwen Image Edit</option>
+                                <option value="imageresize">Image Resize</option>
+                                <option value="realesrgan">Real-ESRGAN</option>
+                                <option value="4kagent">4KAgent</option>
+                            </optgroup>
+                            <optgroup label="🎬 Video generation">
+                                <option value="hunyuanframepack">Hunyuan FramePack</option>
+                                <option value="hunyuanframepackf1">Hunyuan FramePack F1</option>
+                                <option value="hunyuanframepackvae">Hunyuan FramePack VAE</option>
+                                <option value="wan">Wan 2.1</option>
+                                <option value="wan22">Wan 2.2 🚧</option>
+                                <option value="ltx">LTX-Video 🚧</option>
+                                <option value="longcatvideo">LongCat-Video 🚧</option>
+                            </optgroup>
+                            <optgroup label="🗣️ Lip sync">
+                                <option value="hunyuanavatar">Hunyuan Avatar</option>
+                                <option value="fantasytalking">Fantasy Talking</option>
+                            </optgroup>
+                            <optgroup label="🔉 Audio generation">
+                                <option value="kokoro">Kokoro</option>
+                                <option value="dia">Dia 🚧</option>
+                                <option value="xtts">XTTS 🚧</option>
+                                <option value="thinksound">ThinkSound 🚧</option>
+                                <option value="vibevoice">VibeVoice 🚧</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label for="wrapper_tag" class="form-label">
+                            🏷️ Tag
+                            <span tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top"
+                                title="Optional. Override the Docker image tag (e.g. v0.4.0). Leave empty to use the default from services.json."
+                                style="cursor:pointer;">ℹ️</span>
+                        </label>
+                        <input type="text" class="form-control" id="wrapper_tag" name="tag"
+                            placeholder="default">
+                    </div>
+                </div>
+
+                <!-- Load Balancer / Public IP Section -->
+                <fieldset class="border rounded-3 p-3 mb-4">
+                    <legend class="float-none w-auto px-2 fw-semibold">
+                        🧮 Resources
+                    </legend>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-auto">
+                            <label for="wrapper_cpu" class="col-form-label">⚙️ CPU</label>
+                        </div>
+                        <div class="col">
+                            <input type="range" class="form-range"
+                                min="1" max="64" step="1" id="wrapper_cpu" name="cpu" value="4"
+                                oninput="wrapper_cpu_val.textContent = wrapper_cpu.value">
+                        </div>
+                        <div class="col-auto">
+                            <span id="wrapper_cpu_val">4</span> cores
+                        </div>
+                    </div>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-auto">
+                            <label for="wrapper_memory" class="col-form-label">🧠 Memory</label>
+                        </div>
+                        <div class="col">
+                            <input type="range" class="form-range"
+                                min="1" max="512" step="1" id="wrapper_memory" name="memory" value="16"
+                                oninput="wrapper_memory_val.textContent = wrapper_memory.value">
+                        </div>
+                        <div class="col-auto">
+                            <span id="wrapper_memory_val">16</span> GiB
+                        </div>
+                    </div>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-auto">
+                            <label for="wrapper_ephemeralStorage" class="col-form-label">📀 Ephemeral storage</label>
+                        </div>
+                        <div class="col">
+                            <input type="range" class="form-range"
+                                min="0" max="256" step="1" id="wrapper_ephemeralStorage" name="ephemeralStorage" value="16"
+                                oninput="wrapper_ephemeralStorage_val.textContent = wrapper_ephemeralStorage.value">
+                        </div>
+                        <div class="col-auto">
+                            <span id="wrapper_ephemeralStorage_val">16</span> GiB
+                        </div>
+                    </div>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <div class="col-auto">
+                                <label for="wrapper_gpu" class="col-form-label">🧮 GPU</label>
+                            </div>
+                            <div class="col">
+                                <input type="range" class="form-range"
+                                    min="0" max="8" step="1" id="wrapper_gpu" name="gpu" value="2"
+                                    oninput="wrapper_gpu_val.textContent = wrapper_gpu.value">
+                            </div>
+                            <div class="col-auto">
+                                <span id="wrapper_gpu_val">2 GPUs</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="wrapper_gpu_type" class="form-label">💎 Type</label>
+                            <select class="form-select" id="wrapper_gpu_type" name="gpu_type">
+                                <option value="any">Any</option>
+                                <option value="a+">Ampere+</option>
+                                <option value="a100">A100</option>
+                                <option value="h100">H100</option>
+                                <option value="h200">H200</option>
+                                <option value="gb200">GB200</option>
+                                <option value="gb300">GB300</option>
+                                <option value="v100">V100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3 row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <label for="wrapper_mig_profile" class="form-label">
+                                🔀 MIG Profile
+                                <span tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Optional. Select a MIG profile to share one A100/H100 GPU between multiple pods. Leave as 'None (full GPU)' to use a whole GPU. Requires MIG mode enabled on the node."
+                                    style="cursor:pointer;">ℹ️</span>
+                            </label>
+                            <select class="form-select" id="wrapper_mig_profile" name="mig_profile">
+                                <option value="">None (full GPU)</option>
+                                <optgroup label="80 GB GPU profiles (e.g. A100 80 GB, H100 80 GB)">
+                                    <option value="1g.10gb">1g.10gb: ⅛, ⅐ GPU, 10 GB</option>
+                                    <option value="2g.20gb">2g.20gb: ¼, 2/7 GPU, 20 GB</option>
+                                    <option value="3g.40gb">3g.40gb: ½, 3/7 GPU, 40 GB</option>
+                                    <option value="4g.40gb">4g.40gb: ½, 4/7 GPU, 40 GB</option>
+                                    <option value="7g.80gb">7g.80gb: Full GPU</option>
+                                </optgroup>
+                                <optgroup label="40 GB GPU profiles (e.g. A100 40 GB)">
+                                    <option value="1g.5gb">1g.5gb: ⅛, ⅐ GPU, 5 GB</option>
+                                    <option value="2g.10gb">2g.10gb: ¼, 2/7 GPU, 10 GB</option>
+                                    <option value="3g.20gb">3g.20gb: ½, 3/7 GPU, 20 GB</option>
+                                    <option value="4g.20gb">4g.20gb: ½, 4/7 GPU, 20 GB</option>
+                                    <option value="7g.40gb">7g.40gb: Full GPU</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Load Balancer / Public IP Section -->
+                <fieldset class="border rounded-3 p-3 mb-4">
+                    <legend class="float-none w-auto px-2 fw-semibold">
+                        ⚖️ Public IP
+                    </legend>
+
+                    <div class="mb-3">
+                        <label for="wrapper_lb_rg" class="form-label">📦 Resource Group</label>
+                        <input type="text" class="form-control" id="wrapper_lb_rg" name="lb_rg"
+                            placeholder="Azure resource group where the load balancer lives">
+                        <div class="form-text">Example: <code>{{ lb_rg }}</code></div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="wrapper_lb_ip" class="form-label">🌍 Public IP</label>
+                            <input type="text" class="form-control" id="wrapper_lb_ip" name="lb_ip"
+                                placeholder="Existing Azure Public IP resource name (or leave blank to auto-allocate)">
+                            <div class="form-text">Example: <code>{{ lb_ip }}</code></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="wrapper_lb_port" class="form-label">Port</label>
+                            <input type="number" class="form-control" id="wrapper_lb_port" name="lb_port" value="28080" min="1" max="65535">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="mb-3">
+                    <div id="preset-info" class="alert alert-info py-2 px-3 mb-0" style="display:none;"></div>
+                </div>
+
+                <div class="text-end">
+                    <button
+                        type="submit"
+                        class="btn btn-primary mt-3"
+                        style="width: 200px;"
+                        title="Add Single Service"
+                        aria-label="Add Single Service">
+                        ➕ Service
+                    </button>
+                </div>
+            </form>
+
+
+            <h2 class="mt-5">📽️🎬 Minimal deployment</h2>
+            <form id="add-minimal-form" method="post" action="/api/service">
+                <p class="mb-4">Minimum pods needed for AI generation:</p>
+                <ul class="list-group mb-4">
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='podcasttranscript') }}" class="text-decoration-none">📜 Podcast Transcript</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='slidetranscript') }}" class="text-decoration-none">📜 Slide Transcript</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='gemma') }}" class="text-decoration-none">🦜 Gemma 3</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='whisper') }}" class="text-decoration-none">👤 Whisper</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='kokoro') }}" class="text-decoration-none">🔊 Kokoro</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='flux') }}" class="text-decoration-none">🖼️ Flux</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='yolo') }}" class="text-decoration-none">🖼️ YOLO</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='fluxkontext') }}" class="text-decoration-none">🖼️ Flux Kontext</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='flux2') }}" class="text-decoration-none">🖼️ FLUX.2</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='flux2klein') }}" class="text-decoration-none">🖼️ FLUX.2 Klein</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='hunyuanframepackf1') }}" class="text-decoration-none">📽️ Hunyuan FramePack F1</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='hunyuanframepackvae') }}" class="text-decoration-none">📽️ Hunyuan FramePack VAE</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='fantasytalking') }}" class="text-decoration-none">🗣️ Fantasy Talking</a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="{{ url_for('add_pod', service_name='realesrgan') }}" class="text-decoration-none">📽️ Real-ESRGAN</a>
+                    </li>
+                </ul>
+                <div class="text-end">
+                    <button
+                        type="submit"
+                        class="btn btn-primary mt-3"
+                        style="width: 200px;"
+                        title="Add Minimum Services"
+                        aria-label="Add Minimum Services">
+                        ➕ Minimum Services
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {% if service_name == 'streamwise' or service_name not in streamwise_apps %}
+            <h2 class="mt-5">⚒️ StreamWise</h2>
+            <form id="add-streamwise-form" method="post" action="/api/pod">
+                <p class="mb-4">Cluster manager at {{ lb_ip }} on resource group '{{ lb_rg }}' :</p>
+
+                <input type="hidden" id="streamwise_container_name" name="container_name" value="streamwise">
+                <input type="hidden" id="streamwise_cpu" name="cpu" value="2">
+                <input type="hidden" id="streamwise_memory" name="memory" value="4">
+                <input type="hidden" id="streamwise_ephemeralStorage" name="ephemeralStorage" value="4">
+                <input type="hidden" id="streamwise_gpu" name="gpu" value="0">
+                <input type="hidden" id="streamwise_lb_rg" name="lb_rg" value="{{ lb_rg }}">
+                <input type="hidden" id="streamwise_lb_ip" name="lb_ip" value="{{ lb_ip }}">
+
+                <div class="mb-3">
+                    <label for="streamwise_lb_port" class="form-label">Load balancer port</label>
+                    <input type="number" class="form-control" id="streamwise_lb_port" name="lb_port" value="8081" min="1" max="65535">
+                </div>
+                <div class="text-end">
+                    <button
+                        type="submit"
+                        class="btn btn-primary mt-3"
+                        style="width: 200px;"
+                        title="Add StreamWise Pod"
+                        aria-label="Add StreamWise Pod">
+                        ➕ StreamWise
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {% if service_name != "streamwise" %}
+            <h2 class="mt-5">🧩 Applications</h2>
+            <p>Workflows to generate video in real time at {{ lb_ip }} on '{{ lb_rg }}':</p>
+
+            <form id="add-app-form" method="post" action="/api/pod">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label for="app_selector" class="form-label">Application</label>
+                        <select id="app_selector" class="form-select">
+                            <option value="streamcast" selected>🎙️ StreamCast</option>
+                            <option value="streampersona">👤 StreamPersona</option>
+                            <option value="streamchat">💬 StreamChat</option>
+                            <option value="streamshort">🎬 StreamShort</option>
+                            <option value="streammovie">🎬 StreamMovie 🚧</option>
+                            <option value="streamanimate">🎞️ StreamAnimate 🚧</option>
+                            <option value="streamlecture">📚 StreamLecture 🚧</option>
+                            <option value="streamdub">🎤 StreamDub 🚧</option>
+                            <option value="streamedit">✂️ StreamEdit 🚧</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="app_lb_port" class="form-label">Load balancer port</label>
+                        <input
+                            type="number" class="form-control"
+                            id="app_lb_port" name="lb_port"
+                            value="{{ random_lb_port }}" min="1024" max="65535">
+                    </div>
+                </div>
+
+                <input type="hidden" id="app_container_name" name="container_name">
+                <input type="hidden" id="app_cpu" name="cpu" value="2">
+                <input type="hidden" id="app_memory" name="memory" value="4">
+                <input type="hidden" id="app_ephemeralStorage" name="ephemeralStorage" value="4">
+                <input type="hidden" id="app_gpu" name="gpu" value="0">
+                <input type="hidden" id="app_lb_rg" name="lb_rg" value="{{ lb_rg }}">
+                <input type="hidden" id="app_lb_ip" name="lb_ip" value="{{ lb_ip }}">
+
+                <div class="text-end">
+                    <button
+                        type="submit"
+                        class="btn btn-primary mt-3"
+                        style="width: 200px;"
+                        aria-label="Add Application">
+                        ➕ Application
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
+        <script>
+            // Keep aligned with deployment/helm/values.yaml and services.json
+            const defaults = {
+                podcasttranscript:   {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
+                slidetranscript:     {cpu:1,  memory:4,   ephemeralStorage:16, gpu:0},
+                kokoro:              {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.10gb'},
+                xtts:                {cpu:2,  memory:8,   ephemeralStorage:16, gpu:1},
+                thinksound:          {cpu:2,  memory:8,   ephemeralStorage:32, gpu:1},
+                vibevoice:           {cpu:4,  memory:8,   ephemeralStorage:32, gpu:1},
+                hunyuanframepack:    {cpu:24, memory:192, ephemeralStorage:64, gpu:2},
+                hunyuanframepackf1:  {cpu:24, memory:192, ephemeralStorage:64, gpu:2},
+                hunyuanframepackvae: {cpu:4,  memory:32,  ephemeralStorage:64, gpu:1},
+                wan:                 {cpu:12, memory:256, ephemeralStorage:16, gpu:2, gpu_type:'a+'},
+                wan22:               {cpu:12, memory:256, ephemeralStorage:16, gpu:2, gpu_type:'a+'},
+                fantasytalking:      {cpu:12, memory:256, ephemeralStorage:16, gpu:2},
+                flux:                {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
+                fluxkrea:            {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
+                fluxupscaler:        {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                fluxkontext:         {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                flux2:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
+                flux2klein:          {cpu:12, memory:128, ephemeralStorage:64, gpu:2},
+                cogview:             {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                imageresize:         {cpu:4,  memory:8,   ephemeralStorage:16, gpu:0},
+                realesrgan:          {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
+                yolo:                {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1, mig_profile:'1g.10gb'},
+                bagel:               {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                '4kagent':           {cpu:12, memory:64,  ephemeralStorage:32, gpu:1},
+                gemma:               {cpu:12, memory:192, ephemeralStorage:64, gpu:2},
+                llama32:             {cpu:12, memory:192, ephemeralStorage:96, gpu:4},
+                hunyuanavatar:       {cpu:24, memory:192, ephemeralStorage:64, gpu:2},
+                hidream:             {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                qwenimage:           {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                qwenimageedit:       {cpu:12, memory:128, ephemeralStorage:64, gpu:1},
+                ltx:                 {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
+                longcatvideo:        {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
+                januspro:            {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
+                llamagen:            {cpu:16, memory:128, ephemeralStorage:64, gpu:1},
+                hunyuanimage:        {cpu:24, memory:128, ephemeralStorage:64, gpu:2},
+                whisper:             {cpu:4,  memory:8,   ephemeralStorage:16, gpu:1},
+                dia:                 {cpu:4,  memory:16,  ephemeralStorage:16, gpu:1},
+            };
+
+            function getFriendlyGpuType(id) {
+                switch(id) {
+                    case 'any': return 'Any';
+                    case 'a+': return 'Ampere+';
+                    case 'h+': return 'Hopper+';
+                    case 'a100': return 'A100';
+                    case 'h100': return 'H100';
+                    case 'h200': return 'H200';
+                    case 'gb200': return 'GB200';
+                    case 'gb300': return 'GB300';
+                    case 'v100': return 'V100';
+                    default: return id;
+                }
+            }
+
+            function updatePresetInfo(val) {
+                const cpu = escapeHtml(document.getElementById('wrapper_cpu').value);
+                const memory = escapeHtml(document.getElementById('wrapper_memory').value);
+                const ephemeral = escapeHtml(document.getElementById('wrapper_ephemeralStorage').value);
+                const gpu = escapeHtml(document.getElementById('wrapper_gpu').value);
+                const gpu_type = escapeHtml(document.getElementById('wrapper_gpu_type').value);
+                const mig_profile = escapeHtml(document.getElementById('wrapper_mig_profile').value);
+                const info = document.getElementById('preset-info');
+                let gpuDesc;
+                if (parseInt(gpu) === 0) {
+                    gpuDesc = 'No GPU';
+                } else {
+                    gpuDesc = `<b>${gpu}</b> (${getFriendlyGpuType(gpu_type)})`;
+                    if (mig_profile) {
+                        gpuDesc += ` MIG <b>${mig_profile}</b>`;
+                    }
+                }
+                info.innerHTML = `CPU: <b>${cpu}</b> cores, Memory: <b>${memory}</b> GiB, Ephemeral: <b>${ephemeral}</b> GiB, GPU: ${gpuDesc}`;
+                info.style.display = '';
+            }
+
+            // Wrapper
+            const addWrapperForm = document.getElementById('add-wrapper-form');
+            if (addWrapperForm) {
+                const wrapperContainerName = document.getElementById('wrapper_container_name');
+                wrapperContainerName.addEventListener('change', function() {
+                    const val = this.value;
+                    if (defaults[val]) {
+                        document.getElementById('wrapper_cpu').value = defaults[val].cpu;
+                        document.getElementById('wrapper_cpu_val').textContent = defaults[val].cpu;
+                        document.getElementById('wrapper_memory').value = defaults[val].memory;
+                        document.getElementById('wrapper_memory_val').textContent = defaults[val].memory;
+                        document.getElementById('wrapper_ephemeralStorage').value = defaults[val].ephemeralStorage;
+                        document.getElementById('wrapper_ephemeralStorage_val').textContent = defaults[val].ephemeralStorage;
+                        document.getElementById('wrapper_gpu').value = defaults[val].gpu;
+                        if (defaults[val].gpu === 0) {
+                            document.getElementById('wrapper_gpu_val').textContent = 'No GPU';
+                        } else if (defaults[val].gpu === 1) {
+                            document.getElementById('wrapper_gpu_val').textContent = "1 GPU";
+                        } else {
+                            document.getElementById('wrapper_gpu_val').textContent = defaults[val].gpu + " GPUs";
+                        }
+                        document.getElementById('wrapper_gpu_type').value = defaults[val].gpu_type || 'any';
+                        document.getElementById('wrapper_mig_profile').value = defaults[val].mig_profile || '';
+                    }
+                    updatePresetInfo(val);
+                });
+
+                // Add listeners to sliders to update info box
+                ['wrapper_cpu','wrapper_memory','wrapper_ephemeralStorage','wrapper_gpu','wrapper_gpu_type'].forEach(function(id) {
+                    document.getElementById(id).addEventListener('input', function() {
+                        // When GPU is set to 0, reset the MIG profile selection
+                        if (id === 'wrapper_gpu' && parseInt(this.value) === 0) {
+                            document.getElementById('wrapper_mig_profile').value = '';
+                        }
+                        updatePresetInfo(document.getElementById('wrapper_container_name').value);
+                    });
+                });
+                // Use 'change' for the select element (fires on every selection change)
+                document.getElementById('wrapper_mig_profile').addEventListener('change', function() {
+                    updatePresetInfo(document.getElementById('wrapper_container_name').value);
+                });
+
+                // Show info on load
+                updatePresetInfo(document.getElementById('wrapper_container_name').value);
+
+                // Set container_name for wrapper from URL or path if present
+                (function() {
+                    const match = window.location.pathname.match(/\/pod\/([^/]+)/);
+                    if (match) {
+                        const containerNameUrl = match[1];
+                        containerName = decodeURIComponent(containerNameUrl);
+
+                        const selectWrapper = document.getElementById('wrapper_container_name');
+                        if (selectWrapper) {
+                            selectWrapper.value = containerName;
+                            selectWrapper.dispatchEvent(new Event('change'))
+                        };
+                    }
+                })();
+
+                // Intercept form submit to POST and then redirect to the service page
+                addWrapperForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const data = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: data,
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/service/' + encodeURIComponent(data.get('container_name'));
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot add pod: ' + (data.error || response.status));
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
+
+            // Minimal deployment
+            const addMinimalForm = document.getElementById('add-minimal-form');
+            if (addMinimalForm) {
+                // Intercept minimal deployment form submit to POST and then redirect to home
+                addMinimalForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const data = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: data,
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/';
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot add minimum pods: ' + (data.error || response.status));
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
+
+            // StreamWise
+            const addStreamWiseForm = document.getElementById('add-streamwise-form');
+            if (addStreamWiseForm) {
+                // Intercept StreamWise form submit to POST and then redirect to service page
+                addStreamWiseForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const data = new FormData(form);
+                    data.set('container_name', 'streamwise');
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: data,
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/service/streamwise';
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot add StreamWise pod: ' + (data.error || response.status));
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
+
+            // Applications
+            const addAppForm = document.getElementById('add-app-form');
+            if (addAppForm) {
+                // Sync application selector with hidden container_name input
+                const appSelector = document.getElementById('app_selector');
+                if (appSelector) {
+                    const containerInput = document.getElementById('app_container_name');
+                    function syncContainerName() {
+                        containerInput.value = appSelector.value;
+                    }
+                    appSelector.addEventListener('change', syncContainerName);
+                    syncContainerName();
+                }
+
+                // Set container_name for application from URL or path if present
+                (function() {
+                    const match = window.location.pathname.match(/\/pod\/([^/]+)/);
+                    if (match) {
+                        const containerNameUrl = match[1];
+                        containerName = decodeURIComponent(containerNameUrl);
+                        const selectApp = document.getElementById('app_selector');
+                        if (selectApp) {
+                            selectApp.value = containerName;
+                            selectApp.dispatchEvent(new Event('change'))
+                        };
+                    }
+                })();
+
+                // Intercept application form submit to POST and then redirect to service page
+                addAppForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const data = new FormData(form);
+                    const appName = document.getElementById('app_selector').value;
+                    data.set('container_name', appName);
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: data,
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/service/' + encodeURIComponent(appName);
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot add application pod: ' + (data.error || response.status));
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq"
+            crossorigin="anonymous"></script>
+        <script>
+            // Initialise Bootstrap tooltips
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+                new bootstrap.Tooltip(el);
+            });
+        </script>
+    </div>
+</body>
+</html>
