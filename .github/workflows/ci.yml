@@ -20,22 +20,13 @@ permissions:
   id-token: write
 
 jobs:
-  test:
-    name: Test
+  mypy:
+    name: Mypy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v6
-
-    - name: Free disk space
-      run: |
-        df -h
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
-                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
-                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
-        sudo apt-get clean
-        df -h
 
     - name: Use Python 3.12
       uses: actions/setup-python@v6
@@ -43,27 +34,12 @@ jobs:
         python-version: '3.12'
         cache: 'pip'
 
-    - name: Install Node.js
-      uses: actions/setup-node@v5
-      with:
-        node-version: '10.x'
-
-    - name: Install ffmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
-        ffmpeg -version
-        dpkg -s ffmpeg
-        sudo apt-get clean
-        sudo rm -rf /var/lib/apt/lists/*
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements_dev.txt
 
     - name: Run Python type checking
-      if: always()
       run: |
         mypy --install-types --non-interactive --ignore-missing-imports . \
           2>&1 | tee mypy-results.txt
@@ -122,6 +98,48 @@ jobs:
         header: mypy
         recreate: true
         path: mypy-summary.md
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        df -h
+
+    - name: Use Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: '10.x'
+
+    - name: Install ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+        ffmpeg -version
+        dpkg -s ffmpeg
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements_dev.txt
 
     - name: 'Run tests: Main'
       if: always()
