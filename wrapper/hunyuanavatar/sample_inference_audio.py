@@ -116,7 +116,7 @@ class HunyuanVideoSampler(Inference):
         neg_prompt = "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, "
         neg_prompt += "bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"
         fps = batch["fps"].to(self.device)
-        # (hqiu) check if fps is a scalar or tensor
+        # TODO: check if fps is a scalar or tensor
         if fps.dim() == 0:
             fps = fps.unsqueeze(0)
             print(f"fps was a scalar, unsqueezed to: {fps}, dim: {fps.dim()}")
