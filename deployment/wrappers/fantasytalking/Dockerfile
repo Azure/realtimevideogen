@@ -5,12 +5,18 @@ ARG BASE_TAG=v0.5.0
 FROM ${DOCKER_REPO}/base:${BASE_TAG}
 
 ARG DOCKER_REPO
+# Set to 0 to skip flash-attn installation (e.g. CPU-only CI builds)
+ARG INSTALL_FLASH_ATTN=1
+# Set to 1 to skip HuggingFace model downloads (e.g. CPU-only CI builds)
+ARG SKIP_MODEL_DOWNLOAD=0
 ENV DOCKER_REPO=${DOCKER_REPO}
 
 # Install flash attention separately
 RUN pip install psutil numpy
-RUN pip install --no-build-isolation flash-attn==2.8.2 && \
-    pip cache purge
+RUN if [ "${INSTALL_FLASH_ATTN}" = "1" ]; then \
+      pip install --no-build-isolation flash-attn==2.8.2 && \
+      pip cache purge; \
+    fi
 
 # We use some of the Wan2.1 parallelism code
 RUN git clone https://github.com/Wan-Video/Wan2.1.git wan && \
@@ -31,9 +37,13 @@ RUN pip install -r requirements.txt && \
     pip cache purge
 
 # Download Fantasy Talking models from Hugging Face
-RUN hf download Wan-AI/Wan2.1-I2V-14B-720P --local-dir /fantasytalking/Wan2.1-I2V-14B-720P && \
-    hf download facebook/wav2vec2-base-960h --local-dir /fantasytalking/wav2vec2-base-960h && \
-    hf download acvlab/FantasyTalking fantasytalking_model.ckpt --local-dir /fantasytalking
+RUN if [ "${SKIP_MODEL_DOWNLOAD}" != "1" ]; then \
+      hf download Wan-AI/Wan2.1-I2V-14B-720P --local-dir /fantasytalking/Wan2.1-I2V-14B-720P && \
+      hf download facebook/wav2vec2-base-960h --local-dir /fantasytalking/wav2vec2-base-960h && \
+      hf download acvlab/FantasyTalking fantasytalking_model.ckpt --local-dir /fantasytalking; \
+    else \
+      echo "Skipping model download (CI build)"; \
+    fi
 
 COPY docker_files/*.py .
 COPY docker_files/*.bash .

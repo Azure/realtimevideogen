@@ -1,0 +1,164 @@
+name: Docker (Large Models)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+    - 'deployment/wrappers/flux/**'
+    - 'deployment/wrappers/fantasytalking/**'
+    - 'deployment/wrappers/hunyuanframepackf1/**'
+    - 'wrapper/flux/**'
+    - 'wrapper/fantasytalking/**'
+    - 'wrapper/hunyuanframepack/**'
+    - 'wrapper/hunyuanframepackf1/**'
+    - 'wrapper/wrapper_model.py'
+    - 'wrapper/run_httpserver.py'
+    - 'wrapper/run_httpserver.bash'
+    - 'services.json'
+    - '.github/workflows/docker-large.yml'
+  schedule:
+  - cron: '0 4 * * 0'  # Weekly on Sunday at 04:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  base:
+    name: Base image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        docker system prune -af
+        df -h
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Build base image
+      working-directory: deployment/base
+      env:
+        DOCKER_REPO: localhost:5000
+        BASE_IMAGE: ubuntu:24.04
+        TORCH_PACKAGE: torch
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+      run: bash setup_image.sh
+
+    - name: Export base image
+      run: |
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' services.json)
+        docker save "base:${BASE_TAG}" | gzip > base-image.tar.gz
+        ls -lh base-image.tar.gz
+
+    - name: Upload base image artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: base-image-large
+        path: base-image.tar.gz
+        retention-days: 1
+
+  large-models:
+    name: Large model / ${{ matrix.model }}
+    needs: base
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - model: flux
+          extra_build_args: "--build-arg SKIP_MODEL_DOWNLOAD=1"
+        - model: fantasytalking
+          extra_build_args: "--build-arg SKIP_MODEL_DOWNLOAD=1 --build-arg INSTALL_FLASH_ATTN=0"
+        - model: hunyuanframepackf1
+          extra_build_args: "--build-arg SKIP_MODEL_DOWNLOAD=1 --build-arg INSTALL_FLASH_ATTN=0"
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        docker system prune -af
+        df -h
+
+    - name: Download base image artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: base-image-large
+
+    - name: Start local Docker registry
+      run: docker run -d -p 5000:5000 --name registry registry:2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver-opts: network=host
+
+    - name: Load base image into registry
+      run: |
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' services.json)
+        docker load < base-image.tar.gz
+        docker tag "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}"
+        docker push "localhost:5000/base:${BASE_TAG}"
+        # Free disk space: buildx pulls the base image from the local registry
+        rm base-image.tar.gz
+        docker rmi "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}" || true
+        df -h
+
+    - name: Build ${{ matrix.model }} image (no model download, no GPU)
+      working-directory: deployment/wrappers/${{ matrix.model }}
+      env:
+        DOCKER_REPO: localhost:5000
+        EXTRA_BUILD_ARGS: ${{ matrix.extra_build_args }}
+      run: bash setup_image.sh
+
+    - name: Start ${{ matrix.model }} service
+      run: |
+        TAG=$(jq -r --arg model "${{ matrix.model }}" '.[$model].dockerImage.tag' services.json)
+        # HF_HUB_OFFLINE=1 prevents accidental model downloads at runtime
+        docker run -d -p 8080:8080 \
+          -e HF_HUB_OFFLINE=1 \
+          --name model_ci "${{ matrix.model }}:${TAG}"
+
+    - name: Wait for ${{ matrix.model }} HTTP server to start
+      run: |
+        source .github/scripts/ci_utils.sh
+        wait_for_service_start "${{ matrix.model }}" "http://localhost:8080/health" "model_ci"
+
+    - name: Verify ${{ matrix.model }} health endpoint
+      run: |
+        HEALTH=$(curl -sf http://localhost:8080/health || echo '{}')
+        echo "Health response: $HEALTH"
+        STATUS=$(echo "$HEALTH" | jq -r --arg m "${{ matrix.model }}" '.[$m].status // empty')
+        if [ -z "$STATUS" ]; then
+          echo "❌ No status for ${{ matrix.model }} in health response" >&2
+          docker logs model_ci >&2 || true
+          exit 1
+        fi
+        echo "✅ ${{ matrix.model }} server is running (status: ${STATUS})"
+
+    - name: Show ${{ matrix.model }} container logs
+      if: always()
+      run: docker logs model_ci || true
+
+    - name: Stop ${{ matrix.model }} container
+      if: always()
+      run: docker stop model_ci || true

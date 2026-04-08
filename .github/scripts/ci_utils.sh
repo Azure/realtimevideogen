@@ -25,6 +25,29 @@ wait_for_service() {
   return 1
 }
 
+# wait_for_service_start <name> <health_url> <container> [retries=30] [delay=2]
+# Polls the health endpoint until it returns any valid HTTP 200 response.
+# Use for services where the model may not reach "ok" (e.g. GPU-only models on CPU CI runners).
+wait_for_service_start() {
+  local name="$1"
+  local health_url="$2"
+  local container="$3"
+  local retries="${4:-30}"
+  local delay="${5:-2}"
+  local i
+  for i in $(seq 1 "$retries"); do
+    if curl -sf "$health_url" > /dev/null 2>&1; then
+      echo "✅ $name HTTP server is up"
+      return 0
+    fi
+    echo "Waiting... ($i/$retries)"
+    sleep "$delay"
+  done
+  echo "❌ $name did not start in time" >&2
+  docker logs "$container" >&2 || true
+  return 1
+}
+
 # download_pages <name> <base_url> <output_dir> <path:dest> [<path:dest> ...]
 # Downloads each <base_url><path> to <output_dir>/<dest>.
 # Parent directories are created automatically.
