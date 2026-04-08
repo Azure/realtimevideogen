@@ -122,7 +122,7 @@ if not os.path.exists("output"):
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Benchmark Flux server performance")
-    arg_parser.add_argument("--container_ip", type=str, default="10.244.2.13")
+    arg_parser.add_argument("--container_ip", type=str, default="10.0.0.1")
     arg_parser.add_argument("--container_port", type=int, default=8080)
     arg_parser.add_argument("--output_csv", type=str, default="flux.csv", help="Output CSV file for results")
     args = arg_parser.parse_args()
