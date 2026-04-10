@@ -92,6 +92,32 @@ def resample_frames(
     ]
 
 
+def resample_and_normalize_frames(
+    video_frames: List[Image.Image],
+    src_fps: float,
+    dst_fps: float,
+    target_num_frames: int,
+    audio_duration: Optional[float] = None
+) -> List[Image.Image]:
+    """Resample video frames from src_fps to dst_fps and normalize the result to exactly
+    target_num_frames.
+
+    resample_frames() uses floating-point rounding which can produce a count that differs
+    from target_num_frames by one frame.  That off-by-one translates directly into a
+    latent-tensor shape mismatch (e.g. 14 vs 15 frames) when the frames are later encoded
+    by the VAE and fed to scheduler.add_noise().  This wrapper ensures the output always
+    has exactly target_num_frames frames by padding with the last frame or trimming.
+    """
+    resampled = resample_frames(video_frames, src_fps, dst_fps, audio_duration)
+    if len(resampled) == 0:
+        raise ValueError("Resampled video is empty; cannot normalize to target frame count.")
+    if len(resampled) < target_num_frames:
+        resampled = resampled + [resampled[-1]] * (target_num_frames - len(resampled))
+    elif len(resampled) > target_num_frames:
+        resampled = resampled[:target_num_frames]
+    return resampled
+
+
 class FantasyTalking(USPGeneration):
     """
     Fantasy Talking video generation wrapper.
@@ -388,12 +414,11 @@ class FantasyTalking(USPGeneration):
                     logging.warning(
                         f"[{self.rank}] Resampling video from {video_num_frames} (source) to {num_frames} "
                         "(destination) frames to match output.")
-                    video_resampled = resample_frames(
+                    video = resample_and_normalize_frames(
                         video,
                         src_fps=self.SRC_FPS, dst_fps=self.FPS,
+                        target_num_frames=num_frames,
                         audio_duration=audio_duration)
-                    # TODO do this properly but for now...
-                    video = video_resampled
 
                 if img is None:
                     if self.rank == 0:
