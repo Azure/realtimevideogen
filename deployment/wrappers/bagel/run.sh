@@ -5,6 +5,6 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
 
 bash "$DEPLOY_DIR/run_img.sh" \
-  --path bagel \
   --img "$SAMPLES_DIR/sample.png" \
-  "$@"
+  "$@" \
+  --path bagel

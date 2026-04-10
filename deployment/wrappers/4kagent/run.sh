@@ -5,6 +5,6 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
 
 bash "$DEPLOY_DIR/run_img.sh" \
-  --path 4kagent \
   --img "$SAMPLES_DIR/sample_256x192.png" \
-  "$@"
+  "$@" \
+  --path 4kagent

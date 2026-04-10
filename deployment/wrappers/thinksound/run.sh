@@ -8,5 +8,5 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 # docker run -d --gpus '"device=0,1"' -p 18082:8080 --name thinksound_rest thinksound
 
 bash "$DEPLOY_DIR/run_audio.sh" \
-    --path thinksound \
-    "$@"
+    "$@" \
+    --path thinksound

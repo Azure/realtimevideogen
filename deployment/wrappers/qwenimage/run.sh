@@ -8,5 +8,5 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 # docker rm qwenimage_rest; docker run -d --gpus '"device=0,1"' -p 18082:8080 --name qwenimage_rest qwenimage
 
 bash "$DEPLOY_DIR/run_img.sh" \
-    --path qwenimage \
-    "$@"
+    "$@" \
+    --path qwenimage

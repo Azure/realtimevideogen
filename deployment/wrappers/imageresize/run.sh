@@ -5,8 +5,8 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
 
 bash "$DEPLOY_DIR/run_img.sh" \
-    --path flux \
     --img "$SAMPLES_DIR/sample_256x192.png" \
     --width 2048 \
     --height 1536 \
-    "$@"
+    "$@" \
+    --path imageresize
