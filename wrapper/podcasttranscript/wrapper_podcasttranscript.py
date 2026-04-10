@@ -649,13 +649,13 @@ async def main() -> None:
 
     # Azure OpenAI
     LLM_MODEL = "gpt-4o-2024-08-06"
-    LLM_URL = "https://girfan-az-openai-001.openai.azure.com/openai/" \
+    LLM_URL = "https://xyz-az-openai-001.openai.azure.com/openai/" \
               "deployments/gpt-4o-2/chat/completions?api-version=2025-01-01-preview"
 
     # Gemma on Kubernetes
     LLM_MODEL = "google/gemma-3-27b-it"
     LMM_MULTI_MODAL = True
-    LLM_URL = "http://10.244.22.5:8000/v1"
+    LLM_URL = "http://10.0.0.1:8000/v1"
 
     logging.basicConfig(level=logging.INFO)
 

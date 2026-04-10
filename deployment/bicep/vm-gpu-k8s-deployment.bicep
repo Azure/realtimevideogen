@@ -860,7 +860,6 @@ module acrRoleAssignments 'roleACRAssignment.bicep' = [
 
 
 // TODO add storage and containers
-// https://dev.azure.com/azsr/AzureDeploy/_git/AzTemplates?path=/bicep/resources/storage-account.bicep
 
 
 // Load balancer

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-LLM_IP="10.244.22.14"
-LLM_URL="http://$LLM_IP:8000/v1"
+LLM_IP="${LLM_IP:-127.0.0.1}"
+LLM_PORT="${LLM_PORT:-8000}"
+LLM_URL="${LLM_URL:-http://$LLM_IP:$LLM_PORT/v1}"
 
 cat > payload_transcript.json <<EOF
 {

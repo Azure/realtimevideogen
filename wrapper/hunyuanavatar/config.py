@@ -27,7 +27,7 @@ def parse_args(
     parser = argparse.ArgumentParser(description="Hunyuan Multimodal training/inference script")
     parser = add_extra_args(parser)
     # args = parser.parse_args(namespace=namespace)
-    # (hqiu) accept other arguments from run_httpserver.py
+    # TODO: accept other arguments from run_httpserver.py
     args, unknown_args = parser.parse_known_args(namespace=namespace)
     if unknown_args:
         print(f"Additional arguments: {unknown_args}")
