@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$SCRIPT_DIR/../.."
+SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
 
-bash "$SCRIPT_DIR/../../run_img.sh" \
+bash "$DEPLOY_DIR/run_img.sh" \
   --path bagel \
-  --img "$SCRIPT_DIR/../../../benchmark/samples/sample.png" \
+  --img "$SAMPLES_DIR/sample.png" \
   "$@"
