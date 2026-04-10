@@ -86,11 +86,11 @@ async def test_hunyuan_framepack() -> None:
         "prompt": "test prompt",
     })
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not enough values to unpack"):
         # TODO implement fixtures for diffusers_helper
         await model.warmup()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not enough values to unpack"):
         # TODO implement fixtures for diffusers_helper
         await model.generate(
             img=img,
