@@ -28,6 +28,7 @@ torchaudio
 accelerate
 safetensors
 sentencepiece
+protobuf
 imageio[ffmpeg]
 imageio-ffmpeg
 modelscope
