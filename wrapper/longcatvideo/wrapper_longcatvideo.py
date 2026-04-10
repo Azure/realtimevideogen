@@ -194,11 +194,23 @@ class LongCatVideoGeneration(ModelGeneration):
         num_frames = int(data_json.get("num_frames", 1 + 16))
         steps = int(data_json.get("sampling_steps", 30))
 
+        if height <= 0:
+            raise ValueError(f"height {height} must be positive.")
+        if width <= 0:
+            raise ValueError(f"width {width} must be positive.")
+        if steps <= 0:
+            raise ValueError(f"sampling_steps {steps} must be positive.")
+
         video_seconds = data_json.get("video_seconds", None)
         if video_seconds is not None:
+            if float(video_seconds) <= 0:
+                raise ValueError(f"video_seconds {video_seconds} must be positive.")
             VAE_FRAMES = self.vae_stride[0]
             num_frames = int(video_seconds * self.FPS)
             num_frames = 1 + ((num_frames - 1) // VAE_FRAMES) * VAE_FRAMES  # 4n + 1
+
+        if num_frames <= 0:
+            raise ValueError(f"num_frames {num_frames} must be positive.")
 
         gen_args = {
             "task": self.model_name,
