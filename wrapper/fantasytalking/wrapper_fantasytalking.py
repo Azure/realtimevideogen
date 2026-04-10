@@ -395,7 +395,9 @@ class FantasyTalking(USPGeneration):
                     # Normalize to exactly num_frames to prevent latent/noise tensor shape mismatch.
                     # resample_frames may return a different count than num_frames due to
                     # floating-point rounding in the FPS conversion (e.g. 30→23 FPS).
-                    if len(video_resampled) < num_frames and len(video_resampled) > 0:
+                    if len(video_resampled) == 0:
+                        raise ValueError("Resampled video is empty; cannot normalize to target frame count.")
+                    if len(video_resampled) < num_frames:
                         logging.warning(
                             f"[{self.rank}] Resampled video has {len(video_resampled)} frames, "
                             f"padding to {num_frames} with last frame.")

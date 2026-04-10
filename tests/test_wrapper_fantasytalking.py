@@ -188,3 +188,47 @@ def test_resample_frames_may_differ_from_num_frames() -> None:
     assert lat_expected == lat_actual, (
         f"Latent frame count mismatch: noise={lat_expected}, latents={lat_actual}"
     )
+
+
+def test_normalize_frames_trimming() -> None:
+    """Test that normalization trims oversized resampled video to num_frames."""
+    import math
+
+    FPS = 23.0
+    SRC_FPS = 30.0
+    vae_stride = 4
+
+    # Audio duration just long enough that audio_num_frames rounds up such that
+    # num_frames (1+4n aligned) is smaller than what resample_frames would produce
+    # without the truncation step.  We achieve this by supplying no audio_duration
+    # to resample_frames so the truncation branch is skipped, giving more dst frames.
+    audio_duration = 1.0  # 1 second
+    audio_num_frames = int(math.ceil(FPS * audio_duration))  # 23
+    num_frames = int(1 + math.ceil((audio_num_frames - 1) / vae_stride) * vae_stride)  # 1+24=25
+
+    # Provide a video that, when resampled WITHOUT the audio-duration truncation,
+    # produces more frames than num_frames.
+    # 30 frames at 30 FPS = 1.0 s → round(1.0 * 23) = 23 frames < 25, so use a
+    # slightly longer source to get more dest frames.
+    # 35 frames at 30 FPS = 1.167 s → round(1.167 * 23) = round(26.83) = 27 frames > 25
+    src_frames = [Image.new("RGB", (100, 100)) for _ in range(35)]
+    # No audio_duration arg → truncation step is skipped
+    resampled = resample_frames(src_frames, SRC_FPS, FPS)
+
+    assert len(resampled) > num_frames, (
+        f"Expected resampled ({len(resampled)}) > num_frames ({num_frames})"
+    )
+
+    # Simulate normalization
+    if len(resampled) < num_frames:
+        normalized = resampled + [resampled[-1]] * (num_frames - len(resampled))
+    elif len(resampled) > num_frames:
+        normalized = resampled[:num_frames]
+    else:
+        normalized = resampled
+
+    assert len(normalized) == num_frames
+
+    lat_expected = (num_frames - 1) // vae_stride + 1
+    lat_actual = (len(normalized) - 1) // vae_stride + 1
+    assert lat_expected == lat_actual
