@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import sys
 import pytest
 
@@ -152,7 +153,6 @@ def test_resample_frames_may_differ_from_num_frames() -> None:
     num_frames; the fix in generate() normalises the result by padding with the
     last frame so both tensors share the same latent dimension.
     """
-    import math
 
     FPS = 23.0
     SRC_FPS = 30.0
@@ -192,7 +192,6 @@ def test_resample_frames_may_differ_from_num_frames() -> None:
 
 def test_normalize_frames_trimming() -> None:
     """Test that normalization trims oversized resampled video to num_frames."""
-    import math
 
     FPS = 23.0
     SRC_FPS = 30.0
