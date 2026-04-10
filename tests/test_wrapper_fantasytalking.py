@@ -140,3 +140,51 @@ def test_resample_frames() -> None:
         for _ in range(24)
     ], 24, 23, 0.5)
     assert len(resampled_frames) == 12
+
+
+def test_resample_frames_may_differ_from_num_frames() -> None:
+    """Reproduce the bug scenario: 73 frames at 30 FPS with ~2.4s audio.
+
+    Before the fix, resample_frames returns 55 frames while num_frames (computed
+    from audio at 23 FPS aligned to 1+4n) is 57, causing a latent/noise tensor
+    shape mismatch (14 vs 15 frames) inside CustomWanVideoPipeline.__call__.
+    This test documents that resample_frames can return fewer frames than
+    num_frames; the fix in generate() normalises the result by padding with the
+    last frame so both tensors share the same latent dimension.
+    """
+    import math
+
+    FPS = 23.0
+    SRC_FPS = 30.0
+    vae_stride = 4
+
+    audio_duration = 2.4  # seconds — representative value from the bug report
+    audio_num_frames = int(math.ceil(FPS * audio_duration))
+    num_frames = int(1 + math.ceil((audio_num_frames - 1) / vae_stride) * vae_stride)
+
+    src_frames = [Image.new("RGB", (100, 100)) for _ in range(73)]
+    resampled = resample_frames(src_frames, SRC_FPS, FPS, audio_duration)
+
+    # resample_frames produces fewer frames than num_frames due to rounding
+    assert len(resampled) < num_frames, (
+        f"Expected resampled ({len(resampled)}) < num_frames ({num_frames})"
+    )
+
+    # Simulate the normalization applied by generate() after resample_frames
+    if len(resampled) < num_frames and len(resampled) > 0:
+        normalized = resampled + [resampled[-1]] * (num_frames - len(resampled))
+    elif len(resampled) > num_frames:
+        normalized = resampled[:num_frames]
+    else:
+        normalized = resampled
+
+    assert len(normalized) == num_frames, (
+        f"After normalization, expected {num_frames} frames but got {len(normalized)}"
+    )
+
+    # Verify that the latent dimensions now match
+    lat_expected = (num_frames - 1) // vae_stride + 1
+    lat_actual = (len(normalized) - 1) // vae_stride + 1
+    assert lat_expected == lat_actual, (
+        f"Latent frame count mismatch: noise={lat_expected}, latents={lat_actual}"
+    )

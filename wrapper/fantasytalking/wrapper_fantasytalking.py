@@ -392,7 +392,19 @@ class FantasyTalking(USPGeneration):
                         video,
                         src_fps=self.SRC_FPS, dst_fps=self.FPS,
                         audio_duration=audio_duration)
-                    # TODO do this properly but for now...
+                    # Normalize to exactly num_frames to prevent latent/noise tensor shape mismatch.
+                    # resample_frames may return a different count than num_frames due to
+                    # floating-point rounding in the FPS conversion (e.g. 30→23 FPS).
+                    if len(video_resampled) < num_frames and len(video_resampled) > 0:
+                        logging.warning(
+                            f"[{self.rank}] Resampled video has {len(video_resampled)} frames, "
+                            f"padding to {num_frames} with last frame.")
+                        video_resampled = video_resampled + [video_resampled[-1]] * (num_frames - len(video_resampled))
+                    elif len(video_resampled) > num_frames:
+                        logging.warning(
+                            f"[{self.rank}] Resampled video has {len(video_resampled)} frames, "
+                            f"trimming to {num_frames}.")
+                        video_resampled = video_resampled[:num_frames]
                     video = video_resampled
 
                 if img is None:
