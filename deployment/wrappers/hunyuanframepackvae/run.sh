@@ -46,7 +46,7 @@ http_code=$(curl \
     -o "$OUTPUT_FILE")
 if [ "$http_code" -ne 200 ]; then
     echo "Request failed: $http_code"
-    jq . "$OUTPUT_FILE"
+    jq . "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"
     exit 1
 else
     echo "Video generated successfully:"
@@ -74,7 +74,7 @@ http_code=$(gzip -c "$TENSOR" | curl \
     -o "$OUTPUT_FILE")
 if [ "$http_code" -ne 200 ]; then
     echo "Request failed: $http_code"
-    jq . "$OUTPUT_FILE"
+    jq . "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"
     exit 1
 else
     echo "Video generated successfully:"
