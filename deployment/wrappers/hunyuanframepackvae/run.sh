@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Default arguments
 HOST="localhost"
 PORT="8080"
@@ -23,8 +25,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-TENSOR="../../benchmark/samples/sample_latents.pt"
-#TENSOR="../../benchmark/samples/sample_latents_long.pt"
+TENSOR="$SCRIPT_DIR/../../../benchmark/samples/sample_latents.pt"
+#TENSOR="$SCRIPT_DIR/../../../benchmark/samples/sample_latents_long.pt"
 
 
 mkdir -p output

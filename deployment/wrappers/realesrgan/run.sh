@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
-bash ../run_img.sh \
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+bash "$SCRIPT_DIR/../../run_img.sh" \
   --path realesrgan \
-  --img ../../benchmark/samples/sample_256x192.png
+  --img "$SCRIPT_DIR/../../../benchmark/samples/sample_256x192.png" \
   "$@"
 
-bash ../run_video.sh \
+bash "$SCRIPT_DIR/../../run_video.sh" \
   --path realesrgan \
-  --video ../../benchmark/samples/sample_320x240.mp4
+  --video "$SCRIPT_DIR/../../../benchmark/samples/sample_320x240.mp4" \
   "$@"

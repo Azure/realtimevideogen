@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-bash ../run_video.sh \
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+bash "$SCRIPT_DIR/../../run_video.sh" \
   --path ltx \
-  --img ../../benchmark/samples/sample.png \
+  --img "$SCRIPT_DIR/../../../benchmark/samples/sample.png" \
   "$@"

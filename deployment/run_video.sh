@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Default arguments
 HOST="localhost"
 PORT="8080"
@@ -13,7 +15,7 @@ FRAMES=81
 VIDEO_SECONDS=0
 AUDIO_SECONDS=0
 SEED=0
-IMG_PATH="../benchmark/samples/sample.png"
+IMG_PATH="$SCRIPT_DIR/../benchmark/samples/sample.png"
 VIDEO_PATH=""
 JSON_FILE="payload_tmp.json"
 
@@ -98,7 +100,7 @@ generate_audio_base64() {
     SAMPLE_RATE=24000
     NUM_CHANNELS=1
     BYTES_PER_SAMPLE=2
-    WAV_PATH=../../benchmark/samples/sample.wav
+    WAV_PATH="$SCRIPT_DIR/../benchmark/samples/sample.wav"
     local seconds=$1
     local audio_bytes
     local audio_bytes_int
@@ -118,7 +120,7 @@ VIDEO_BASE64=""
 if [ -f "$VIDEO_PATH" ]; then
     VIDEO_BASE64=$(base64 -w 0 "$VIDEO_PATH")
 fi
-if [ "$AUDIO_SECONDS" -gt 0 ]; then
+if awk "BEGIN { exit !(${AUDIO_SECONDS} > 0) }"; then
     AUDIO_BASE64=$(generate_audio_base64 "$AUDIO_SECONDS")
 fi
 
