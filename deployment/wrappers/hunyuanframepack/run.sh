@@ -5,8 +5,8 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
 
 bash "$DEPLOY_DIR/run_video.sh" \
+  --path hunyuanframepack \
   --width 768 \
   --height 512 \
   --img "$SAMPLES_DIR/sample.png" \
-  "$@" \
-  --path hunyuanframepack
+  "$@"

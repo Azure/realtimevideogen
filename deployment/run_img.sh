@@ -99,7 +99,7 @@ http_code=$(curl \
 if [ "$http_code" -ne 200 ]; then
     echo "Request to $URL failed: $http_code"
     if [ -f "$OUTPUT_FILE" ]; then
-        jq . "$OUTPUT_FILE"
+        jq . "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"
     fi
     exit 1
 else

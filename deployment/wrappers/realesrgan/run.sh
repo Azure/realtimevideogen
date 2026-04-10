@@ -5,11 +5,11 @@ DEPLOY_DIR="$SCRIPT_DIR/../.."
 SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
 
 bash "$DEPLOY_DIR/run_img.sh" \
+  --path realesrgan \
   --img "$SAMPLES_DIR/sample_256x192.png" \
-  "$@" \
-  --path realesrgan
+  "$@"
 
 bash "$DEPLOY_DIR/run_video.sh" \
+  --path realesrgan \
   --video "$SAMPLES_DIR/sample_320x240.mp4" \
-  "$@" \
-  --path realesrgan
+  "$@"
