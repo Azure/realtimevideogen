@@ -42,6 +42,7 @@ mock_modules.update(mock_torch.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     from fantasytalking.wrapper_fantasytalking import FantasyTalking
     from fantasytalking.wrapper_fantasytalking import resample_frames
+    from fantasytalking.wrapper_fantasytalking import resample_and_normalize_frames
 
 
 @pytest.mark.asyncio
@@ -150,8 +151,8 @@ def test_resample_frames_may_differ_from_num_frames() -> None:
     from audio at 23 FPS aligned to 1+4n) is 57, causing a latent/noise tensor
     shape mismatch (14 vs 15 frames) inside CustomWanVideoPipeline.__call__.
     This test documents that resample_frames can return fewer frames than
-    num_frames; the fix in generate() normalises the result by padding with the
-    last frame so both tensors share the same latent dimension.
+    num_frames; the fix in generate() normalises the result via
+    resample_and_normalize_frames() so both tensors share the same latent dimension.
     """
 
     FPS = 23.0
@@ -163,21 +164,16 @@ def test_resample_frames_may_differ_from_num_frames() -> None:
     num_frames = int(1 + math.ceil((audio_num_frames - 1) / vae_stride) * vae_stride)
 
     src_frames = [Image.new("RGB", (100, 100)) for _ in range(73)]
-    resampled = resample_frames(src_frames, SRC_FPS, FPS, audio_duration)
 
-    # resample_frames produces fewer frames than num_frames due to rounding
-    assert len(resampled) < num_frames, (
-        f"Expected resampled ({len(resampled)}) < num_frames ({num_frames})"
+    # resample_frames alone produces fewer frames than num_frames due to rounding
+    resampled_raw = resample_frames(src_frames, SRC_FPS, FPS, audio_duration)
+    assert len(resampled_raw) < num_frames, (
+        f"Expected resampled ({len(resampled_raw)}) < num_frames ({num_frames})"
     )
 
-    # Simulate the normalization applied by generate() after resample_frames
-    if len(resampled) < num_frames and len(resampled) > 0:
-        normalized = resampled + [resampled[-1]] * (num_frames - len(resampled))
-    elif len(resampled) > num_frames:
-        normalized = resampled[:num_frames]
-    else:
-        normalized = resampled
-
+    # resample_and_normalize_frames must return exactly num_frames
+    normalized = resample_and_normalize_frames(
+        src_frames, SRC_FPS, FPS, num_frames, audio_duration)
     assert len(normalized) == num_frames, (
         f"After normalization, expected {num_frames} frames but got {len(normalized)}"
     )
@@ -191,7 +187,7 @@ def test_resample_frames_may_differ_from_num_frames() -> None:
 
 
 def test_normalize_frames_trimming() -> None:
-    """Test that normalization trims oversized resampled video to num_frames."""
+    """Test that resample_and_normalize_frames trims oversized resampled video to num_frames."""
 
     FPS = 23.0
     SRC_FPS = 30.0
@@ -211,21 +207,15 @@ def test_normalize_frames_trimming() -> None:
     # slightly longer source to get more dest frames.
     # 35 frames at 30 FPS = 1.167 s → round(1.167 * 23) = round(26.83) = 27 frames > 25
     src_frames = [Image.new("RGB", (100, 100)) for _ in range(35)]
-    # No audio_duration arg → truncation step is skipped
-    resampled = resample_frames(src_frames, SRC_FPS, FPS)
 
-    assert len(resampled) > num_frames, (
-        f"Expected resampled ({len(resampled)}) > num_frames ({num_frames})"
+    # Without normalization, resample_frames produces more frames than num_frames
+    resampled_raw = resample_frames(src_frames, SRC_FPS, FPS)
+    assert len(resampled_raw) > num_frames, (
+        f"Expected resampled ({len(resampled_raw)}) > num_frames ({num_frames})"
     )
 
-    # Simulate normalization
-    if len(resampled) < num_frames:
-        normalized = resampled + [resampled[-1]] * (num_frames - len(resampled))
-    elif len(resampled) > num_frames:
-        normalized = resampled[:num_frames]
-    else:
-        normalized = resampled
-
+    # resample_and_normalize_frames must return exactly num_frames
+    normalized = resample_and_normalize_frames(src_frames, SRC_FPS, FPS, num_frames)
     assert len(normalized) == num_frames
 
     lat_expected = (num_frames - 1) // vae_stride + 1
