@@ -322,19 +322,22 @@ jobs:
       id: diff-coverage
       if: always() && github.event_name == 'pull_request'
       run: |
-        git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+        git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }} || true
         diff-cover coverage.xml \
           --compare-branch=origin/${{ github.base_ref }} \
           --markdown-report=diff-coverage-results.md
         DIFF_COVER_EXIT=$?
-        if [ $DIFF_COVER_EXIT -ne 0 ] || [ ! -s diff-coverage-results.md ]; then
-          printf '## Diff Coverage\n\nNo Python changes found in this PR, or no coverage data available.\n' \
+        if [ $DIFF_COVER_EXIT -ne 0 ]; then
+          printf '## Diff Coverage\n\nDiff coverage analysis failed (exit code %d). Check the workflow logs for details.\n' \
+            "$DIFF_COVER_EXIT" > diff-coverage-results.md
+        elif [ ! -s diff-coverage-results.md ]; then
+          printf '## Diff Coverage\n\nNo Python changes found in this PR.\n' \
             > diff-coverage-results.md
         fi
         cat diff-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
 
     - name: Add diff coverage PR comment
-      if: always() && github.event_name == 'pull_request'
+      if: always() && github.event_name == 'pull_request' && steps.diff-coverage.outcome != 'skipped'
       uses: marocchino/sticky-pull-request-comment@v3
       with:
         header: diff-coverage
