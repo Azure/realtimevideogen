@@ -20,6 +20,7 @@ data, workflow configuration, or simulator logic changes.
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 from sim_types import GPUType
 from sim_types import Model
@@ -190,7 +191,7 @@ def derive_adaptive_params(
 
 
 def _format_dict(
-    d: dict[GPUType, dict[Model, int | float | dict[QualityLevel, float]]],
+    d: dict[Any, dict[Any, Any]],
     name: str,
     type_hint: str,
 ) -> str:
