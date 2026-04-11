@@ -18,7 +18,10 @@ with temp_sys_path("simulator"):
     from multirequests import INIT_REPLICAS_BASELINE
     from multirequests import QUALITY_PORTIONS
     from multirequests import TIME_PER_REQ_ADAPTIVE
+    from multirequests import HARDWARE_BUDGET
     from multirequests import get_time_per_request_baseline
+
+    from multirequests_derive import derive_multirequest_params
 
     from data_loading import load_latency_data
     from workflows import PODCAST_WORKFLOW
@@ -283,8 +286,8 @@ def test_aggregate_time_per_request_by_quality() -> None:
     assert Model.UPSCALER in time_req_adaptive_agg[GPUType.A100]
     assert Model.UPSCALER in time_req_adaptive_agg[GPUType.H100]
 
-    assert_equals_approx(time_req_adaptive_agg[GPUType.A100][Model.OTHERS], 43 * 0.6)
-    assert_equals_approx(time_req_adaptive_agg[GPUType.H100][Model.UPSCALER], 33.56)
+    assert_equals_approx(time_req_adaptive_agg[GPUType.A100][Model.OTHERS], 25.80)
+    assert_equals_approx(time_req_adaptive_agg[GPUType.H100][Model.UPSCALER], 48.12)
 
 
 def test_get_time_per_request_baseline() -> None:
@@ -299,3 +302,46 @@ def test_get_time_per_request_baseline() -> None:
     assert Model.GEMMA in time_per_req_baseline[GPUType.A100]
     assert_equals_approx(time_per_req_baseline[GPUType.A100][Model.FLUX], 9.75)
     assert_equals_approx(time_per_req_baseline[GPUType.A100][Model.FT], 24618.20)
+
+
+def test_derived_constants_match_simulation() -> None:
+    """Verify that the hardcoded constants in multirequests.py match a fresh simulation run.
+
+    This test re-runs the StreamWise simulator at the documented hardware budget
+    (HARDWARE_BUDGET) and checks that INIT_REPLICAS and TIME_PER_REQ still match.
+    If this test fails, regenerate the constants by running:
+        cd simulator/ && python multirequests_derive.py
+    """
+    # The allocator does lazy imports (e.g. ``from greedy import ...``), so
+    # ``simulator/`` must be on sys.path at call-time, not just at import-time.
+    import sys
+    if "simulator" not in sys.path:
+        sys.path.insert(0, "simulator")
+
+    derived_replicas, derived_time = derive_multirequest_params(
+        budget=HARDWARE_BUDGET,
+        data_dir="simulator/data/",
+    )
+
+    # Verify INIT_REPLICAS matches
+    for gpu_type in derived_replicas:
+        assert gpu_type in INIT_REPLICAS, f"Missing GPU type {gpu_type} in INIT_REPLICAS"
+        for model, count in derived_replicas[gpu_type].items():
+            assert model in INIT_REPLICAS[gpu_type], \
+                f"Missing model {model} in INIT_REPLICAS[{gpu_type}]"
+            assert INIT_REPLICAS[gpu_type][model] == count, \
+                f"INIT_REPLICAS[{gpu_type}][{model}]: expected {count}, got {INIT_REPLICAS[gpu_type][model]}"
+
+    # Verify TIME_PER_REQ matches (within tolerance)
+    for gpu_type in derived_time:
+        assert gpu_type in TIME_PER_REQ, f"Missing GPU type {gpu_type} in TIME_PER_REQ"
+        for model, t in derived_time[gpu_type].items():
+            assert model in TIME_PER_REQ[gpu_type], \
+                f"Missing model {model} in TIME_PER_REQ[{gpu_type}]"
+            assert_equals_approx(TIME_PER_REQ[gpu_type][model], t)
+
+    # Verify GPU totals match the documented budget
+    for gpu_type, expected_count in HARDWARE_BUDGET.items():
+        actual = sum(INIT_REPLICAS.get(gpu_type, {}).values())
+        assert actual == expected_count, \
+            f"INIT_REPLICAS {gpu_type.value} total: {actual} != {expected_count}"

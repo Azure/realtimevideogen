@@ -14,123 +14,163 @@ from sim_types import LatencyData
 QPM_LIST = [0.1, 1, 2, 5, 10, 20, 30, 50, 100]
 
 
-# Single quality
+# ---------------------------------------------------------------------------
+# Hardware budget used to derive the constants below.
+# To regenerate, run:  python multirequests_derive.py
+# ---------------------------------------------------------------------------
+HARDWARE_BUDGET: dict[GPUType, int] = {
+    GPUType.A100: 256,
+    GPUType.H100: 64,
+}
+
+
+# ---------------------------------------------------------------------------
+# TIME_PER_REQ — wall-clock seconds for each model to process one full request
+# (10-min podcast video) at the hardware budget above.
+#
+# Derived by running the StreamWise greedy allocator (STREAMWISE_POLICY) on
+# PODCAST_WORKFLOW at 256 A100 + 64 H100 GPUs.  Each value is the bottleneck
+# time across all instances of that model on that GPU type.
+# ---------------------------------------------------------------------------
 TIME_PER_REQ: dict[GPUType, dict[Model, float]] = {
     GPUType.A100: {
-        Model.FLUX: 9.75,
-        Model.HF: 123.08,
-        Model.HF_VAE: 114.32,
-        Model.FT: 130.82,
-        Model.FT_VAE: 52.4,  # TODO proper value
-        Model.UPSCALER: 126.83,
-        Model.GEMMA: 6.5 + 42 * 0.6,  # First scene + per scene
-        Model.OTHERS: 43 * 0.6,  # Kokoro: 43 scenes at 0.6 seconds each
+        Model.GEMMA: 8.57,
+        Model.FLUX: 1.65,
+        Model.HF_VAE: 21.80,
+        Model.FT: 246.97,
+        Model.UPSCALER: 49.40,
+        Model.OTHERS: 25.80,
     },
     GPUType.H100: {
-        Model.FT: 130.82 / 2.2,  # hunyuanframepackf1_time_per_req
-        Model.FT_VAE: 52.4 / 2.2,  # TODO proper value
-    }
+        Model.HF: 56.96,
+        Model.HF_VAE: 21.80,
+        Model.FT: 250.70,
+        Model.UPSCALER: 49.40,
+    },
 }
 
 
-# Optimal point in Pareto Frontier for StreamWise
+# ---------------------------------------------------------------------------
+# INIT_REPLICAS — total GPU count allocated to each model on each GPU type at
+# the Pareto-optimal operating point (256 A100 + 64 H100).
+#
+# These are NOT literal replica counts; each entry represents
+# ``devices_per_replica × num_replicas`` summed across all instances.
+# For multi-request scaling, each unit is treated as one GPU for cost purposes.
+# ---------------------------------------------------------------------------
 INIT_REPLICAS: dict[GPUType, dict[Model, int]] = {
     GPUType.A100: {
+        Model.GEMMA: 8,
+        Model.FLUX: 8,
+        Model.HF_VAE: 7,
+        Model.FT: 192,
+        Model.UPSCALER: 40,
         Model.OTHERS: 1,
-        Model.GEMMA: 1,
-        Model.FLUX: 1,
-        Model.HF: 12,
-        Model.HF_VAE: 3,
-        Model.FT: 172,
-        Model.FT_VAE: 10,  # TODO proper value
-        Model.UPSCALER: 21,
     },
     GPUType.H100: {
-        Model.FT: 78,
-        Model.FT_VAE: 1,  # TODO proper value
-    }
+        Model.HF: 14,
+        Model.HF_VAE: 4,
+        Model.FT: 38,
+        Model.UPSCALER: 8,
+    },
 }
 
-# Adaptive quality
-# Time per request in seconds
+
+# ---------------------------------------------------------------------------
+# TIME_PER_REQ_ADAPTIVE — per-quality-level time per request (seconds).
+#
+# Derived by running the StreamWise allocator at each quality level (HIGH,
+# MEDIUM, LOW) on the same hardware budget.  Quality scaling affects latency
+# through resolution-dependent models (HF, FT, UPSCALER, FLUX).
+# ---------------------------------------------------------------------------
 TIME_PER_REQ_ADAPTIVE: dict[GPUType, dict[Model, dict[QualityLevel, float]]] = {
     GPUType.A100: {
         Model.GEMMA: {
-            # Same quality for all levels: First + per scene
-            QualityLevel.LOW: 2.3 + 42 * 0.176,
-            QualityLevel.MEDIUM: 2.3 + 42 * 0.176,
-            QualityLevel.HIGH: 2.3 + 42 * 0.176,
-        },
-        Model.OTHERS: {
-            # Kokoro: 42 scenes at 0.6 seconds each
-            QualityLevel.LOW: 43 * 0.6,
-            QualityLevel.MEDIUM: 43 * 0.6,
-            QualityLevel.HIGH: 43 * 0.6,
+            QualityLevel.HIGH: 8.57,
+            QualityLevel.MEDIUM: 8.57,
+            QualityLevel.LOW: 8.57,
         },
         Model.FLUX: {
+            QualityLevel.HIGH: 1.65,
+            QualityLevel.MEDIUM: 0.41,
             QualityLevel.LOW: 0.10,
-            QualityLevel.MEDIUM: 0.81,
-            QualityLevel.HIGH: 0.95,
+        },
+        Model.HF_VAE: {
+            QualityLevel.HIGH: 21.80,
+            QualityLevel.MEDIUM: 2.79,
+            QualityLevel.LOW: 1.25,
         },
         Model.HF: {
-            QualityLevel.LOW: 3.41,
-            QualityLevel.MEDIUM: 8.06,
-            QualityLevel.HIGH: 27.1,
-        },
-        Model.HF_VAE: {
-            QualityLevel.LOW: 0.75,
-            QualityLevel.MEDIUM: 3.18,
-            QualityLevel.HIGH: 52.4,
-        },
-        Model.UPSCALER: {
-            QualityLevel.LOW: 2.01,
-            QualityLevel.MEDIUM: 8.30,
-            QualityLevel.HIGH: 34.4,
-        },
-    },
-    GPUType.H100: {
-        Model.HF_VAE: {
-            QualityLevel.LOW: 0.75,
-            QualityLevel.MEDIUM: 3.18,
-            QualityLevel.HIGH: 52.4,
+            QualityLevel.MEDIUM: 10.01,
+            QualityLevel.LOW: 4.24,
         },
         Model.FT: {
-            QualityLevel.LOW: 8.74,
-            QualityLevel.MEDIUM: 39.62,
-            QualityLevel.HIGH: 131.14,
-        },
-        Model.FT_VAE: {  # TODO proper values
-            QualityLevel.LOW: 0.75,
-            QualityLevel.MEDIUM: 3.18,
-            QualityLevel.HIGH: 52.4,
+            QualityLevel.HIGH: 246.97,
+            QualityLevel.MEDIUM: 57.57,
+            QualityLevel.LOW: 22.99,
         },
         Model.UPSCALER: {
-            QualityLevel.LOW: 2.01,
-            QualityLevel.MEDIUM: 8.30,
-            QualityLevel.HIGH: 34.4,
+            QualityLevel.HIGH: 49.40,
+            QualityLevel.MEDIUM: 8.50,
+            QualityLevel.LOW: 3.50,
         },
-    }
-}
-
-
-# This is a point in the Pareto Frontier found via simulation
-INIT_REPLICAS_ADAPTIVE: dict[GPUType, dict[Model, int]] = {
-    GPUType.A100: {
-        Model.OTHERS: 1,  # Kokoro
-        Model.GEMMA: 8,
-        Model.FLUX: 16,
-        Model.HF: 25,
-        Model.HF_VAE: 10,
-        Model.UPSCALER: 5,
+        Model.OTHERS: {
+            QualityLevel.HIGH: 25.80,
+            QualityLevel.MEDIUM: 25.80,
+            QualityLevel.LOW: 25.80,
+        },
     },
     GPUType.H100: {
-        Model.HF_VAE: 1,
-        Model.FT: 96,
-        Model.FT_VAE: 1,  # Proper values
-        Model.UPSCALER: 38,
-    }
+        Model.HF: {
+            QualityLevel.HIGH: 56.96,
+            QualityLevel.MEDIUM: 9.96,
+            QualityLevel.LOW: 4.26,
+        },
+        Model.HF_VAE: {
+            QualityLevel.HIGH: 21.80,
+            QualityLevel.MEDIUM: 2.79,
+            QualityLevel.LOW: 1.25,
+        },
+        Model.FT: {
+            QualityLevel.HIGH: 250.70,
+            QualityLevel.MEDIUM: 57.41,
+            QualityLevel.LOW: 23.14,
+        },
+        Model.UPSCALER: {
+            QualityLevel.HIGH: 49.40,
+            QualityLevel.MEDIUM: 8.52,
+            QualityLevel.LOW: 3.50,
+        },
+    },
 }
 
+
+# ---------------------------------------------------------------------------
+# INIT_REPLICAS_ADAPTIVE — GPU allocation for the adaptive-quality scenario.
+#
+# Uses the HIGH-quality allocation as the base (worst-case demand).  Same
+# hardware budget as INIT_REPLICAS since the adaptive policy dynamically
+# adjusts quality rather than hardware.
+# ---------------------------------------------------------------------------
+INIT_REPLICAS_ADAPTIVE: dict[GPUType, dict[Model, int]] = {
+    GPUType.A100: {
+        Model.GEMMA: 8,
+        Model.FLUX: 8,
+        Model.HF_VAE: 7,
+        Model.FT: 192,
+        Model.UPSCALER: 40,
+        Model.OTHERS: 1,
+    },
+    GPUType.H100: {
+        Model.HF: 14,
+        Model.HF_VAE: 4,
+        Model.FT: 38,
+        Model.UPSCALER: 8,
+    },
+}
+
+# Quality distribution portions for adaptive quality cost aggregation.
+# These represent relative weights for each quality level in the adaptive mix.
 QUALITY_PORTIONS = {
     QualityLevel.LOW: 112,
     QualityLevel.MEDIUM: 305,
