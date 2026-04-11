@@ -156,8 +156,7 @@ class HunyuanFramePackBase(USPGeneration):
         self.text_encoder_2.eval().requires_grad_(False)
 
         self.tokenizer = LlamaTokenizerFast.from_pretrained(
-            "hunyuanvideo-community/HunyuanVideo",
-            subfolder='tokenizer')  # nosec B615
+            "hunyuanvideo-community/HunyuanVideo/tokenizer")  # nosec B615
 
         self.tokenizer_2 = CLIPTokenizer.from_pretrained(
             "hunyuanvideo-community/HunyuanVideo",
