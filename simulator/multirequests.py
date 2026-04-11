@@ -101,10 +101,6 @@ TIME_PER_REQ_ADAPTIVE: dict[GPUType, dict[Model, dict[QualityLevel, float]]] = {
             QualityLevel.MEDIUM: 2.79,
             QualityLevel.LOW: 1.25,
         },
-        Model.HF: {
-            QualityLevel.MEDIUM: 10.01,
-            QualityLevel.LOW: 4.24,
-        },
         Model.FT: {
             QualityLevel.HIGH: 246.97,
             QualityLevel.MEDIUM: 57.57,

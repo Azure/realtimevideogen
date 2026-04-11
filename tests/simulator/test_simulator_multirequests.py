@@ -312,36 +312,39 @@ def test_derived_constants_match_simulation() -> None:
     If this test fails, regenerate the constants by running:
         cd simulator/ && python multirequests_derive.py
     """
-    # The allocator does lazy imports (e.g. ``from greedy import ...``), so
-    # ``simulator/`` must be on sys.path at call-time, not just at import-time.
-    import sys
-    if "simulator" not in sys.path:
-        sys.path.insert(0, "simulator")
-
     derived_replicas, derived_time = derive_multirequest_params(
-        budget=HARDWARE_BUDGET,
+        budget=dict(HARDWARE_BUDGET),
         data_dir="simulator/data/",
     )
 
     # Verify INIT_REPLICAS matches
     for gpu_type in derived_replicas:
-        assert gpu_type in INIT_REPLICAS, f"Missing GPU type {gpu_type} in INIT_REPLICAS"
+        assert gpu_type in INIT_REPLICAS, (
+            f"Missing GPU type {gpu_type} in INIT_REPLICAS"
+        )
         for model, count in derived_replicas[gpu_type].items():
-            assert model in INIT_REPLICAS[gpu_type], \
+            assert model in INIT_REPLICAS[gpu_type], (
                 f"Missing model {model} in INIT_REPLICAS[{gpu_type}]"
-            assert INIT_REPLICAS[gpu_type][model] == count, \
-                f"INIT_REPLICAS[{gpu_type}][{model}]: expected {count}, got {INIT_REPLICAS[gpu_type][model]}"
+            )
+            assert INIT_REPLICAS[gpu_type][model] == count, (
+                f"INIT_REPLICAS[{gpu_type}][{model}]: expected {count}, "
+                f"got {INIT_REPLICAS[gpu_type][model]}"
+            )
 
     # Verify TIME_PER_REQ matches (within tolerance)
     for gpu_type in derived_time:
-        assert gpu_type in TIME_PER_REQ, f"Missing GPU type {gpu_type} in TIME_PER_REQ"
+        assert gpu_type in TIME_PER_REQ, (
+            f"Missing GPU type {gpu_type} in TIME_PER_REQ"
+        )
         for model, t in derived_time[gpu_type].items():
-            assert model in TIME_PER_REQ[gpu_type], \
+            assert model in TIME_PER_REQ[gpu_type], (
                 f"Missing model {model} in TIME_PER_REQ[{gpu_type}]"
+            )
             assert_equals_approx(TIME_PER_REQ[gpu_type][model], t)
 
     # Verify GPU totals match the documented budget
     for gpu_type, expected_count in HARDWARE_BUDGET.items():
         actual = sum(INIT_REPLICAS.get(gpu_type, {}).values())
-        assert actual == expected_count, \
+        assert actual == expected_count, (
             f"INIT_REPLICAS {gpu_type.value} total: {actual} != {expected_count}"
+        )

@@ -47,12 +47,6 @@ DEFAULT_BUDGET: dict[GPUType, int] = {
     GPUType.H100: 64,
 }
 
-# Hardware budget for the adaptive-quality scenario.
-ADAPTIVE_BUDGET: dict[GPUType, int] = {
-    GPUType.A100: 256,
-    GPUType.H100: 64,
-}
-
 
 def _extract_from_result(
     result: Result,
@@ -92,7 +86,7 @@ def _extract_from_result(
 
 
 def derive_multirequest_params(
-    budget: dict[GPUType, int] = DEFAULT_BUDGET,
+    budget: dict[GPUType, int] | None = None,
     data_dir: str = "data/",
 ) -> tuple[dict[GPUType, dict[Model, int]], dict[GPUType, dict[Model, float]]]:
     """Run the StreamWise simulator and derive multi-request parameters.
@@ -110,9 +104,12 @@ def derive_multirequest_params(
     ----------
     budget:
         ``{GPUType: num_gpus}`` hardware budget to allocate.
+        Defaults to ``DEFAULT_BUDGET`` when ``None``.
     data_dir:
         Path to the latency/power CSV data directory.
     """
+    if budget is None:
+        budget = dict(DEFAULT_BUDGET)
     latency_data = load_latency_data(data_dir=data_dir)
     power_data = load_power_data(data_dir=data_dir)
 
@@ -131,7 +128,7 @@ def derive_multirequest_params(
 
 
 def derive_adaptive_params(
-    budget: dict[GPUType, int] = ADAPTIVE_BUDGET,
+    budget: dict[GPUType, int] | None = None,
     data_dir: str = "data/",
 ) -> tuple[
     dict[GPUType, dict[Model, int]],
@@ -145,13 +142,20 @@ def derive_adaptive_params(
         ``{gpu_type: {model: total_gpus}}`` from the HIGH-quality simulation run
         (the worst-case / most-demanding quality level sets the base allocation).
     time_per_req_adaptive:
-        ``{gpu_type: {model: {quality: seconds}}}`` — per-quality time per request.
+        ``{gpu_type: {model: {quality: seconds}}}`` — per-quality time per request,
+        normalized against the HIGH-quality allocation so every
+        ``(gpu_type, model)`` present in ``init_replicas_adaptive`` has a timing
+        entry for every quality level.
     """
+    if budget is None:
+        budget = dict(DEFAULT_BUDGET)
+
     power_data = load_power_data(data_dir=data_dir)
 
     # Run simulation at each quality level
+    qualities = [QualityLevel.HIGH, QualityLevel.MEDIUM, QualityLevel.LOW]
     results_by_quality: dict[QualityLevel, Result] = {}
-    for quality in [QualityLevel.HIGH, QualityLevel.MEDIUM, QualityLevel.LOW]:
+    for quality in qualities:
         policy = replace(STREAMWISE_POLICY)
         policy.name = f"{STREAMWISE_POLICY.name} {quality.value}"
 
@@ -173,19 +177,33 @@ def derive_adaptive_params(
         results_by_quality[quality] = result
 
     # Use HIGH quality result for init_replicas (worst-case allocation)
-    init_replicas_adaptive, _ = _extract_from_result(results_by_quality[QualityLevel.HIGH])
+    init_replicas_adaptive, time_per_req_high = _extract_from_result(
+        results_by_quality[QualityLevel.HIGH],
+    )
 
-    # Build per-quality time_per_req
-    time_per_req_adaptive: dict[GPUType, dict[Model, dict[QualityLevel, float]]] = {}
+    # Collect per-quality timings from each quality's own simulation run
+    time_per_req_by_quality: dict[QualityLevel, dict[GPUType, dict[Model, float]]] = {}
     for quality, result in results_by_quality.items():
         _, time_per_req_q = _extract_from_result(result)
-        for gpu_type in time_per_req_q:
-            if gpu_type not in time_per_req_adaptive:
-                time_per_req_adaptive[gpu_type] = {}
-            for model, t in time_per_req_q[gpu_type].items():
-                if model not in time_per_req_adaptive[gpu_type]:
-                    time_per_req_adaptive[gpu_type][model] = {}
-                time_per_req_adaptive[gpu_type][model][quality] = t
+        time_per_req_by_quality[quality] = time_per_req_q
+
+    # Build per-quality time_per_req, iterating over the HIGH allocation so every
+    # (gpu_type, model) has an entry for every quality level (fall back to HIGH
+    # timing when a quality level's simulation produced no allocation for a model).
+    time_per_req_adaptive: dict[GPUType, dict[Model, dict[QualityLevel, float]]] = {}
+    for gpu_type, models in init_replicas_adaptive.items():
+        time_per_req_adaptive[gpu_type] = {}
+        for model in models:
+            high_time = time_per_req_high[gpu_type][model]
+            quality_times: dict[QualityLevel, float] = {}
+            for quality in qualities:
+                quality_times[quality] = (
+                    time_per_req_by_quality
+                    .get(quality, {})
+                    .get(gpu_type, {})
+                    .get(model, high_time)
+                )
+            time_per_req_adaptive[gpu_type][model] = quality_times
 
     return init_replicas_adaptive, time_per_req_adaptive
 
@@ -236,7 +254,7 @@ if __name__ == "__main__":
 
     print()
     print("=" * 70)
-    print(f"Deriving adaptive params at budget: {ADAPTIVE_BUDGET}")
+    print(f"Deriving adaptive params at budget: {DEFAULT_BUDGET}")
     print("=" * 70)
 
     init_replicas_a, time_per_req_a = derive_adaptive_params()
@@ -254,7 +272,7 @@ if __name__ == "__main__":
     # Verify GPU totals
     for label, replicas, budget in [
         ("Single quality", init_replicas, DEFAULT_BUDGET),
-        ("Adaptive quality", init_replicas_a, ADAPTIVE_BUDGET),
+        ("Adaptive quality", init_replicas_a, DEFAULT_BUDGET),
     ]:
         for gpu_type, expected in budget.items():
             actual = sum(replicas.get(gpu_type, {}).values())

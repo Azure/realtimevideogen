@@ -302,6 +302,7 @@ async def test_gen_img() -> None:
     assert response == ({"error": "Not initialized"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     mock_model = AsyncMock()
+    mock_model.status = "ok"
     mock_model.running = True
     response = await gen_img(mock_model)
     assert response == ({"error": "Generation in progress"}, HTTPStatus.SERVICE_UNAVAILABLE)
@@ -324,6 +325,7 @@ async def test_gen_video() -> None:
         "task": "mock",
         "args": {}
     })
+    mock_model.status = "ok"
     mock_model.running = True
     response = await gen_video(mock_model)
     assert response == ({"error": "Generation in progress"}, HTTPStatus.SERVICE_UNAVAILABLE)
@@ -349,6 +351,7 @@ async def test_gen_audio() -> None:
         "task": "mock",
         "args": {}
     })
+    mock_model.status = "ok"
     mock_model.running = True
     response = await gen_audio(mock_model)
     assert response == ({"error": "Generation in progress"}, HTTPStatus.SERVICE_UNAVAILABLE)
