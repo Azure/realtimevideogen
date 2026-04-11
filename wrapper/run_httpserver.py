@@ -520,6 +520,8 @@ async def gen_video(model: Optional[ModelGeneration]) -> QuartReturn:
     """Generic video generation endpoint."""
     if not model:
         return jsonify({"error": "Not initialized"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    if model.status != "ok":
+        return jsonify({"error": f"Model not ready: {model.status}"}), HTTPStatus.SERVICE_UNAVAILABLE
     # TODO not all models are constrained to running a request at a time
     if model.running:
         logging.warning("Generation in progress.")
@@ -575,6 +577,8 @@ async def gen_audio(model: Optional[ModelGeneration]) -> QuartReturn:
     """Generic audio generation endpoint."""
     if not model:
         return jsonify({"error": "Not initialized"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    if model.status != "ok":
+        return jsonify({"error": f"Model not ready: {model.status}"}), HTTPStatus.SERVICE_UNAVAILABLE
     # TODO not all models are constrained to running a request at a time
     if model.running:
         logging.warning("Generation in progress.")
@@ -626,6 +630,8 @@ async def gen_img(model: Optional[ModelGeneration]) -> QuartReturn:
     """Generic image generation endpoint."""
     if not model:
         return jsonify({"error": "Not initialized"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    if model.status != "ok":
+        return jsonify({"error": f"Model not ready: {model.status}"}), HTTPStatus.SERVICE_UNAVAILABLE
     # TODO not all models are constrained to running a request at a time
     if model.running:
         logging.warning("Generation in progress.")
