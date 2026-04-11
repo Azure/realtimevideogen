@@ -23,6 +23,7 @@ HARDWARE_BUDGET: dict[GPUType, int] = {
     GPUType.H100: 64,
 }
 
+# Derived by running `python multirequests_derive.py`
 
 # ---------------------------------------------------------------------------
 # TIME_PER_REQ — wall-clock seconds for each model to process one full request
