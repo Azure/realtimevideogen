@@ -5,6 +5,7 @@ import os
 sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
+from tests.simulator.test_simulator_multirequests import assert_equals_approx
 
 with temp_sys_path("simulator"):
     from multirequests import TIME_PER_REQ
@@ -12,17 +13,6 @@ with temp_sys_path("simulator"):
     from multirequests import HARDWARE_BUDGET
 
     from multirequests_derive import derive_multirequest_params
-
-
-EQUALS_DELTA = 0.01
-
-
-def assert_equals_approx(
-    value: float,
-    expected: float,
-    delta: float = EQUALS_DELTA,
-) -> None:
-    assert abs(value - expected) < delta, f"{value} != {expected}"
 
 
 def test_derived_constants_match_simulation() -> None:
