@@ -320,6 +320,7 @@ async def test_gen_video() -> None:
     assert response == ({"error": "Not initialized"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     mock_model = MagicMock()
+    mock_model.status = "ok"
     mock_model.generate = AsyncMock(return_value="mocked_file.mp4")
     mock_model.get_rest_args = AsyncMock(return_value={
         "task": "mock",
@@ -346,6 +347,7 @@ async def test_gen_audio() -> None:
 
     # Blocked generation
     mock_model = MagicMock()
+    mock_model.status = "ok"
     mock_model.generate = AsyncMock(return_value="mocked_file.wav")
     mock_model.get_rest_args = AsyncMock(return_value={
         "task": "mock",
