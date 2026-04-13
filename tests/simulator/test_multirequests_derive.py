@@ -16,8 +16,8 @@ with temp_sys_path("simulator"):
     from multirequests import INIT_REPLICAS_ADAPTIVE
     from multirequests import HARDWARE_BUDGET
 
-    from multirequests_derive import derive_multirequest_params
-    from multirequests_derive import derive_adaptive_params
+    from multirequests import derive_multirequest_params
+    from multirequests import derive_adaptive_params
 
 
 def test_derived_constants_match_simulation() -> None:
@@ -25,8 +25,6 @@ def test_derived_constants_match_simulation() -> None:
 
     This test re-runs the StreamWise simulator at the documented hardware budget
     (HARDWARE_BUDGET) and checks that INIT_REPLICAS and TIME_PER_REQ still match.
-    If this test fails, regenerate the constants by running:
-        cd simulator/ && python multirequests_derive.py
     """
     derived_replicas, derived_time = derive_multirequest_params(
         budget=dict(HARDWARE_BUDGET),
@@ -71,8 +69,6 @@ def test_derived_adaptive_constants_match_simulation() -> None:
 
     Re-runs the simulator at HIGH/MEDIUM/LOW quality levels and checks that
     INIT_REPLICAS_ADAPTIVE and TIME_PER_REQ_ADAPTIVE still match.
-    If this test fails, regenerate the constants by running:
-        cd simulator/ && python multirequests_derive.py
     """
     derived_replicas, derived_time = derive_adaptive_params(
         budget=dict(HARDWARE_BUDGET),

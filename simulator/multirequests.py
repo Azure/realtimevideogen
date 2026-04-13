@@ -1,170 +1,202 @@
 from __future__ import annotations
 
 import math
+import os
+from dataclasses import replace
 
 from sim_types import GPUType
 from sim_types import Model
 from sim_types import QualityLevel
 from sim_types import RESOLUTION_PIXELS
+from sim_types import Result
 from sim_types import WorkflowConfig
 from sim_types import LatencyData
+
+from data_loading import load_latency_data
+from data_loading import load_power_data
+from data_loading import load_adaptive_quality_data
+
+from workflows import PODCAST_WORKFLOW
+
+from policies import STREAMWISE_POLICY
+
+from auto_model_allocator import AutoModelAllocator
 
 
 # Queries per minute
 QPM_LIST = [0.1, 1, 2, 5, 10, 20, 30, 50, 100]
 
+# Resolve the data directory relative to this file so imports work from any cwd.
+_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
 
 # ---------------------------------------------------------------------------
-# Hardware budget used to derive the constants below.
-# To regenerate, run:  python multirequests_derive.py
+# Hardware budget — the Pareto-optimal operating point used in the paper.
 # ---------------------------------------------------------------------------
 HARDWARE_BUDGET: dict[GPUType, int] = {
     GPUType.A100: 256,
     GPUType.H100: 64,
 }
 
-# Derived by running `python multirequests_derive.py`
 
 # ---------------------------------------------------------------------------
-# TIME_PER_REQ — wall-clock seconds for each model to process one full request
-# (10-min podcast video) at the hardware budget above.
+# Derivation helpers
+# ---------------------------------------------------------------------------
+
+def _extract_from_result(
+    result: Result,
+) -> tuple[dict[GPUType, dict[Model, int]], dict[GPUType, dict[Model, float]]]:
+    """Extract init_replicas (GPU counts) and time_per_req from a simulation result.
+
+    Returns
+    -------
+    init_replicas:
+        ``{gpu_type: {model: total_gpus}}`` — total GPU count allocated to each
+        model on each GPU type (i.e. ``devices × replicas`` summed across instances).
+    time_per_req:
+        ``{gpu_type: {model: seconds}}`` — wall-clock time for the model to process
+        one full request (10-min video) given the allocated resources.  When a model
+        has multiple instances on the same GPU type, we take the *maximum* time
+        (the bottleneck).
+    """
+    init_replicas: dict[GPUType, dict[Model, int]] = {}
+    time_per_req: dict[GPUType, dict[Model, float]] = {}
+
+    for gpu_type, model_allocs in result.models.items():
+        init_replicas[gpu_type] = {}
+        time_per_req[gpu_type] = {}
+        for model, allocs in model_allocs.items():
+            total_gpus = sum(a.get_num_gpus() for a in allocs)
+            times = [a.time for a in allocs if a.get_num_gpus() > 0]
+            if total_gpus > 0:
+                init_replicas[gpu_type][model] = total_gpus
+                time_per_req[gpu_type][model] = max(times) if times else 0.0
+
+    return init_replicas, time_per_req
+
+
+def derive_multirequest_params(
+    budget: dict[GPUType, int] | None = None,
+    data_dir: str = _DATA_DIR,
+) -> tuple[dict[GPUType, dict[Model, int]], dict[GPUType, dict[Model, float]]]:
+    """Run the StreamWise simulator and derive multi-request parameters.
+
+    Runs the greedy allocator with ``STREAMWISE_POLICY`` on ``PODCAST_WORKFLOW``
+    at the given hardware *budget* and extracts:
+
+    * **init_replicas** — total GPU count per model per GPU type
+    * **time_per_req** — total time (seconds) per request per model per GPU type
+
+    Parameters
+    ----------
+    budget:
+        ``{GPUType: num_gpus}`` hardware budget to allocate.
+        Defaults to ``HARDWARE_BUDGET`` when ``None``.
+    data_dir:
+        Path to the latency/power CSV data directory.
+    """
+    if budget is None:
+        budget = dict(HARDWARE_BUDGET)
+    latency_data = load_latency_data(data_dir=data_dir)
+    power_data = load_power_data(data_dir=data_dir)
+
+    allocator = AutoModelAllocator(
+        workflow=PODCAST_WORKFLOW,
+        latency_data=latency_data,
+        power_data=power_data,
+        policy=STREAMWISE_POLICY,
+    )
+    result = allocator.allocate(
+        num_gpus=budget,
+        verbose=False,
+    )
+
+    return _extract_from_result(result)
+
+
+def derive_adaptive_params(
+    budget: dict[GPUType, int] | None = None,
+    data_dir: str = _DATA_DIR,
+) -> tuple[
+    dict[GPUType, dict[Model, int]],
+    dict[GPUType, dict[Model, dict[QualityLevel, float]]],
+]:
+    """Run the simulator at each quality level and derive adaptive parameters.
+
+    Returns
+    -------
+    init_replicas_adaptive:
+        ``{gpu_type: {model: total_gpus}}`` from the HIGH-quality simulation run
+        (the worst-case / most-demanding quality level sets the base allocation).
+    time_per_req_adaptive:
+        ``{gpu_type: {model: {quality: seconds}}}`` — per-quality time per request,
+        normalized against the HIGH-quality allocation so every
+        ``(gpu_type, model)`` present in ``init_replicas_adaptive`` has a timing
+        entry for every quality level.
+    """
+    if budget is None:
+        budget = dict(HARDWARE_BUDGET)
+
+    power_data = load_power_data(data_dir=data_dir)
+
+    qualities = [QualityLevel.HIGH, QualityLevel.MEDIUM, QualityLevel.LOW]
+    results_by_quality: dict[QualityLevel, Result] = {}
+    for quality in qualities:
+        policy = replace(STREAMWISE_POLICY)
+        policy.name = f"{STREAMWISE_POLICY.name} {quality.value}"
+
+        latency_data = load_adaptive_quality_data(
+            data_dir=data_dir,
+            level=quality,
+        )
+
+        allocator = AutoModelAllocator(
+            workflow=PODCAST_WORKFLOW,
+            latency_data=latency_data,
+            power_data=power_data,
+            policy=policy,
+        )
+        result = allocator.allocate(
+            num_gpus=budget,
+            verbose=False,
+        )
+        results_by_quality[quality] = result
+
+    init_replicas_adaptive, time_per_req_high = _extract_from_result(
+        results_by_quality[QualityLevel.HIGH],
+    )
+
+    time_per_req_by_quality: dict[QualityLevel, dict[GPUType, dict[Model, float]]] = {}
+    for quality, result in results_by_quality.items():
+        _, time_per_req_q = _extract_from_result(result)
+        time_per_req_by_quality[quality] = time_per_req_q
+
+    time_per_req_adaptive: dict[GPUType, dict[Model, dict[QualityLevel, float]]] = {}
+    for gpu_type, models in init_replicas_adaptive.items():
+        time_per_req_adaptive[gpu_type] = {}
+        for model in models:
+            high_time = time_per_req_high[gpu_type][model]
+            quality_times: dict[QualityLevel, float] = {}
+            for quality in qualities:
+                quality_times[quality] = (
+                    time_per_req_by_quality
+                    .get(quality, {})
+                    .get(gpu_type, {})
+                    .get(model, high_time)
+                )
+            time_per_req_adaptive[gpu_type][model] = quality_times
+
+    return init_replicas_adaptive, time_per_req_adaptive
+
+
+# ---------------------------------------------------------------------------
+# Derived constants — computed by running the simulator at HARDWARE_BUDGET.
 #
-# Derived by running the StreamWise greedy allocator (STREAMWISE_POLICY) on
-# PODCAST_WORKFLOW at 256 A100 + 64 H100 GPUs.  Each value is the bottleneck
-# time across all instances of that model on that GPU type.
+# TIME_PER_REQ / INIT_REPLICAS: single (HIGH) quality operating point.
+# TIME_PER_REQ_ADAPTIVE / INIT_REPLICAS_ADAPTIVE: per-quality-level values.
 # ---------------------------------------------------------------------------
-TIME_PER_REQ: dict[GPUType, dict[Model, float]] = {
-    GPUType.A100: {
-        Model.GEMMA: 8.57,
-        Model.FLUX: 1.65,
-        Model.HF_VAE: 21.80,
-        Model.FT: 246.97,
-        Model.UPSCALER: 49.40,
-        Model.OTHERS: 25.80,
-    },
-    GPUType.H100: {
-        Model.HF: 56.96,
-        Model.HF_VAE: 21.80,
-        Model.FT: 250.70,
-        Model.UPSCALER: 49.40,
-    },
-}
-
-
-# ---------------------------------------------------------------------------
-# INIT_REPLICAS — total GPU count allocated to each model on each GPU type at
-# the Pareto-optimal operating point (256 A100 + 64 H100).
-#
-# These are NOT literal replica counts; each entry represents
-# ``devices_per_replica × num_replicas`` summed across all instances.
-# For multi-request scaling, each unit is treated as one GPU for cost purposes.
-# ---------------------------------------------------------------------------
-INIT_REPLICAS: dict[GPUType, dict[Model, int]] = {
-    GPUType.A100: {
-        Model.GEMMA: 8,
-        Model.FLUX: 8,
-        Model.HF_VAE: 7,
-        Model.FT: 192,
-        Model.UPSCALER: 40,
-        Model.OTHERS: 1,
-    },
-    GPUType.H100: {
-        Model.HF: 14,
-        Model.HF_VAE: 4,
-        Model.FT: 38,
-        Model.UPSCALER: 8,
-    },
-}
-
-
-# ---------------------------------------------------------------------------
-# TIME_PER_REQ_ADAPTIVE — per-quality-level time per request (seconds).
-#
-# Derived by running the StreamWise allocator at each quality level (HIGH,
-# MEDIUM, LOW) on the same hardware budget.  Quality scaling affects latency
-# through resolution-dependent models (HF, FT, UPSCALER, FLUX).
-# ---------------------------------------------------------------------------
-TIME_PER_REQ_ADAPTIVE: dict[GPUType, dict[Model, dict[QualityLevel, float]]] = {
-    GPUType.A100: {
-        Model.GEMMA: {
-            QualityLevel.HIGH: 8.57,
-            QualityLevel.MEDIUM: 8.57,
-            QualityLevel.LOW: 8.57,
-        },
-        Model.FLUX: {
-            QualityLevel.HIGH: 1.65,
-            QualityLevel.MEDIUM: 0.41,
-            QualityLevel.LOW: 0.10,
-        },
-        Model.HF_VAE: {
-            QualityLevel.HIGH: 21.80,
-            QualityLevel.MEDIUM: 2.79,
-            QualityLevel.LOW: 1.25,
-        },
-        Model.FT: {
-            QualityLevel.HIGH: 246.97,
-            QualityLevel.MEDIUM: 57.57,
-            QualityLevel.LOW: 22.99,
-        },
-        Model.UPSCALER: {
-            QualityLevel.HIGH: 49.40,
-            QualityLevel.MEDIUM: 8.50,
-            QualityLevel.LOW: 3.50,
-        },
-        Model.OTHERS: {
-            QualityLevel.HIGH: 25.80,
-            QualityLevel.MEDIUM: 25.80,
-            QualityLevel.LOW: 25.80,
-        },
-    },
-    GPUType.H100: {
-        Model.HF: {
-            QualityLevel.HIGH: 56.96,
-            QualityLevel.MEDIUM: 9.96,
-            QualityLevel.LOW: 4.26,
-        },
-        Model.HF_VAE: {
-            QualityLevel.HIGH: 21.80,
-            QualityLevel.MEDIUM: 2.79,
-            QualityLevel.LOW: 1.25,
-        },
-        Model.FT: {
-            QualityLevel.HIGH: 250.70,
-            QualityLevel.MEDIUM: 57.41,
-            QualityLevel.LOW: 23.14,
-        },
-        Model.UPSCALER: {
-            QualityLevel.HIGH: 49.40,
-            QualityLevel.MEDIUM: 8.52,
-            QualityLevel.LOW: 3.50,
-        },
-    },
-}
-
-
-# ---------------------------------------------------------------------------
-# INIT_REPLICAS_ADAPTIVE — GPU allocation for the adaptive-quality scenario.
-#
-# Uses the HIGH-quality allocation as the base (worst-case demand).  Same
-# hardware budget as INIT_REPLICAS since the adaptive policy dynamically
-# adjusts quality rather than hardware.
-# ---------------------------------------------------------------------------
-INIT_REPLICAS_ADAPTIVE: dict[GPUType, dict[Model, int]] = {
-    GPUType.A100: {
-        Model.GEMMA: 8,
-        Model.FLUX: 8,
-        Model.HF_VAE: 7,
-        Model.FT: 192,
-        Model.UPSCALER: 40,
-        Model.OTHERS: 1,
-    },
-    GPUType.H100: {
-        Model.HF: 14,
-        Model.HF_VAE: 4,
-        Model.FT: 38,
-        Model.UPSCALER: 8,
-    },
-}
+INIT_REPLICAS, TIME_PER_REQ = derive_multirequest_params(budget=dict(HARDWARE_BUDGET))
+INIT_REPLICAS_ADAPTIVE, TIME_PER_REQ_ADAPTIVE = derive_adaptive_params(budget=dict(HARDWARE_BUDGET))
 
 # Quality distribution portions for adaptive quality cost aggregation.
 # These represent relative weights for each quality level in the adaptive mix.
