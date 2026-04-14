@@ -691,11 +691,8 @@
             if (addAllAppsForm) {
                 addAllAppsForm.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    const form = e.target;
-                    const data = new FormData(form);
-                    fetch(form.action, {
+                    fetch('/api/apps', {
                         method: 'POST',
-                        body: data,
                         credentials: 'same-origin'
                     })
                     .then(response => {
