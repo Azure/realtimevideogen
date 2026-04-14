@@ -5,7 +5,6 @@ import os
 sys.path.append(os.getcwd())
 
 from tests.test_utils import assert_equal_dict
-from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator"):
@@ -17,10 +16,6 @@ with temp_sys_path("simulator"):
     from multirequests import INIT_REPLICAS
     from multirequests import TIME_PER_REQ_ADAPTIVE
     from multirequests import INIT_REPLICAS_ADAPTIVE
-    from multirequests import HARDWARE_BUDGET
-
-    from multirequests import derive_multirequest_params
-    from multirequests import derive_adaptive_params
 
 
 def test_init_replicas_snapshot() -> None:
