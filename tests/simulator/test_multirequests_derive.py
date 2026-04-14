@@ -4,6 +4,7 @@ import os
 # Add current path so test-package imports resolve correctly.
 sys.path.append(os.getcwd())
 
+from tests.test_utils import assert_equal_dict
 from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
 
@@ -234,70 +235,25 @@ EXPECTED_TIME_PER_REQ_ADAPTIVE: dict[GPUType, dict[Model, dict[QualityLevel, flo
 
 def test_init_replicas_snapshot() -> None:
     """Pin INIT_REPLICAS to known-good values so silent drift is detected."""
-    assert set(INIT_REPLICAS.keys()) == set(EXPECTED_INIT_REPLICAS.keys()), (
-        f"GPU types differ: {set(INIT_REPLICAS.keys())} != {set(EXPECTED_INIT_REPLICAS.keys())}"
-    )
-    for gpu_type, models in EXPECTED_INIT_REPLICAS.items():
-        assert set(INIT_REPLICAS[gpu_type].keys()) == set(models.keys()), (
-            f"Models for {gpu_type} differ: "
-            f"{set(INIT_REPLICAS[gpu_type].keys())} != {set(models.keys())}"
-        )
-        for model, expected_count in models.items():
-            assert INIT_REPLICAS[gpu_type][model] == expected_count, (
-                f"INIT_REPLICAS[{gpu_type}][{model}]: "
-                f"expected {expected_count}, got {INIT_REPLICAS[gpu_type][model]}"
-            )
+    assert_equal_dict(INIT_REPLICAS, EXPECTED_INIT_REPLICAS, name="INIT_REPLICAS")
 
 
 def test_time_per_req_snapshot() -> None:
     """Pin TIME_PER_REQ to known-good values so silent drift is detected."""
-    assert set(TIME_PER_REQ.keys()) == set(EXPECTED_TIME_PER_REQ.keys()), (
-        f"GPU types differ: {set(TIME_PER_REQ.keys())} != {set(EXPECTED_TIME_PER_REQ.keys())}"
-    )
-    for gpu_type, models in EXPECTED_TIME_PER_REQ.items():
-        assert set(TIME_PER_REQ[gpu_type].keys()) == set(models.keys()), (
-            f"Models for {gpu_type} differ: "
-            f"{set(TIME_PER_REQ[gpu_type].keys())} != {set(models.keys())}"
-        )
-        for model, expected_val in models.items():
-            assert_equals_approx(TIME_PER_REQ[gpu_type][model], expected_val)
+    assert_equal_dict(TIME_PER_REQ, EXPECTED_TIME_PER_REQ, name="TIME_PER_REQ")
 
 
 def test_init_replicas_adaptive_snapshot() -> None:
     """Pin INIT_REPLICAS_ADAPTIVE to known-good values so silent drift is detected."""
-    assert set(INIT_REPLICAS_ADAPTIVE.keys()) == set(EXPECTED_INIT_REPLICAS_ADAPTIVE.keys()), (
-        f"GPU types differ: "
-        f"{set(INIT_REPLICAS_ADAPTIVE.keys())} != {set(EXPECTED_INIT_REPLICAS_ADAPTIVE.keys())}"
+    assert_equal_dict(
+        INIT_REPLICAS_ADAPTIVE, EXPECTED_INIT_REPLICAS_ADAPTIVE,
+        name="INIT_REPLICAS_ADAPTIVE",
     )
-    for gpu_type, models in EXPECTED_INIT_REPLICAS_ADAPTIVE.items():
-        assert set(INIT_REPLICAS_ADAPTIVE[gpu_type].keys()) == set(models.keys()), (
-            f"Models for {gpu_type} differ: "
-            f"{set(INIT_REPLICAS_ADAPTIVE[gpu_type].keys())} != {set(models.keys())}"
-        )
-        for model, expected_count in models.items():
-            assert INIT_REPLICAS_ADAPTIVE[gpu_type][model] == expected_count, (
-                f"INIT_REPLICAS_ADAPTIVE[{gpu_type}][{model}]: "
-                f"expected {expected_count}, got {INIT_REPLICAS_ADAPTIVE[gpu_type][model]}"
-            )
 
 
 def test_time_per_req_adaptive_snapshot() -> None:
     """Pin TIME_PER_REQ_ADAPTIVE to known-good values so silent drift is detected."""
-    assert set(TIME_PER_REQ_ADAPTIVE.keys()) == set(EXPECTED_TIME_PER_REQ_ADAPTIVE.keys()), (
-        f"GPU types differ: "
-        f"{set(TIME_PER_REQ_ADAPTIVE.keys())} != {set(EXPECTED_TIME_PER_REQ_ADAPTIVE.keys())}"
+    assert_equal_dict(
+        TIME_PER_REQ_ADAPTIVE, EXPECTED_TIME_PER_REQ_ADAPTIVE,
+        name="TIME_PER_REQ_ADAPTIVE",
     )
-    for gpu_type, models in EXPECTED_TIME_PER_REQ_ADAPTIVE.items():
-        assert set(TIME_PER_REQ_ADAPTIVE[gpu_type].keys()) == set(models.keys()), (
-            f"Models for {gpu_type} differ: "
-            f"{set(TIME_PER_REQ_ADAPTIVE[gpu_type].keys())} != {set(models.keys())}"
-        )
-        for model, quality_times in models.items():
-            assert set(TIME_PER_REQ_ADAPTIVE[gpu_type][model].keys()) == set(quality_times.keys()), (
-                f"Quality levels for {gpu_type}/{model} differ: "
-                f"{set(TIME_PER_REQ_ADAPTIVE[gpu_type][model].keys())} != {set(quality_times.keys())}"
-            )
-            for quality, expected_val in quality_times.items():
-                assert_equals_approx(
-                    TIME_PER_REQ_ADAPTIVE[gpu_type][model][quality], expected_val,
-                )
