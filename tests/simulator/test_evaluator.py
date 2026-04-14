@@ -5,6 +5,7 @@ import pytest
 # Add current path
 sys.path.append(os.getcwd())
 
+from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator"):
@@ -103,11 +104,11 @@ def test_8A() -> None:
 
     assert result.gpus_used == {GPUType.A100: 8}
     assert result.gpus_total == {GPUType.A100: 8}
-    _assert_equals_approx(result.total_time_s, 15953.68)
-    _assert_equals_approx(result.ttff_s, 15353.68)
-    _assert_equals_approx(result.first_chunk_time, 169.34)
-    _assert_equals_approx(result.total_energy / SECONDS_IN_HOUR / 1000, 4.31)
-    _assert_equals_approx(result.cost, 37.93)
+    assert_equals_approx(result.total_time_s, 15953.68)
+    assert_equals_approx(result.ttff_s, 15353.68)
+    assert_equals_approx(result.first_chunk_time, 169.34)
+    assert_equals_approx(result.total_energy / SECONDS_IN_HOUR / 1000, 4.31)
+    assert_equals_approx(result.cost, 37.93)
 
 
 def test_16H() -> None:
@@ -151,11 +152,11 @@ def test_16H() -> None:
     assert result is not None
     assert result.gpus_used == {GPUType.H200: 14}
     assert result.gpus_total == {GPUType.H200: 16}
-    _assert_equals_approx(result.total_time_s, 4062.7)
-    _assert_equals_approx(result.ttff_s, 3462.7)
-    _assert_equals_approx(result.first_chunk_time, 51.68)
-    _assert_equals_approx(result.total_energy / SECONDS_IN_HOUR / 1000, 2.87)
-    _assert_equals_approx(result.cost, 66.67)
+    assert_equals_approx(result.total_time_s, 4062.7)
+    assert_equals_approx(result.ttff_s, 3462.7)
+    assert_equals_approx(result.first_chunk_time, 51.68)
+    assert_equals_approx(result.total_energy / SECONDS_IN_HOUR / 1000, 2.87)
+    assert_equals_approx(result.cost, 66.67)
 
 
 def test_cost_optimal() -> None:
@@ -274,11 +275,11 @@ def test_cost_optimal() -> None:
         GPUType.A100: 256,
         GPUType.H200: 64,
     }
-    _assert_equals_approx(result.total_time_s, 304.40)
-    _assert_equals_approx(result.ttff_s, 21.60)
-    _assert_equals_approx(result.first_chunk_time, 21.60)
-    _assert_equals_approx(result.total_energy / SECONDS_IN_HOUR / 1000, 5.01)
-    _assert_equals_approx(result.cost, 46.00)
+    assert_equals_approx(result.total_time_s, 304.40)
+    assert_equals_approx(result.ttff_s, 21.60)
+    assert_equals_approx(result.first_chunk_time, 21.60)
+    assert_equals_approx(result.total_energy / SECONDS_IN_HOUR / 1000, 5.01)
+    assert_equals_approx(result.cost, 46.00)
 
     assert models[GPUType.A100][Model.OTHERS][0].devices == 1
     assert models[GPUType.A100][Model.OTHERS][0].replicas == 1
@@ -286,15 +287,7 @@ def test_cost_optimal() -> None:
 
     assert models[GPUType.H200][Model.FT][1].devices == 24
     assert models[GPUType.H200][Model.FT][1].replicas == 1
-    _assert_equals_approx(models[GPUType.H200][Model.FT][1].time, 191.93)
-    _assert_equals_approx(models[GPUType.H200][Model.FT][1].time_first, 14.78)
-    _assert_equals_approx(models[GPUType.H200][Model.FT][1].energy / SECONDS_IN_HOUR / 1000, 0.72)
-    _assert_equals_approx(models[GPUType.H200][Model.FT][1].cost, 8.56)
-
-
-def _assert_equals_approx(
-    a: float,
-    b: float,
-    tol: float = 0.01
-) -> None:
-    assert abs(a - b) < tol, f"Expected {a:.2f} to be approximately equal to {b:.2f} within tolerance {tol}"
+    assert_equals_approx(models[GPUType.H200][Model.FT][1].time, 191.93)
+    assert_equals_approx(models[GPUType.H200][Model.FT][1].time_first, 14.78)
+    assert_equals_approx(models[GPUType.H200][Model.FT][1].energy / SECONDS_IN_HOUR / 1000, 0.72)
+    assert_equals_approx(models[GPUType.H200][Model.FT][1].cost, 8.56)

@@ -4,8 +4,8 @@ import os
 # Add current path so test-package imports resolve correctly.
 sys.path.append(os.getcwd())
 
+from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
-from tests.simulator.test_simulator_multirequests import assert_equals_approx
 
 with temp_sys_path("simulator"):
     from sim_types import GPUType
@@ -120,6 +120,7 @@ def test_derived_adaptive_constants_match_simulation() -> None:
 
 # ---------------------------------------------------------------------------
 # Snapshot tests — pin the concrete derived values so silent drift is caught.
+# This is for the 256 A100 + 64 H100 configuration.
 # ---------------------------------------------------------------------------
 
 EXPECTED_INIT_REPLICAS: dict[GPUType, dict[Model, int]] = {

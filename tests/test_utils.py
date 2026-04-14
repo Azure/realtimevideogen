@@ -22,3 +22,14 @@ def temp_sys_path(
         yield
     finally:
         sys.path = old_sys_path
+
+
+def assert_equals_approx(
+    value: float,
+    expected: float,
+    delta: float = 0.01,
+) -> None:
+    """Assert that two floats are approximately equal within a tolerance."""
+    assert abs(value - expected) < delta, (
+        f"Expected {value:.2f} to be approximately equal to {expected:.2f} within tolerance {delta}"
+    )
