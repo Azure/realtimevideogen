@@ -197,8 +197,9 @@ def derive_adaptive_params(
 INIT_REPLICAS, TIME_PER_REQ = derive_multirequest_params(budget=dict(HARDWARE_BUDGET))
 INIT_REPLICAS_ADAPTIVE, TIME_PER_REQ_ADAPTIVE = derive_adaptive_params(budget=dict(HARDWARE_BUDGET))
 
-# Quality distribution portions for adaptive quality cost aggregation.
-# These represent relative weights for each quality level in the adaptive mix.
+# Allocation of video frames across quality levels for a 10-minute output
+# to fulfill a TTFF SLO. These are configurable weights used in adaptive
+# quality cost aggregation.
 QUALITY_PORTIONS = {
     QualityLevel.LOW: 112,
     QualityLevel.MEDIUM: 305,
