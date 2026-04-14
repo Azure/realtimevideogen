@@ -364,7 +364,7 @@
                 </div>
 
                 <input type="hidden" id="app_container_name" name="container_name">
-                <input type="hidden" id="app_cpu" name="cpu" value="2">
+                <input type="hidden" id="app_cpu" name="cpu" value="1">
                 <input type="hidden" id="app_memory" name="memory" value="4">
                 <input type="hidden" id="app_ephemeralStorage" name="ephemeralStorage" value="4">
                 <input type="hidden" id="app_gpu" name="gpu" value="0">
@@ -378,6 +378,32 @@
                         style="width: 200px;"
                         aria-label="Add Application">
                         ➕ Application
+                    </button>
+                </div>
+            </form>
+
+            <h2 class="mt-5">🧩🧩 All Applications</h2>
+            <form id="add-all-apps-form" method="post" action="/api/apps">
+                <p class="mb-4">Deploy all application workflows at {{ lb_ip }} on '{{ lb_rg }}':</p>
+                <ul class="list-group mb-4">
+                    <li class="list-group-item">🎙️ StreamCast</li>
+                    <li class="list-group-item">👤 StreamPersona</li>
+                    <li class="list-group-item">💬 StreamChat</li>
+                    <li class="list-group-item">🎬 StreamShort</li>
+                    <li class="list-group-item">🎬 StreamMovie 🚧</li>
+                    <li class="list-group-item">🎞️ StreamAnimate 🚧</li>
+                    <li class="list-group-item">📚 StreamLecture 🚧</li>
+                    <li class="list-group-item">🎤 StreamDub 🚧</li>
+                    <li class="list-group-item">✂️ StreamEdit 🚧</li>
+                </ul>
+                <div class="text-end">
+                    <button
+                        type="submit"
+                        class="btn btn-primary mt-3"
+                        style="width: 200px;"
+                        title="Add All Applications"
+                        aria-label="Add All Applications">
+                        ➕ All Applications
                     </button>
                 </div>
             </form>
@@ -651,6 +677,33 @@
                         } else {
                             response.json().then(data => {
                                 alert('Cannot add application pod: ' + (data.error || response.status));
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
+
+            // All Applications
+            const addAllAppsForm = document.getElementById('add-all-apps-form');
+            if (addAllAppsForm) {
+                addAllAppsForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const data = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: data,
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/';
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot add applications: ' + (data.error || response.status));
                             });
                         }
                     })

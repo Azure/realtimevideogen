@@ -256,6 +256,13 @@
                     Add Application
                 {% endif %}
             </a>
+            <button
+                class="btn btn-outline-success"
+                id="deploy-all-apps-btn"
+                title="Deploy All Applications"
+                aria-label="Deploy All Applications">
+                ➕➕ All Applications
+            </button>
         </div>
         {% if app_svcs %}
             {{ svc_table(app_svcs, 'apps-table') }}
@@ -572,6 +579,28 @@
                     el.textContent = formatted;
                 }
             });
+
+            const deployAllAppsBtn = document.getElementById('deploy-all-apps-btn');
+            if (deployAllAppsBtn) {
+                deployAllAppsBtn.addEventListener('click', function() {
+                    fetch('/api/apps', {
+                        method: 'POST',
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            response.json().then(data => {
+                                alert('Cannot deploy all applications: ' + (data.error || response.status));
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
         });
     </script>
 </body>
