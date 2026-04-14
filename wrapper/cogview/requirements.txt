@@ -1,0 +1,6 @@
+pillow
+torch
+xfuser
+diffusers
+transformers
+accelerate
