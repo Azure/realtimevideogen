@@ -130,8 +130,7 @@ def derive_adaptive_params(
         (the worst-case / most-demanding quality level sets the base allocation).
     time_per_req_adaptive:
         ``{gpu_type: {model: {quality: seconds}}}`` — per-quality time per request,
-        normalized against the HIGH-quality allocation so every
-        ``(gpu_type, model)`` present in ``init_replicas_adaptive`` has a timing
+        every ``(gpu_type, model)`` in ``init_replicas_adaptive`` has a timing
         entry for every quality level.
     """
     if budget is None:
