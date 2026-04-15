@@ -121,6 +121,7 @@ VIDEO_BASE64=""
 if [ -f "$VIDEO_PATH" ]; then
     VIDEO_BASE64=$(base64 -w 0 "$VIDEO_PATH")
 fi
+AUDIO_BASE64=""
 if awk "BEGIN { exit !(${AUDIO_SECONDS} > 0) }"; then
     AUDIO_BASE64=$(generate_audio_base64 "$AUDIO_SECONDS")
 fi
@@ -166,7 +167,7 @@ http_code=$(curl \
 if [ "$http_code" -ne 200 ]; then
     echo "Request to $URL failed: $http_code"
     if [ -f "$OUTPUT_FILE" ]; then
-        jq . "$OUTPUT_FILE"
+        jq . "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"
     fi
     exit 1
 else
