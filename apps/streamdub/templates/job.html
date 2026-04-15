@@ -1,0 +1,393 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Dub Generation{% endblock %}
+{% block submit_button_title %}Submit Dub Generation{% endblock %}
+{% block submit_button_aria %}Submit Dub Generation{% endblock %}
+{% block heading %}Dub Generation 📽️🎬{% endblock %}
+{% block source_link %}
+                <p class="mb-2">
+                    <strong>Video:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='video.mp4') }}" 
+                    class="link-primary text-decoration-none">
+                    📽️ View
+                    </a>
+                </p>
+{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Video</h2>
+                <div id="video-content-wrapper" class="d-flex justify-content-center">
+                    <div id="video-content" style="min-height: 300px;"></div>
+                </div>
+            </div>
+            
+            <div class="col-12 mb-3" id="scenes-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🎞️ Scenes</h2>
+                <p id="scenes-info">No scenes.</p>
+                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="col-12 mb-3" id="frames-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🖼️ Frames</h2>
+                <div id="frames-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            const videoContent = document.getElementById("video-content");
+            const scenesContent = document.getElementById("scenes-content");
+            const framesContent = document.getElementById("frames-content");
+
+            const waitingSection = document.getElementById("waiting-section");
+            const videoSection = document.getElementById("video-section");
+            const scenesSection = document.getElementById("scenes-section");
+            const framesSection = document.getElementById("frames-section");
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if video exists
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoContent.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoContent.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        waitingSection.style.display = "none";
+                        videoSection.style.display = "block";
+
+                        // Adjust video size once metadata is loaded
+                        const videoEl = videoContent.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch(err) {
+                    setTimeout(fetchVideo, 1000); // retry after 1 second
+                }
+            }
+            fetchVideo();
+
+            // Scenes
+            const scenesUrl = "/file_stream/{{ job_id }}/scenes.json";
+            let scenesInterval = null;
+            async function fetchScenes() {
+                try {
+                    const res = await fetch(scenesUrl + "?t=" + Date.now());
+                    if (res.status === 404) return;  // Not ready yet — interval will retry
+                    if (!res.ok) throw new Error(res.statusText);
+
+                    const scenes = await res.json();
+
+                    // Get number of scenes
+                    const numScenes = scenes.length;
+                    if (numScenes > 0) {
+                        waitingSection.style.display = "none";
+                        scenesSection.style.display = "block";
+
+                        const scenesInfo = document.getElementById("scenes-info");
+                        scenesInfo.textContent = `Number of scenes: ${numScenes}.`;
+                    }
+
+                    for (const scene of scenes) {
+                        const sceneId = scene.scene_id;
+                        const sceneRowId = `scene-${sceneId}`;
+                        let sceneRow = document.getElementById(sceneRowId);
+                        if (!sceneRow) {
+                            sceneRow = document.createElement("div");
+                            sceneRow.id = sceneRowId;
+                            sceneRow.className = "mb-4 p-3 border rounded bg-white shadow-sm";
+                            scenesContent.appendChild(sceneRow);
+
+                            // Header
+                            const header = document.createElement("h6");
+                            header.className = "fw-bold text-primary mb-3";
+                            header.textContent = `Scene ${sceneId}  (${scene.start_sec.toFixed(1)}s – ${scene.end_sec.toFixed(1)}s)`;
+                            sceneRow.appendChild(header);
+
+                            // Two-column layout: media (left) + text (right)
+                            const row = document.createElement("div");
+                            row.className = "d-flex gap-4 align-items-start";
+                            sceneRow.appendChild(row);
+
+                            // Left column – audio players
+                            const mediaCol = document.createElement("div");
+                            mediaCol.className = "d-flex flex-column";
+                            mediaCol.style.minWidth = "320px";
+                            row.appendChild(mediaCol);
+
+                            // Original audio
+                            const origLabel = document.createElement("p");
+                            origLabel.className = "mb-1 small fw-semibold";
+                            origLabel.textContent = "🎵 Original audio:";
+                            mediaCol.appendChild(origLabel);
+
+                            const origAudio = document.createElement("audio");
+                            origAudio.id = `audio-original-${sceneId}`;
+                            origAudio.controls = true;
+                            origAudio.className = "w-100 mb-3";
+                            origAudio.style.maxWidth = "320px";
+                            // Use scene.audio_path when it is the original (not dubbed); fall back to naming convention
+                            const origPath = (scene.audio_path && !scene.audio_path.endsWith("_dubbed.wav"))
+                                ? scene.audio_path
+                                : `scene_${String(sceneId).padStart(3, '0')}.wav`;
+                            origAudio.src = `/file_stream/{{ job_id }}/${origPath}`;
+                            mediaCol.appendChild(origAudio);
+
+                            // Dubbed audio (hidden until available)
+                            const dubbedLabel = document.createElement("p");
+                            dubbedLabel.id = `dubbed-label-${sceneId}`;
+                            dubbedLabel.className = "mb-1 small fw-semibold";
+                            dubbedLabel.textContent = "🗣️ Dubbed audio:";
+                            dubbedLabel.style.display = "none";
+                            mediaCol.appendChild(dubbedLabel);
+
+                            const dubbedAudio = document.createElement("audio");
+                            dubbedAudio.id = `audio-dubbed-${sceneId}`;
+                            dubbedAudio.controls = true;
+                            dubbedAudio.className = "w-100 mb-2";
+                            dubbedAudio.style.maxWidth = "320px";
+                            dubbedAudio.style.display = "none";
+                            mediaCol.appendChild(dubbedAudio);
+
+                            // Right column – transcript + translation
+                            const textCol = document.createElement("div");
+                            textCol.className = "flex-fill";
+                            row.appendChild(textCol);
+
+                            // Transcript block
+                            const transcriptDiv = document.createElement("div");
+                            transcriptDiv.id = `transcript-${sceneId}`;
+                            transcriptDiv.className = "mb-3";
+                            const transcriptLabel = document.createElement("p");
+                            transcriptLabel.className = "mb-1 fw-semibold";
+                            transcriptLabel.textContent = "📝 Transcript:";
+                            transcriptDiv.appendChild(transcriptLabel);
+                            const transcriptText = document.createElement("p");
+                            transcriptText.id = `transcript-text-${sceneId}`;
+                            transcriptText.className = "font-monospace text-dark mb-0";
+                            transcriptText.textContent = scene.transcript || "⏳ Transcribing…";
+                            transcriptDiv.appendChild(transcriptText);
+                            textCol.appendChild(transcriptDiv);
+
+                            // Translation block
+                            const translationDiv = document.createElement("div");
+                            translationDiv.id = `translation-${sceneId}`;
+                            translationDiv.className = "mb-3";
+                            const translationLabel = document.createElement("p");
+                            translationLabel.className = "mb-1 fw-semibold";
+                            translationLabel.textContent = "🌐 Translation:";
+                            translationDiv.appendChild(translationLabel);
+                            const translationText = document.createElement("p");
+                            translationText.id = `translation-text-${sceneId}`;
+                            translationText.className = "font-monospace text-success mb-0";
+                            translationText.textContent = scene.translation || "⏳ Translating…";
+                            translationDiv.appendChild(translationText);
+                            textCol.appendChild(translationDiv);
+                        } else {
+                            const padId = String(sceneId).padStart(3, '0');
+
+                            // Update transcript: from scenes.json or fall back to the .txt file
+                            const transcriptText = document.getElementById(`transcript-text-${sceneId}`);
+                            if (!scene.transcript && transcriptText && !transcriptText.dataset.value) {
+                                try {
+                                    const r = await fetch(`/file_stream/{{ job_id }}/scene_${padId}.txt?t=` + Date.now());
+                                    if (r.ok) { const t = (await r.text()).trim(); if (t) scene.transcript = t; }
+                                } catch (_) {}
+                            }
+                            if (scene.transcript && transcriptText && transcriptText.dataset.value !== scene.transcript) {
+                                transcriptText.dataset.value = scene.transcript;
+                                transcriptText.textContent = scene.transcript;
+                            }
+
+                            // Update translation: from scenes.json or fall back to the _translation.txt file
+                            const translationText = document.getElementById(`translation-text-${sceneId}`);
+                            if (!scene.translation && translationText && !translationText.dataset.value) {
+                                try {
+                                    const r = await fetch(`/file_stream/{{ job_id }}/scene_${padId}_translation.txt?t=` + Date.now());
+                                    if (r.ok) { const t = (await r.text()).trim(); if (t) scene.translation = t; }
+                                } catch (_) {}
+                            }
+                            if (scene.translation && translationText && translationText.dataset.value !== scene.translation) {
+                                translationText.dataset.value = scene.translation;
+                                translationText.textContent = scene.translation;
+                            }
+
+                            // Show dubbed audio when available
+                            if (scene.audio_path && scene.audio_path.endsWith("_dubbed.wav")) {
+                                const dubbedAudio = document.getElementById(`audio-dubbed-${sceneId}`);
+                                if (dubbedAudio && dubbedAudio.dataset.audioPath !== scene.audio_path) {
+                                    dubbedAudio.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
+                                    dubbedAudio.dataset.audioPath = scene.audio_path;
+                                    dubbedAudio.style.display = "block";
+                                    dubbedAudio.load();
+                                    document.getElementById(`dubbed-label-${sceneId}`).style.display = "block";
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.log("Cannot load scenes:", err.message);
+                }
+            }
+            fetchScenes();
+            scenesInterval = setInterval(fetchScenes, 2000);
+
+            // Frames
+            const numFrames = 10;  // TODO
+
+            async function fetchFrames() {
+                for (let i = 0; i < numFrames; i++) {
+                    // Create frame container if it doesn't exist
+                    const frameRowId = `frame-${i}`;
+                    let frameRow = document.getElementById(frameRowId);
+                    if (!frameRow) {
+                        frameRow = document.createElement("div");
+                        frameRow.id = frameRowId;
+                        frameRow.className = "mb-4 d-flex gap-3 align-items-start";
+
+                        // Image (left)
+                        const frameImg = document.createElement("img");
+                        frameImg.id = `frame-img-${i}`;
+                        frameImg.alt = `Frame ${i}`;
+                        frameImg.width = 320;
+                        frameImg.className = "img-fluid rounded shadow-sm mb-2";
+                        frameRow.appendChild(frameImg);
+
+                        // Text (right)
+                        const frameText = document.createElement("div");
+                        frameText.id = `frame-text-${i}`;
+                        frameText.className = "mt-2";
+                        frameRow.appendChild(frameText);
+
+                        framesContent.appendChild(frameRow);
+                    }
+
+                    // Fetch frame image
+                    const frameImageUrl = `/file_stream/{{ job_id }}/frame_${String(i).padStart(3,'0')}.jpg`;
+                    const frameImagePromise = fetch(frameImageUrl + "?t=" + Date.now(), { method: "HEAD" })
+                        .then(res => {
+                            if (res.ok) {
+                                const frameImg = document.getElementById(`frame-img-${i}`);
+                                if (frameImg.src !== frameImageUrl) {
+                                    frameImg.src = frameImageUrl;
+                                    waitingSection.style.display = "none";
+                                    framesSection.style.display = "block";
+                                }
+                            }
+                        })
+                        .catch(err => `Cannot load frame image: ${err.message}`);
+
+                    // Fetch frame text
+                    const frameTextUrl = `/file_stream/{{ job_id }}/frame_${String(i).padStart(3,'0')}.txt`;
+                    const frameTextPromise = fetch(frameTextUrl + "?t=" + Date.now())
+                        .then(res => {
+                            if (!res.ok) return null;
+                            return res.text();
+                        })
+                        .then(text => {
+                            if (!text) return;
+                            const frameText = document.getElementById(`frame-text-${i}`);
+                            const color = "text-primary";
+                            frameText.innerHTML = `<span class="${color}"><strong>Frame ${i}:</strong></span> ` + text;
+                        })
+                        .catch(err => `Cannot load frame text: ${err.message}`);
+                }
+                // TODO stop fetching frames when job is completed
+            }
+
+            //fetchFrames();
+
+            //fetchFramesInterval = setInterval(fetchFrames, 1000);
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                    clearInterval(scenesInterval);
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+{% endblock %}

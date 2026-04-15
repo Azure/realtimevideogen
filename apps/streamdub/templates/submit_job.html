@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Submit Dub Generation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous"></script>
+
+    <!-- DataTables CSS & JS with Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AnsiUp for colored terminal output -->
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+    <script>const ansiUp = new AnsiUp();</script>
+
+    <!-- Bootstrap 5.3.5 Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
+</head>
+
+<body class="bg-light">
+    <div class="fixed-nav-buttons">
+        <a class="btn btn-outline-primary" href="/" title="Home" aria-label="Home">🏠</a>
+    </div>
+
+    <div class="container py-4">
+        <h1>🚀 Submit Dub Generation</h1>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form id="job-form">
+                    <h4>📽️ Video</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="upload_video" class="form-label">Upload Video (mp4)</label>
+                            <input type="file" class="form-control" id="upload_video" name="upload_video" accept=".mp4">
+                        </div>
+                    </div>
+
+                    <h4>🗣️ Language</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="input_language" class="form-label">Input language</label>
+                            <select class="form-select" id="input_language" name="input_language">
+                                <option value="a" selected>American English</option>
+                                <option value="b">British English</option>
+                                <option value="e">Spanish</option>
+                                <option value="f">French</option>
+                                <option value="h">Hindi</option>
+                                <option value="i">Italian</option>
+                                <option value="p">Brazilian Portuguese</option>
+                                <option value="j">Japanese</option>
+                                <option value="z">Chinese (Mandarin)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="output_language" class="form-label">Output language</label>
+                            <select class="form-select" id="output_language" name="output_language">
+                                <option value="a">American English</option>
+                                <option value="b">British English</option>
+                                <option value="e" selected>Spanish</option>
+                                <option value="f">French</option>
+                                <option value="h">Hindi</option>
+                                <option value="i">Italian</option>
+                                <option value="p">Brazilian Portuguese</option>
+                                <option value="j">Japanese</option>
+                                <option value="z">Chinese (Mandarin)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Settings (collapsed by default) -->
+                    <div class="mb-3 text-end">
+                        <button class="btn btn-outline-secondary btn-sm" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#advanced-settings"
+                                aria-expanded="false" aria-controls="advanced-settings"
+                                title="Advanced Settings">
+                            ⚙️
+                        </button>
+                    </div>
+
+                    <div class="collapse" id="advanced-settings">
+
+                    <h4>📽️ Output</h4>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="output_mode" class="form-label">🎚️ Mode</label>
+                            <select class="form-select" id="output_mode" name="output_mode">
+                                <option value="video_audio_synced">🔉🗣️ Video + Audio (synced)</option>
+                                <option value="video_audio_unsynced">📽️🔉 Video + Audio (unsynced)</option>
+                                <option value="audio_only">🔉 Audio Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="resolution" class="form-label">🖥️ Resolution</label>
+                            <select class="form-select" id="resolution" name="resolution">
+                                <option value="high">⬆️ High (1280x800)</option>
+                                <option value="medium">↗️ Medium (640x400)</option>
+                                <option value="low">⬇️ Low (320x200)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quality" class="form-label">🌟 Quality</label>
+                            <select class="form-select" id="quality" name="quality">
+                                <option value="high">⬆️ High</option>
+                                <option value="medium">↗️ Medium</option>
+                                <option value="low">⬇️ Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checkboxes -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="debug_image" name="debug_image" value="1" checked>
+                                <label for="debug_image" class="form-check-label">
+                                    🧑‍💻 Debug
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Add debugging information to the video.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="upscaling" name="upscaling" value="1" checked>
+                                <label for="upscaling" class="form-check-label">
+                                    🖼️⬆️ Upscale
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Generate lower resolution and then upscale.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="add_subtitles" name="add_subtitles" value="1" checked>
+                                <label for="add_subtitles" class="form-check-label">
+                                    📝 Subtitles
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="voice_cloning" name="voice_cloning" value="1" checked>
+                                <label for="voice_cloning" class="form-check-label">
+                                    🎙️ Voice Cloning
+                                    <span class="text-muted" data-bs-toggle="tooltip" title="Clone the speaker's voice from the original audio for the dubbed output.">ℹ️</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="speech_speed" class="form-label">🎙️ Speech speed:</label>
+                        <span id="speech_speed_value">1.1</span>x
+                        <input type="range" class="form-range"
+                            id="speech_speed" name="speech_speed"
+                            value="1.1" min="0.5" max="2.0" step="0.1"
+                            oninput="document.getElementById('speech_speed_value').textContent = this.value">
+                    </div>
+
+                    </div><!-- end #advanced-settings -->
+
+                    <!-- Estimate + submit -->
+                    <div class="mb-3">
+                        <strong>⏳ Estimated generation time:</strong> <span id="generation_time_estimate">~45 seconds</span>
+                    </div>
+
+                    <div class="text-center">
+                        <button
+                            type="submit"
+                            class="btn btn-success btn-lg"
+                            style="width: 200px;">
+                            🚀 Submit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Output -->
+        <div id="output-card" class="card shadow-sm" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title">Response</h5>
+                <pre id="output" class="bg-dark text-white p-3 rounded" style="height: 300px; overflow: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("job-form").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const payload = {};
+
+            const fileInput = document.getElementById("upload_video");
+            if (!fileInput.files.length) {
+                alert("Please select an mp4 file.");
+                return;
+            }
+
+            const fileDoc = fileInput.files[0];
+            if (fileDoc) {
+                const MAX_FILE_SIZE_MB = 16;
+                const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+                if (fileDoc.size > MAX_FILE_SIZE) {
+                    alert(
+                        `File too large (${(fileDoc.size / 1024 / 1024).toFixed(1)} MB).\n` +
+                        `Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`
+                    );
+                    return;
+                }
+
+                var video_base64 = await fileToBase64(fileDoc);
+                payload.video_base64 = video_base64;
+            }
+
+            // Structure
+            // payload.video_duration_seconds = parseInt(document.getElementById("video_duration_seconds").value, 10);
+
+            // Languages
+            payload.input_language = document.getElementById("input_language").value;
+            payload.output_language = document.getElementById("output_language").value;
+
+            // Output / quality
+            payload.output_mode = document.getElementById("output_mode").value;
+            payload.resolution = document.getElementById("resolution").value;
+            payload.quality = document.getElementById("quality").value;
+            payload.speech_speed = parseFloat(document.getElementById("speech_speed").value);
+
+            // Extra flags
+            payload.debug_image = document.getElementById("debug_image").checked;
+            payload.upscaling = document.getElementById("upscaling").checked;
+            payload.add_subtitles = document.getElementById("add_subtitles").checked;
+            payload.voice_cloning = document.getElementById("voice_cloning").checked;
+
+            const output = document.getElementById("output");
+            try {
+                let apiUrl = "/api/job";
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const contentType = response.headers.get("Content-Type") || "";
+                if (contentType.includes("application/json")) {
+                    const data = await response.json();
+                    let formatted = `<pre class="text-white">${JSON.stringify(data, null, 2)}</pre>`;
+                    if (data.job_id) {
+                        window.location.href = `/job/${data.job_id}`;
+                    }
+                    output.innerHTML = formatted;
+                }  else {
+                    const text = await response.text();
+                    output.textContent = `Unexpected content-type: ${contentType}\n\n${text}`;
+                }
+                document.getElementById("output-card").style.display = "block";
+            } catch (err) {
+                output.textContent = "❌ Error: " + err.message;
+            }
+        });
+    </script>
+</body>
+</html>

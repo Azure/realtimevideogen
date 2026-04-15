@@ -1,0 +1,461 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['*']
+  schedule:
+  - cron: '0 4 * * *'  # Daily at 04:00 UTC (after Docker workflow at 03:00 UTC)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+jobs:
+  mypy:
+    name: Mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Use Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements_dev.txt
+
+    - name: Run Python type checking
+      run: |
+        mypy --install-types --non-interactive --ignore-missing-imports . \
+          2>&1 | tee mypy-results.txt
+        ERROR_COUNT=$(grep -c ": error:" mypy-results.txt 2>/dev/null) || ERROR_COUNT=0
+        WARNING_COUNT=$(grep -c ": warning:" mypy-results.txt 2>/dev/null) || WARNING_COUNT=0
+        NOTE_COUNT=$(grep -c ": note:" mypy-results.txt 2>/dev/null) || NOTE_COUNT=0
+        FILE_COUNT=$(grep -oP '\d+(?= source file)' mypy-results.txt 2>/dev/null) || FILE_COUNT=0
+        if grep -q "no issues found" mypy-results.txt 2>/dev/null; then
+          STATUS="✅ No issues found"
+        else
+          STATUS="❌ Issues found"
+        fi
+        {
+          echo "## Mypy Type Checking"
+          echo ""
+          echo "${STATUS}"
+          echo ""
+          echo "| Metric | Count |"
+          echo "|--------|-------|"
+          echo "| 📂 Files | ${FILE_COUNT} |"
+          echo "| ❌ Errors | ${ERROR_COUNT} |"
+          echo "| ⚠️ Warnings | ${WARNING_COUNT} |"
+          echo "| 📝 Notes | ${NOTE_COUNT} |"
+          echo ""
+          echo "<details><summary>Full mypy output</summary>"
+          echo ""
+          echo '```'
+          cat mypy-results.txt
+          echo '```'
+          echo ""
+          echo "</details>"
+        } | tee mypy-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload mypy results
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: mypy-results
+        path: mypy-results.txt
+
+    - name: Annotate mypy results
+      if: always()
+      uses: reviewdog/action-setup@v1
+
+    - name: Mypy reviewdog
+      if: always()
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat mypy-results.txt | reviewdog -f=mypy -name="mypy" -reporter=github-check -level=error || true
+
+    - name: Add mypy PR comment
+      if: always() && github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v3
+      with:
+        header: mypy
+        recreate: true
+        path: mypy-summary.md
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        df -h
+
+    - name: Use Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: '10.x'
+
+    - name: Install ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+        ffmpeg -version
+        dpkg -s ffmpeg
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements_dev.txt
+
+    - name: 'Run tests: Main'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.main
+        pytest --junitxml=test-results-main.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              --ignore=tests/simulator \
+              --ignore=tests/streamwise \
+              --ignore=tests/streamwise_app
+
+    - name: 'Run tests: Simulator'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.simulator
+        pytest --junitxml=test-results-simulator.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/simulator/*.py
+
+    - name: 'Run tests: StreamCast'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamcast
+        pytest --junitxml=test-results-streamcast.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamcast.py
+
+    - name: 'Run tests: StreamPersona'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streampersona
+        pytest --junitxml=test-results-streampersona.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streampersona.py
+
+    - name: 'Run tests: StreamShort'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamshort
+        pytest --junitxml=test-results-streamshort.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamshort.py
+
+    - name: 'Run tests: StreamDub'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamdub
+        pytest --junitxml=test-results-streamdub.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamdub.py
+
+    - name: 'Run tests: StreamMovie'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streammovie
+        pytest --junitxml=test-results-streammovie.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streammovie.py
+
+    - name: 'Run tests: StreamEdit'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamedit
+        pytest --junitxml=test-results-streamedit.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamedit.py
+
+    - name: 'Run tests: StreamChat'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamchat
+        pytest --junitxml=test-results-streamchat.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamchat.py
+
+    - name: 'Run tests: StreamLecture'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamlecture
+        pytest --junitxml=test-results-streamlecture.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamlecture.py
+
+    - name: 'Run tests: StreamAnimate'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamanimate
+        pytest --junitxml=test-results-streamanimate.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise_app/test_streamanimate.py
+
+    - name: 'Run tests: StreamWise apps'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamwise_app
+        pytest --junitxml=test-results-streamwise_app.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              --ignore=tests/streamwise_app/test_streamcast.py \
+              --ignore=tests/streamwise_app/test_streampersona.py \
+              --ignore=tests/streamwise_app/test_streamshort.py \
+              --ignore=tests/streamwise_app/test_streamdub.py \
+              --ignore=tests/streamwise_app/test_streammovie.py \
+              --ignore=tests/streamwise_app/test_streamedit.py \
+              --ignore=tests/streamwise_app/test_streamchat.py \
+              --ignore=tests/streamwise_app/test_streamlecture.py \
+              --ignore=tests/streamwise_app/test_streamanimate.py \
+              tests/streamwise_app
+
+    - name: 'Run tests: StreamWise'
+      if: always()
+      timeout-minutes: 10
+      run: |
+        export COVERAGE_FILE=.coverage.streamwise
+        pytest --junitxml=test-results-streamwise.xml \
+              --cov=. \
+              --cov-report=term \
+              --durations=10 \
+              -vv \
+              tests/streamwise/
+
+    - name: Generate coverage reports
+      if: always()
+      run: |
+        export COVERAGE_FILE=.coverage
+        coverage combine --keep .coverage.*
+        coverage xml -o coverage.xml --ignore-errors
+        coverage html -d htmlcov --ignore-errors
+
+    - name: Test artifacts summary
+      if: always()
+      run: |
+        echo "## Test Artifacts" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+        for f in test-results*.xml; do
+          [ -f "$f" ] && echo "| $f | $(du -h "$f" | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
+        done
+        echo "| coverage.xml | $(du -h coverage.xml 2>/dev/null | cut -f1 || echo 'N/A') |" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Publish test results
+      if: always()
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      with:
+        files: test-results*.xml
+        comment_mode: always
+        job_summary: true
+
+    - name: Upload XML coverage report
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: xml-coverage-report
+        path: coverage.xml
+
+    - name: Upload HTML coverage report
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: html-coverage-report
+        path: htmlcov/
+
+    - name: Upload Pages artifact
+      if: always() && github.ref == 'refs/heads/main'
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: htmlcov/
+
+    - name: Code coverage summary
+      id: coverage-summary
+      if: always()
+      uses: irongut/CodeCoverageSummary@v1.3.0
+      with:
+        filename: coverage.xml
+        badge: true
+        format: markdown
+        output: both
+        fail_below_min: false
+        thresholds: '40 60'
+
+    - name: Publish coverage to summary
+      if: always()
+      run: cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Add coverage PR comment
+      if: always() && github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v3
+      with:
+        header: coverage
+        recreate: true
+        message: |
+          ${{ steps.coverage-summary.outputs.summary || '' }}
+          :open_book: [Full HTML Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/) (updated on merge to main)
+          :file_folder: [Download HTML Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) — see *html-coverage-report* artifact
+        path: code-coverage-results.md
+
+  deploy-coverage:
+    name: Deploy Coverage
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: Coverage Report
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+  stats:
+    name: Stats
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install cloc
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cloc
+        cloc .
+
+    - name: Generate cloc report (text)
+      run: |
+        cloc . \
+          --exclude-dir=.git,venv,node_modules \
+          --out=cloc-report.txt
+        cat cloc-report.txt
+
+    - name: Show lines of code
+      run: cat cloc-report.txt
+
+    - name: Upload cloc report (text)
+      uses: actions/upload-artifact@v6
+      with:
+        name: cloc-text
+        path: cloc-report.txt
+
+    - name: Lines of code (Markdown)
+      run: |
+        cloc . \
+          --exclude-dir=.git,venv,node_modules \
+          --md \
+          --out=cloc-summary.md
+        cat cloc-summary.md
+
+    - name: Show lines of code (Markdown)
+      run: cat cloc-summary.md
+
+    - name: Upload cloc report (Markdown)
+      uses: actions/upload-artifact@v6
+      with:
+        name: cloc-markdown
+        path: cloc-summary.md
+
+    - name: Publish summary
+      run: |
+        set -e
+
+        if [ ! -f cloc-summary.md ]; then
+          echo "cloc-summary.md not found!"
+          exit 1
+        fi
+
+        echo "# Lines of Code Report" > cloc-summary-wrapper.md
+        echo "" >> cloc-summary-wrapper.md
+        cat cloc-summary.md >> cloc-summary-wrapper.md
+
+        cat cloc-summary-wrapper.md >> "$GITHUB_STEP_SUMMARY"

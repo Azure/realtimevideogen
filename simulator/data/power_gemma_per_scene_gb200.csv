@@ -1,0 +1,6 @@
+world_size,power_watts
+# TODO validate measured values
+1,416
+2,832
+4,1664
+8,3328

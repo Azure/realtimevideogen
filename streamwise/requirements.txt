@@ -1,0 +1,7 @@
+quart
+kubernetes
+kubernetes_asyncio
+aiohttp
+numpy
+scipy
+colorlog

@@ -1,0 +1,337 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Slide Persona Generation{% endblock %}
+{% block submit_button_title %}Submit Slide Persona Generation{% endblock %}
+{% block submit_button_aria %}Submit Slide Persona Generation{% endblock %}
+{% block heading %}Slide Persona Generation 📄→👤📽️{% endblock %}
+{% block source_link %}
+                <p class="mb-2">
+                    <strong>Slides:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='document.pptx') }}" 
+                    class="link-primary text-decoration-none">
+                    🖼️ View
+                    </a>
+                </p>
+{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Video</h2>
+                <div id="video-content-wrapper" class="d-flex justify-content-center">
+                    <div id="video-content" style="min-height: 300px;"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="persona-section" style="display: none;">
+                <h2 class="mt-5 mb-3">👤 Persona</h2>
+                <div
+                    id="persona-content"
+                    class="p-3 rounded d-flex justify-content-center align-items-center"
+                    style="background-color: #e9ecef; font-family: monospace;"
+                >
+                </div>
+            </div>
+
+            <div class="col-12" id="text-section" style="display: none;">
+                <h2 class="mt-5 mb-3">💬 Slide transcript</h2>
+                <div id="text-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 800px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            const videoContent = document.getElementById("video-content");
+            const personaContent = document.getElementById("persona-content");
+            const dialogueContent = document.getElementById("text-content");
+
+            const waitingSection = document.getElementById("waiting-section");
+
+            const videoSection = document.getElementById("video-section");
+            const personaSection = document.getElementById("persona-section");
+            const textSection = document.getElementById("text-section");
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if video exists
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoContent.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoContent.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        videoSection.style.display = "block";
+
+                        // Adjust video size once metadata is loaded
+                        const videoEl = videoContent.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch(err) {
+                    setTimeout(fetchVideo, 1000); // retry after 1 second
+                }
+            }
+            fetchVideo();
+
+            // Image
+            const imageUrl = "{{ url_for('file_stream', job_id=job_id, file_name='persona.png') }}";
+            async function fetchImage() {
+                try {
+                    const res = await fetch(imageUrl + "?t=" + Date.now(), { method: "HEAD" });  // check if image exists
+                    if (!res.ok)
+                        throw new Error(res.statusText);
+
+                    const img = personaContent.querySelector("img");
+                    if (!img || img.src !== imageUrl + "?t=" + Date.now()) {
+                        personaContent.innerHTML = `
+                            <img src="${imageUrl}?t=${Date.now()}" 
+                                alt="Persona image" 
+                                class="img-fluid rounded shadow-sm" 
+                                style="max-height: 300px; object-fit: contain;">
+                        `;
+                        personaSection.style.display = "block";
+                    }
+                } catch(err) {
+                    setTimeout(fetchImage, 1000);  // retry after 1 second
+                }
+            }
+
+            fetchImage();
+
+            // Transcript
+            const transcriptUrl = "{{ url_for('file_stream', job_id=job_id, file_name='slides_transcript.jsonl') }}";
+
+            async function fetchTranscript() {
+                try {
+                    const res = await fetch(transcriptUrl + "?t=" + Date.now());
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+
+                    const lines = text.split("\n")
+                        .filter(line => line.trim())
+                        .map(line => {
+                            try {
+                                return JSON.parse(line);
+                            } catch(e) {
+                                console.error("Invalid JSONL line:", line, e);
+                                return null;
+                            }
+                        })
+                        .filter(obj => obj !== null);
+
+                    // Separate arrays
+                    const slidesText = [];
+                    for (const item of lines) {
+                        switch(item.type) {
+                            case "persona":
+                                // TODO: handle persona description if needed
+                                break;
+                            case "slide_transcript":
+                                slidesText.push(item); break;
+                            default:
+                                errorBox.style.display = "block";
+                                errorBox.textContent = "Unknown transcript item type: " + item.type;
+                        }
+                    }
+
+                    // Dialogues
+                    if (slidesText.length > 0) {
+                        waitingSection.style.display = "none";
+                        textSection.style.display = "";
+
+                        const audioPromises = [];
+                        slidesText.forEach((slideText, i) => {
+                            const wrapperId = `slide-text-${i}`;
+                            let wrapper = document.getElementById(wrapperId);
+
+                            // Wrapper for each slide text
+                            if (!wrapper) {
+                                wrapper = document.createElement("div");
+                                wrapper.className = "mb-3 d-flex align-items-start";
+                                wrapper.id = wrapperId;
+
+                                const mediaColumn = document.createElement("div");
+                                mediaColumn.className = "me-3 d-flex flex-column align-items-start";
+                                wrapper.appendChild(mediaColumn);
+
+                                const imgWrapper = document.createElement("div");
+                                imgWrapper.className = "me-3";
+                                imgWrapper.style.width = "320px";
+                                imgWrapper.style.height = "200px";
+
+                                const img = document.createElement("img");
+                                img.alt = `Slide ${slideText.slide_number}`;
+                                img.src = `/file_stream/{{ job_id }}/slide_${String(slideText.slide_number).padStart(3,'0')}.png`;
+                                img.className = "rounded shadow-sm";
+                                img.width = 320;
+                                img.height = 200;
+                                img.style.maxWidth = "320px";
+                                img.style.maxHeight = "200px";
+                                imgWrapper.appendChild(img);
+                                mediaColumn.appendChild(imgWrapper);
+
+                                // Left: preloaded audio player
+                                const audioWrapper = document.createElement("div");
+                                audioWrapper.className = "me-3";
+                                audioWrapper.style.width = "320px";
+                                audioWrapper.style.height = "30px";
+
+                                const audioPlayer = document.createElement("audio");
+                                audioPlayer.controls = true;
+                                audioPlayer.className = "mt-1";
+                                audioPlayer.style.width = "320px";
+                                audioPlayer.style.height = "30px";
+                                audioPlayer.innerHTML = `
+                                    <source id="src-${i}" type="audio/wav">
+                                    Your browser does not support the audio element.
+                                `;
+                                audioWrapper.appendChild(audioPlayer);
+                                mediaColumn.appendChild(audioWrapper);
+
+                                // Right: dialogue text
+                                const color = "text-primary";
+                                const textDiv = document.createElement("div");
+                                textDiv.innerHTML = `💬<span class="${color}"><strong>Slide ${slideText.slide_number}:</strong></span> ${slideText.transcript}`;
+
+                                wrapper.appendChild(textDiv);
+                                dialogueContent.appendChild(wrapper);
+                            }
+
+                            // Fetch audio if not already loaded
+                            const audioPlayer = wrapper.querySelector("audio");
+                            if (audioPlayer) {
+                                const source = audioPlayer.querySelector("source");
+                                const slideIndex = i + 1;
+                                const audioUrl = `/file_stream/{{ job_id }}/${String(slideIndex).padStart(3,'0')}.wav`;
+                                if (!source.src.endsWith(audioUrl)) {
+                                    const audioPromise = fetch(audioUrl + "?t=" + Date.now(), { method: "HEAD" })
+                                        .then(res => {
+                                            if (res.ok) {
+                                                source.src = audioUrl;
+                                                audioPlayer.style.display = "";
+                                                audioPlayer.load();
+                                            }
+                                        })
+                                        .catch(() => { /* ignore missing audio */ });
+                                    audioPromises.push(audioPromise);
+                                }
+                            }
+                        });
+
+                        // Scroll to bottom after all checks
+                        Promise.all(audioPromises).finally(() => {
+                            dialogueContent.scrollTop = dialogueContent.scrollHeight;
+                        });
+                    }
+                } catch(err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get slides transcript from " + transcriptUrl + ": " + err.message;
+                }
+            }
+
+            let transcriptInterval = null;
+            async function refreshTranscriptLoop() {
+                await fetchTranscript();
+                const status = await getJobStatus();
+                if (status) {
+                    updateStatusBadge(status);
+                    if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                        clearInterval(transcriptInterval);
+                    }
+                }
+            }
+
+            refreshTranscriptLoop();
+
+            transcriptInterval = setInterval(refreshTranscriptLoop, 1000);
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+{% endblock %}

@@ -1,0 +1,251 @@
+replicaCount: 1
+
+registry: abcd-xyz.azurecr.io
+
+# tag coming from "services.json"
+images:
+  # --- CPU / lightweight services ---
+  podcasttranscript:
+    repository: podcasttranscript
+    tag: XXXX
+  slidetranscript:
+    repository: slidetranscript
+    tag: XXXX
+  imageresize:
+    repository: imageresize
+    tag: XXXX
+  yolo:
+    repository: yolo
+    tag: XXXX
+
+  # --- Text-to-audio ---
+  kokoro:
+    repository: kokoro
+    tag: XXXX
+  dia:
+    repository: dia
+    tag: XXXX
+  xtts:
+    repository: xtts
+    tag: XXXX
+  vibevoice:
+    repository: vibevoice
+    tag: XXXX
+  thinksound:
+    repository: thinksound
+    tag: XXXX
+
+  # --- Text-to-image / image editing ---
+  flux:
+    repository: flux
+    tag: XXXX
+  flux2:
+    repository: flux2
+    tag: XXXX
+  flux2klein:
+    repository: flux2klein
+    tag: XXXX
+  fluxupscaler:
+    repository: fluxupscaler
+    tag: XXXX
+  fluxkrea:
+    repository: fluxkrea
+    tag: XXXX
+  fluxkontext:
+    repository: fluxkontext
+    tag: XXXX
+  cogview:
+    repository: cogview
+    tag: XXXX
+  4kagent:
+    repository: 4kagent
+    tag: XXXX
+  hidream:
+    repository: hidream
+    tag: XXXX
+  qwenimage:
+    repository: qwenimage
+    tag: XXXX
+  qwenimageedit:
+    repository: qwenimageedit
+    tag: XXXX
+  januspro:
+    repository: januspro
+    tag: XXXX
+  llamagen:
+    repository: llamagen
+    tag: XXXX
+  hunyuanimage:
+    repository: hunyuanimage
+    tag: XXXX
+  bagel:
+    repository: bagel
+    tag: XXXX
+  realesrgan:
+    repository: realesrgan
+    tag: XXXX
+
+  # --- Text/image-to-video ---
+  hunyuanframepack:
+    repository: hunyuanframepack
+    tag: XXXX
+  hunyuanframepackf1:
+    repository: hunyuanframepackf1
+    tag: XXXX
+  hunyuanframepackvae:
+    repository: hunyuanframepackvae
+    tag: XXXX
+  hunyuanavatar:
+    repository: hunyuanavatar
+    tag: XXXX
+  wan:
+    repository: wan
+    tag: XXXX
+  wan22:
+    repository: wan22
+    tag: XXXX
+  fantasytalking:
+    repository: fantasytalking
+    tag: XXXX
+  ltx:
+    repository: ltx
+    tag: XXXX
+  longcatvideo:
+    repository: longcatvideo
+    tag: XXXX
+
+  # --- vLLM-based services (text / audio inference) ---
+  # Uses vllm/vllm-openai base image
+  gemma:
+    repository: vllm/vllm-openai
+    tag: XXXX
+  llama32:
+    repository: vllm/vllm-openai
+    tag: XXXX
+  # Uses vllm-librosa (vllm/vllm-openai + librosa/soundfile for audio I/O)
+  whisper:
+    repository: vllm-librosa
+    tag: XXXX
+
+services:
+  # --- CPU / lightweight services ---
+  # Keep in sync with api_add_service() in streamwise/streamwise.py
+  podcasttranscript:
+    gpu: 0
+    cpu: 1
+    memory: 4Gi
+    ephemeralStorage: 16Gi
+  slidetranscript:
+    gpu: 0
+    cpu: 1
+    memory: 4Gi
+    ephemeralStorage: 16Gi
+  imageresize:
+    gpu: 0
+    cpu: 2
+    memory: 8Gi
+    ephemeralStorage: 16Gi
+  yolo:
+    gpu: 1
+    cpu: 4
+    memory: 8Gi
+    ephemeralStorage: 16Gi
+    mig_profile: 1g.10gb
+
+  # --- Text-to-audio ---
+  kokoro:
+    gpu: 1
+    cpu: 2
+    memory: 8Gi
+    ephemeralStorage: 16Gi
+    mig_profile: 1g.10gb
+
+  # --- Text-to-image / image editing ---
+  flux:
+    gpu: 2
+    cpu: 12
+    memory: 128Gi
+    ephemeralStorage: 64Gi
+  fluxkontext:
+    gpu: 1
+    cpu: 12
+    memory: 128Gi
+    ephemeralStorage: 64Gi
+  hidream:
+    gpu: 1
+    cpu: 16
+    memory: 192Gi
+    ephemeralStorage: 96Gi
+  bagel:
+    gpu: 1
+    cpu: 8
+    memory: 192Gi
+    ephemeralStorage: 64Gi
+  realesrgan:
+    gpu: 1
+    cpu: 4
+    memory: 32Gi
+    ephemeralStorage: 16Gi
+
+  # --- Text/image-to-video ---
+  hunyuanframepack:
+    gpu: 2
+    cpu: 24
+    memory: 192Gi
+    ephemeralStorage: 64Gi
+  hunyuanframepackf1:
+    gpu: 2
+    cpu: 24
+    memory: 128Gi
+    ephemeralStorage: 64Gi
+  hunyuanframepackvae:
+    gpu: 1
+    cpu: 4
+    memory: 32Gi
+    ephemeralStorage: 16Gi
+  hunyuanavatar:
+    gpu: 2
+    cpu: 24
+    memory: 192Gi
+    ephemeralStorage: 64Gi
+  wan:
+    gpu: 1
+    cpu: 16
+    memory: 192Gi
+    ephemeralStorage: 16Gi
+  fantasytalking:
+    gpu: 2
+    cpu: 12
+    memory: 192Gi
+    ephemeralStorage: 64Gi
+
+  # --- vLLM-based services ---
+  # Served via OpenAI-compatible API on port 8000
+  gemma:
+    gpu: 4
+    cpu: 16
+    memory: 192Gi
+    ephemeralStorage: 64Gi
+    tensorParallel: 2
+    model: google/gemma-3-27b-it
+    guidedBackend: xgrammar
+  llama32:
+    gpu: 2
+    cpu: 16
+    memory: 192Gi
+    ephemeralStorage: 128Gi
+    tensorParallel: 2
+    model: meta-llama/Llama-3.2-90B-Vision
+    guidedBackend: xgrammar
+  # Whisper uses the vllm-librosa image (vllm/vllm-openai + librosa).
+  # Served via /v1/audio/transcriptions on port 8000.
+  whisper:
+    gpu: 1
+    cpu: 2
+    memory: 8Gi
+    ephemeralStorage: 16Gi
+    model: openai/whisper-large-v3
+
+hfTokenSecret: hf-token
+hfHomeVolume: huggingface-cache
+hfCacheStorage: 10Gi

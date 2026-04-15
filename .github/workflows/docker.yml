@@ -1,0 +1,371 @@
+name: Docker
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+    - 'deployment/base/**'
+    - 'deployment/wrappers/**'
+    - 'deployment/apps/**'
+    - 'deployment/streamwise/**'
+    - 'wrapper/**'
+    - 'apps/**'
+    - 'streamwise/**'
+    - 'services.json'
+    - '.github/workflows/docker.yml'
+  schedule:
+  - cron: '0 3 * * *'  # Daily at 03:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  base:
+    name: Base image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        docker system prune -af
+        df -h
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Build base image
+      working-directory: deployment/base
+      env:
+        DOCKER_REPO: localhost:5000
+        BASE_IMAGE: ubuntu:24.04
+        TORCH_PACKAGE: torch
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+      run: bash setup_image.sh
+
+    - name: Export base image
+      run: |
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' services.json)
+        docker save "base:${BASE_TAG}" | gzip > base-image.tar.gz
+        ls -lh base-image.tar.gz
+
+    - name: Upload base image artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: base-image
+        path: base-image.tar.gz
+        retention-days: 1
+
+  wrappers:
+    name: Wrappers
+    needs: base
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        docker system prune -af
+        df -h
+
+    - name: Download base image artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: base-image
+
+    - name: Start local Docker registry
+      run: docker run -d -p 5000:5000 --name registry registry:2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver-opts: network=host
+
+    - name: Load base image into registry
+      run: |
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' services.json)
+        docker load < base-image.tar.gz
+        docker tag "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}"
+        docker push "localhost:5000/base:${BASE_TAG}"
+        # Free disk space: buildx pulls the base image from the local registry
+        rm base-image.tar.gz
+        docker rmi "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}" || true
+        df -h
+
+    - name: Build Image Resize image
+      working-directory: deployment/wrappers/imageresize
+      env:
+        DOCKER_REPO: localhost:5000
+      run: bash setup_image.sh
+
+    - name: Start Image Resize service
+      run: |
+        TAG=$(jq -r '.imageresize.dockerImage.tag' services.json)
+        docker run -d -p 8080:8080 --name imageresize_ci "imageresize:${TAG}"
+
+    - name: Wait for Image Resize to be ready
+      run: |
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8080/health > /dev/null; then
+            echo "✅ Image Resize is ready"
+            exit 0
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
+        echo "❌ Image Resize did not become ready in time" >&2
+        exit 1
+
+    - name: Test Image Resize endpoint with curl
+      run: |
+        IMG_BASE64=$(base64 -w0 benchmark/samples/sample_256x192.png)
+        curl -sf -X POST http://localhost:8080/imageresize \
+          -H "Content-Type: application/json" \
+          -d "{\"img\": \"$IMG_BASE64\", \"width\": 200, \"height\": 200}" \
+          -o test_image.png
+        if [ ! -s test_image.png ]; then
+          echo "❌ Image file is empty or missing" >&2
+          exit 1
+        fi
+        echo "✅ PASS: Image Resize endpoint responded successfully"
+        mediainfo test_image.png
+
+    - name: Clean up Image Resize
+      run: |
+        docker stop imageresize_ci || true
+        TAG=$(jq -r '.imageresize.dockerImage.tag' services.json)
+        docker rmi "imageresize:${TAG}" || true
+        docker buildx prune -af
+        df -h
+
+    - name: Build Kokoro image
+      working-directory: deployment/wrappers/kokoro
+      env:
+        DOCKER_REPO: localhost:5000
+        EXTRA_BUILD_ARGS: --build-arg INSTALL_FLASH_ATTN=0
+      run: bash setup_image.sh
+
+    - name: Start Kokoro service
+      run: |
+        KOKORO_TAG=$(jq -r '.kokoro.dockerImage.tag' services.json)
+        docker run -d -p 8080:8080 --name kokoro_ci "kokoro:${KOKORO_TAG}"
+
+    - name: Wait for Kokoro to be ready
+      # Kokoro-82M (~300 MB) downloads from HuggingFace on first start;
+      # allow up to 5 minutes (30 × 10 s).
+      run: |
+        source .github/scripts/ci_utils.sh
+        wait_for_service "Kokoro" "http://localhost:8080/health" "kokoro_ci" 30 10 ".kokoro.status"
+
+    - name: Generate audio with Kokoro (TTS)
+      run: |
+        TS=$(date -u '+%Y-%m-%d %H:%M UTC')
+        curl -sf -X POST http://localhost:8080/kokoro \
+          -H "Content-Type: application/json" \
+          -d "{\"text\": \"Hello world. The current date and time is ${TS}.\"}" \
+          -o test_audio.wav
+        if [ ! -s test_audio.wav ]; then
+          echo "❌ Audio file is empty or missing" >&2
+          exit 1
+        fi
+        if ! file test_audio.wav | grep -qi "WAVE"; then
+          echo "❌ Response is not a WAV file" >&2
+          mediainfo test_audio.wav >&2
+          exit 1
+        fi
+        echo "✅ PASS: Kokoro generated $(wc -c < test_audio.wav) bytes of audio"
+        mediainfo test_audio.wav
+
+    - name: Upload audio artifact
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: kokoro-test-audio
+        path: test_audio.wav
+
+    - name: Stop Kokoro container
+      if: always()
+      run: docker stop kokoro_ci || true
+
+  apps:
+    name: App / ${{ matrix.app }}
+    needs: base
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+        - streamcast
+        - streamanimate
+        - streamchat
+        - streamdub
+        - streamedit
+        - streamlecture
+        - streammovie
+        - streampersona
+        - streamshort
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        docker system prune -af
+        df -h
+
+    - name: Download base image artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: base-image
+
+    - name: Start local Docker registry
+      run: docker run -d -p 5000:5000 --name registry registry:2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver-opts: network=host
+
+    - name: Load base image into registry
+      run: |
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' services.json)
+        docker load < base-image.tar.gz
+        docker tag "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}"
+        docker push "localhost:5000/base:${BASE_TAG}"
+        # Free disk space: buildx pulls the base image from the local registry
+        rm base-image.tar.gz
+        docker rmi "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}" || true
+        df -h
+
+    - name: Build ${{ matrix.app }} image
+      working-directory: deployment/apps/${{ matrix.app }}
+      env:
+        DOCKER_REPO: localhost:5000
+      run: bash setup_image.sh
+
+    - name: Start ${{ matrix.app }} service
+      run: |
+        TAG=$(jq -r --arg app "${{ matrix.app }}" '.[$app].dockerImage.tag' services.json)
+        docker run -d -p 18080:18080 --name app_ci "${{ matrix.app }}:${TAG}"
+
+    - name: Wait for ${{ matrix.app }} to be ready
+      run: |
+        source .github/scripts/ci_utils.sh
+        wait_for_service "${{ matrix.app }}" "http://localhost:18080/health" "app_ci"
+
+    - name: Download ${{ matrix.app }} pages
+      run: |
+        source .github/scripts/ci_utils.sh
+        download_pages "${{ matrix.app }}" "http://localhost:18080" "app_pages" \
+          "/:index.html" "/job:submit_job.html" "/static/style.css:static/style.css"
+
+    - name: Upload ${{ matrix.app }} pages artifact
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.app }}-pages
+        path: app_pages/
+
+    - name: Stop ${{ matrix.app }} container
+      if: always()
+      run: docker stop app_ci || true
+
+  streamwise:
+    name: StreamWise
+    needs: base
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Free disk space
+      run: |
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/local/share/powershell /usr/share/rust /usr/lib/jvm
+        sudo apt-get clean
+        docker system prune -af
+        df -h
+
+    - name: Download base image artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: base-image
+
+    - name: Start local Docker registry
+      run: docker run -d -p 5000:5000 --name registry registry:2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver-opts: network=host
+
+    - name: Load base image into registry
+      run: |
+        BASE_TAG=$(jq -r '.base.dockerImage.tag' services.json)
+        docker load < base-image.tar.gz
+        docker tag "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}"
+        docker push "localhost:5000/base:${BASE_TAG}"
+        # Free disk space: buildx pulls the base image from the local registry
+        rm base-image.tar.gz
+        docker rmi "base:${BASE_TAG}" "localhost:5000/base:${BASE_TAG}" || true
+        df -h
+
+    - name: Build StreamWise image
+      working-directory: deployment/streamwise
+      env:
+        DOCKER_REPO: localhost:5000
+      run: bash setup_image.sh
+
+    - name: Start StreamWise service
+      run: |
+        TAG=$(jq -r '.streamwise.dockerImage.tag' services.json)
+        docker run -d -p 18181:18181 --name streamwise_ci "streamwise:${TAG}"
+
+    - name: Wait for StreamWise to be ready
+      run: |
+        source .github/scripts/ci_utils.sh
+        wait_for_service "StreamWise" "http://localhost:18181/health" "streamwise_ci"
+
+    - name: Download StreamWise pages
+      run: |
+        source .github/scripts/ci_utils.sh
+        download_pages "StreamWise" "http://localhost:18181" "streamwise_pages" \
+          "/:index.html" "/job/:submit_job.html" "/pod:add_pod.html" "/static/style.css:static/style.css"
+
+    - name: Upload StreamWise pages artifact
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: streamwise-pages
+        path: streamwise_pages/
+
+    - name: Stop StreamWise container
+      if: always()
+      run: docker stop streamwise_ci || true

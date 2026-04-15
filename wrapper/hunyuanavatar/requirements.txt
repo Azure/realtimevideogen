@@ -1,0 +1,21 @@
+# Modified from https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar/blob/main/requirements.txt
+# Relaxed pins that are incompatible with Python 3.12 or conflict with base image
+opencv-python>=4.9.0.80
+diffusers>=0.33.0
+transformers>=4.50.0
+accelerate>=1.1.1
+pandas>=2.1
+numpy>=1.26
+einops>=0.7.0
+tqdm>=4.66.2
+loguru>=0.7.2
+imageio>=2.34.0
+imageio-ffmpeg>=0.5.1
+safetensors>=0.4.3
+gradio>4.42.0
+fastapi>=0.115.12
+uvicorn>=0.34.2
+decord==0.6.0
+librosa==0.11.0
+scikit-video==1.1.11
+

@@ -1,0 +1,422 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Short Generation{% endblock %}
+{% block submit_button_title %}Submit Short Generation{% endblock %}
+{% block submit_button_aria %}Submit Short Generation{% endblock %}
+{% block heading %}Short Generation 📽️🎬{% endblock %}
+{% block extra_head %}
+    <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
+{% endblock %}
+{% block source_link %}
+                <p class="mb-2">
+                    <strong>Video:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='video.mp4') }}" 
+                    class="link-primary text-decoration-none">
+                    📽️ View
+                    </a>
+                </p>
+{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Video</h2>
+                <div id="video-content-wrapper" class="d-flex justify-content-center">
+                    <div id="video-content" style="min-height: 300px;"></div>
+                </div>
+            </div>
+            
+            <div class="col-12 mb-3" id="scenes-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🎞️ Scenes</h2>
+                <p id="scenes-info">No scenes.</p>
+                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="col-12 mb-3" id="selected-scenes-section" style="display: none;">
+                <h2 class="mt-5 mb-3">✂️ Selected for Short</h2>
+                <p id="selected-scenes-info">No scenes selected yet.</p>
+                <div id="selected-scenes-content" class="p-3 rounded" style="background-color: #d1e7dd; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="col-12 mb-3" id="frames-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🖼️ Frames</h2>
+                <div id="frames-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace;"></div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            const videoContent = document.getElementById("video-content");
+            const scenesContent = document.getElementById("scenes-content");
+            const framesContent = document.getElementById("frames-content");
+            const selectedScenesContent = document.getElementById("selected-scenes-content");
+
+            const waitingSection = document.getElementById("waiting-section");
+            const videoSection = document.getElementById("video-section");
+            const scenesSection = document.getElementById("scenes-section");
+            const framesSection = document.getElementById("frames-section");
+            const selectedScenesSection = document.getElementById("selected-scenes-section");
+
+            let selectedSceneIds = new Set();
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if video exists
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoContent.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoContent.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        waitingSection.style.display = "none";
+                        videoSection.style.display = "block";
+
+                        // Adjust video size once metadata is loaded
+                        const videoEl = videoContent.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch(err) {
+                    setTimeout(fetchVideo, 1000); // retry after 1 second
+                }
+            }
+            fetchVideo();
+
+            // Scenes
+            const scenesUrl = "/file_stream/{{ job_id }}/scenes.json";
+            async function fetchScenes() {
+                try {
+                    const res = await fetch(scenesUrl + "?t=" + Date.now());
+                    if (res.status === 404) return;  // Not found
+                    if (!res.ok) throw new Error(res.statusText);
+
+                    const scenes = await res.json();
+
+                    // Get number of scenes
+                    const numScenes = scenes.length;
+                    if (numScenes > 0) {
+                        waitingSection.style.display = "none";
+                        scenesSection.style.display = "block";
+                    }
+
+                    updateScenesInfo(numScenes);
+
+                    for (const scene of scenes) {
+                        const sceneId = scene.scene_id;
+                        const sceneRowId = `scene-${sceneId}`;
+                        let sceneRow = document.getElementById(sceneRowId);
+                        if (!sceneRow) {
+                            sceneRow = document.createElement("div");
+                            sceneRow.id = sceneRowId;
+                            sceneRow.className = "mb-4 p-3 border rounded bg-white shadow-sm";
+                            scenesContent.appendChild(sceneRow);
+
+                            // Header
+                            const header = document.createElement("h6");
+                            header.id = `scene-title-${sceneId}`;
+                            header.className = "fw-bold text-primary mb-3";
+                            header.textContent = `Scene ${sceneId}  (${scene.start_sec.toFixed(1)}s – ${scene.end_sec.toFixed(1)}s)`;
+                            sceneRow.appendChild(header);
+
+                            // Inner row
+                            const innerRow = document.createElement("div");
+                            innerRow.className = "d-flex gap-3 align-items-start";
+                            sceneRow.appendChild(innerRow);
+
+                            // Wrapper for media (left)
+                            const mediaColumn = document.createElement("div");
+                            mediaColumn.className = "me-3 d-flex flex-column align-items-start";
+                            innerRow.appendChild(mediaColumn);
+
+                            // Image (top-left)
+                            if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
+                                const sceneImg = document.createElement("img");
+                                sceneImg.id = `scene-img-${sceneId}`;
+                                sceneImg.alt = `Scene ${sceneId}`;
+                                sceneImg.width = 320;
+                                sceneImg.className = "img-fluid rounded shadow-sm mb-2";
+                                const imagePath = scene.frame_image_paths[0];
+                                sceneImg.src = `/file_stream/{{ job_id }}/${imagePath}`;
+                                mediaColumn.appendChild(sceneImg);
+                            }
+
+                            // Audio (under image)
+                            const audioWrapper = document.createElement("div");
+                            audioWrapper.className = "me-3";
+                            audioWrapper.style.width = "320px";
+                            audioWrapper.style.height = "30px";
+
+                            const audioPlayer = document.createElement("audio");
+                            audioPlayer.controls = true;
+                            audioPlayer.className = "mt-1";
+                            audioPlayer.style.width = "320px";
+                            audioPlayer.style.height = "30px";
+                            audioPlayer.innerHTML = `
+                                <source id="src-audio-${sceneId}" type="audio/wav">
+                                Your browser does not support the audio element.
+                            `;
+                            if (scene.audio_path) {
+                                const audioPath = scene.audio_path;
+                                audioPlayer.src = `/file_stream/{{ job_id }}/${audioPath}`;
+                            }
+                            audioWrapper.appendChild(audioPlayer);
+                            mediaColumn.appendChild(audioWrapper);
+
+                            // Text (right)
+                            const sceneText = document.createElement("div");
+                            sceneText.className = "flex-fill";
+                            if (scene.descriptions && scene.descriptions.length > 0) {
+                                sceneText.innerHTML = `<p><strong>${scene.descriptions.length} frame descriptions:</strong></p>`;
+                            }
+                            for (const desc of scene.descriptions) {
+                                const p = document.createElement("p");
+                                p.innerText = desc;
+                                sceneText.appendChild(p);
+                            }
+                            if (scene.transcript) {
+                                const transcriptPara = document.createElement("p");
+                                transcriptPara.innerHTML = `<strong>Transcript:</strong>` + scene.transcript;
+                                sceneText.appendChild(transcriptPara);
+                            }
+                            innerRow.appendChild(sceneText);
+
+                            // Apply selection highlight if already known
+                            if (selectedSceneIds.has(sceneId)) {
+                                applySelectedStyle(sceneRow, sceneId);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.log("Cannot load scenes:", err.message);
+                }
+            }
+            fetchScenes();
+            // fetchScenesInterval = setInterval(fetchScenes, 1000);
+
+            // Helper: apply visual highlight to a scene row that was selected for the short
+            function applySelectedStyle(sceneRow, sceneId) {
+                if (sceneRow.classList.contains("selected-scene")) return;
+                sceneRow.classList.add("selected-scene", "border", "border-success", "border-2");
+                const titleSpan = document.getElementById(`scene-title-${sceneId}`);
+                if (titleSpan && !titleSpan.querySelector(".selected-badge")) {
+                    const badge = document.createElement("span");
+                    badge.className = "selected-badge badge bg-success ms-2";
+                    badge.textContent = "✂️ In Short";
+                    titleSpan.appendChild(badge);
+                }
+                // Mirror scene card into the "Selected for Short" box
+                const selectedBoxId = `selected-scene-ref-${sceneId}`;
+                if (!document.getElementById(selectedBoxId)) {
+                    const refCard = document.createElement("div");
+                    refCard.id = selectedBoxId;
+                    refCard.className = "mb-2 p-2 bg-white rounded border border-success";
+                    const img = document.getElementById(`scene-img-${sceneId}`);
+                    const titleEl = document.getElementById(`scene-title-${sceneId}`);
+                    const imgSrc = img ? img.src : "";
+                    const titleText = titleEl ? titleEl.innerText : `Scene ${sceneId}`;
+                    refCard.innerHTML = imgSrc
+                        ? `<div class="d-flex gap-3 align-items-start">
+                               <img src="${escapeHtml(imgSrc)}" width="160" class="img-fluid rounded shadow-sm">
+                               <span class="text-success fw-bold">${escapeHtml(titleText)}</span>
+                           </div>`
+                        : `<span class="text-success fw-bold">${escapeHtml(titleText)}</span>`;
+                    selectedScenesContent.appendChild(refCard);
+                }
+            }
+
+            // Selected scenes
+            const selectedScenesUrl = "/file_stream/{{ job_id }}/selected_scenes.json";
+            async function fetchSelectedScenes() {
+                try {
+                    const res = await fetch(selectedScenesUrl + "?t=" + Date.now());
+                    if (res.status === 404) return;  // Not yet available
+                    if (!res.ok) return;
+                    const selectedIds = await res.json();
+                    if (!Array.isArray(selectedIds) || selectedIds.length === 0) return;
+                    selectedSceneIds = new Set(selectedIds);
+
+                    selectedScenesSection.style.display = "block";
+                    document.getElementById("selected-scenes-info").textContent =
+                        `${selectedSceneIds.size} scene(s) selected for the short.`;
+
+                    // Apply highlights to any already-rendered scene rows
+                    for (const sceneId of selectedSceneIds) {
+                        const sceneRow = document.getElementById(`scene-${sceneId}`);
+                        if (sceneRow) applySelectedStyle(sceneRow, sceneId);
+                    }
+
+                    updateScenesInfo();
+                } catch (err) {
+                    console.log("Cannot load selected scenes:", err.message);
+                }
+            }
+            fetchSelectedScenes();
+
+            function updateScenesInfo(totalScenes) {
+                const scenesInfo = document.getElementById("scenes-info");
+                const count = totalScenes !== undefined ? totalScenes : scenesContent.children.length;
+                if (selectedSceneIds.size > 0) {
+                    scenesInfo.textContent =
+                        `Number of scenes: ${count}. ${selectedSceneIds.size} selected for the short (highlighted in green).`;
+                } else {
+                    scenesInfo.textContent = `Number of scenes: ${count}.`;
+                }
+            }
+
+            // Frames
+            const numFrames = 10;  // TODO
+
+            async function fetchFrames() {
+                for (let i = 0; i < numFrames; i++) {
+                    // Create frame container if it doesn't exist
+                    const frameRowId = `frame-${i}`;
+                    let frameRow = document.getElementById(frameRowId);
+                    if (!frameRow) {
+                        frameRow = document.createElement("div");
+                        frameRow.id = frameRowId;
+                        frameRow.className = "mb-4 d-flex gap-3 align-items-start";
+
+                        // Image (left)
+                        const frameImg = document.createElement("img");
+                        frameImg.id = `frame-img-${i}`;
+                        frameImg.alt = `Frame ${i}`;
+                        frameImg.width = 320;
+                        frameImg.className = "img-fluid rounded shadow-sm mb-2";
+                        frameRow.appendChild(frameImg);
+
+                        // Text (right)
+                        const frameText = document.createElement("div");
+                        frameText.id = `frame-text-${i}`;
+                        frameText.className = "mt-2";
+                        frameRow.appendChild(frameText);
+
+                        framesContent.appendChild(frameRow);
+                    }
+
+                    // Fetch frame image
+                    const frameImageUrl = `/file_stream/{{ job_id }}/frame_${String(i).padStart(3,'0')}.jpg`;
+                    const frameImagePromise = fetch(frameImageUrl + "?t=" + Date.now(), { method: "HEAD" })
+                        .then(res => {
+                            if (res.ok) {
+                                const frameImg = document.getElementById(`frame-img-${i}`);
+                                if (frameImg.src !== frameImageUrl) {
+                                    frameImg.src = frameImageUrl;
+                                    waitingSection.style.display = "none";
+                                    framesSection.style.display = "block";
+                                }
+                            }
+                        })
+                        .catch(err => `Cannot load frame image: ${err.message}`);
+
+                    // Fetch frame text
+                    const frameTextUrl = `/file_stream/{{ job_id }}/frame_${String(i).padStart(3,'0')}.txt`;
+                    const frameTextPromise = fetch(frameTextUrl + "?t=" + Date.now())
+                        .then(res => {
+                            if (!res.ok) return null;
+                            return res.text();
+                        })
+                        .then(text => {
+                            if (!text) return;
+                            const frameText = document.getElementById(`frame-text-${i}`);
+                            const color = "text-primary";
+                            frameText.innerHTML = `<span class="${color}"><strong>Frame ${i}:</strong></span> ` + text;
+                        })
+                        .catch(err => `Cannot load frame text: ${err.message}`);
+                }
+                // TODO stop fetching frames when job is completed
+            }
+
+            //fetchFrames();
+
+            //fetchFramesInterval = setInterval(fetchFrames, 1000);
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                    await fetchSelectedScenes();
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+{% endblock %}

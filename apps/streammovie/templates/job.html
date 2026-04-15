@@ -1,0 +1,51 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Movie Generation{% endblock %}
+{% block submit_button_title %}Submit Movie Generation{% endblock %}
+{% block submit_button_aria %}Submit Movie Generation{% endblock %}
+{% block heading %}Movie Generation 🎬📽️{% endblock %}
+{% block source_link %}
+                {% if job_config and job_config.movie_description %}
+                <p class="mb-2">
+                    <strong>Description:</strong>
+                    <span class="font-monospace">{{ job_config.movie_description }}</span>
+                </p>
+                {% endif %}
+{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Movie</h2>
+                <div id="video-content-wrapper" class="d-flex justify-content-center">
+                    <div id="video-content" style="min-height: 300px;"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="metadata-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🎬 Movie Details</h2>
+                <div id="metadata-content" class="card shadow-sm">
+                    <div class="card-body" id="metadata-body"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="characters-section" style="display: none;">
+                <h2 class="mt-5 mb-3">👤 Characters</h2>
+                <div id="characters-content" class="p-3 rounded" style="background-color: #e9ecef;"></div>
+            </div>
+
+            <div class="col-12 mb-3" id="shots-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🎥 Shots</h2>
+                <div id="shots-content" class="row g-3"></div>
+            </div>
+        </div>
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+
+{% endblock %}

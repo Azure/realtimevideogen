@@ -1,0 +1,163 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Animate Generation{% endblock %}
+{% block submit_button_title %}Submit Animate Generation{% endblock %}
+{% block submit_button_aria %}Submit Animate Generation{% endblock %}
+{% block heading %}Animate Generation 🎨→📽️{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="image-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🖼️ Source Image</h2>
+                <div id="image-content" class="d-flex justify-content-center">
+                    <div id="image-preview" style="min-height: 200px;"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Animation</h2>
+                <div id="video-content-wrapper" class="d-flex justify-content-center">
+                    <div id="video-content" style="min-height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+            const waitingSection = document.getElementById("waiting-section");
+            const imageSection = document.getElementById("image-section");
+            const videoSection = document.getElementById("video-section");
+            const imagePreview = document.getElementById("image-preview");
+            const videoContent = document.getElementById("video-content");
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now());
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Source image
+            const imageUrl = "{{ url_for('file_stream', job_id=job_id, file_name='input_image.png') }}";
+            async function fetchImage() {
+                try {
+                    const res = await fetch(imageUrl + "?t=" + Date.now(), { method: "HEAD" });
+                    if (!res.ok) throw new Error(res.statusText);
+                    if (!imagePreview.querySelector("img")) {
+                        imagePreview.innerHTML = `
+                            <img src="${imageUrl}?t=${Date.now()}"
+                                alt="Source image"
+                                class="img-fluid rounded shadow-sm"
+                                style="max-height: 400px; object-fit: contain;">`;
+                        waitingSection.style.display = "none";
+                        imageSection.style.display = "block";
+                    }
+                } catch (err) {
+                    setTimeout(fetchImage, 1000);
+                }
+            }
+            fetchImage();
+
+            // Final animation video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" });
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoContent.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoContent.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        waitingSection.style.display = "none";
+                        videoSection.style.display = "block";
+
+                        const videoEl = videoContent.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch (err) {
+                    setTimeout(fetchVideo, 1000);
+                }
+            }
+            fetchVideo();
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now());
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight;
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+{% endblock %}

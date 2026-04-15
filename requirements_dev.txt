@@ -1,0 +1,58 @@
+pytest
+pytest-cov
+pytest-asyncio
+pytest-timeout
+pytest-xdist
+pytest-forked
+flake8
+mypy
+# Code dependencies
+torch==2.8.0
+torchvision
+numpy<2
+imageio
+imageio-ffmpeg
+xfuser==0.4.5
+diffusers==0.37.0
+einops
+soundfile
+quart
+pillow
+nvidia-ml-py3
+colorlog
+opencv-python-headless
+aiohttp
+requests
+accelerate
+scipy
+pydantic
+hypercorn
+kubernetes_asyncio
+matplotlib
+j2lint
+tabulate
+# To mimic Fantasy Talking
+librosa
+
+# StreamPersona
+python-pptx
+PyMuPDF
+
+# StreamShort
+scenedetect
+openai
+langcodes[data]
+
+# types
+types-requests
+types-aiofiles
+types-tabulate
+types-simplejson
+types-PyYAML
+types-mock
+types-decorator
+
+# Simulator
+pandas
+pyomo
+highspy

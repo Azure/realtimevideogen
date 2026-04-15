@@ -1,0 +1,304 @@
+{% extends "base_job.html" %}
+
+{% block job_title %}Edit Generation{% endblock %}
+{% block submit_button_title %}Submit Edit Generation{% endblock %}
+{% block submit_button_aria %}Submit Edit Generation{% endblock %}
+{% block heading %}Edit Generation 📽️🎬{% endblock %}
+{% block source_link %}
+                <p class="mb-2">
+                    <strong>Video:</strong>
+                    <a href="{{ url_for('file_view', job_id=job_id, file_name='video.mp4') }}" 
+                    class="link-primary text-decoration-none">
+                    📽️ View
+                    </a>
+                </p>
+{% endblock %}
+{% block job_content %}
+
+        <div class="row g-3">
+            <div class="col-12 mb-3" id="waiting-section">⏳ Waiting...</div>
+
+            <div class="col-12 mb-3" id="video-section" style="display: none;">
+                <h2 class="mt-5 mb-3">📽️ Video</h2>
+                <div id="video-content-wrapper" class="d-flex justify-content-center">
+                    <div id="video-content" style="min-height: 300px;"></div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3" id="scenes-section" style="display: none;">
+                <h2 class="mt-5 mb-3">🎞️ Scenes</h2>
+                <p id="scenes-info">No scenes.</p>
+                <div id="scenes-content" class="p-3 rounded" style="background-color: #e9ecef; font-family: monospace; max-height: 600px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <script>
+            const errorBox = document.getElementById("error-box");
+
+            const videoContent = document.getElementById("video-content");
+            const scenesContent = document.getElementById("scenes-content");
+
+            const waitingSection = document.getElementById("waiting-section");
+            const videoSection = document.getElementById("video-section");
+            const scenesSection = document.getElementById("scenes-section");
+
+            function updateStatusBadge(status) {
+                const statusBadge = document.getElementById("status-badge");
+                if (!statusBadge) return;
+
+                let html = '<span class="badge ';
+                switch (status) {
+                    case "COMPLETED": html += 'bg-success">✅ Completed'; break;
+                    case "STARTED":   html += 'bg-warning text-dark">⚙️ Started'; break;
+                    case "RUNNING":   html += 'bg-warning text-dark">⚙️ In Progress'; break;
+                    case "FAILED":    html += 'bg-danger">❌ Failed'; break;
+                    case "EXPIRED":   html += 'bg-danger">💀 Expired'; break;
+                    default:          html += 'bg-secondary">⁉️ Unknown (' + status + ')'; break;
+                }
+                html += '</span>';
+                statusBadge.innerHTML = html;
+            }
+
+            // Job status
+            const statusUrl = "/api/job/{{ job_id }}/status";
+            async function getJobStatus() {
+                try {
+                    const res = await fetch(statusUrl + "?t=" + Date.now()); // prevent cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    return data.status;
+                } catch (err) {
+                    errorBox.style.display = "block";
+                    errorBox.textContent = "Cannot get job status: " + err.message;
+                    return null;
+                }
+            }
+
+            // Video
+            const videoUrl = "{{ url_for('file_stream', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            const videoInfoUrl = "{{ url_for('file_view', job_id=job_id, file_name=job_id ~ '.mp4') }}";
+            async function fetchVideo() {
+                try {
+                    const res = await fetch(videoUrl + "?t=" + Date.now(), { method: "HEAD" }); // check if video exists
+                    if (!res.ok) throw new Error(res.statusText);
+                    const currentVideo = videoContent.querySelector("video source");
+                    if (!currentVideo || currentVideo.src !== videoUrl) {
+                        videoContent.innerHTML = `
+                            <video controls class="w-100 rounded shadow-sm">
+                                <source src="${videoUrl}?t=${Date.now()}" type="video/mp4">
+                                Your browser does not support the video element.
+                            </video>
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="${videoInfoUrl}" class="btn btn-warning btn-sm flex-fill">
+                                    ℹ️ Details
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-primary btn-sm flex-fill">
+                                    🖼️ View
+                                </a>
+                                <a href="${videoUrl}" class="btn btn-success btn-sm flex-fill" download>
+                                    💾 Download
+                                </a>
+                            </div>`;
+                        waitingSection.style.display = "none";
+                        videoSection.style.display = "block";
+
+                        // Adjust video size once metadata is loaded
+                        const videoEl = videoContent.querySelector("video");
+                        videoEl.addEventListener("loadedmetadata", () => {
+                            videoEl.width = videoEl.videoWidth;
+                            videoEl.height = videoEl.videoHeight;
+                        });
+                    }
+                } catch(err) {
+                    setTimeout(fetchVideo, 1000); // retry after 1 second
+                }
+            }
+            fetchVideo();
+
+            // Scenes (original frames + edited frames side-by-side)
+            const scenesUrl = "/file_stream/{{ job_id }}/scenes.json";
+            async function fetchScenes() {
+                try {
+                    const res = await fetch(scenesUrl + "?t=" + Date.now());
+                    if (res.status === 404) return;  // Not yet available
+                    if (!res.ok) throw new Error(res.statusText);
+
+                    const scenes = await res.json();
+
+                    const numScenes = scenes.length;
+                    if (numScenes > 0) {
+                        waitingSection.style.display = "none";
+                        scenesSection.style.display = "block";
+                        document.getElementById("scenes-info").textContent =
+                            `Number of scenes: ${numScenes}.`;
+                    }
+
+                    for (const scene of scenes) {
+                        const sceneId = scene.scene_id;
+                        const sceneRowId = `scene-${sceneId}`;
+                        if (document.getElementById(sceneRowId)) continue; // already rendered
+
+                        const sceneRow = document.createElement("div");
+                        sceneRow.id = sceneRowId;
+                        sceneRow.className = "mb-4 p-3 border rounded bg-white shadow-sm";
+                        scenesContent.appendChild(sceneRow);
+
+                        // Header
+                        const header = document.createElement("h6");
+                        header.className = "fw-bold text-primary mb-3";
+                        header.textContent = `Scene ${sceneId}  (${scene.start_sec.toFixed(1)}s – ${scene.end_sec.toFixed(1)}s)`;
+                        sceneRow.appendChild(header);
+
+                        // Inner row
+                        const row = document.createElement("div");
+                        row.className = "d-flex gap-3 align-items-start";
+                        sceneRow.appendChild(row);
+
+                        // --- Original frame column (left) ---
+                        const originalColumn = document.createElement("div");
+                        originalColumn.className = "d-flex flex-column align-items-start";
+                        row.appendChild(originalColumn);
+
+                        const origLabel = document.createElement("small");
+                        origLabel.className = "text-muted fw-bold mb-1";
+                        origLabel.textContent = "🎬 Original";
+                        originalColumn.appendChild(origLabel);
+
+                        if (scene.frame_image_paths && scene.frame_image_paths.length > 0) {
+                            const sceneImg = document.createElement("img");
+                            sceneImg.id = `scene-img-${sceneId}`;
+                            sceneImg.alt = `Scene ${sceneId} original`;
+                            sceneImg.width = 320;
+                            sceneImg.className = "img-fluid rounded shadow-sm mb-2";
+                            sceneImg.src = `/file_stream/{{ job_id }}/${scene.frame_image_paths[0]}`;
+                            originalColumn.appendChild(sceneImg);
+                        }
+
+                        const audioWrapper = document.createElement("div");
+                        audioWrapper.style.width = "320px";
+                        const audioPlayer = document.createElement("audio");
+                        audioPlayer.controls = true;
+                        audioPlayer.style.width = "320px";
+                        audioPlayer.style.height = "30px";
+                        audioPlayer.innerHTML = `<source type="audio/wav">Your browser does not support the audio element.`;
+                        if (scene.audio_path) {
+                            audioPlayer.src = `/file_stream/{{ job_id }}/${scene.audio_path}`;
+                        }
+                        audioWrapper.appendChild(audioPlayer);
+                        originalColumn.appendChild(audioWrapper);
+
+                        // --- Edited frame column (middle) ---
+                        const editedColumn = document.createElement("div");
+                        editedColumn.className = "d-flex flex-column align-items-start";
+                        row.appendChild(editedColumn);
+
+                        const editLabel = document.createElement("small");
+                        editLabel.className = "text-muted fw-bold mb-1";
+                        editLabel.textContent = "✏️ Edited";
+                        editedColumn.appendChild(editLabel);
+
+                        const editImg = document.createElement("img");
+                        editImg.id = `scene-edit-img-${sceneId}`;
+                        editImg.alt = `Scene ${sceneId} edited`;
+                        editImg.width = 320;
+                        editImg.className = "img-fluid rounded shadow-sm mb-2";
+                        editImg.style.display = "none";
+                        editedColumn.appendChild(editImg);
+
+                        const editPending = document.createElement("div");
+                        editPending.id = `scene-edit-pending-${sceneId}`;
+                        editPending.className = "text-muted fst-italic";
+                        editPending.style.width = "320px";
+                        editPending.textContent = "⏳ Editing...";
+                        editedColumn.appendChild(editPending);
+
+                        // --- Text column (right) ---
+                        const sceneText = document.createElement("div");
+                        sceneText.className = "flex-fill";
+                        if (scene.descriptions && scene.descriptions.length > 0) {
+                            sceneText.innerHTML =
+                                `<p><strong>${scene.descriptions.length} frame description(s):</strong></p>`;
+                            for (const desc of scene.descriptions) {
+                                const p = document.createElement("p");
+                                p.innerText = desc;
+                                sceneText.appendChild(p);
+                            }
+                        }
+                        if (scene.transcript) {
+                            const tp = document.createElement("p");
+                            tp.innerHTML = `<strong>Transcript:</strong> ` + scene.transcript;
+                            sceneText.appendChild(tp);
+                        }
+                        row.appendChild(sceneText);
+                    }
+
+                    // After rendering scenes, probe for any edit frames already on disk
+                    fetchSceneEditFrames();
+                } catch (err) {
+                    console.log("Cannot load scenes:", err.message);
+                }
+            }
+            fetchScenes();
+
+            // Probe for edited-scene thumbnails (scene_{id:03d}_edit_frame.png)
+            function fetchSceneEditFrames() {
+                const sceneRows = scenesContent.querySelectorAll("[id^='scene-']");
+                for (const sceneRow of sceneRows) {
+                    const sceneId = parseInt(sceneRow.id.replace("scene-", ""), 10);
+                    const editImg = document.getElementById(`scene-edit-img-${sceneId}`);
+                    if (!editImg || editImg.dataset.loaded) continue; // skip if already loaded
+                    const editFrameUrl =
+                        `/file_stream/{{ job_id }}/scene_${String(sceneId).padStart(3, '0')}_edit_frame.png`;
+                    fetch(editFrameUrl + "?t=" + Date.now(), { method: "HEAD" })
+                        .then(r => {
+                            if (r.ok) {
+                                editImg.src = editFrameUrl;
+                                editImg.style.display = "block";
+                                editImg.dataset.loaded = "1";
+                                const pending = document.getElementById(`scene-edit-pending-${sceneId}`);
+                                if (pending) pending.style.display = "none";
+                            }
+                        })
+                        .catch(() => {});
+                }
+            }
+        </script>
+
+
+        <h2 class="mt-5 mb-3">📜 Logs</h2>
+        <div id="log-box"
+            class="bg-dark text-white p-3 rounded"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+        </div>
+        <script>
+            const logBox = document.getElementById("log-box");
+            const logUrl = "{{ url_for('file_stream', job_id=job_id, file_name='job_' ~ job_id ~ '.log') }}";
+            let logInterval = null;
+            async function fetchLogs() {
+                try {
+                    const res = await fetch(logUrl + "?t=" + Date.now()); // add t to bypass cache
+                    if (!res.ok) throw new Error(res.statusText);
+                    const text = await res.text();
+                    logBox.innerHTML = ansiUp.ansi_to_html(text);
+                    logBox.scrollTop = logBox.scrollHeight; // auto-scroll
+                } catch (err) {
+                    logBox.textContent = "Cannot load log file from " + logUrl + ": " + err.message;
+                }
+            }
+            async function refreshLogLoop() {
+                await fetchLogs();
+                const status = await getJobStatus();
+                if (status) updateStatusBadge(status);
+                fetchSceneEditFrames();
+                if (status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+                    clearInterval(logInterval);
+                    await fetchScenes();  // re-fetch in case scenes.json was just written
+                    fetchSceneEditFrames();
+                }
+            }
+            refreshLogLoop();
+            logInterval = setInterval(refreshLogLoop, 1000);
+        </script>
+
+
+{% endblock %}

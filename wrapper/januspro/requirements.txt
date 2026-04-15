@@ -1,0 +1,10 @@
+pillow
+torch
+xfuser
+diffusers
+transformers
+timm>=0.9.16
+accelerate
+sentencepiece
+attrdict
+einops

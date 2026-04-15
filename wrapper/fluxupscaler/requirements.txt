@@ -1,0 +1,6 @@
+# Copy from "flux"
+pillow
+torch
+protobuf
+xfuser
+diffusers
