@@ -352,9 +352,10 @@
                             <option value="streamlecture">📚 StreamLecture 🚧</option>
                             <option value="streamdub">🎤 StreamDub 🚧</option>
                             <option value="streamedit">✂️ StreamEdit 🚧</option>
+                            <option value="all">🧩🧩 All Applications</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div id="app_lb_port_row" class="col-md-4">
                         <label for="app_lb_port" class="form-label">Load balancer port</label>
                         <input
                             type="number" class="form-control"
@@ -378,21 +379,6 @@
                         style="width: 200px;"
                         aria-label="Add Application">
                         ➕ Application
-                    </button>
-                </div>
-            </form>
-
-            <h2 class="mt-5">🧩🧩 All Applications</h2>
-            <form id="add-all-apps-form" method="post" action="/api/apps">
-                <p class="mb-4">Deploy all application workflows at {{ lb_ip }} on '{{ lb_rg }}'.</p>
-                <div class="text-end">
-                    <button
-                        type="submit"
-                        class="btn btn-primary mt-3"
-                        style="width: 200px;"
-                        title="Add All Applications"
-                        aria-label="Add All Applications">
-                        ➕ All Applications
                     </button>
                 </div>
             </form>
@@ -624,10 +610,14 @@
             if (addAppForm) {
                 // Sync application selector with hidden container_name input
                 const appSelector = document.getElementById('app_selector');
+                const appLbPortRow = document.getElementById('app_lb_port_row');
                 if (appSelector) {
                     const containerInput = document.getElementById('app_container_name');
                     function syncContainerName() {
                         containerInput.value = appSelector.value;
+                        if (appLbPortRow) {
+                            appLbPortRow.style.display = appSelector.value === 'all' ? 'none' : '';
+                        }
                     }
                     appSelector.addEventListener('change', syncContainerName);
                     syncContainerName();
@@ -651,8 +641,29 @@
                 addAppForm.addEventListener('submit', function(e) {
                     e.preventDefault();
                     const form = e.target;
-                    const data = new FormData(form);
                     const appName = document.getElementById('app_selector').value;
+
+                    if (appName === 'all') {
+                        fetch('/api/apps', {
+                            method: 'POST',
+                            credentials: 'same-origin'
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.href = '/';
+                            } else {
+                                response.json().then(data => {
+                                    alert('Cannot add applications: ' + (data.error || response.status));
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            alert('Error: ' + err);
+                        });
+                        return;
+                    }
+
+                    const data = new FormData(form);
                     data.set('container_name', appName);
 
                     fetch(form.action, {
@@ -666,30 +677,6 @@
                         } else {
                             response.json().then(data => {
                                 alert('Cannot add application pod: ' + (data.error || response.status));
-                            });
-                        }
-                    })
-                    .catch(err => {
-                        alert('Error: ' + err);
-                    });
-                });
-            }
-
-            // All Applications
-            const addAllAppsForm = document.getElementById('add-all-apps-form');
-            if (addAllAppsForm) {
-                addAllAppsForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    fetch('/api/apps', {
-                        method: 'POST',
-                        credentials: 'same-origin'
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            window.location.href = '/';
-                        } else {
-                            response.json().then(data => {
-                                alert('Cannot add applications: ' + (data.error || response.status));
                             });
                         }
                     })
