@@ -391,3 +391,50 @@ async def test_remove_pod() -> None:
     assert response.status_code == HTTPStatus.OK
     response_json = await response.get_json()
     assert response_json == {"message": "Pod fluxkrea removed successfully"}
+
+
+@pytest.mark.asyncio
+async def test_api_add_apps_success() -> None:
+    """POST /api/apps deploys all 9 application pods and returns 200."""
+    app = sw.app
+    client = app.test_client()
+
+    response = await client.post("/api/apps")
+    assert response.status_code == HTTPStatus.OK
+    response_json = await response.get_json()
+    assert response_json == {"message": "Applications added successfully"}
+
+
+@pytest.mark.asyncio
+async def test_api_add_apps_k8s_api_exception() -> None:
+    """POST /api/apps returns 500 when K8s raises an ApiException."""
+    with patch.object(sw.pod_manager, "add_pod", new=AsyncMock(
+        side_effect=MockApiException(
+            status=500,
+            reason="Internal Server Error",
+            body='{"message": "namespaces \\"rtgen\\" not found"}',
+        )
+    )):
+        app = sw.app
+        client = app.test_client()
+
+        response = await client.post("/api/apps")
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        response_json = await response.get_json()
+        assert "error" in response_json
+        assert "rtgen" in response_json["error"]
+
+
+@pytest.mark.asyncio
+async def test_api_add_apps_generic_exception() -> None:
+    """POST /api/apps returns 500 when an unexpected exception is raised."""
+    with patch.object(sw.pod_manager, "add_pod", new=AsyncMock(
+        side_effect=Exception("unexpected failure")
+    )):
+        app = sw.app
+        client = app.test_client()
+
+        response = await client.post("/api/apps")
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        response_json = await response.get_json()
+        assert response_json == {"error": "unexpected failure"}
