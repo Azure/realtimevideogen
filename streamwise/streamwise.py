@@ -637,6 +637,50 @@ async def api_add_service(
         return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
+@route("/api/apps", methods=["POST"])
+async def api_add_apps() -> QuartReturn:
+    """API interface to add pods for all applications."""
+    try:
+        lb_rg = os.getenv("LB_RESOURCE_GROUP")
+        lb_ip = os.getenv("LB_IP_ADDRESS")
+        # CPU, memory GiB, ephemeral storage GiB, GPU count
+        container_dict: dict[str, tuple[int, int, int, int]] = {
+            "streamcast": (1, 4, 4, 0),
+            "streampersona": (1, 4, 4, 0),
+            "streamchat": (1, 4, 4, 0),
+            "streamshort": (1, 4, 4, 0),
+            "streammovie": (1, 4, 4, 0),
+            "streamanimate": (1, 4, 4, 0),
+            "streamlecture": (1, 4, 4, 0),
+            "streamdub": (1, 4, 4, 0),
+            "streamedit": (1, 4, 4, 0),
+        }
+        lb_ports = random.sample(range(8080, 9000), len(container_dict))
+        for (container_name, (cpu, mem_gib, storage_gib, gpu)), lb_port in zip(container_dict.items(), lb_ports):
+            await pod_manager.add_pod(
+                container_name,
+                cpu,
+                mem_gib,
+                ephemeral_storage_gib=storage_gib,
+                gpu=gpu,
+                lb_rg=lb_rg,
+                lb_ip=lb_ip,
+                lb_port=lb_port,
+                namespace=NAMESPACE,
+                k8s_cluster=k8s_cluster)
+        return jsonify({"message": "Applications added successfully"}), HTTPStatus.OK
+    except ApiException as api_ex:
+        body = json.loads(api_ex.body) if api_ex.body else {}
+        message = body.get("message", "No message")
+        if message == "namespaces \"rtgen\" not found":
+            message += ".\nRun: 'kubectl create namespace rtgen'"
+        logging.error(f"K8s API error adding applications: {message}.")
+        return jsonify({"error": message}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as ex:
+        logging.error(f"Error adding applications: {ex}.")
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
 @route("/api/pod", methods=["POST"])
 async def api_add_pod() -> QuartReturn:
     """API interface to add a pod for the specified container."""

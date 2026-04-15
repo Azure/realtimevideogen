@@ -1,5 +1,6 @@
 pytest
 pytest-cov
+diff-cover
 pytest-asyncio
 pytest-timeout
 pytest-xdist

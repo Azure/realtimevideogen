@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
+
 # Default arguments
 HOST="localhost"
 PORT="8080"
@@ -23,8 +26,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-TENSOR="../../benchmark/samples/sample_latents.pt"
-#TENSOR="../../benchmark/samples/sample_latents_long.pt"
+TENSOR="$SAMPLES_DIR/sample_latents.pt"
+#TENSOR="$SAMPLES_DIR/sample_latents_long.pt"
 
 
 mkdir -p output
@@ -43,7 +46,7 @@ http_code=$(curl \
     -o "$OUTPUT_FILE")
 if [ "$http_code" -ne 200 ]; then
     echo "Request failed: $http_code"
-    jq . "$OUTPUT_FILE"
+    jq . "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"
     exit 1
 else
     echo "Video generated successfully:"
@@ -71,7 +74,7 @@ http_code=$(gzip -c "$TENSOR" | curl \
     -o "$OUTPUT_FILE")
 if [ "$http_code" -ne 200 ]; then
     echo "Request failed: $http_code"
-    jq . "$OUTPUT_FILE"
+    jq . "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"
     exit 1
 else
     echo "Video generated successfully:"

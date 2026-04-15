@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-BASE_DIR="../.."
-bash "$BASE_DIR/run_img.sh" \
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$SCRIPT_DIR/../.."
+
+bash "$DEPLOY_DIR/run_img.sh" \
     --path flux2 \
     "$@"
