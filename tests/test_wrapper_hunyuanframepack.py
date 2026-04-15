@@ -86,11 +86,11 @@ async def test_hunyuan_framepack() -> None:
         "prompt": "test prompt",
     })
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match="not enough values to unpack"):
         # TODO implement fixtures for diffusers_helper
         await model.warmup()
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match="not enough values to unpack"):
         # TODO implement fixtures for diffusers_helper
         await model.generate(
             img=img,
@@ -146,5 +146,26 @@ async def test_hunyuan_framepack_get_rest_args_negative_values() -> None:
 
     with pytest.raises(ValueError, match="video_seconds"):
         await model.get_rest_args({**base, "video_seconds": 0.0})
+
+    del model
+
+
+@pytest.mark.asyncio
+async def test_hunyuan_framepack_generate_proceeds_past_text_encoding() -> None:
+    """generate() proceeds past _encode_text when it is patched to return mock values."""
+    model = HunyuanFramepackGeneration()
+    model.init()
+
+    img = Image.new("RGB", (768, 512))
+    six_mocks = tuple(MagicMock() for _ in range(6))
+
+    with patch.object(model, "_encode_text", return_value=six_mocks):
+        with pytest.raises(ValueError):
+            await model.generate(
+                img=img,
+                prompt="test prompt",
+                height=512,
+                width=768,
+            )
 
     del model
