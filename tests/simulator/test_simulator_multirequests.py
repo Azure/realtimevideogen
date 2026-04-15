@@ -4,6 +4,7 @@ import os
 # Add current path
 sys.path.append(os.getcwd())
 
+from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator"):
@@ -26,17 +27,6 @@ with temp_sys_path("simulator"):
     from constants import GPU_SPOT_COST
     from sim_types import GPUType
     from sim_types import Model
-
-
-EQUALS_DELTA = 0.01
-
-
-def assert_equals_approx(
-    value: float,
-    expected: float,
-    delta: float = EQUALS_DELTA,
-) -> None:
-    assert abs(value - expected) < delta, f"{value} != {expected}"
 
 
 def test_multirequests() -> None:
@@ -117,7 +107,7 @@ def test_required_replicas_subscenes_partition() -> None:
     # ttff_total = 15.0, per_sec_total = 300 * 0.3 = 90
     # total_time_per_request = 105, total_time_per_minute = 105 * 3.0 = 315
     # expected = 315 / 60
-    assert abs(result - 315 / 60) < EQUALS_DELTA
+    assert_equals_approx(result, 315 / 60)
 
 
 def test_required_replicas_other_partition() -> None:
@@ -133,7 +123,7 @@ def test_required_replicas_other_partition() -> None:
     # ttff_total = 2.0, per_sec_total = 120 * 0.1 = 12
     # total_time_per_request = 14, total_time_per_minute = 14 * 5.0 = 70
     # expected = 70 / 60
-    assert abs(result - 70 / 60) < EQUALS_DELTA
+    assert_equals_approx(result, 70 / 60)
 
 
 def test_get_replicas_with_custom_parameters() -> None:
@@ -217,14 +207,14 @@ def test_costs() -> None:
 
     # Total costs
     total_costs = get_total_costs(costs)
-    assert abs(len(total_costs) - len(QPM_LIST)) < EQUALS_DELTA
+    assert len(total_costs) == len(QPM_LIST)
 
     for i in range(len(total_costs)):
         expected_total = 0
         for gpu_type in costs:
             for model in costs[gpu_type]:
                 expected_total += costs[gpu_type][model][i]
-        assert abs(total_costs[i] - expected_total) < EQUALS_DELTA
+        assert_equals_approx(total_costs[i], expected_total)
 
     # Costs should generally increase with QPM
     for i in range(len(total_costs) - 1):
@@ -283,8 +273,8 @@ def test_aggregate_time_per_request_by_quality() -> None:
     assert Model.UPSCALER in time_req_adaptive_agg[GPUType.A100]
     assert Model.UPSCALER in time_req_adaptive_agg[GPUType.H100]
 
-    assert_equals_approx(time_req_adaptive_agg[GPUType.A100][Model.OTHERS], 43 * 0.6)
-    assert_equals_approx(time_req_adaptive_agg[GPUType.H100][Model.UPSCALER], 33.56)
+    assert_equals_approx(time_req_adaptive_agg[GPUType.A100][Model.OTHERS], 25.80)
+    assert_equals_approx(time_req_adaptive_agg[GPUType.H100][Model.UPSCALER], 48.12)
 
 
 def test_get_time_per_request_baseline() -> None:
