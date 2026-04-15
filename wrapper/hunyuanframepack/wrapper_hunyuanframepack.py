@@ -93,6 +93,7 @@ class HunyuanFramepackGeneration(HunyuanFramePackBase):
             # Text encoder
             llama_vec, llama_attention_mask, clip_l_pooler, \
                 llama_vec_n, llama_attention_mask_n, clip_l_pooler_n = self._encode_text(
+                    gen_timer,
                     prompt,
                     neg_prompt,
                     cfg)

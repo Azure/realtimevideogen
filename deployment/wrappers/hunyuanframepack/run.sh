@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
-bash ../run_video.sh \
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$SCRIPT_DIR/../.."
+SAMPLES_DIR="$SCRIPT_DIR/../../../benchmark/samples"
+
+bash "$DEPLOY_DIR/run_video.sh" \
   --path hunyuanframepack \
   --width 768 \
   --height 512 \
-  --img ../../benchmark/samples/sample.png \
+  --img "$SAMPLES_DIR/sample.png" \
   "$@"

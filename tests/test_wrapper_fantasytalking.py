@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import sys
 import pytest
 
@@ -41,6 +42,7 @@ mock_modules.update(mock_torch.get_sub_modules())
 with patch.dict(sys.modules, mock_modules):
     from fantasytalking.wrapper_fantasytalking import FantasyTalking
     from fantasytalking.wrapper_fantasytalking import resample_frames
+    from fantasytalking.wrapper_fantasytalking import resample_and_normalize_frames
 
 
 @pytest.mark.asyncio
@@ -140,3 +142,82 @@ def test_resample_frames() -> None:
         for _ in range(24)
     ], 24, 23, 0.5)
     assert len(resampled_frames) == 12
+
+
+def test_resample_frames_may_differ_from_num_frames() -> None:
+    """Reproduce the bug scenario: 73 frames at 30 FPS with ~2.4s audio.
+
+    Before the fix, resample_frames returns 55 frames while num_frames (computed
+    from audio at 23 FPS aligned to 1+4n) is 57, causing a latent/noise tensor
+    shape mismatch (14 vs 15 frames) inside CustomWanVideoPipeline.__call__.
+    This test documents that resample_frames can return fewer frames than
+    num_frames; the fix in generate() normalises the result via
+    resample_and_normalize_frames() so both tensors share the same latent dimension.
+    """
+
+    FPS = 23.0
+    SRC_FPS = 30.0
+    vae_stride = 4
+
+    audio_duration = 2.4  # seconds — representative value from the bug report
+    audio_num_frames = int(math.ceil(FPS * audio_duration))
+    num_frames = int(1 + math.ceil((audio_num_frames - 1) / vae_stride) * vae_stride)
+
+    src_frames = [Image.new("RGB", (100, 100)) for _ in range(73)]
+
+    # resample_frames alone produces fewer frames than num_frames due to rounding
+    resampled_raw = resample_frames(src_frames, SRC_FPS, FPS, audio_duration)
+    assert len(resampled_raw) < num_frames, (
+        f"Expected resampled ({len(resampled_raw)}) < num_frames ({num_frames})"
+    )
+
+    # resample_and_normalize_frames must return exactly num_frames
+    normalized = resample_and_normalize_frames(
+        src_frames, SRC_FPS, FPS, num_frames, audio_duration)
+    assert len(normalized) == num_frames, (
+        f"After normalization, expected {num_frames} frames but got {len(normalized)}"
+    )
+
+    # Verify that the latent dimensions now match
+    lat_expected = (num_frames - 1) // vae_stride + 1
+    lat_actual = (len(normalized) - 1) // vae_stride + 1
+    assert lat_expected == lat_actual, (
+        f"Latent frame count mismatch: noise={lat_expected}, latents={lat_actual}"
+    )
+
+
+def test_normalize_frames_trimming() -> None:
+    """Test that resample_and_normalize_frames trims oversized resampled video to num_frames."""
+
+    FPS = 23.0
+    SRC_FPS = 30.0
+    vae_stride = 4
+
+    # Audio duration just long enough that audio_num_frames rounds up such that
+    # num_frames (1+4n aligned) is smaller than what resample_frames would produce
+    # without the truncation step.  We achieve this by supplying no audio_duration
+    # to resample_frames so the truncation branch is skipped, giving more dst frames.
+    audio_duration = 1.0  # 1 second
+    audio_num_frames = int(math.ceil(FPS * audio_duration))  # 23
+    num_frames = int(1 + math.ceil((audio_num_frames - 1) / vae_stride) * vae_stride)  # 1+24=25
+
+    # Provide a video that, when resampled WITHOUT the audio-duration truncation,
+    # produces more frames than num_frames.
+    # 30 frames at 30 FPS = 1.0 s → round(1.0 * 23) = 23 frames < 25, so use a
+    # slightly longer source to get more dest frames.
+    # 35 frames at 30 FPS = 1.167 s → round(1.167 * 23) = round(26.83) = 27 frames > 25
+    src_frames = [Image.new("RGB", (100, 100)) for _ in range(35)]
+
+    # Without normalization, resample_frames produces more frames than num_frames
+    resampled_raw = resample_frames(src_frames, SRC_FPS, FPS)
+    assert len(resampled_raw) > num_frames, (
+        f"Expected resampled ({len(resampled_raw)}) > num_frames ({num_frames})"
+    )
+
+    # resample_and_normalize_frames must return exactly num_frames
+    normalized = resample_and_normalize_frames(src_frames, SRC_FPS, FPS, num_frames)
+    assert len(normalized) == num_frames
+
+    lat_expected = (num_frames - 1) // vae_stride + 1
+    lat_actual = (len(normalized) - 1) // vae_stride + 1
+    assert lat_expected == lat_actual

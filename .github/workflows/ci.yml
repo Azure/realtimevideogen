@@ -75,7 +75,7 @@ jobs:
 
     - name: Upload mypy results
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: mypy-results
         path: mypy-results.txt
@@ -106,6 +106,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
 
     - name: Free disk space
       run: |
@@ -316,6 +318,32 @@ jobs:
         coverage xml -o coverage.xml --ignore-errors
         coverage html -d htmlcov --ignore-errors
 
+    - name: Generate diff coverage report
+      id: diff-coverage
+      if: always() && github.event_name == 'pull_request'
+      run: |
+        git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }} || true
+        diff-cover coverage.xml \
+          --compare-branch=origin/${{ github.base_ref }} \
+          --markdown-report=diff-coverage-results.md
+        DIFF_COVER_EXIT=$?
+        if [ $DIFF_COVER_EXIT -ne 0 ]; then
+          printf '## Diff Coverage\n\nDiff coverage analysis failed (exit code %d). Check the workflow logs for details.\n' \
+            "$DIFF_COVER_EXIT" > diff-coverage-results.md
+        elif [ ! -s diff-coverage-results.md ]; then
+          printf '## Diff Coverage\n\nNo Python changes found in this PR.\n' \
+            > diff-coverage-results.md
+        fi
+        cat diff-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Add diff coverage PR comment
+      if: always() && github.event_name == 'pull_request' && steps.diff-coverage.outcome != 'skipped'
+      uses: marocchino/sticky-pull-request-comment@v3
+      with:
+        header: diff-coverage
+        recreate: true
+        path: diff-coverage-results.md
+
     - name: Test artifacts summary
       if: always()
       run: |
@@ -338,21 +366,21 @@ jobs:
 
     - name: Upload XML coverage report
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: xml-coverage-report
         path: coverage.xml
 
     - name: Upload HTML coverage report
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: html-coverage-report
         path: htmlcov/
 
     - name: Upload Pages artifact
       if: always() && github.ref == 'refs/heads/main'
-      uses: actions/upload-pages-artifact@v4
+      uses: actions/upload-pages-artifact@v5
       with:
         path: htmlcov/
 
@@ -396,7 +424,7 @@ jobs:
     steps:
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
 
   stats:
     name: Stats
@@ -423,7 +451,7 @@ jobs:
       run: cat cloc-report.txt
 
     - name: Upload cloc report (text)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: cloc-text
         path: cloc-report.txt
@@ -440,7 +468,7 @@ jobs:
       run: cat cloc-summary.md
 
     - name: Upload cloc report (Markdown)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: cloc-markdown
         path: cloc-summary.md
