@@ -377,13 +377,25 @@ class WanVideoGeneration(USPGeneration):
         output_type = data_json.get("output_type", "tensor")
         num_frames = int(data_json.get("num_frames", 1 + 16))
 
+        if height <= 0:
+            raise ValueError(f"height {height} must be positive.")
+        if width <= 0:
+            raise ValueError(f"width {width} must be positive.")
+        if sampling_steps <= 0:
+            raise ValueError(f"sampling_steps {sampling_steps} must be positive.")
+
         video_seconds = data_json.get("video_seconds", 0.0)
         if video_seconds:
+            if float(video_seconds) <= 0:
+                raise ValueError(f"video_seconds {video_seconds} must be positive.")
             if not self.vae_stride:
                 raise ValueError("VAE stride not set.")
             vae_frames = self.vae_stride[0]
             num_frames = int(video_seconds * self.FPS)
             num_frames = 1 + ((num_frames - 1) // vae_frames) * vae_frames  # 4n + 1
+
+        if num_frames <= 0:
+            raise ValueError(f"num_frames {num_frames} must be positive.")
 
         return {
             "task": self.model_name,

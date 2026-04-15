@@ -553,3 +553,42 @@ def test_vae_encode() -> None:
 
     result = model.vae_encode(fake_pix)
     assert result is mock_latent
+
+
+@pytest.mark.asyncio
+async def test_get_rest_args_negative_values() -> None:
+    """get_rest_args raises ValueError for non-positive numeric parameters."""
+    with patch.dict(sys.modules, mock_modules):
+        from wan.wrapper_wan21 import Wan21VideoGeneration as _Wan21
+        from image_utils import img_to_base64 as _img_to_base64
+
+    model = _Wan21()
+    model.init()
+
+    img = Image.new("RGB", (40, 30))
+    img_base64 = _img_to_base64(img)
+    base = {"img": img_base64, "prompt": "test prompt"}
+
+    with pytest.raises(ValueError, match="num_frames"):
+        await model.get_rest_args({**base, "num_frames": -3})
+
+    with pytest.raises(ValueError, match="num_frames"):
+        await model.get_rest_args({**base, "num_frames": 0})
+
+    with pytest.raises(ValueError, match="height"):
+        await model.get_rest_args({**base, "height": -480})
+
+    with pytest.raises(ValueError, match="height"):
+        await model.get_rest_args({**base, "height": 0})
+
+    with pytest.raises(ValueError, match="width"):
+        await model.get_rest_args({**base, "width": -640})
+
+    with pytest.raises(ValueError, match="width"):
+        await model.get_rest_args({**base, "width": 0})
+
+    with pytest.raises(ValueError, match="sampling_steps"):
+        await model.get_rest_args({**base, "sampling_steps": -10, "steps": -5})
+
+    with pytest.raises(ValueError, match="video_seconds"):
+        await model.get_rest_args({**base, "video_seconds": -1.0})

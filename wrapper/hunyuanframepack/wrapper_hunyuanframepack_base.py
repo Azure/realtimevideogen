@@ -659,11 +659,25 @@ class HunyuanFramePackBase(USPGeneration):
         save_intermediate = data_json.get("save_intermediate", None)
         output_type = data_json.get("output_type", "tensor")
 
+        if height <= 0:
+            raise ValueError(f"height {height} must be positive.")
+        if width <= 0:
+            raise ValueError(f"width {width} must be positive.")
+        if steps <= 0:
+            raise ValueError(f"sampling_steps {steps} must be positive.")
+        if latent_window_size <= 0:
+            raise ValueError(f"latent_window_size {latent_window_size} must be positive.")
+
         video_seconds = data_json.get("video_seconds", None)
         if video_seconds is not None:
+            if float(video_seconds) <= 0:
+                raise ValueError(f"video_seconds {video_seconds} must be positive.")
             VAE_FRAMES = self.vae_stride[0]
             num_frames = int(video_seconds * self.FPS)
             num_frames = 1 + ((num_frames - 1) // VAE_FRAMES) * VAE_FRAMES  # 4n + 1
+
+        if num_frames <= 0:
+            raise ValueError(f"num_frames {num_frames} must be positive.")
 
         return {
             "task": self.model_name,
