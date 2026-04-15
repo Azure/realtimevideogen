@@ -396,13 +396,31 @@ async def test_remove_pod() -> None:
 @pytest.mark.asyncio
 async def test_api_add_apps_success() -> None:
     """POST /api/apps deploys all 9 application pods and returns 200."""
-    app = sw.app
-    client = app.test_client()
+    with patch.object(sw.pod_manager, "add_pod", new=AsyncMock(return_value=(
+        {"message": "Pod creation requested"}, HTTPStatus.OK
+    ))) as mock_add_pod:
+        app = sw.app
+        client = app.test_client()
 
-    response = await client.post("/api/apps")
-    assert response.status_code == HTTPStatus.OK
-    response_json = await response.get_json()
-    assert response_json == {"message": "Applications added successfully"}
+        response = await client.post("/api/apps")
+        assert response.status_code == HTTPStatus.OK
+        response_json = await response.get_json()
+        assert response_json == {"message": "Applications added successfully"}
+
+        # Verify add_pod was called once per application (9 apps total)
+        assert mock_add_pod.call_count == 9
+
+        # Verify each application received a unique lb_port
+        lb_ports = [call.kwargs["lb_port"] for call in mock_add_pod.call_args_list]
+        assert len(set(lb_ports)) == 9, "Each app must receive a unique lb_port"
+
+        # Verify all apps were deployed
+        app_names = [call.args[0] for call in mock_add_pod.call_args_list]
+        for expected in [
+            "streamcast", "streampersona", "streamchat", "streamshort",
+            "streammovie", "streamanimate", "streamlecture", "streamdub", "streamedit",
+        ]:
+            assert expected in app_names, f"{expected} was not deployed"
 
 
 @pytest.mark.asyncio

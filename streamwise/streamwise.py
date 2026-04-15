@@ -641,6 +641,8 @@ async def api_add_service(
 async def api_add_apps() -> QuartReturn:
     """API interface to add pods for all applications."""
     try:
+        lb_rg = os.getenv("LB_RESOURCE_GROUP")
+        lb_ip = os.getenv("LB_IP_ADDRESS")
         # CPU, memory GiB, ephemeral storage GiB, GPU count
         container_dict: dict[str, tuple[int, int, int, int]] = {
             "streamcast": (1, 4, 4, 0),
@@ -653,13 +655,17 @@ async def api_add_apps() -> QuartReturn:
             "streamdub": (1, 4, 4, 0),
             "streamedit": (1, 4, 4, 0),
         }
-        for container_name, (cpu, mem_gib, storage_gib, gpu) in container_dict.items():
+        lb_ports = random.sample(range(8080, 9000), len(container_dict))
+        for (container_name, (cpu, mem_gib, storage_gib, gpu)), lb_port in zip(container_dict.items(), lb_ports):
             await pod_manager.add_pod(
                 container_name,
                 cpu,
                 mem_gib,
                 ephemeral_storage_gib=storage_gib,
                 gpu=gpu,
+                lb_rg=lb_rg,
+                lb_ip=lb_ip,
+                lb_port=lb_port,
                 namespace=NAMESPACE,
                 k8s_cluster=k8s_cluster)
         return jsonify({"message": "Applications added successfully"}), HTTPStatus.OK
