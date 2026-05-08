@@ -18,7 +18,7 @@ xformers==0.0.32.post2
 # xformers==0.0.35
 
 xfuser==0.4.5
-diffusers==0.37.0
+diffusers==0.38.0
 transformers==5.0.0
 
 # flash-attn==2.8.3 # requires --no-build-isolation
