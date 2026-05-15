@@ -15,6 +15,15 @@ for _p in (_REPO_ROOT, _STREAMWISE_DIR, _SIMULATOR_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Propagate paths to child processes spawned by ProcessPoolExecutor (Windows
+# uses 'spawn' which starts a fresh interpreter that reads PYTHONPATH).
+_EXTRA_PATHS = os.pathsep.join((_REPO_ROOT, _STREAMWISE_DIR, _SIMULATOR_DIR))
+_EXISTING = os.environ.get("PYTHONPATH", "")
+if _SIMULATOR_DIR not in _EXISTING:
+    os.environ["PYTHONPATH"] = (
+        _EXTRA_PATHS + os.pathsep + _EXISTING if _EXISTING else _EXTRA_PATHS
+    )
+
 from tqdm.auto import tqdm
 
 import logging
@@ -30,24 +39,24 @@ from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import TimeoutError
 from concurrent.futures import as_completed
 
-from model_provisioner.sim_types import WorkflowConfig
-from model_provisioner.sim_types import GPUType
-from model_provisioner.sim_types import LatencyData
-from model_provisioner.sim_types import Provision
-from model_provisioner.sim_types import ProvisioningResult
-from model_provisioner.sim_types import Model
-from model_provisioner.sim_types import ModelAllocation
-from model_provisioner.sim_types import PowerData
-from model_provisioner.sim_types import QualityLevel
-from model_provisioner.sim_types import Policy
-from model_provisioner.sim_types import Result
-from model_provisioner.sim_types import num_gpus_to_str
+from sim_types import WorkflowConfig
+from sim_types import GPUType
+from sim_types import LatencyData
+from sim_types import Provision
+from sim_types import ProvisioningResult
+from sim_types import Model
+from sim_types import ModelAllocation
+from sim_types import PowerData
+from sim_types import QualityLevel
+from sim_types import Policy
+from sim_types import Result
+from sim_types import num_gpus_to_str
 
-from model_provisioner.auto_model_allocator import AutoModelAllocator
+from auto_model_allocator import AutoModelAllocator
 
 from model_provisioner.policies import STREAMWISE_POLICY
 
-from model_provisioner.constants import SECONDS_IN_HOUR
+from constants import SECONDS_IN_HOUR
 
 
 GPU_PROVISIONS: list[int] = [

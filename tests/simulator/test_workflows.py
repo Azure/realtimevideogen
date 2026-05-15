@@ -16,8 +16,8 @@ sys.path.append(os.getcwd())
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator", "streamwise"):
-    from model_provisioner.sim_types import WorkflowConfig, Model, QualityLevel, GPUType
-    from model_provisioner.constants import (
+    from sim_types import WorkflowConfig, Model, QualityLevel, GPUType
+    from constants import (
         FPS,
         FRAMES_OPTIONS,
         FRAMES_PER_STEP_IDX,
@@ -26,10 +26,10 @@ with temp_sys_path("simulator", "streamwise"):
         SECONDS_IN_MINUTE,
         TOTAL_INPUT_TOKENS,
     )
-    from model_provisioner.data_loading import load_latency_data
-    from model_provisioner.auto_model_allocator import AutoModelAllocator
+    from data_loading import load_latency_data
+    from auto_model_allocator import AutoModelAllocator
     from model_provisioner.policies import STREAMWISE_POLICY, NAIVE_POLICY
-    from model_provisioner.workflows import (
+    from workflows import (
         MAX_FT_FRAMES,
         SUBSCENE_SECONDS,
         SUBSCENES_PER_SCENE,

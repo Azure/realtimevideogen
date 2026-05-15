@@ -12,18 +12,18 @@ sys.path.append(os.getcwd())
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator", "streamwise"):
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.sim_types import Model
+    from sim_types import GPUType
+    from sim_types import Model
 
-    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
-    from model_provisioner.constants import SECONDS_IN_HOUR
-    from model_provisioner.constants import POWER_GPU_IDLE
-    from model_provisioner.constants import POWER_GPU_TDP
+    from constants import DEFAULT_WORKFLOW_CONFIG
+    from constants import SECONDS_IN_HOUR
+    from constants import POWER_GPU_IDLE
+    from constants import POWER_GPU_TDP
 
-    from model_provisioner.data_loading import load_latency_data
-    from model_provisioner.data_loading import load_power_data
+    from data_loading import load_latency_data
+    from data_loading import load_power_data
 
-    from model_provisioner.auto_model_allocator import AutoModelAllocator
+    from auto_model_allocator import AutoModelAllocator
     from model_provisioner.naive_baseline import NaiveAllocator
     from model_provisioner.greedy import GreedyAllocator
 
@@ -31,8 +31,8 @@ with temp_sys_path("simulator", "streamwise"):
     from model_provisioner.policies import BASELINE_POLICIES
     from model_provisioner.policies import STREAMWISE_POLICY
 
-    from model_provisioner.workflows import SHORTS_WORKFLOW
-    from model_provisioner.workflows import WORKFLOWS
+    from workflows import SHORTS_WORKFLOW
+    from workflows import WORKFLOWS
 
 
 def test_baseline() -> None:

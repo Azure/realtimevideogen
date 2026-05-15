@@ -21,12 +21,12 @@ with temp_sys_path("simulator", "streamwise"):
     from multirequests import TIME_PER_REQ_ADAPTIVE
     from multirequests import get_time_per_request_baseline
 
-    from model_provisioner.data_loading import load_latency_data
-    from model_provisioner.workflows import PODCAST_WORKFLOW
+    from data_loading import load_latency_data
+    from workflows import PODCAST_WORKFLOW
 
-    from model_provisioner.constants import GPU_SPOT_COST
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.sim_types import Model
+    from constants import GPU_SPOT_COST
+    from sim_types import GPUType
+    from sim_types import Model
 
 
 def test_multirequests() -> None:

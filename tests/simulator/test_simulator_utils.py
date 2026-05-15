@@ -7,18 +7,18 @@ sys.path.append(os.getcwd())
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator", "streamwise"):
-    from model_provisioner.sim_types import Model
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.sim_types import ModelAllocation
-    from model_provisioner.sim_types import ProvisioningResult
+    from sim_types import Model
+    from sim_types import GPUType
+    from sim_types import ModelAllocation
+    from sim_types import ProvisioningResult
 
-    from model_provisioner.utils import get_pareto_frontier
-    from model_provisioner.utils import find_most_cost_effective_provisioning
-    from model_provisioner.utils import find_most_energy_efficient_provisioning
-    from model_provisioner.utils import find_pareto_frontier
-    from model_provisioner.utils import coalesce_models
+    from utils import get_pareto_frontier
+    from utils import find_most_cost_effective_provisioning
+    from utils import find_most_energy_efficient_provisioning
+    from utils import find_pareto_frontier
+    from utils import coalesce_models
 
-    from model_provisioner.models import FTModelAllocation
+    from models import FTModelAllocation
 
 
 def test_get_pareto_frontier() -> None:

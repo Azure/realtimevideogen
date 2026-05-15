@@ -24,21 +24,21 @@ sys.path.append(os.getcwd())
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator", "streamwise"):
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.sim_types import Model
-    from model_provisioner.sim_types import QualityLevel
-    from model_provisioner.sim_types import Solver
+    from sim_types import GPUType
+    from sim_types import Model
+    from sim_types import QualityLevel
+    from sim_types import Solver
 
-    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
+    from constants import DEFAULT_WORKFLOW_CONFIG
 
-    from model_provisioner.data_loading import load_latency_data
+    from data_loading import load_latency_data
 
     from model_provisioner.policies import STREAMWISE_POLICY
     from model_provisioner.policies import NAIVE_POLICY
     from model_provisioner.policies import HEXGEN_POLICY
     from model_provisioner.policies import HELIX_POLICY
 
-    from model_provisioner.auto_model_allocator import AutoModelAllocator
+    from auto_model_allocator import AutoModelAllocator
 
     from model_provisioner.greedy import GreedyAllocator
     from model_provisioner.naive_baseline import NaiveAllocator
@@ -46,7 +46,7 @@ with temp_sys_path("simulator", "streamwise"):
     from model_provisioner.helix import HelixAllocator
     from model_provisioner.milp import MILPAllocator
 
-    from model_provisioner.workflows import PODCAST_WORKFLOW
+    from workflows import PODCAST_WORKFLOW
 
 
 # ---------------------------------------------------------------------------

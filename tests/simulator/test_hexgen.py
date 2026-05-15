@@ -8,12 +8,12 @@ sys.path.append(os.getcwd())
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator", "streamwise"):
-    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.data_loading import load_latency_data
+    from constants import DEFAULT_WORKFLOW_CONFIG
+    from sim_types import GPUType
+    from data_loading import load_latency_data
     from model_provisioner.hexgen import HexGenAllocator
     from model_provisioner.hexgen import _get_model_order
-    from model_provisioner.sim_types import MODEL_ORDER
+    from sim_types import MODEL_ORDER
 
 
 def test_get_model_order() -> None:

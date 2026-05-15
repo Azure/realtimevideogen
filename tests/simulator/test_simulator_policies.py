@@ -15,7 +15,7 @@ with temp_sys_path("simulator", "streamwise"):
     from model_provisioner.policies import STREAMWISE_POLICY
     from model_provisioner.policies import BASELINE_POLICIES
 
-    from model_provisioner.sim_types import Objective
+    from sim_types import Objective
 
 
 def test_streamwise_policies() -> None:

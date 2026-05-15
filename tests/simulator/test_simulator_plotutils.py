@@ -14,10 +14,10 @@ with temp_sys_path("simulator", "streamwise"):
     from plot_utils import plot_cost_vs_qpm
     from plot_utils import _get_time_ticklabels
 
-    from model_provisioner.sim_types import ProvisioningResult
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.sim_types import QualityLevel
-    from model_provisioner.sim_types import Model
+    from sim_types import ProvisioningResult
+    from sim_types import GPUType
+    from sim_types import QualityLevel
+    from sim_types import Model
 
 
 def test_plot_ttff_vs_cost() -> None:

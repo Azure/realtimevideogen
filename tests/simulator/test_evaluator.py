@@ -9,28 +9,28 @@ from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
 
 with temp_sys_path("simulator", "streamwise"):
-    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
-    from model_provisioner.constants import SECONDS_IN_HOUR
+    from constants import DEFAULT_WORKFLOW_CONFIG
+    from constants import SECONDS_IN_HOUR
 
-    from model_provisioner.sim_types import GPUType
-    from model_provisioner.sim_types import Model
+    from sim_types import GPUType
+    from sim_types import Model
 
-    from model_provisioner.data_loading import load_latency_data
-    from model_provisioner.data_loading import load_power_data
+    from data_loading import load_latency_data
+    from data_loading import load_power_data
 
-    from model_provisioner.evaluator import evaluate_model_allocation
+    from evaluator import evaluate_model_allocation
 
     from model_provisioner.policies import STREAMWISE_POLICY
 
-    from model_provisioner.models import FluxModelAllocation
-    from model_provisioner.models import GemmaModelAllocation
-    from model_provisioner.models import HFModelAllocation
-    from model_provisioner.models import HFVAEModelAllocation
-    from model_provisioner.models import FTModelAllocation
-    from model_provisioner.models import UpscalerModelAllocation
-    from model_provisioner.models import OthersModelAllocation
+    from models import FluxModelAllocation
+    from models import GemmaModelAllocation
+    from models import HFModelAllocation
+    from models import HFVAEModelAllocation
+    from models import FTModelAllocation
+    from models import UpscalerModelAllocation
+    from models import OthersModelAllocation
 
-    from model_provisioner.utils import to_models_df
+    from utils import to_models_df
 
 
 def test_empty() -> None:
