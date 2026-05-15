@@ -7,8 +7,8 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from constants import DEFAULT_WORKFLOW_CONFIG
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
 
     from provisioning import get_provisioning_results
     from provisioning import get_provisioning_adaptive_results
@@ -17,15 +17,15 @@ with temp_sys_path("simulator"):
     from provisioning import GPU_PROVISIONS
     from provisioning import GPU_PROVISIONS_SHORT
 
-    from sim_types import GPUType
-    from sim_types import QualityLevel
-    from sim_types import Solver
+    from model_provisioner.sim_types import GPUType
+    from model_provisioner.sim_types import QualityLevel
+    from model_provisioner.sim_types import Solver
 
-    from data_loading import load_latency_data
+    from model_provisioner.data_loading import load_latency_data
 
-    from policies import NAIVE_POLICY
-    from policies import STREAMWISE_POLICY
-    from policies import HEXGEN_POLICY
+    from model_provisioner.policies import NAIVE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
+    from model_provisioner.policies import HEXGEN_POLICY
 
 
 @pytest.mark.parametrize("gpu_type", [gpu_type for gpu_type in GPUType])

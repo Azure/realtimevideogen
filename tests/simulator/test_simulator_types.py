@@ -8,21 +8,21 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from sim_types import Model
-    from sim_types import GPUType
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.sim_types import Model
+    from model_provisioner.sim_types import GPUType
 
-    from sim_types_json import models_to_json
-    from sim_types_json import workflow_to_json
-    from sim_types_json import policy_to_json
-    from sim_types_json import model_list_to_json
+    from model_provisioner.sim_types_json import models_to_json
+    from model_provisioner.sim_types_json import workflow_to_json
+    from model_provisioner.sim_types_json import policy_to_json
+    from model_provisioner.sim_types_json import model_list_to_json
 
-    from models import GemmaModelAllocation
-    from models import FluxModelAllocation
+    from model_provisioner.models import GemmaModelAllocation
+    from model_provisioner.models import FluxModelAllocation
 
-    from policies import STREAMWISE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
 
-    from workflows import PODCAST_WORKFLOW
+    from model_provisioner.workflows import PODCAST_WORKFLOW
 
 
 def test_serialize_models() -> None:

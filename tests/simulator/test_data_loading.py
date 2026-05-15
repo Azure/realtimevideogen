@@ -11,12 +11,12 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from sim_types import QualityLevel
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.sim_types import QualityLevel
 
-    from data_loading import load_latency_data
-    from data_loading import load_power_data
-    from data_loading import load_adaptive_quality_data
+    from model_provisioner.data_loading import load_latency_data
+    from model_provisioner.data_loading import load_power_data
+    from model_provisioner.data_loading import load_adaptive_quality_data
 
 
 def test_latency() -> None:

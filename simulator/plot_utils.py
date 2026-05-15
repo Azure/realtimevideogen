@@ -10,12 +10,12 @@ from matplotlib.markers import MarkerStyle
 
 from typing import Optional
 
-from utils import get_pareto_frontier
+from model_provisioner.utils import get_pareto_frontier
 
-from sim_types import ProvisioningResult
-from sim_types import GPUType
-from sim_types import Model
-from sim_types import QualityLevel
+from model_provisioner.sim_types import ProvisioningResult
+from model_provisioner.sim_types import GPUType
+from model_provisioner.sim_types import Model
+from model_provisioner.sim_types import QualityLevel
 
 
 FIG_SIZE = (7, 5)

@@ -12,16 +12,16 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from constants import DEFAULT_WORKFLOW_CONFIG
-    from sim_types import GPUType
-    from sim_types import Model
-    from sim_types import MODEL_ORDER
-    from sim_types import Solver
-    from data_loading import load_latency_data
-    from data_loading import load_power_data
-    from helix import HelixAllocator
-    from policies import HELIX_POLICY
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
+    from model_provisioner.sim_types import GPUType
+    from model_provisioner.sim_types import Model
+    from model_provisioner.sim_types import MODEL_ORDER
+    from model_provisioner.sim_types import Solver
+    from model_provisioner.data_loading import load_latency_data
+    from model_provisioner.data_loading import load_power_data
+    from model_provisioner.helix import HelixAllocator
+    from model_provisioner.policies import HELIX_POLICY
 
 
 def test_get_model_order() -> None:

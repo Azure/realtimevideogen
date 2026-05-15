@@ -7,12 +7,12 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from sim_types import Action
-    from sim_types import ActionName
-    from sim_types import GPUType
-    from sim_types import Model
-    from sim_types import Result
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.sim_types import Action
+    from model_provisioner.sim_types import ActionName
+    from model_provisioner.sim_types import GPUType
+    from model_provisioner.sim_types import Model
+    from model_provisioner.sim_types import Result
 
 
 def test_action() -> None:

@@ -16,34 +16,34 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from sim_types import GPUType
-    from sim_types import Model
-    from sim_types import ModelAllocation
-    from sim_types import QualityLevel
-    from sim_types import LatencyData
-    from sim_types import PowerData
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.sim_types import GPUType
+    from model_provisioner.sim_types import Model
+    from model_provisioner.sim_types import ModelAllocation
+    from model_provisioner.sim_types import QualityLevel
+    from model_provisioner.sim_types import LatencyData
+    from model_provisioner.sim_types import PowerData
 
-    from constants import DEFAULT_WORKFLOW_CONFIG
+    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
 
-    from data_loading import load_latency_data
-    from data_loading import load_power_data
+    from model_provisioner.data_loading import load_latency_data
+    from model_provisioner.data_loading import load_power_data
 
-    from policies import STREAMWISE_POLICY
-    from policies import NAIVE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
+    from model_provisioner.policies import NAIVE_POLICY
 
-    from models import get_model_allocation
-    from models import _calculate_total_time
-    from models import assert_pixel_config
-    from models import _MODEL_ALLOCATION_REGISTRY
-    from models import GemmaModelAllocation
-    from models import FluxModelAllocation
-    from models import HFModelAllocation
-    from models import HFVAEModelAllocation
-    from models import FTModelAllocation
-    from models import FTVAEModelAllocation
-    from models import UpscalerModelAllocation
-    from models import OthersModelAllocation
+    from model_provisioner.models import get_model_allocation
+    from model_provisioner.models import _calculate_total_time
+    from model_provisioner.models import assert_pixel_config
+    from model_provisioner.models import _MODEL_ALLOCATION_REGISTRY
+    from model_provisioner.models import GemmaModelAllocation
+    from model_provisioner.models import FluxModelAllocation
+    from model_provisioner.models import HFModelAllocation
+    from model_provisioner.models import HFVAEModelAllocation
+    from model_provisioner.models import FTModelAllocation
+    from model_provisioner.models import FTVAEModelAllocation
+    from model_provisioner.models import UpscalerModelAllocation
+    from model_provisioner.models import OthersModelAllocation
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +152,7 @@ def test_assert_pixel_config() -> None:
     assert_pixel_config(DEFAULT_WORKFLOW_CONFIG)
 
     # Patching MEDIUM > HIGH violates the ordering constraint → AssertionError.
-    with patch.dict("sim_types.RESOLUTION_PIXELS",
+    with patch.dict("model_provisioner.sim_types.RESOLUTION_PIXELS",
                     {QualityLevel.MEDIUM: 1000, QualityLevel.HIGH: 500}):
         with pytest.raises(AssertionError):
             assert_pixel_config(DEFAULT_WORKFLOW_CONFIG)

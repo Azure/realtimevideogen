@@ -4,23 +4,23 @@ import math
 import os
 from dataclasses import replace
 
-from sim_types import GPUType
-from sim_types import Model
-from sim_types import QualityLevel
-from sim_types import RESOLUTION_PIXELS
-from sim_types import Result
-from sim_types import WorkflowConfig
-from sim_types import LatencyData
+from model_provisioner.sim_types import GPUType
+from model_provisioner.sim_types import Model
+from model_provisioner.sim_types import QualityLevel
+from model_provisioner.sim_types import RESOLUTION_PIXELS
+from model_provisioner.sim_types import Result
+from model_provisioner.sim_types import WorkflowConfig
+from model_provisioner.sim_types import LatencyData
 
-from data_loading import load_latency_data
-from data_loading import load_power_data
-from data_loading import load_adaptive_quality_data
+from model_provisioner.data_loading import load_latency_data
+from model_provisioner.data_loading import load_power_data
+from model_provisioner.data_loading import load_adaptive_quality_data
 
-from workflows import PODCAST_WORKFLOW
+from model_provisioner.workflows import PODCAST_WORKFLOW
 
-from policies import STREAMWISE_POLICY
+from model_provisioner.policies import STREAMWISE_POLICY
 
-from auto_model_allocator import AutoModelAllocator
+from model_provisioner.auto_model_allocator import AutoModelAllocator
 
 
 # Queries per minute

@@ -8,22 +8,22 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from constants import DEFAULT_WORKFLOW_CONFIG
-    from constants import SECONDS_IN_HOUR
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
+    from model_provisioner.constants import SECONDS_IN_HOUR
 
-    from workflows import WORKFLOWS
+    from model_provisioner.workflows import WORKFLOWS
 
-    from sim_types import GPUType
-    from sim_types import QualityLevel
-    from sim_types import WorkflowConfig
+    from model_provisioner.sim_types import GPUType
+    from model_provisioner.sim_types import QualityLevel
+    from model_provisioner.sim_types import WorkflowConfig
 
-    from data_loading import load_latency_data
-    from data_loading import load_power_data
+    from model_provisioner.data_loading import load_latency_data
+    from model_provisioner.data_loading import load_power_data
 
-    from greedy import GreedyAllocator
+    from model_provisioner.greedy import GreedyAllocator
 
-    from policies import STREAMWISE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
 
 
 def test_allocate_8A_8H() -> None:

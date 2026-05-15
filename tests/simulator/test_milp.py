@@ -13,29 +13,29 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from sim_types import LatencyData
-    from sim_types import PowerData
-    from sim_types import GPUType
-    from sim_types import Objective
-    from sim_types import Solver
-    from sim_types import QualityLevel
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.sim_types import LatencyData
+    from model_provisioner.sim_types import PowerData
+    from model_provisioner.sim_types import GPUType
+    from model_provisioner.sim_types import Objective
+    from model_provisioner.sim_types import Solver
+    from model_provisioner.sim_types import QualityLevel
 
-    from data_loading import load_latency_data
-    from data_loading import load_power_data
+    from model_provisioner.data_loading import load_latency_data
+    from model_provisioner.data_loading import load_power_data
 
-    from constants import DEFAULT_WORKFLOW_CONFIG
-    from constants import SECONDS_IN_HOUR
+    from model_provisioner.constants import DEFAULT_WORKFLOW_CONFIG
+    from model_provisioner.constants import SECONDS_IN_HOUR
 
-    from policies import STREAMWISE_MILP_POLICY
+    from model_provisioner.policies import STREAMWISE_MILP_POLICY
 
-    from workflows import WORKFLOWS
+    from model_provisioner.workflows import WORKFLOWS
 
-    from milp import MILPAllocator
+    from model_provisioner.milp import MILPAllocator
 
-    from evaluator import evaluate_model_allocation
+    from model_provisioner.evaluator import evaluate_model_allocation
 
-    from utils import to_models_df
+    from model_provisioner.utils import to_models_df
 
 
 def test_base() -> None:
