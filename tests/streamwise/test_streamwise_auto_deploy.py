@@ -26,7 +26,7 @@ mock_modules = {}
 mock_modules.update(mock_k8s.get_sub_modules())
 
 # Pre-register the streamwise package so sub-modules resolve correctly.
-from streamwise import http_session_manager  # noqa: F401
+import streamwise.http_session_manager
 
 # Permanently inject K8s mocks into sys.modules (not via context manager)
 # so that simulator modules loaded alongside streamwise remain importable
