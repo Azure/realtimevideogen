@@ -28,7 +28,7 @@ from constants import NUM_PIXELS_MEDIUM_FLUX
 from constants import POWER_GPU_IDLE
 from constants import POWER_GPU_TDP
 
-_DEFAULT_DATA_DIR = str(Path(__file__).resolve().parents[2] / "simulator" / "data")
+_DEFAULT_DATA_DIR = str(Path(__file__).resolve().parents[0] / "data")
 
 
 def load_latency_data(
