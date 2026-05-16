@@ -40,7 +40,7 @@ from constants import DEVICE_OPTIONS
 from constants import NUM_GPUS_PER_SERVER
 from constants import SECONDS_IN_HOUR
 
-from policies import STREAMWISE_MILP_POLICY
+from .policies import STREAMWISE_MILP_POLICY
 
 
 MAX_INSTANCES = 16

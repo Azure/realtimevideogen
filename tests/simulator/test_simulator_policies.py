@@ -11,9 +11,9 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
-    from policies import STREAMWISE_POLICY
-    from policies import BASELINE_POLICIES
+with temp_sys_path("simulator", "streamwise"):
+    from model_provisioner.policies import STREAMWISE_POLICY
+    from model_provisioner.policies import BASELINE_POLICIES
 
     from sim_types import Objective
 

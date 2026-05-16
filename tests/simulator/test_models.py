@@ -16,7 +16,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from sim_types import GPUType
     from sim_types import Model
     from sim_types import ModelAllocation
@@ -29,8 +29,8 @@ with temp_sys_path("simulator"):
     from data_loading import load_latency_data
     from data_loading import load_power_data
 
-    from policies import STREAMWISE_POLICY
-    from policies import NAIVE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
+    from model_provisioner.policies import NAIVE_POLICY
 
     from models import get_model_allocation
     from models import _calculate_total_time

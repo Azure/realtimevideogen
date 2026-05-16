@@ -31,8 +31,8 @@ from models import OthersModelAllocation
 
 from evaluator import evaluate_model_allocation
 
-from policies import NAIVE_POLICY
-from policies import MAX_DEVICES
+from .policies import NAIVE_POLICY
+from .policies import MAX_DEVICES
 
 from model_allocator import ModelAllocator
 

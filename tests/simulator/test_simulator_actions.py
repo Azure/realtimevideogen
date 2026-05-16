@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from sim_types import Action
     from sim_types import ActionName
     from sim_types import GPUType

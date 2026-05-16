@@ -19,7 +19,7 @@ from sim_types import Solver
 from sim_types import GPUType
 from sim_types import Result
 
-from policies import STREAMWISE_POLICY
+from model_provisioner.policies import STREAMWISE_POLICY
 
 from model_allocator import ModelAllocator
 
@@ -47,7 +47,7 @@ class AutoModelAllocator(ModelAllocator):
     def _build_allocator(self) -> ModelAllocator:
         """Create concrete allocator based on configured solver."""
         if self.policy.solver == Solver.GREEDY:
-            from greedy import GreedyAllocator
+            from model_provisioner.greedy import GreedyAllocator
             return GreedyAllocator(
                 workflow=self.workflow,
                 latency_data=self.latency_data,
@@ -55,7 +55,7 @@ class AutoModelAllocator(ModelAllocator):
                 policy=self.policy,
             )
         if self.policy.solver == Solver.NAIVE:
-            from naive_baseline import NaiveAllocator
+            from model_provisioner.naive_baseline import NaiveAllocator
             return NaiveAllocator(
                 workflow=self.workflow,
                 latency_data=self.latency_data,
@@ -63,7 +63,7 @@ class AutoModelAllocator(ModelAllocator):
                 policy=self.policy,
             )
         if self.policy.solver in {Solver.GUROBI, Solver.HIGHS}:
-            from milp import MILPAllocator
+            from model_provisioner.milp import MILPAllocator
             return MILPAllocator(
                 workflow=self.workflow,
                 latency_data=self.latency_data,
@@ -71,7 +71,7 @@ class AutoModelAllocator(ModelAllocator):
                 policy=self.policy,
             )
         if self.policy.solver == Solver.HEXGEN:
-            from hexgen import HexGenAllocator
+            from model_provisioner.hexgen import HexGenAllocator
             return HexGenAllocator(
                 workflow=self.workflow,
                 latency_data=self.latency_data,
@@ -79,7 +79,7 @@ class AutoModelAllocator(ModelAllocator):
                 policy=self.policy,
             )
         if self.policy.solver == Solver.HELIX:
-            from helix import HelixAllocator
+            from model_provisioner.helix import HelixAllocator
             return HelixAllocator(
                 workflow=self.workflow,
                 latency_data=self.latency_data,

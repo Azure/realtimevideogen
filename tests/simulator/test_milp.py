@@ -13,7 +13,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from sim_types import LatencyData
     from sim_types import PowerData
     from sim_types import GPUType
@@ -27,11 +27,11 @@ with temp_sys_path("simulator"):
     from constants import DEFAULT_WORKFLOW_CONFIG
     from constants import SECONDS_IN_HOUR
 
-    from policies import STREAMWISE_MILP_POLICY
+    from model_provisioner.policies import STREAMWISE_MILP_POLICY
 
     from workflows import WORKFLOWS
 
-    from milp import MILPAllocator
+    from model_provisioner.milp import MILPAllocator
 
     from evaluator import evaluate_model_allocation
 

@@ -27,7 +27,7 @@ from sim_types import PowerData
 from sim_types import Objective
 from sim_types import Policy
 
-from policies import STREAMWISE_POLICY
+from model_provisioner.policies import STREAMWISE_POLICY
 
 from models import get_model_allocation
 

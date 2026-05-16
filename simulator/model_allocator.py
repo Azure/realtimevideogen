@@ -27,7 +27,7 @@ from models import FTVAEModelAllocation
 from models import UpscalerModelAllocation
 from models import OthersModelAllocation
 
-from policies import NAIVE_POLICY
+from model_provisioner.policies import NAIVE_POLICY
 
 
 class ModelAllocator(ABC):

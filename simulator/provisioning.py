@@ -33,7 +33,7 @@ from sim_types import num_gpus_to_str
 
 from auto_model_allocator import AutoModelAllocator
 
-from policies import STREAMWISE_POLICY
+from model_provisioner.policies import STREAMWISE_POLICY
 
 from constants import SECONDS_IN_HOUR
 

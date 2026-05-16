@@ -3,3 +3,4 @@ max-line-length = 120
 # Ignore E402: module-level import not at top of file
 # Ignore W503: line break before binary operator (incompatible with W504)
 ignore = E402,W503
+exclude = .venv

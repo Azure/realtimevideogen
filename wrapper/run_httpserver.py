@@ -1266,8 +1266,8 @@ async def send_task(gen_task: dict) -> None:
 
     try:
         payload_bytes = await asyncio.to_thread(pickle.dumps, gen_task)
-        payload_bytes = bytearray(payload_bytes)
-        payload_tensor = torch.frombuffer(payload_bytes, dtype=torch.uint8).to("cuda")
+        payload_buffer = bytearray(payload_bytes)
+        payload_tensor = torch.frombuffer(payload_buffer, dtype=torch.uint8).to("cuda")
         payload_size = torch.tensor([payload_tensor.numel()], dtype=torch.int64, device="cuda")
 
         if payload_size.item() > MAX_PAYLOAD_BYTES:
