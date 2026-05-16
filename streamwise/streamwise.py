@@ -34,6 +34,7 @@ import http_session_manager
 import pod_manager
 import node_manager
 import job_manager
+import allocator_bridge
 
 from service_manager import get_services
 from service_manager import get_service_timestamps
@@ -724,6 +725,123 @@ async def api_add_pod() -> QuartReturn:
         logging.error(f"Error adding pod for {container_name}: {ex}.")
         traceback.print_exc()
         return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@route("/api/auto_deploy", methods=["POST"])
+async def api_auto_deploy() -> QuartReturn:
+    """Run the model allocator to produce an optimized deployment plan.
+
+    Expects JSON body:
+        {
+            "gpu_budget": {"A100": 8, "H100": 0, ...},
+            "workflow": "streamcast"
+        }
+
+    Returns the deployment plan with estimated metrics and per-container specs.
+    """
+    try:
+        data = await request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), HTTPStatus.BAD_REQUEST
+
+        gpu_budget = data.get("gpu_budget")
+        workflow_name = data.get("workflow")
+
+        if not gpu_budget or not isinstance(gpu_budget, dict):
+            return jsonify({"error": "Missing or invalid 'gpu_budget' field"}), HTTPStatus.BAD_REQUEST
+        if not workflow_name or not isinstance(workflow_name, str):
+            return jsonify({"error": "Missing or invalid 'workflow' field"}), HTTPStatus.BAD_REQUEST
+
+        plan = allocator_bridge.run_allocator(
+            gpu_budget=gpu_budget,
+            workflow_name=workflow_name,
+        )
+        return jsonify(allocator_bridge.deployment_plan_to_json(plan)), HTTPStatus.OK
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), HTTPStatus.BAD_REQUEST
+    except Exception as ex:
+        logging.exception("Error in auto_deploy: %s", ex)
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@route("/api/auto_deploy/confirm", methods=["POST"])
+async def api_auto_deploy_confirm() -> QuartReturn:
+    """Execute a deployment plan produced by /api/auto_deploy.
+
+    Expects JSON body:
+        {
+            "specs": [
+                {
+                    "container_name": "gemma",
+                    "cpu": 16,
+                    "memory_gib": 192,
+                    "ephemeral_storage_gib": 64,
+                    "gpu": 2,
+                    "gpu_type": "a100",
+                    "mig_profile": null
+                },
+                ...
+            ]
+        }
+
+    Deploys all containers in the plan.
+    """
+    try:
+        data = await request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), HTTPStatus.BAD_REQUEST
+
+        specs = data.get("specs")
+        if not specs or not isinstance(specs, list):
+            return jsonify({"error": "Missing or invalid 'specs' field"}), HTTPStatus.BAD_REQUEST
+
+        deployed: List[str] = []
+        errors: List[str] = []
+
+        for spec in specs:
+            container_name = spec.get("container_name")
+            if not container_name:
+                errors.append("Spec missing 'container_name'")
+                continue
+
+            try:
+                await pod_manager.add_pod(
+                    container_name=container_name,
+                    cpu=int(spec.get("cpu", 4)),
+                    memory_gib=int(spec.get("memory_gib", 16)),
+                    ephemeral_storage_gib=int(spec.get("ephemeral_storage_gib", 16)),
+                    gpu=int(spec.get("gpu", 0)),
+                    gpu_type=spec.get("gpu_type"),
+                    mig_profile=spec.get("mig_profile"),
+                    namespace=NAMESPACE,
+                    k8s_cluster=k8s_cluster,
+                )
+                deployed.append(container_name)
+            except Exception as pod_ex:
+                msg = f"Failed to deploy '{container_name}': {pod_ex}"
+                logging.error(msg)
+                errors.append(msg)
+
+        status = HTTPStatus.OK if not errors else HTTPStatus.MULTI_STATUS
+        return jsonify({
+            "deployed": deployed,
+            "errors": errors,
+            "message": f"Deployed {len(deployed)}/{len(specs)} containers.",
+        }), status
+
+    except Exception as ex:
+        logging.exception("Error in auto_deploy/confirm: %s", ex)
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@route("/api/auto_deploy/workflows", methods=["GET"])
+async def api_auto_deploy_workflows() -> QuartReturn:
+    """Return available workflows and GPU types for the auto-deploy UI."""
+    return jsonify({
+        "workflows": allocator_bridge.get_available_workflows(),
+        "gpu_types": allocator_bridge.get_available_gpu_types(),
+    }), HTTPStatus.OK
 
 
 @route("/api/node/<node_name>", methods=["DELETE"])

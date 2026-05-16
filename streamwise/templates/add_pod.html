@@ -384,6 +384,94 @@
             </form>
         {% endif %}
 
+        <!-- Auto-Deploy Section -->
+        <h2 class="mt-5">🤖 Auto Deploy</h2>
+        <p>Specify your GPU budget and the optimizer will determine the best allocation for each component:</p>
+
+        <form id="auto-deploy-form">
+            <fieldset class="border rounded-3 p-3 mb-4">
+                <legend class="float-none w-auto px-2 fw-semibold">
+                    💰 GPU Budget
+                </legend>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label for="auto_gpu_a100" class="form-label">A100</label>
+                        <input type="number" class="form-control" id="auto_gpu_a100" name="gpu_a100"
+                            min="0" max="64" value="8">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="auto_gpu_h100" class="form-label">H100</label>
+                        <input type="number" class="form-control" id="auto_gpu_h100" name="gpu_h100"
+                            min="0" max="64" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="auto_gpu_h200" class="form-label">H200</label>
+                        <input type="number" class="form-control" id="auto_gpu_h200" name="gpu_h200"
+                            min="0" max="64" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="auto_gpu_gb200" class="form-label">GB200</label>
+                        <input type="number" class="form-control" id="auto_gpu_gb200" name="gpu_gb200"
+                            min="0" max="64" value="0">
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="border rounded-3 p-3 mb-4">
+                <legend class="float-none w-auto px-2 fw-semibold">
+                    🎬 Workflow
+                </legend>
+                <div class="mb-3">
+                    <label for="auto_workflow" class="form-label">Application workflow</label>
+                    <select class="form-select" id="auto_workflow" name="workflow">
+                        <option value="streamcast" selected>🎙️ StreamCast (Podcast)</option>
+                        <option value="streampersona">👤 StreamPersona (Slide)</option>
+                        <option value="streamchat">💬 StreamChat (Video Chat)</option>
+                        <option value="streamshort">🎬 StreamShort (Shorts)</option>
+                        <option value="streammovie">🎬 StreamMovie (Movie)</option>
+                        <option value="streamanimate">🎞️ StreamAnimate (Story)</option>
+                        <option value="streamlecture">📚 StreamLecture (Lecture)</option>
+                        <option value="streamdub">🎤 StreamDub (Dubbing)</option>
+                        <option value="streamedit">✂️ StreamEdit (Editing)</option>
+                    </select>
+                </div>
+            </fieldset>
+
+            <div class="text-end mb-3">
+                <button type="submit" class="btn btn-warning" style="width: 200px;"
+                    id="auto-deploy-optimize-btn">
+                    🤖 Optimize
+                </button>
+            </div>
+        </form>
+
+        <!-- Auto-deploy results (hidden until optimize is clicked) -->
+        <div id="auto-deploy-results" style="display:none;">
+            <h4>📊 Optimized Deployment Plan</h4>
+            <div id="auto-deploy-metrics" class="alert alert-success mb-3"></div>
+            <table class="table table-sm table-bordered" id="auto-deploy-plan-table">
+                <thead>
+                    <tr>
+                        <th>Container</th>
+                        <th>GPU</th>
+                        <th>GPU Type</th>
+                        <th>CPU</th>
+                        <th>Memory</th>
+                        <th>MIG</th>
+                    </tr>
+                </thead>
+                <tbody id="auto-deploy-plan-body"></tbody>
+            </table>
+            <div class="text-end">
+                <button type="button" class="btn btn-success" style="width: 200px;"
+                    id="auto-deploy-confirm-btn">
+                    ✅ Confirm Deploy
+                </button>
+            </div>
+        </div>
+
+        <div id="auto-deploy-error" class="alert alert-danger mt-3" style="display:none;"></div>
+
         <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
         <script>
             // Keep aligned with deployment/helm/values.yaml and services.json
@@ -681,6 +769,108 @@
                         }
                     })
                     .catch(err => {
+                        alert('Error: ' + err);
+                    });
+                });
+            }
+            // Auto-Deploy
+            const autoDeployForm = document.getElementById('auto-deploy-form');
+            if (autoDeployForm) {
+                let currentPlan = null;
+
+                autoDeployForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('auto-deploy-optimize-btn');
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Optimizing...';
+
+                    const gpuBudget = {
+                        'A100': parseInt(document.getElementById('auto_gpu_a100').value) || 0,
+                        'H100': parseInt(document.getElementById('auto_gpu_h100').value) || 0,
+                        'H200': parseInt(document.getElementById('auto_gpu_h200').value) || 0,
+                        'GB200': parseInt(document.getElementById('auto_gpu_gb200').value) || 0,
+                    };
+                    const workflow = document.getElementById('auto_workflow').value;
+
+                    const errorDiv = document.getElementById('auto-deploy-error');
+                    const resultsDiv = document.getElementById('auto-deploy-results');
+                    errorDiv.style.display = 'none';
+                    resultsDiv.style.display = 'none';
+
+                    fetch('/api/auto_deploy', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({gpu_budget: gpuBudget, workflow: workflow}),
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json().then(data => ({ok: response.ok, data})))
+                    .then(({ok, data}) => {
+                        btn.disabled = false;
+                        btn.textContent = '🤖 Optimize';
+                        if (!ok) {
+                            errorDiv.textContent = data.error || 'Unknown error';
+                            errorDiv.style.display = '';
+                            return;
+                        }
+                        currentPlan = data;
+                        // Show metrics
+                        const metrics = data.metrics;
+                        document.getElementById('auto-deploy-metrics').innerHTML =
+                            `<strong>Total Time:</strong> ${metrics.total_time_s}s &nbsp;|&nbsp; ` +
+                            `<strong>TTFF:</strong> ${metrics.ttff_s}s &nbsp;|&nbsp; ` +
+                            `<strong>Cost:</strong> $${metrics.cost} &nbsp;|&nbsp; ` +
+                            `<strong>GPUs Used:</strong> ${JSON.stringify(metrics.gpus_used)}`;
+                        // Show plan table
+                        const tbody = document.getElementById('auto-deploy-plan-body');
+                        tbody.innerHTML = '';
+                        data.specs.forEach(spec => {
+                            const row = document.createElement('tr');
+                            row.innerHTML =
+                                `<td>${escapeHtml(spec.container_name)}</td>` +
+                                `<td>${spec.gpu}</td>` +
+                                `<td>${escapeHtml(spec.gpu_type || 'any')}</td>` +
+                                `<td>${spec.cpu}</td>` +
+                                `<td>${spec.memory_gib} GiB</td>` +
+                                `<td>${spec.mig_profile || '-'}</td>`;
+                            tbody.appendChild(row);
+                        });
+                        resultsDiv.style.display = '';
+                    })
+                    .catch(err => {
+                        btn.disabled = false;
+                        btn.textContent = '🤖 Optimize';
+                        errorDiv.textContent = 'Network error: ' + err;
+                        errorDiv.style.display = '';
+                    });
+                });
+
+                document.getElementById('auto-deploy-confirm-btn').addEventListener('click', function() {
+                    if (!currentPlan || !currentPlan.specs) return;
+
+                    const btn = this;
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Deploying...';
+
+                    fetch('/api/auto_deploy/confirm', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({specs: currentPlan.specs}),
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json().then(data => ({ok: response.ok, data})))
+                    .then(({ok, data}) => {
+                        btn.disabled = false;
+                        btn.textContent = '✅ Confirm Deploy';
+                        if (data.errors && data.errors.length > 0) {
+                            alert('Deployed ' + data.deployed.length + ' containers.\nErrors:\n' + data.errors.join('\n'));
+                        } else {
+                            alert(data.message || 'Deployment complete!');
+                        }
+                        window.location.href = '/';
+                    })
+                    .catch(err => {
+                        btn.disabled = false;
+                        btn.textContent = '✅ Confirm Deploy';
                         alert('Error: ' + err);
                     });
                 });
