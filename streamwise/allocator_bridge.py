@@ -7,9 +7,12 @@ container deployment parameters compatible with pod_manager.add_pod().
 
 from __future__ import annotations
 
+import sys
 import os
 
-import model_provisioner  # noqa: F401 — adds simulator/ to sys.path
+# Ensure the streamwise/ directory is on sys.path so model_provisioner is importable.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import model_provisioner  # noqa: E402, F401 — adds simulator/ to sys.path
 
 from dataclasses import dataclass
 from typing import Optional
