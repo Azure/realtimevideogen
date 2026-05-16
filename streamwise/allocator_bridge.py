@@ -8,14 +8,8 @@ container deployment parameters compatible with pod_manager.add_pod().
 from __future__ import annotations
 
 import os
-import sys
 
-# Add simulator/ to sys.path so foundation modules are importable.
-_SIMULATOR_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "simulator")
-)
-if _SIMULATOR_DIR not in sys.path:
-    sys.path.insert(0, _SIMULATOR_DIR)
+import model_provisioner  # noqa: F401 — adds simulator/ to sys.path
 
 from dataclasses import dataclass
 from typing import Optional

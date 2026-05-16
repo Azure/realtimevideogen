@@ -3,27 +3,6 @@ Provisioning simulation module.
 """
 from __future__ import annotations
 
-import os
-import sys
-
-# Ensure streamwise/ and simulator/ are on sys.path so model_provisioner
-# imports work in child processes spawned by ProcessPoolExecutor.
-_REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-_STREAMWISE_DIR = os.path.join(_REPO_ROOT, "streamwise")
-_SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
-for _p in (_REPO_ROOT, _STREAMWISE_DIR, _SIMULATOR_DIR):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-# Propagate paths to child processes spawned by ProcessPoolExecutor (Windows
-# uses 'spawn' which starts a fresh interpreter that reads PYTHONPATH).
-_EXTRA_PATHS = os.pathsep.join((_REPO_ROOT, _STREAMWISE_DIR, _SIMULATOR_DIR))
-_EXISTING = os.environ.get("PYTHONPATH", "")
-if _SIMULATOR_DIR not in _EXISTING:
-    os.environ["PYTHONPATH"] = (
-        _EXTRA_PATHS + os.pathsep + _EXISTING if _EXISTING else _EXTRA_PATHS
-    )
-
 from tqdm.auto import tqdm
 
 import logging

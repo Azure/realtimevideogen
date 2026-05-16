@@ -15,8 +15,10 @@ import os
 
 import pytest
 
-# Add current path
+# Add current path and simulator/ permanently so lazy imports
+# (e.g. GreedyAllocator via auto_model_allocator) resolve at test time.
 sys.path.append(os.getcwd())
+sys.path[:0] = [os.path.join(os.getcwd(), "simulator")]
 
 from tests.test_utils import temp_sys_path
 
