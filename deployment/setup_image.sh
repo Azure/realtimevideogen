@@ -90,6 +90,8 @@ if [[ "$IMAGE_NAME" == "streamwise" ]]; then
   cp "$APP_DIR"/*.bash "$IMAGE_DIR/docker_files/"
   [[ -d "$APP_DIR/static" ]] && cp -R "$APP_DIR/static" "$IMAGE_DIR/docker_files/"
   [[ -d "$APP_DIR/templates" ]] && cp -R "$APP_DIR/templates" "$IMAGE_DIR/docker_files/"
+  [[ -d "$APP_DIR/model_provisioner" ]] && cp -R "$APP_DIR/model_provisioner" "$IMAGE_DIR/docker_files/"
+  [[ -d "$MAIN_DIR/simulator" ]] && cp -R "$MAIN_DIR/simulator" "$IMAGE_DIR/docker_files/"
   cp "$MAIN_DIR/services.json" "$IMAGE_DIR/docker_files/"
 
   # Certs directory (empty by default; populated with --certfile/--keyfile for embedded HTTPS)

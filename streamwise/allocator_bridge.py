@@ -10,8 +10,10 @@ from __future__ import annotations
 import sys
 import os
 
-# Ensure the streamwise/ directory is on sys.path so model_provisioner is importable.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure the directory containing this file is on sys.path so model_provisioner is importable.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 import model_provisioner  # noqa: E402, F401 — adds simulator/ to sys.path
 
 from dataclasses import dataclass
