@@ -752,7 +752,8 @@ async def api_auto_deploy() -> QuartReturn:
         if not workflow_name or not isinstance(workflow_name, str):
             return jsonify({"error": "Missing or invalid 'workflow' field"}), HTTPStatus.BAD_REQUEST
 
-        plan = allocator_bridge.run_allocator(
+        plan = await asyncio.to_thread(
+            allocator_bridge.run_allocator,
             gpu_budget=gpu_budget,
             workflow_name=workflow_name,
         )
