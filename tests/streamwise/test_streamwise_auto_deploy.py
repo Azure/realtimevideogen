@@ -218,6 +218,32 @@ async def test_auto_deploy_confirm_missing_specs() -> None:
 
 
 @pytest.mark.asyncio
+async def test_auto_deploy_confirm_tracks_add_pod_status_failures() -> None:
+    """Non-2xx add_pod return statuses are surfaced as deployment errors."""
+    client = _get_client()
+    specs = [
+        {"container_name": "gemma", "gpu": 2, "gpu_type": "a100"},
+        {"container_name": "flux", "gpu": 2, "gpu_type": "a100"},
+    ]
+    with patch.object(
+        sw.pod_manager,
+        "add_pod",
+        side_effect=[
+            (None, HTTPStatus.OK),
+            (None, HTTPStatus.BAD_REQUEST),
+        ],
+    ):
+        response = await client.post("/api/auto_deploy/confirm", json={"specs": specs})
+
+    assert response.status_code == HTTPStatus.MULTI_STATUS
+    data = await response.get_json()
+    assert data["deployed"] == ["gemma"]
+    assert len(data["errors"]) == 1
+    assert "flux" in data["errors"][0]
+    assert "status=400" in data["errors"][0]
+
+
+@pytest.mark.asyncio
 async def test_auto_deploy_confirm_empty_specs() -> None:
     """Empty specs list returns 400."""
     client = _get_client()

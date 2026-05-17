@@ -820,7 +820,7 @@ async def api_auto_deploy_confirm() -> QuartReturn:
                 continue
 
             try:
-                await pod_manager.add_pod(
+                add_pod_result = await pod_manager.add_pod(
                     container_name=container_name,
                     cpu=int(spec.get("cpu", 4)),
                     memory_gib=int(spec.get("memory_gib", 16)),
@@ -831,7 +831,21 @@ async def api_auto_deploy_confirm() -> QuartReturn:
                     namespace=NAMESPACE,
                     k8s_cluster=k8s_cluster,
                 )
-                deployed.append(container_name)
+
+                status_code = HTTPStatus.OK
+                if isinstance(add_pod_result, tuple) and len(add_pod_result) >= 2:
+                    status_value = add_pod_result[1]
+                    if isinstance(status_value, HTTPStatus):
+                        status_code = status_value
+                    elif isinstance(status_value, int):
+                        status_code = HTTPStatus(status_value)
+
+                if status_code >= HTTPStatus.BAD_REQUEST:
+                    msg = f"Failed to deploy '{container_name}' (status={int(status_code)})"
+                    logging.error(msg)
+                    errors.append(msg)
+                else:
+                    deployed.append(container_name)
             except Exception as pod_ex:
                 msg = f"Failed to deploy '{container_name}': {pod_ex}"
                 logging.error(msg)
