@@ -4,6 +4,7 @@ Test data loading.
 
 import sys
 import os
+from pathlib import Path
 import pytest
 
 # Add current path
@@ -59,3 +60,11 @@ def test_adaptive_quality() -> None:
             "simulator/data/",
             "nonexisting"
         )
+
+
+def test_default_data_dir_is_cwd_relative(monkeypatch: pytest.MonkeyPatch) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    monkeypatch.chdir(repo_root / "simulator")
+
+    assert load_latency_data() is not None
+    assert load_power_data() is not None
