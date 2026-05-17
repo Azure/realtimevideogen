@@ -193,15 +193,17 @@ async def test_auto_deploy_confirm_success() -> None:
             "mig_profile": None,
         },
     ]
-    response = await client.post(
-        "/api/auto_deploy/confirm",
-        json={"specs": specs},
-    )
-    # Should succeed (mocked K8s)
+    with patch("streamwise.pod_manager.add_pod") as mock_add_pod:
+        response = await client.post(
+            "/api/auto_deploy/confirm",
+            json={"specs": specs},
+        )
+    # Should succeed without invoking the real pod_manager.add_pod flow
     assert response.status_code in (HTTPStatus.OK, HTTPStatus.MULTI_STATUS)
     data = await response.get_json()
     assert "deployed" in data
     assert "message" in data
+    assert mock_add_pod.call_count == len(specs)
 
 
 @pytest.mark.asyncio
