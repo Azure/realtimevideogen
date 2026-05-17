@@ -749,6 +749,19 @@ async def api_auto_deploy() -> QuartReturn:
 
         if not gpu_budget or not isinstance(gpu_budget, dict):
             return jsonify({"error": "Missing or invalid 'gpu_budget' field"}), HTTPStatus.BAD_REQUEST
+        for gpu_type_name, count in gpu_budget.items():
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                return (
+                    jsonify(
+                        {
+                            "error": (
+                                "Invalid 'gpu_budget' field: each GPU type count must be a "
+                                "non-negative integer"
+                            )
+                        }
+                    ),
+                    HTTPStatus.BAD_REQUEST,
+                )
         if not workflow_name or not isinstance(workflow_name, str):
             return jsonify({"error": "Missing or invalid 'workflow' field"}), HTTPStatus.BAD_REQUEST
 
