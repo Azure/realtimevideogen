@@ -63,12 +63,23 @@ GPU_TYPE_TO_POD_STR: dict[GPUType, str] = {
     GPUType.GB200: "gb200",
 }
 
-# MIG containers: these use a MIG slice instead of a full GPU
+# MIG is only supported by pod_manager on these GPU types.
+MIG_CAPABLE_GPU_TYPES: frozenset[GPUType] = frozenset({GPUType.A100, GPUType.H100})
+
+# Containers that prefer a MIG slice when the selected GPU type supports MIG.
 MIG_CONTAINERS: dict[str, str] = {
     "kokoro": "1g.10gb",
     "yolo": "1g.10gb",
     "realesrgan": "1g.10gb",
 }
+
+
+def get_mig_profile(container_name: str, gpu_type: GPUType) -> Optional[str]:
+    """Return a MIG profile only when the selected GPU type supports MIG."""
+    if gpu_type not in MIG_CAPABLE_GPU_TYPES:
+        return None
+    return MIG_CONTAINERS.get(container_name)
+
 
 # Mapping from StreamWise app name to simulator workflow key
 APP_TO_WORKFLOW: dict[str, str] = {
