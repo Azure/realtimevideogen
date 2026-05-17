@@ -5,3 +5,5 @@ aiohttp
 numpy
 scipy
 colorlog
+pandas
+tabulate
