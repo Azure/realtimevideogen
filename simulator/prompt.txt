@@ -1,0 +1,6 @@
+Please write a simulator that simulates the performance and costs of running a multimodal workflow on a given GPU budgets (e.g., X A100s and Y H100s).
+Profiling data that the simulator needs is in simulator\data\ folder; data loading functions are in simulator\data_loading.py
+Simulator code should go in simulator\ folder                                                                                                                                      
+You can use the validator/ to check if your generated simulator is matching with the ground truth. If not matching, then please re-write/update/improve the simulator until all cases are matching withthe ground truth in the validator
+Please create a virtual python environment .venv in this repo and install any needed python packages, generate a requirements.txt in simulator/ folder.
+At the end, please complete the README.md file

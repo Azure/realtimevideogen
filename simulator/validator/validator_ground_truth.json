@@ -1,0 +1,2533 @@
+{
+  "8xA100_minimal": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 8
+    },
+    "expected": {
+      "cost": 37.9343,
+      "ttff_s": 15353.6813,
+      "tbf_s": 1.1505,
+      "total_time_s": 15953.6813
+    }
+  },
+  "8xH100_minimal": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 8
+    },
+    "expected": {
+      "cost": 71.6918,
+      "ttff_s": 7405.2874,
+      "tbf_s": 0.5773,
+      "total_time_s": 8005.2874
+    }
+  },
+  "8xH200_minimal": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 8
+    },
+    "expected": {
+      "cost": 70.8337,
+      "ttff_s": 6953.3533,
+      "tbf_s": 0.5447,
+      "total_time_s": 7553.3533
+    }
+  },
+  "16xA100_balanced": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 16
+    },
+    "expected": {
+      "cost": 35.406,
+      "ttff_s": 7341.5248,
+      "tbf_s": 0.5669,
+      "total_time_s": 7941.5248
+    }
+  },
+  "16xH100_balanced": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 16
+    },
+    "expected": {
+      "cost": 78.6096,
+      "ttff_s": 4081.4663,
+      "tbf_s": 0.3353,
+      "total_time_s": 4681.4663
+    }
+  },
+  "16xH200_balanced": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 16
+    },
+    "expected": {
+      "cost": 66.6735,
+      "ttff_s": 3462.7048,
+      "tbf_s": 0.2924,
+      "total_time_s": 4062.7048
+    }
+  },
+  "16xA100_ft_heavy": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 8
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 16
+    },
+    "expected": {
+      "cost": 27.1127,
+      "ttff_s": 5481.3604,
+      "tbf_s": 0.4309,
+      "total_time_s": 6081.3604
+    }
+  },
+  "16xH200_hf_heavy": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 8,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 16
+    },
+    "expected": {
+      "cost": 125.8348,
+      "ttff_s": 6556.4792,
+      "tbf_s": 0.5159,
+      "total_time_s": 7156.4792
+    }
+  },
+  "16xH100_high_tp": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 16
+    },
+    "expected": {
+      "cost": 239.5639,
+      "ttff_s": 12775.1569,
+      "tbf_s": 0.9691,
+      "total_time_s": 13375.1569
+    }
+  },
+  "24xH100_scaled": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 24
+    },
+    "expected": {
+      "cost": 70.7161,
+      "ttff_s": 2032.1114,
+      "tbf_s": 0.1881,
+      "total_time_s": 2632.1114
+    }
+  },
+  "24xA100_ft_scaled": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 24
+    },
+    "expected": {
+      "cost": 28.6378,
+      "ttff_s": 3779.6084,
+      "tbf_s": 0.3108,
+      "total_time_s": 4379.6084
+    }
+  },
+  "24xH200_balanced": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 3
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 24
+    },
+    "expected": {
+      "cost": 76.9858,
+      "ttff_s": 2385.233,
+      "tbf_s": 0.2141,
+      "total_time_s": 2985.233
+    }
+  },
+  "32xH200_large": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 3
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 32
+    },
+    "expected": {
+      "cost": 74.0,
+      "ttff_s": 1504.2651,
+      "tbf_s": 0.1498,
+      "total_time_s": 2104.2651
+    }
+  },
+  "32xA100_high_replicas": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 10
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 32
+    },
+    "expected": {
+      "cost": 24.3759,
+      "ttff_s": 3127.8371,
+      "tbf_s": 0.2594,
+      "total_time_s": 3727.8371
+    }
+  },
+  "32xH100_mixed_tp": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 8,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 32
+    },
+    "expected": {
+      "cost": 121.6127,
+      "ttff_s": 3279.8792,
+      "tbf_s": 0.2799,
+      "total_time_s": 3879.8792
+    }
+  },
+  "40xH200_high_parallelism": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 5
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 40
+    },
+    "expected": {
+      "cost": 79.1805,
+      "ttff_s": 1177.561,
+      "tbf_s": 0.1261,
+      "total_time_s": 1777.561
+    }
+  },
+  "40xA100_ft_dominated": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 10
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 40
+    },
+    "expected": {
+      "cost": 28.8339,
+      "ttff_s": 2021.9227,
+      "tbf_s": 0.1835,
+      "total_time_s": 2621.9227
+    }
+  },
+  "48xH100_large_scale": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 8,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 48
+    },
+    "expected": {
+      "cost": 104.4726,
+      "ttff_s": 1428.8131,
+      "tbf_s": 0.1449,
+      "total_time_s": 2028.8131
+    }
+  },
+  "48xH200_max_ft": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 48
+    },
+    "expected": {
+      "cost": 74.6627,
+      "ttff_s": 916.5062,
+      "tbf_s": 0.1074,
+      "total_time_s": 1516.5062
+    }
+  },
+  "64xH200_massive": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 8,
+        "replicas": 3
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 5
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 64
+    },
+    "expected": {
+      "cost": 105.346,
+      "ttff_s": 849.4941,
+      "tbf_s": 0.1029,
+      "total_time_s": 1449.4941
+    }
+  },
+  "64xA100_distributed": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 10
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 64
+    },
+    "expected": {
+      "cost": 36.4325,
+      "ttff_s": 1588.8688,
+      "tbf_s": 0.1524,
+      "total_time_s": 2188.8688
+    }
+  },
+  "mixed_8A100_8H200": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 8,
+      "H200": 8
+    },
+    "expected": {
+      "cost": 76.5661,
+      "ttff_s": 6646.0051,
+      "tbf_s": 0.522,
+      "total_time_s": 7246.0051
+    }
+  },
+  "mixed_8A100_16H200": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 8,
+      "H200": 16
+    },
+    "expected": {
+      "cost": 82.4737,
+      "ttff_s": 4086.003,
+      "tbf_s": 0.3375,
+      "total_time_s": 4686.003
+    }
+  },
+  "mixed_16A100_16H100": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      }
+    ],
+    "num_gpus": {
+      "A100": 16,
+      "H100": 16
+    },
+    "expected": {
+      "cost": 45.2245,
+      "ttff_s": 2260.2997,
+      "tbf_s": 0.2037,
+      "total_time_s": 2860.2997
+    }
+  },
+  "mixed_8H100_24H200": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 3
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      }
+    ],
+    "num_gpus": {
+      "H100": 8,
+      "H200": 24
+    },
+    "expected": {
+      "cost": 84.7216,
+      "ttff_s": 1834.7232,
+      "tbf_s": 0.174,
+      "total_time_s": 2434.7232
+    }
+  },
+  "mixed_16A100_32H200": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 4
+      }
+    ],
+    "num_gpus": {
+      "A100": 16,
+      "H200": 32
+    },
+    "expected": {
+      "cost": 79.064,
+      "ttff_s": 1324.7385,
+      "tbf_s": 0.137,
+      "total_time_s": 1924.7385
+    }
+  },
+  "mixed_triple_8A_8H1_8H2": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      }
+    ],
+    "num_gpus": {
+      "A100": 8,
+      "H100": 8,
+      "H200": 8
+    },
+    "expected": {
+      "cost": 55.7269,
+      "ttff_s": 3521.1316,
+      "tbf_s": 0.296,
+      "total_time_s": 4121.1316
+    }
+  },
+  "16xH200_tp8_hf": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 8,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 16
+    },
+    "expected": {
+      "cost": 136.2323,
+      "ttff_s": 7147.8077,
+      "tbf_s": 0.561,
+      "total_time_s": 7747.8077
+    }
+  },
+  "32xH100_tp16_hf": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 16,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 32
+    },
+    "expected": {
+      "cost": 235.9502,
+      "ttff_s": 6668.0804,
+      "tbf_s": 0.5265,
+      "total_time_s": 7268.0804
+    }
+  },
+  "24xA100_tp4_all": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 24
+    },
+    "expected": {
+      "cost": 92.7326,
+      "ttff_s": 12965.1122,
+      "tbf_s": 0.9827,
+      "total_time_s": 13565.1122
+    }
+  },
+  "24xH200_many_replicas": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 8
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 24
+    },
+    "expected": {
+      "cost": 47.4214,
+      "ttff_s": 1422.712,
+      "tbf_s": 0.1416,
+      "total_time_s": 2022.712
+    }
+  },
+  "32xA100_many_replicas": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 10
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 8
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 32
+    },
+    "expected": {
+      "cost": 27.2191,
+      "ttff_s": 2670.6567,
+      "tbf_s": 0.2261,
+      "total_time_s": 3270.6567
+    }
+  },
+  "40xH100_many_replicas": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 16
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 8
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 40
+    },
+    "expected": {
+      "cost": 45.4753,
+      "ttff_s": 594.7981,
+      "tbf_s": 0.0809,
+      "total_time_s": 1194.7981
+    }
+  },
+  "16xA100_upscaler_heavy": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 8
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 16
+    },
+    "expected": {
+      "cost": 60.7368,
+      "ttff_s": 13023.2063,
+      "tbf_s": 0.9807,
+      "total_time_s": 13623.2063
+    }
+  },
+  "24xH200_upscaler_heavy": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 24
+    },
+    "expected": {
+      "cost": 83.6336,
+      "ttff_s": 2967.311,
+      "tbf_s": 0.2565,
+      "total_time_s": 3567.311
+    }
+  },
+  "16xH100_gemma_tp8": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 8,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H100": 16
+    },
+    "expected": {
+      "cost": 227.1784,
+      "ttff_s": 12929.2363,
+      "tbf_s": 0.9801,
+      "total_time_s": 13529.2363
+    }
+  },
+  "24xH200_flux_tp8": {
+    "allocations": [
+      {
+        "gpu_type": "H200",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "flux",
+        "devices": 8,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "H200": 24
+    },
+    "expected": {
+      "cost": 118.0692,
+      "ttff_s": 4196.3131,
+      "tbf_s": 0.3462,
+      "total_time_s": 4796.3131
+    }
+  },
+  "hetero_24H200_40A100_hf_split": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 6
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 3
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      }
+    ],
+    "num_gpus": {
+      "A100": 40,
+      "H200": 24
+    },
+    "expected": {
+      "cost": 62.3983,
+      "ttff_s": 1275.5452,
+      "tbf_s": 0.1326,
+      "total_time_s": 1875.5452
+    }
+  },
+  "hetero_8H100_16A100_ft_split": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 4
+      }
+    ],
+    "num_gpus": {
+      "A100": 16,
+      "H100": 8
+    },
+    "expected": {
+      "cost": 46.0304,
+      "ttff_s": 2909.3039,
+      "tbf_s": 0.2505,
+      "total_time_s": 3509.3039
+    }
+  },
+  "hetero_16H200_16H100_balanced": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      }
+    ],
+    "num_gpus": {
+      "H100": 16,
+      "H200": 16
+    },
+    "expected": {
+      "cost": 80.559,
+      "ttff_s": 1822.4214,
+      "tbf_s": 0.173,
+      "total_time_s": 2422.4214
+    }
+  },
+  "hetero_8A100_8H100_8H200_triple": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 8,
+      "H100": 8,
+      "H200": 8
+    },
+    "expected": {
+      "cost": 45.7175,
+      "ttff_s": 1964.7945,
+      "tbf_s": 0.1825,
+      "total_time_s": 2564.7945
+    }
+  },
+  "hetero_24H200_8A100_hf_heavy": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 1
+      }
+    ],
+    "num_gpus": {
+      "A100": 8,
+      "H200": 24
+    },
+    "expected": {
+      "cost": 127.1082,
+      "ttff_s": 3960.8429,
+      "tbf_s": 0.3283,
+      "total_time_s": 4560.8429
+    }
+  },
+  "hetero_32A100_16H100_ft_heavy": {
+    "allocations": [
+      {
+        "gpu_type": "A100",
+        "model": "gemma",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf",
+        "devices": 2,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "A100",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "A100",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 7
+      },
+      {
+        "gpu_type": "A100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 4
+      },
+      {
+        "gpu_type": "H100",
+        "model": "ft",
+        "devices": 4,
+        "replicas": 4
+      }
+    ],
+    "num_gpus": {
+      "A100": 32,
+      "H100": 16
+    },
+    "expected": {
+      "cost": 58.0498,
+      "ttff_s": 1540.0838,
+      "tbf_s": 0.1513,
+      "total_time_s": 2140.0838
+    }
+  },
+  "hetero_16H200_8H100_upscaler_split": {
+    "allocations": [
+      {
+        "gpu_type": "H100",
+        "model": "gemma",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "flux",
+        "devices": 2,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "others",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H100",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf",
+        "devices": 4,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "hf_vae",
+        "devices": 1,
+        "replicas": 1
+      },
+      {
+        "gpu_type": "H200",
+        "model": "ft",
+        "devices": 2,
+        "replicas": 2
+      },
+      {
+        "gpu_type": "H200",
+        "model": "upscaler",
+        "devices": 1,
+        "replicas": 2
+      }
+    ],
+    "num_gpus": {
+      "H100": 8,
+      "H200": 16
+    },
+    "expected": {
+      "cost": 93.156,
+      "ttff_s": 3064.755,
+      "tbf_s": 0.2636,
+      "total_time_s": 3664.755
+    }
+  }
+}
