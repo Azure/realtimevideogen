@@ -112,23 +112,24 @@ Key rules for multi-allocation scenarios:
 
 ### 3. Running Validation
 
+> **Note:** Use `clean_validator.py` for validation — it has zero dependencies on the ground truth simulator internals (`sim_types`, `evaluator`, etc.) and can be copied standalone into any project.
+
 #### Option A: Programmatic (recommended for automated testing)
 
 ```python
-import sys
-sys.path.insert(0, "simulator")
-sys.path.insert(0, "streamwise")
-
-from validator import load_ground_truth, validate, validate_all_passed
+from clean_validator import load_ground_truth, validate, validate_all_passed, get_scenario_allocations
 
 # Load the ground truth
 ground_truth = load_ground_truth()
 
+# Get input specs for your simulator
+scenarios = get_scenario_allocations(ground_truth)
+
 # Run your simulator on each scenario and collect results
 my_results = {}
-for scenario_name, scenario_data in ground_truth.items():
-    allocations = scenario_data["allocations"]
-    num_gpus = scenario_data["num_gpus"]
+for scenario_name, spec in scenarios.items():
+    allocations = spec["allocations"]
+    num_gpus = spec["num_gpus"]
 
     # YOUR SIMULATOR CALL HERE:
     result = my_simulator(allocations, num_gpus)
@@ -168,23 +169,12 @@ assert validate_all_passed(my_results, ground_truth)
 
 ```bash
 cd <repo_root>
-python -c "
-import sys; sys.path.insert(0, 'simulator'); sys.path.insert(0, 'streamwise')
-from validator import validate
-import json
-with open('my_results.json') as f:
-    results = validate(json.load(f))
-for r in results:
-    status = 'PASS' if r.passed else 'FAIL'
-    print(f'{status}: {r.scenario_name}')
-    for err in r.errors:
-        print(f'  {err}')
-"
+python simulator/clean_validator.py my_results.json
 ```
 
 ### 4. Regenerating Ground Truth
 
-If the simulator code changes (e.g., updated latency profiles), regenerate:
+If the simulator code changes (e.g., updated latency profiles), regenerate using `validator.py` (which depends on the full simulator):
 
 ```bash
 cd <repo_root>
@@ -239,8 +229,9 @@ All scenarios use the **default workflow configuration** (`DEFAULT_WORKFLOW_CONF
 
 ```
 simulator/
-├── validator.py                    # Validator implementation
-├── validator_ground_truth.json     # Pre-computed ground truth (37 scenarios)
+├── validator.py                    # Full validator (generates ground truth, requires simulator)
+├── clean_validator.py              # Standalone validator (no simulator dependencies)
+├── validator_ground_truth.json     # Pre-computed ground truth (44 scenarios)
 └── VALIDATOR_README.md             # This file
 
 tests/simulator/
