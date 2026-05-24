@@ -7,3 +7,4 @@ At the end, please complete the `README.md` file in `simulator/` folder.
 
 Note:
 1. Please do not use any git operation; but you can look at the source code of StreamWise as your reference to build its simulator.
+2. You can refer to the paper in `paper/` folder to understand more context.
