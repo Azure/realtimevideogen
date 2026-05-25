@@ -1,5 +1,6 @@
 Please write a simulator that simulates the performance and costs of running a multimodal workflow on a given GPU budgets (e.g., X A100s and Y H100s).
 Profiling data that the simulator needs is in `simulator\data\` folder; data loading functions are in `simulator\data_loading.py`.
+Parameters or configurations are in `simulator\constants.py`.
 Simulator code should go in `simulator\` folder.
 You can use the `validator/` to check if your generated simulator is matching with the ground truth. If not matching, then please re-write/update/improve the simulator until all cases are matching with the ground truth in the validator.
 Please create a virtual python environment `.venv` in this repo and install any needed python packages, generate a `requirements.txt` in `simulator/` folder.
@@ -9,3 +10,7 @@ Note:
 1. Please do not use any git operation; but you can look at the source code of StreamWise as your reference to build its simulator.
 2. Please do not use any hints from `__pycache__`.
 3. You can refer to the paper in `paper/` folder to understand more context.
+
+To hard stop an agent session and generates so far the best simulator:
+It has been so long, please stop, 1) summawrize what you have tried or learned in simulator/history.log, 2) clean up the existing simulator folder by only keeping the best simulator implementation you have every tried, and 3) generate a    
+run_validation.py to output the validation results on all cases.

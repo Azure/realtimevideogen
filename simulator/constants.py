@@ -140,3 +140,17 @@ GPU_RESERVED_COST = {
 }
 
 GPU_COST = GPU_SPOT_COST
+
+
+# Example policy that can be evaluated by the simulator:
+# STREAMWISE_POLICY = Policy(
+#     name="streamwise",
+#     gpu_cost=GPU_SPOT_COST,
+#     objective=Objective.TTFF_COST,
+#     disaggregation={
+#         Model.HF: True,   # disaggregating HF-VAE from HF on different GPU allocations
+#         Model.FT: False,  # not disaggregating FT-VAE from FT
+#     },
+#     use_upscaler=True,    # use upscaler so the previous pipeline generates in low resolution
+#     hardware=list(GPUType),
+# )
