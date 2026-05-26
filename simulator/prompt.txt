@@ -14,3 +14,6 @@ Note:
 To hard stop an agent session and generates so far the best simulator:
 It has been so long, please stop, 1) summawrize what you have tried or learned in simulator/history.log, 2) clean up the existing simulator folder by only keeping the best simulator implementation you have every tried, and 3) generate a    
 run_validation.py to output the validation results on all cases.
+
+Visualize:
+please generate a run_validation.py that validates the generated simulator against all cases, and visualize it in a figure with 3 subfigures plotting the error rate of ttff, tbf, and cost of all data points in a scatter plot manner, x-axis being the metric, y-axis being the error rate.
