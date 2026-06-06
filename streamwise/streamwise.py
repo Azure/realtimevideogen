@@ -774,6 +774,13 @@ async def api_auto_deploy() -> QuartReturn:
 
     except ValueError as ve:
         return jsonify({"error": str(ve)}), HTTPStatus.BAD_REQUEST
+    except AssertionError as ae:
+        msg = str(ae) if str(ae) else (
+            "GPU budget too small. Each GPU type must have at least 8 GPUs "
+            "(one full server). Use a single GPU type with 8+ GPUs, or "
+            "ensure each type has at least 8."
+        )
+        return jsonify({"error": msg}), HTTPStatus.BAD_REQUEST
     except Exception as ex:
         logging.exception("Error in auto_deploy: %s", ex)
         return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
