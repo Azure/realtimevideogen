@@ -67,15 +67,24 @@ GPU_TYPE_TO_POD_STR: dict[GPUType, str] = {
 MIG_CAPABLE_GPU_TYPES: frozenset[GPUType] = frozenset({GPUType.A100, GPUType.H100})
 
 # Containers that prefer a MIG slice when the selected GPU type supports MIG.
+# When MIG is available on the cluster, these services use a MIG slice (shared GPU).
+# When MIG is NOT available, they fall back to 1 full GPU each and the extra GPUs
+# are counted against the budget (with a warning if exceeded).
 MIG_CONTAINERS: dict[str, str] = {
     "kokoro": "1g.10gb",
     "yolo": "1g.10gb",
     "realesrgan": "1g.10gb",
 }
 
+# Whether MIG is actually configured on the cluster.
+# When False, MIG_CONTAINERS entries fall back to full GPUs.
+MIG_AVAILABLE: bool = False
+
 
 def get_mig_profile(container_name: str, gpu_type: GPUType) -> Optional[str]:
-    """Return a MIG profile only when the selected GPU type supports MIG."""
+    """Return a MIG profile only when MIG is available and the GPU type supports it."""
+    if not MIG_AVAILABLE:
+        return None
     if gpu_type not in MIG_CAPABLE_GPU_TYPES:
         return None
     return MIG_CONTAINERS.get(container_name)
@@ -201,6 +210,7 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
     Convert an allocator Result into a list of DeploymentSpec objects.
 
     Each ModelAllocation with replicas > 0 is mapped to one or more container deployments.
+    When MIG is unavailable, containers that would normally use MIG slices get 1 full GPU instead.
     """
     specs: list[DeploymentSpec] = []
 
@@ -220,8 +230,15 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
                     resources = CONTAINER_RESOURCES.get(container_name, (4, 16, 16))
                     cpu, memory_gib, ephemeral_storage_gib = resources
 
-                    mig_profile = MIG_CONTAINERS.get(container_name)
-                    gpu_count = allocation.devices if not mig_profile else 1
+                    mig_profile: Optional[str] = None
+                    if MIG_AVAILABLE and container_name in MIG_CONTAINERS:
+                        mig_profile = MIG_CONTAINERS[container_name]
+                        gpu_count = 1
+                    elif container_name in MIG_CONTAINERS:
+                        # MIG not available: use 1 full GPU instead of a MIG slice
+                        gpu_count = 1
+                    else:
+                        gpu_count = allocation.devices
 
                     for _ in range(allocation.replicas):
                         specs.append(DeploymentSpec(
@@ -239,6 +256,27 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
 
 def deployment_plan_to_json(plan: DeploymentPlan) -> dict:
     """Serialize a DeploymentPlan to a JSON-friendly dict."""
+    # Calculate actual GPUs used by the deployment specs (may differ from allocator
+    # when MIG is unavailable and services fall back to full GPUs).
+    actual_gpus: dict[str, int] = {}
+    for spec in plan.specs:
+        if spec.mig_profile:
+            continue  # MIG slices don't count against full GPU budget
+        gpu_type_key = spec.gpu_type or "unknown"
+        actual_gpus[gpu_type_key] = actual_gpus.get(gpu_type_key, 0) + spec.gpu
+
+    total_budget = sum(plan.gpu_budget.values())
+    total_actual = sum(actual_gpus.values())
+    budget_exceeded = total_actual > total_budget
+
+    warnings: list[str] = []
+    if budget_exceeded:
+        warnings.append(
+            f"Deployment requires {total_actual} full GPUs but budget is "
+            f"{total_budget}. "
+            f"{'Enable MIG to fit lightweight services (kokoro, yolo, realesrgan) on shared GPU slices.' if not MIG_AVAILABLE else ''}"
+        )
+
     return {
         "workflow_name": plan.workflow_name,
         "gpu_budget": plan.gpu_budget,
@@ -250,7 +288,11 @@ def deployment_plan_to_json(plan: DeploymentPlan) -> dict:
                 gpu_type.value: count
                 for gpu_type, count in plan.result.gpus_used.items()
             },
+            "actual_gpus_needed": actual_gpus,
+            "budget_exceeded": budget_exceeded,
         },
+        "warnings": warnings,
+        "mig_available": MIG_AVAILABLE,
         "specs": [
             {
                 "container_name": spec.container_name,

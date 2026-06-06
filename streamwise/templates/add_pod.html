@@ -448,6 +448,7 @@
         <!-- Auto-deploy results (hidden until optimize is clicked) -->
         <div id="auto-deploy-results" style="display:none;">
             <h4>📊 Optimized Deployment Plan</h4>
+            <div id="auto-deploy-warning" class="alert alert-warning mb-3" style="display:none;"></div>
             <div id="auto-deploy-metrics" class="alert alert-success mb-3"></div>
             <table class="table table-sm table-bordered" id="auto-deploy-plan-table">
                 <thead>
@@ -813,13 +814,25 @@
                             return;
                         }
                         currentPlan = data;
+                        // Show warnings if any
+                        const warningDiv = document.getElementById('auto-deploy-warning');
+                        if (data.warnings && data.warnings.length > 0) {
+                            warningDiv.innerHTML = data.warnings.map(w =>
+                                `⚠️ ${escapeHtml(w)}`).join('<br>');
+                            warningDiv.style.display = '';
+                        } else {
+                            warningDiv.style.display = 'none';
+                        }
                         // Show metrics
                         const metrics = data.metrics;
+                        const actualGpus = metrics.actual_gpus_needed
+                            ? JSON.stringify(metrics.actual_gpus_needed) : JSON.stringify(metrics.gpus_used);
                         document.getElementById('auto-deploy-metrics').innerHTML =
                             `<strong>Total Time:</strong> ${metrics.total_time_s}s &nbsp;|&nbsp; ` +
                             `<strong>TTFF:</strong> ${metrics.ttff_s}s &nbsp;|&nbsp; ` +
                             `<strong>Cost:</strong> $${metrics.cost} &nbsp;|&nbsp; ` +
-                            `<strong>GPUs Used:</strong> ${JSON.stringify(metrics.gpus_used)}`;
+                            `<strong>GPUs Needed:</strong> ${actualGpus}` +
+                            (metrics.budget_exceeded ? ' <span class="text-danger">(exceeds budget!)</span>' : '');
                         // Show plan table
                         const tbody = document.getElementById('auto-deploy-plan-body');
                         tbody.innerHTML = '';
