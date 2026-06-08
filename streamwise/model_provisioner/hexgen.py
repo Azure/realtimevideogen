@@ -36,14 +36,9 @@ from actions import gen_actions
 from actions import choose_action
 from actions import apply_action
 
-try:
-    from policies import HEXGEN_POLICY
-    from policies import MAX_ITERATIONS
-    from policies import USE_ALL_GPUS
-except ModuleNotFoundError:
-    from .policies import HEXGEN_POLICY
-    from .policies import MAX_ITERATIONS
-    from .policies import USE_ALL_GPUS
+from .policies import HEXGEN_POLICY
+from .policies import MAX_ITERATIONS
+from .policies import USE_ALL_GPUS
 
 
 def _get_model_order(workflow: WorkflowConfig) -> list[Model]:
