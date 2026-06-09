@@ -222,8 +222,10 @@
                 }
                 // Show metrics
                 const metrics = data.metrics;
-                const actualGpus = metrics.actual_gpus_needed
-                    ? JSON.stringify(metrics.actual_gpus_needed) : JSON.stringify(metrics.gpus_used);
+                const gpuObj = metrics.actual_gpus_needed || metrics.gpus_used || {};
+                const actualGpus = Object.entries(gpuObj)
+                    .map(([type, count]) => `${count} ${type.toUpperCase()}s`)
+                    .join(', ') || '0';
                 document.getElementById('auto-deploy-metrics').innerHTML =
                     `<strong>Total Time:</strong> ${metrics.total_time_s}s &nbsp;|&nbsp; ` +
                     `<strong>TTFF:</strong> ${metrics.ttff_s}s &nbsp;|&nbsp; ` +
