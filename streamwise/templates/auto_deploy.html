@@ -26,28 +26,9 @@
                 <legend class="float-none w-auto px-2 fw-semibold">
                     💰 GPU Budget
                 </legend>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <label for="auto_gpu_a100" class="form-label">A100</label>
-                        <input type="number" class="form-control" id="auto_gpu_a100" name="gpu_a100"
-                            min="0" max="64" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="auto_gpu_h100" class="form-label">H100</label>
-                        <input type="number" class="form-control" id="auto_gpu_h100" name="gpu_h100"
-                            min="0" max="64" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="auto_gpu_h200" class="form-label">H200</label>
-                        <input type="number" class="form-control" id="auto_gpu_h200" name="gpu_h200"
-                            min="0" max="64" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="auto_gpu_gb200" class="form-label">GB200</label>
-                        <input type="number" class="form-control" id="auto_gpu_gb200" name="gpu_gb200"
-                            min="0" max="64" value="0">
-                    </div>
-                </div>
+                <div id="gpu-budget-rows"></div>
+                <button type="button" class="btn btn-outline-success btn-sm mt-2" id="add-gpu-row-btn"
+                    title="Add GPU type">➕ Add GPU Type</button>
             </fieldset>
 
             <fieldset class="border rounded-3 p-3 mb-4">
@@ -108,29 +89,97 @@
 
     <script src="{{ url_for('static', filename='js/form-utils.js') }}"></script>
     <script>
+        const ALL_GPU_TYPES = ['A100', 'H100', 'H200', 'GB200'];
+        const gpuRowsContainer = document.getElementById('gpu-budget-rows');
+        const addGpuRowBtn = document.getElementById('add-gpu-row-btn');
         const autoDeployForm = document.getElementById('auto-deploy-form');
         let currentPlan = null;
 
-        // Auto-populate GPU budget from cluster state
+        function getActiveGpuTypes() {
+            return Array.from(gpuRowsContainer.querySelectorAll('.gpu-type-select'))
+                .map(s => s.value);
+        }
+
+        function createGpuRow(gpuType, count) {
+            const row = document.createElement('div');
+            row.className = 'row g-2 mb-2 align-items-center gpu-budget-row';
+            const usedTypes = getActiveGpuTypes();
+            const options = ALL_GPU_TYPES.map(t => {
+                const disabled = (t !== gpuType && usedTypes.includes(t)) ? 'disabled' : '';
+                const selected = (t === gpuType) ? 'selected' : '';
+                return `<option value="${t}" ${selected} ${disabled}>${t}</option>`;
+            }).join('');
+            row.innerHTML = `
+                <div class="col-md-4">
+                    <select class="form-select gpu-type-select">${options}</select>
+                </div>
+                <div class="col-md-4">
+                    <input type="number" class="form-control gpu-count-input" min="0" max="256" value="${count}">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-gpu-row-btn" title="Remove">✕</button>
+                </div>`;
+            gpuRowsContainer.appendChild(row);
+            row.querySelector('.remove-gpu-row-btn').addEventListener('click', () => {
+                row.remove();
+                refreshAddButton();
+                refreshSelectOptions();
+            });
+            row.querySelector('.gpu-type-select').addEventListener('change', () => {
+                refreshSelectOptions();
+            });
+            refreshAddButton();
+            refreshSelectOptions();
+        }
+
+        function refreshAddButton() {
+            const active = getActiveGpuTypes();
+            addGpuRowBtn.style.display = active.length >= ALL_GPU_TYPES.length ? 'none' : '';
+        }
+
+        function refreshSelectOptions() {
+            const active = getActiveGpuTypes();
+            gpuRowsContainer.querySelectorAll('.gpu-type-select').forEach(sel => {
+                const current = sel.value;
+                sel.querySelectorAll('option').forEach(opt => {
+                    opt.disabled = (opt.value !== current && active.includes(opt.value));
+                });
+            });
+        }
+
+        function getGpuBudget() {
+            const budget = {};
+            gpuRowsContainer.querySelectorAll('.gpu-budget-row').forEach(row => {
+                const type = row.querySelector('.gpu-type-select').value;
+                const count = parseInt(row.querySelector('.gpu-count-input').value) || 0;
+                if (count > 0) budget[type] = count;
+            });
+            return budget;
+        }
+
+        addGpuRowBtn.addEventListener('click', () => {
+            const active = getActiveGpuTypes();
+            const next = ALL_GPU_TYPES.find(t => !active.includes(t));
+            if (next) createGpuRow(next, 0);
+        });
+
+        // Auto-populate from cluster state
         fetch('/api/auto_deploy/cluster_gpus', {credentials: 'same-origin'})
             .then(r => r.json())
             .then(data => {
                 if (data.gpu_budget) {
-                    const fieldMap = {
-                        'A100': 'auto_gpu_a100',
-                        'H100': 'auto_gpu_h100',
-                        'H200': 'auto_gpu_h200',
-                        'GB200': 'auto_gpu_gb200',
-                    };
-                    for (const [gpuType, fieldId] of Object.entries(fieldMap)) {
-                        const el = document.getElementById(fieldId);
-                        if (el && data.gpu_budget[gpuType] !== undefined) {
-                            el.value = data.gpu_budget[gpuType];
+                    for (const [gpuType, count] of Object.entries(data.gpu_budget)) {
+                        if (ALL_GPU_TYPES.includes(gpuType) && count > 0) {
+                            createGpuRow(gpuType, count);
                         }
                     }
                 }
+                // If no rows from cluster, add a default empty H100 row
+                if (gpuRowsContainer.children.length === 0) {
+                    createGpuRow('H100', 0);
+                }
             })
-            .catch(err => console.warn('Could not auto-populate GPU budget:', err));
+            .catch(() => { createGpuRow('H100', 0); });
 
         autoDeployForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -138,12 +187,7 @@
             btn.disabled = true;
             btn.textContent = '⏳ Optimizing...';
 
-            const gpuBudget = {
-                'A100': parseInt(document.getElementById('auto_gpu_a100').value) || 0,
-                'H100': parseInt(document.getElementById('auto_gpu_h100').value) || 0,
-                'H200': parseInt(document.getElementById('auto_gpu_h200').value) || 0,
-                'GB200': parseInt(document.getElementById('auto_gpu_gb200').value) || 0,
-            };
+            const gpuBudget = getGpuBudget();
             const workflow = document.getElementById('auto_workflow').value;
 
             const errorDiv = document.getElementById('auto-deploy-error');
