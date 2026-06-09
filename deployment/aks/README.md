@@ -220,6 +220,61 @@ kubectl create namespace gpu-resources
 kubectl apply -f deployment/k8s/nvidia-device-plugin-ds.yaml
 ```
 
+### 5.0 Critical: Spot Node Toleration and GPU Labels
+
+AKS Spot node pools apply the taint `kubernetes.azure.com/scalesetpriority=spot:NoSchedule`.
+The **upstream** NVIDIA device plugin (`https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/...`) only tolerates `nvidia.com/gpu`, so **it will not schedule on Spot GPU nodes**.
+
+**Always use the local manifest** (`deployment/k8s/nvidia-device-plugin-ds.yaml`) which already includes the Spot toleration. If you already applied the upstream manifest, patch it:
+```bash
+kubectl patch daemonset nvidia-device-plugin-daemonset -n kube-system \
+  --type='json' \
+  -p='[{"op":"add","path":"/spec/template/spec/tolerations/-","value":{"key":"kubernetes.azure.com/scalesetpriority","operator":"Equal","value":"spot","effect":"NoSchedule"}}]'
+```
+
+Without this patch, `nvidia.com/gpu` will report 0 on Spot nodes and GPU pods will remain Pending.
+
+**Label GPU nodes** (required for pod scheduling with nodeAffinity):
+
+AKS does not automatically apply `nvidia.com/gpu.product` labels. Without GPU Feature Discovery (NFD+GFD), you must label nodes manually:
+```bash
+# For H100 nodes:
+kubectl label node <node-name> nvidia.com/gpu.product=NVIDIA-H100-80GB-HBM3
+
+# For A100 nodes:
+kubectl label node <node-name> nvidia.com/gpu.product=NVIDIA-A100-SXM4-80GB
+
+# For H200 nodes:
+kubectl label node <node-name> nvidia.com/gpu.product=NVIDIA-H200-141GB-HBM3
+```
+
+To label all nodes in a GPU pool at once:
+```bash
+kubectl label nodes -l agentpool=gpuh100 nvidia.com/gpu.product=NVIDIA-H100-80GB-HBM3
+```
+
+> **⚠️ These labels are lost on node eviction/recreation.** If a Spot node is evicted and a new one
+> joins, you must re-apply the label. For a permanent solution, install
+> [NVIDIA GPU Feature Discovery](https://github.com/NVIDIA/gpu-feature-discovery) which
+> automatically detects and labels GPU hardware.
+
+After patching the toleration and labeling nodes, verify GPU registration:
+```bash
+# Confirm device plugin pods are running on GPU nodes
+kubectl get pods -n kube-system -l name=nvidia-device-plugin-ds -o wide
+
+# Confirm GPUs are registered
+kubectl get nodes -o custom-columns="NAME:.metadata.name,GPU:.status.allocatable.nvidia\.com/gpu,LABEL:.metadata.labels.nvidia\.com/gpu\.product"
+```
+
+Expected output for 4× H100 nodes:
+```
+NAME                            GPU   LABEL
+aks-gpuh100-xxxxx-vmss000000    8     NVIDIA-H100-80GB-HBM3
+aks-gpuh100-xxxxx-vmss000001    8     NVIDIA-H100-80GB-HBM3
+...
+```
+
 Scale the GPU spot node pool up (it starts at 0 nodes):
 
 ```bash
@@ -342,7 +397,9 @@ kubectl get events -n rtgen --sort-by='.lastTimestamp'
 Common issues:
 - **Image pull errors**: Verify ACR is attached to AKS (`az aks check-acr -g $AZ_RESOURCE_GROUP -n $AKS_CLUSTER --acr <acrName>`)
 - **Pods stuck in Pending (Insufficient cpu)**: The system node pool doesn't have enough CPU. Scale up with `az aks nodepool scale` or use a larger VM size (see Sizing note in Step 1)
-- **GPU not available**: Ensure the GPU node pool is scaled up and the NVIDIA device plugin is running
+- **GPU not available (Spot nodes)**: The NVIDIA device plugin may not be running on Spot GPU nodes because it lacks the Spot toleration. See Step 5.0 for the patch command
+- **GPU not available (0 GPUs on node)**: Ensure the NVIDIA device plugin daemonset pod is Running on the GPU node. If it shows 0 GPUs, restart the node or the device plugin pod
+- **Pods stuck with "node(s) didn't match Pod's node affinity/selector"**: GPU pods use `nodeAffinity` requiring `nvidia.com/gpu.product` label. Label your GPU nodes per Step 5.0
 - **MIG node reports 0 GPUs**: The `mixed`-strategy device plugin cannot enumerate devices until MIG mode is enabled and MIG instances are created. Complete the full [MIG Setup Guide](../k8s/MIG.md) — once instances exist the plugin will register `nvidia.com/gpu` (full GPUs) and `nvidia.com/mig-<profile>` (MIG slices) within ~30–60 seconds
 - **Spot VM evicted**: Spot VMs may be evicted at any time. Re-run `az aks nodepool scale` to restore the node. After re-scaling a MIG node you must repeat the [MIG Setup Guide](../k8s/MIG.md) since MIG state does not persist across evictions
 - **LoadBalancer stuck in Pending**: Verify the public IP exists (`az network public-ip show -g $AZ_RESOURCE_GROUP --name aks-pods-public-ip`) and the AKS identity has Network Contributor role on the resource group
