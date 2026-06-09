@@ -24,7 +24,6 @@ from sim_types import Model
 from sim_types import Result
 
 from auto_model_allocator import AutoModelAllocator
-from constants import DEVICE_OPTIONS
 from data_loading import load_latency_data
 from model_provisioner.policies import STREAMWISE_POLICY
 from workflows import WORKFLOWS
@@ -137,6 +136,57 @@ def _get_data_dir() -> str:
     return os.getenv("SIMULATOR_DATA_DIR", default_path)
 
 
+# Reverse mapping from pod gpu_type string to GPUType enum
+_POD_STR_TO_GPU_TYPE: dict[str, GPUType] = {v: k for k, v in GPU_TYPE_TO_POD_STR.items()}
+
+
+def _calc_actual_gpus_per_type(specs: list['DeploymentSpec']) -> dict[GPUType, int]:
+    """Calculate actual GPUs needed per GPUType from deployment specs."""
+    result: dict[GPUType, int] = {}
+    for spec in specs:
+        if spec.mig_profile:
+            continue
+        gpu_type = _POD_STR_TO_GPU_TYPE.get(spec.gpu_type or "")
+        if gpu_type is not None:
+            result[gpu_type] = result.get(gpu_type, 0) + spec.gpu
+    return result
+
+
+def _trim_specs_for_type(
+    specs: list['DeploymentSpec'], gpu_type_str: str, excess: int
+) -> list['DeploymentSpec']:
+    """
+    Remove replicas from specs to reduce GPU usage on a specific type by `excess` GPUs.
+
+    Prefers removing replicas of the most-replicated scalable container (typically
+    realesrgan/upscaler) to minimize impact on pipeline throughput.
+    """
+    # Count replicas per container on this GPU type (only scalable ones)
+    from collections import Counter
+    type_counts: Counter[str] = Counter()
+    for spec in specs:
+        if spec.gpu_type == gpu_type_str and spec.gpu > 0 and spec.container_name not in COLOCATED_CONTAINERS:
+            type_counts[spec.container_name] += 1
+
+    # Prefer trimming containers with most replicas (least impact per removal)
+    trimmed = 0
+    result_specs = list(specs)
+    for container_name, _count in type_counts.most_common():
+        if trimmed >= excess:
+            break
+        # Remove replicas from the end of the list
+        for i in range(len(result_specs) - 1, -1, -1):
+            if trimmed >= excess:
+                break
+            spec = result_specs[i]
+            if (spec.container_name == container_name
+                    and spec.gpu_type == gpu_type_str
+                    and spec.gpu > 0):
+                trimmed += spec.gpu
+                result_specs.pop(i)
+    return result_specs
+
+
 def get_available_workflows() -> list[str]:
     """Return list of available workflow names for the UI."""
     return list(APP_TO_WORKFLOW.keys())
@@ -188,17 +238,6 @@ def run_allocator(
     if not num_gpus or sum(num_gpus.values()) < 8:
         raise ValueError("Total GPU budget must be at least 8 GPUs.")
 
-    # When MIG is not available, adjust DEVICE_OPTIONS so the allocator reserves
-    # enough GPUs for containers that would normally share a MIG GPU.
-    # OTHERS (kokoro + yolo) needs 2 full GPUs instead of 1 MIG-shared GPU.
-    original_device_options: dict[Model, list[int]] = {}
-    if not MIG_AVAILABLE:
-        for model, containers in MODEL_TO_CONTAINERS.items():
-            mig_count = sum(1 for c in containers if c in MIG_CONTAINERS)
-            if mig_count > 1 and DEVICE_OPTIONS.get(model) == [1]:
-                original_device_options[model] = DEVICE_OPTIONS[model]
-                DEVICE_OPTIONS[model] = [mig_count]
-
     # Load latency data and run allocator
     data_dir = _get_data_dir()
     latency_data = load_latency_data(data_dir=data_dir)
@@ -211,12 +250,23 @@ def run_allocator(
 
     result = allocator.allocate(num_gpus=num_gpus, verbose=False)
 
-    # Restore original DEVICE_OPTIONS
-    for model, original in original_device_options.items():
-        DEVICE_OPTIONS[model] = original
-
     # Convert result to deployment specs
     specs = result_to_deployment_specs(result)
+
+    # When MIG is unavailable, deployment specs may use more GPUs per type than the
+    # allocator budgeted (e.g., OTHERS allocates 1 GPU but kokoro+yolo each need a
+    # full GPU = 2). Detect per-type overflow and trim excess replicas.
+    if not MIG_AVAILABLE:
+        actual_per_type = _calc_actual_gpus_per_type(specs)
+        for gpu_type, budget_count in num_gpus.items():
+            actual = actual_per_type.get(gpu_type, 0)
+            if actual <= budget_count:
+                continue
+            # Need to trim (actual - budget_count) GPUs from this type.
+            # Remove replicas of the most-replicated scalable container on this type.
+            excess = actual - budget_count
+            gpu_type_str = GPU_TYPE_TO_POD_STR[gpu_type]
+            specs = _trim_specs_for_type(specs, gpu_type_str, excess)
 
     return DeploymentPlan(
         specs=specs,
