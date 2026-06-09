@@ -281,6 +281,7 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
 
                     mig_profile: Optional[str] = None
                     # Co-locate VAE only when disaggregation is disabled
+                    # TODO: make disaggregation a configuration exposed to the users
                     is_colocated = (
                         container_name in COLOCATED_CONTAINERS
                         and not STREAMWISE_POLICY.disaggregation.get(Model.HF, False)

@@ -551,7 +551,7 @@ async def add_pod(service_name: str) -> str:
 
 @route("/auto_deploy", methods=["GET"])
 async def auto_deploy_page() -> str:
-    """Render the standalone auto-deploy page."""
+    """Render the standalone auto-deploy page. (TODO: enable customization after auto-deploy plan is generated)"""
     return await render_template("auto_deploy.html")
 
 
