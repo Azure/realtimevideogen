@@ -779,6 +779,27 @@
             if (autoDeployForm) {
                 let currentPlan = null;
 
+                // Auto-populate GPU budget from cluster state
+                fetch('/api/auto_deploy/cluster_gpus', {credentials: 'same-origin'})
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.gpu_budget) {
+                            const fieldMap = {
+                                'A100': 'auto_gpu_a100',
+                                'H100': 'auto_gpu_h100',
+                                'H200': 'auto_gpu_h200',
+                                'GB200': 'auto_gpu_gb200',
+                            };
+                            for (const [gpuType, fieldId] of Object.entries(fieldMap)) {
+                                const el = document.getElementById(fieldId);
+                                if (el && data.gpu_budget[gpuType] !== undefined) {
+                                    el.value = data.gpu_budget[gpuType];
+                                }
+                            }
+                        }
+                    })
+                    .catch(err => console.warn('Could not auto-populate GPU budget:', err));
+
                 autoDeployForm.addEventListener('submit', function(e) {
                     e.preventDefault();
                     const btn = document.getElementById('auto-deploy-optimize-btn');

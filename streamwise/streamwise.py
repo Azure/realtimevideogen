@@ -879,6 +879,60 @@ async def api_auto_deploy_workflows() -> QuartReturn:
     }), HTTPStatus.OK
 
 
+@route("/api/auto_deploy/cluster_gpus", methods=["GET"])
+async def api_auto_deploy_cluster_gpus() -> QuartReturn:
+    """Return aggregated GPU counts by type from the current cluster.
+
+    Inspects all ready nodes and sums up allocatable GPUs grouped by the
+    nvidia.com/gpu.product label (mapped to canonical names like A100, H100, etc.).
+    """
+    try:
+        nodes = await get_k8s_nodes(k8s_cluster)
+        gpu_counts: dict[str, int] = {}
+        for node in nodes:
+            if not node.get("is_ready"):
+                continue
+            gpu_model = node.get("gpu_model", "N/A")
+            if gpu_model == "N/A":
+                continue
+            gpu_count = node.get("allocatable_resources", {}).get("gpu", 0)
+            if isinstance(gpu_count, str):
+                try:
+                    gpu_count = int(gpu_count)
+                except ValueError:
+                    continue
+            if gpu_count <= 0:
+                continue
+            # Map gpu_model label to canonical type name
+            canonical = _gpu_label_to_canonical(gpu_model)
+            gpu_counts[canonical] = gpu_counts.get(canonical, 0) + gpu_count
+        return jsonify({"gpu_budget": gpu_counts}), HTTPStatus.OK
+    except Exception as ex:
+        logging.exception("Error in cluster_gpus: %s", ex)
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+def _gpu_label_to_canonical(gpu_model: str) -> str:
+    """Map a GPU product label to a canonical type name for the allocator."""
+    model_upper = gpu_model.upper()
+    if "H100" in model_upper:
+        return "H100"
+    elif "H200" in model_upper:
+        return "H200"
+    elif "A100" in model_upper:
+        return "A100"
+    elif "GB200" in model_upper:
+        return "GB200"
+    elif "GB300" in model_upper:
+        return "GB300"
+    elif "V100" in model_upper:
+        return "V100"
+    elif "A10" in model_upper:
+        return "A10"
+    # Fallback: return as-is
+    return gpu_model
+
+
 @route("/api/node/<node_name>", methods=["DELETE"])
 async def api_remove_node(node_name: str) -> QuartReturn:
     return await node_manager.remove_node(
