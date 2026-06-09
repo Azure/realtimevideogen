@@ -236,6 +236,7 @@
                 const tbody = document.getElementById('auto-deploy-plan-body');
                 tbody.innerHTML = '';
                 data.specs.forEach(spec => {
+                    if (spec.gpu === 0) return;  // Skip co-located containers (e.g. VAE)
                     const row = document.createElement('tr');
                     row.innerHTML =
                         `<td>${escapeHtml(spec.friendly_name || spec.container_name)}</td>` +
