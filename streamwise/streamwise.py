@@ -548,6 +548,12 @@ async def add_pod(service_name: str) -> str:
     )
 
 
+@route("/auto_deploy", methods=["GET"])
+async def auto_deploy_page() -> str:
+    """Render the standalone auto-deploy page."""
+    return await render_template("auto_deploy.html")
+
+
 @route("/api/pod/<pod_name>", methods=["DELETE"])
 async def api_remove_pod(pod_name: str) -> QuartReturn:
     """API interface to remove a pod by name."""
@@ -798,21 +804,12 @@ async def api_auto_deploy_confirm() -> QuartReturn:
 
     Expects JSON body:
         {
-            "specs": [
-                {
-                    "container_name": "gemma",
-                    "cpu": 16,
-                    "memory_gib": 192,
-                    "ephemeral_storage_gib": 64,
-                    "gpu": 2,
-                    "gpu_type": "a100",
-                    "mig_profile": null
-                },
-                ...
-            ]
+            "specs": [...],
+            "workflow": "streamcast"  (optional: also deploys the application container)
         }
 
-    Deploys all containers in the plan.
+    Deploys all model wrapper containers in the plan, plus the application
+    container if a workflow name is provided.
     """
     try:
         data = await request.get_json()
@@ -822,6 +819,8 @@ async def api_auto_deploy_confirm() -> QuartReturn:
         specs = data.get("specs")
         if not specs or not isinstance(specs, list):
             return jsonify({"error": "Missing or invalid 'specs' field"}), HTTPStatus.BAD_REQUEST
+
+        workflow = data.get("workflow")
 
         deployed: List[str] = []
         errors: List[str] = []
@@ -864,11 +863,45 @@ async def api_auto_deploy_confirm() -> QuartReturn:
                 logging.error(msg)
                 errors.append(msg)
 
+        # Also deploy the application container if workflow is specified
+        if workflow and workflow in STREAMWISE_APPS:
+            try:
+                add_pod_result = await pod_manager.add_pod(
+                    container_name=workflow,
+                    cpu=4,
+                    memory_gib=16,
+                    ephemeral_storage_gib=16,
+                    gpu=0,
+                    gpu_type=None,
+                    mig_profile=None,
+                    namespace=NAMESPACE,
+                    k8s_cluster=k8s_cluster,
+                )
+                status_code = HTTPStatus.OK
+                if isinstance(add_pod_result, tuple) and len(add_pod_result) >= 2:
+                    status_value = add_pod_result[1]
+                    if isinstance(status_value, HTTPStatus):
+                        status_code = status_value
+                    elif isinstance(status_value, int):
+                        status_code = HTTPStatus(status_value)
+                if status_code >= HTTPStatus.BAD_REQUEST:
+                    msg = f"Failed to deploy app '{workflow}' (status={int(status_code)})"
+                    logging.error(msg)
+                    errors.append(msg)
+                else:
+                    deployed.append(workflow)
+            except Exception as app_ex:
+                msg = f"Failed to deploy app '{workflow}': {app_ex}"
+                logging.error(msg)
+                errors.append(msg)
+
+        total_deployed = len(deployed)
+        total_specs = len(specs) + (1 if workflow and workflow in STREAMWISE_APPS else 0)
         status = HTTPStatus.OK if not errors else HTTPStatus.MULTI_STATUS
         return jsonify({
             "deployed": deployed,
             "errors": errors,
-            "message": f"Deployed {len(deployed)}/{len(specs)} containers.",
+            "message": f"Deployed {total_deployed}/{total_specs} containers.",
         }), status
 
     except Exception as ex:
