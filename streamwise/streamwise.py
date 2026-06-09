@@ -808,7 +808,15 @@ async def api_auto_deploy() -> QuartReturn:
             gpu_budget=gpu_budget,
             workflow_name=workflow_name,
         )
-        return jsonify(allocator_bridge.deployment_plan_to_json(plan)), HTTPStatus.OK
+        result_json = allocator_bridge.deployment_plan_to_json(plan)
+
+        # Enrich specs with friendly names from services.json and uppercase GPU types
+        for spec in result_json.get("specs", []):
+            spec["friendly_name"] = await get_friendly_container_name(spec["container_name"])
+            if spec.get("gpu_type"):
+                spec["gpu_type"] = spec["gpu_type"].upper()
+
+        return jsonify(result_json), HTTPStatus.OK
 
     except ValueError as ve:
         return jsonify({"error": str(ve)}), HTTPStatus.BAD_REQUEST

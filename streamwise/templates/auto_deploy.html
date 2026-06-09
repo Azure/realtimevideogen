@@ -238,7 +238,7 @@
                 data.specs.forEach(spec => {
                     const row = document.createElement('tr');
                     row.innerHTML =
-                        `<td>${escapeHtml(spec.container_name)}</td>` +
+                        `<td>${escapeHtml(spec.friendly_name || spec.container_name)}</td>` +
                         `<td>${spec.gpu}</td>` +
                         `<td>${escapeHtml(spec.gpu_type || 'any')}</td>` +
                         `<td>${spec.cpu}</td>` +
