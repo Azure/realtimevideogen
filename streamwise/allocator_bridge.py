@@ -280,8 +280,12 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
                     cpu, memory_gib, ephemeral_storage_gib = resources
 
                     mig_profile: Optional[str] = None
-                    if container_name in COLOCATED_CONTAINERS:
-                        # Co-located with parent model; shares GPU on the same server
+                    # Co-locate VAE only when disaggregation is disabled
+                    is_colocated = (
+                        container_name in COLOCATED_CONTAINERS
+                        and not STREAMWISE_POLICY.disaggregation.get(Model.HF, False)
+                    )
+                    if is_colocated:
                         gpu_count = 0
                     elif MIG_AVAILABLE and container_name in MIG_CONTAINERS:
                         mig_profile = MIG_CONTAINERS[container_name]
