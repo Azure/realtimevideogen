@@ -210,6 +210,15 @@ def run_allocator(
     if not num_gpus or sum(num_gpus.values()) < 8:
         raise ValueError("Total GPU budget must be at least 8 GPUs.")
 
+    # The allocator requires GPU counts to be multiples of NUM_GPUS_PER_SERVER (8).
+    # Round up for the allocator, then trim back to the real budget afterward.
+    import math
+    from constants import NUM_GPUS_PER_SERVER
+    allocator_gpus: dict[GPUType, int] = {}
+    for gpu_type, count in num_gpus.items():
+        server_size = NUM_GPUS_PER_SERVER[gpu_type]
+        allocator_gpus[gpu_type] = math.ceil(count / server_size) * server_size
+
     # Load latency data and run allocator
     data_dir = _get_data_dir()
     latency_data = load_latency_data(data_dir=data_dir)
@@ -220,25 +229,22 @@ def run_allocator(
         policy=STREAMWISE_POLICY,
     )
 
-    result = allocator.allocate(num_gpus=num_gpus, verbose=False)
+    result = allocator.allocate(num_gpus=allocator_gpus, verbose=False)
 
     # Convert result to deployment specs
     specs = result_to_deployment_specs(result)
 
-    # When MIG is unavailable, deployment specs may use more GPUs per type than the
-    # allocator budgeted (e.g., OTHERS allocates 1 GPU but kokoro+yolo each need a
-    # full GPU = 2). Detect per-type overflow and trim excess replicas.
-    if not MIG_AVAILABLE:
-        actual_per_type = _calc_actual_gpus_per_type(specs)
-        for gpu_type, budget_count in num_gpus.items():
-            actual = actual_per_type.get(gpu_type, 0)
-            if actual <= budget_count:
-                continue
-            # Need to trim (actual - budget_count) GPUs from this type.
-            # Remove replicas of the most-replicated scalable container on this type.
-            excess = actual - budget_count
-            gpu_type_str = GPU_TYPE_TO_POD_STR[gpu_type]
-            specs = _trim_specs_for_type(specs, gpu_type_str, excess)
+    # Trim deployment specs back to the user's actual budget.
+    # Also handles MIG-unavailable overflow (e.g., OTHERS allocates 1 GPU
+    # but kokoro+yolo each need a full GPU = 2).
+    actual_per_type = _calc_actual_gpus_per_type(specs)
+    for gpu_type, budget_count in num_gpus.items():
+        actual = actual_per_type.get(gpu_type, 0)
+        if actual <= budget_count:
+            continue
+        excess = actual - budget_count
+        gpu_type_str = GPU_TYPE_TO_POD_STR[gpu_type]
+        specs = _trim_specs_for_type(specs, gpu_type_str, excess)
 
     return DeploymentPlan(
         specs=specs,
