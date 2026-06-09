@@ -24,6 +24,7 @@ from sim_types import Model
 from sim_types import Result
 
 from auto_model_allocator import AutoModelAllocator
+from constants import DEVICE_OPTIONS
 from data_loading import load_latency_data
 from model_provisioner.policies import STREAMWISE_POLICY
 from workflows import WORKFLOWS
@@ -75,6 +76,11 @@ MIG_CONTAINERS: dict[str, str] = {
     "yolo": "1g.10gb",
     "realesrgan": "1g.10gb",
 }
+
+# Containers that are co-located with their parent model (sharing GPUs on the same server).
+# The allocator counts their GPUs as part of the parent model's allocation, so they should
+# deploy with gpu=0 to avoid double-counting.
+COLOCATED_CONTAINERS: frozenset[str] = frozenset({"hunyuanframepackvae"})
 
 # Whether MIG is actually configured on the cluster.
 # When False, MIG_CONTAINERS entries fall back to full GPUs.
@@ -182,6 +188,17 @@ def run_allocator(
     if not num_gpus or sum(num_gpus.values()) < 8:
         raise ValueError("Total GPU budget must be at least 8 GPUs.")
 
+    # When MIG is not available, adjust DEVICE_OPTIONS so the allocator reserves
+    # enough GPUs for containers that would normally share a MIG GPU.
+    # OTHERS (kokoro + yolo) needs 2 full GPUs instead of 1 MIG-shared GPU.
+    original_device_options: dict[Model, list[int]] = {}
+    if not MIG_AVAILABLE:
+        for model, containers in MODEL_TO_CONTAINERS.items():
+            mig_count = sum(1 for c in containers if c in MIG_CONTAINERS)
+            if mig_count > 1 and DEVICE_OPTIONS.get(model) == [1]:
+                original_device_options[model] = DEVICE_OPTIONS[model]
+                DEVICE_OPTIONS[model] = [mig_count]
+
     # Load latency data and run allocator
     data_dir = _get_data_dir()
     latency_data = load_latency_data(data_dir=data_dir)
@@ -193,6 +210,10 @@ def run_allocator(
     )
 
     result = allocator.allocate(num_gpus=num_gpus, verbose=False)
+
+    # Restore original DEVICE_OPTIONS
+    for model, original in original_device_options.items():
+        DEVICE_OPTIONS[model] = original
 
     # Convert result to deployment specs
     specs = result_to_deployment_specs(result)
@@ -231,7 +252,10 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
                     cpu, memory_gib, ephemeral_storage_gib = resources
 
                     mig_profile: Optional[str] = None
-                    if MIG_AVAILABLE and container_name in MIG_CONTAINERS:
+                    if container_name in COLOCATED_CONTAINERS:
+                        # Co-located with parent model; shares GPU on the same server
+                        gpu_count = 0
+                    elif MIG_AVAILABLE and container_name in MIG_CONTAINERS:
                         mig_profile = MIG_CONTAINERS[container_name]
                         gpu_count = 1
                     elif container_name in MIG_CONTAINERS:
@@ -271,10 +295,13 @@ def deployment_plan_to_json(plan: DeploymentPlan) -> dict:
 
     warnings: list[str] = []
     if budget_exceeded:
+        mig_hint = (
+            "Enable MIG to fit lightweight services (kokoro, yolo, realesrgan) "
+            "on shared GPU slices."
+        ) if not MIG_AVAILABLE else ""
         warnings.append(
             f"Deployment requires {total_actual} full GPUs but budget is "
-            f"{total_budget}. "
-            f"{'Enable MIG to fit lightweight services (kokoro, yolo, realesrgan) on shared GPU slices.' if not MIG_AVAILABLE else ''}"
+            f"{total_budget}. {mig_hint}"
         )
 
     return {
