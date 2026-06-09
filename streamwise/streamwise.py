@@ -222,7 +222,8 @@ async def index() -> QuartReturn:
             svc["load_balancer"] = await get_lb_pod(pod_name)
 
     app_svcs = [svc for svc in svcs if svc.get("container_name") in STREAMWISE_APPS]
-    wrapper_svcs = [svc for svc in svcs if svc.get("container_name") not in STREAMWISE_APPS]
+    _system_containers = set(STREAMWISE_APPS) | {"streamwise"}
+    wrapper_svcs = [svc for svc in svcs if svc.get("container_name") not in _system_containers]
 
     return await render_template(
         "index.html",
@@ -568,11 +569,13 @@ async def api_remove_pod(pod_name: str) -> QuartReturn:
 
 @route("/api/pods/wrappers", methods=["DELETE"])
 async def api_delete_all_wrappers() -> QuartReturn:
-    """Delete all wrapper pods (non-app pods) in the namespace."""
+    """Delete all wrapper pods (non-app, non-system pods) in the namespace."""
     svcs = await get_services(namespace=NAMESPACE, k8s_cluster=k8s_cluster)
+    # Exclude app pods and the streamwise management pod itself
+    excluded = set(STREAMWISE_APPS) | {"streamwise"}
     wrapper_pods = [
         svc["pod_name"] for svc in svcs
-        if svc.get("container_name") not in STREAMWISE_APPS and svc.get("pod_name")
+        if svc.get("container_name") not in excluded and svc.get("pod_name")
     ]
     deleted = 0
     errors: list[str] = []
