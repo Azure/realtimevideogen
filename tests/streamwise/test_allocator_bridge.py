@@ -143,9 +143,14 @@ def test_result_to_deployment_specs_basic() -> None:
     assert gemma_spec.gpu_type == "a100"
     assert gemma_spec.gpu == 1
 
-    # MIG containers get mig_profile set
+    # Without MIG, kokoro gets no mig_profile (full GPU)
     kokoro_spec = next(s for s in specs if s.container_name == "kokoro")
-    assert kokoro_spec.mig_profile == "1g.10gb"
+    assert kokoro_spec.mig_profile is None
+    assert kokoro_spec.gpu == 1
+
+    # Co-located container gets gpu=0
+    vae_spec = next(s for s in specs if s.container_name == "hunyuanframepackvae")
+    assert vae_spec.gpu == 0
 
 
 def test_result_to_deployment_specs_skips_zero_replicas() -> None:
