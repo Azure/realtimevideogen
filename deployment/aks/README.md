@@ -268,7 +268,7 @@ kubectl get nodes -o custom-columns="NAME:.metadata.name,GPU:.status.allocatable
 ```
 
 Expected output for 4× H100 nodes:
-```
+```bash
 NAME                            GPU   LABEL
 aks-gpuh100-xxxxx-vmss000000    8     NVIDIA-H100-80GB-HBM3
 aks-gpuh100-xxxxx-vmss000001    8     NVIDIA-H100-80GB-HBM3

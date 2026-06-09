@@ -40,7 +40,7 @@ For `Standard_ND96isrf_H100_v5`:
 
 ### CCC Capacity Data
 
-```
+```bash
 Region          | SKU                          | AllocableSpotVMs
 swedencentral   | Standard_ND96isrf_H100_v5    | 6
 eastus          | Standard_ND96isr_H100_v5     | 16 (but sub is blocked)
@@ -139,8 +139,8 @@ curl http://<IP>:8081/          # Should return HTTP 200
 | Region | SwedenCentral |
 | GPU Nodes | 4 × Standard_ND96isrf_H100_v5 (32 H100 GPUs) |
 | Public IP | 4.223.71.250 |
-| StreamWise URL | http://4.223.71.250:8081 |
-| FQDN | http://streamwise-fnv3ci.swedencentral.cloudapp.azure.com:8081 |
+| StreamWise URL | http://<IP>:8081 |
+| FQDN | http://<ADDRESS>:8081 |
 
 ## Auto-Deployment Feature
 
