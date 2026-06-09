@@ -110,11 +110,14 @@
                 return `<option value="${t}" ${selected} ${disabled}>${t}</option>`;
             }).join('');
             row.innerHTML = `
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <select class="form-select gpu-type-select">${options}</select>
                 </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control gpu-count-input" min="0" max="256" value="${count}">
+                <div class="col-md-5">
+                    <input type="range" class="form-range gpu-count-slider" min="8" max="100" step="1" value="${Math.max(count, 8)}">
+                </div>
+                <div class="col-md-2">
+                    <span class="badge bg-primary fs-6 gpu-count-label">${Math.max(count, 8)}</span>
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-outline-danger btn-sm remove-gpu-row-btn" title="Remove">✕</button>
@@ -128,6 +131,9 @@
             row.querySelector('.gpu-type-select').addEventListener('change', () => {
                 refreshSelectOptions();
             });
+            const slider = row.querySelector('.gpu-count-slider');
+            const label = row.querySelector('.gpu-count-label');
+            slider.addEventListener('input', () => { label.textContent = slider.value; });
             refreshAddButton();
             refreshSelectOptions();
         }
@@ -151,7 +157,7 @@
             const budget = {};
             gpuRowsContainer.querySelectorAll('.gpu-budget-row').forEach(row => {
                 const type = row.querySelector('.gpu-type-select').value;
-                const count = parseInt(row.querySelector('.gpu-count-input').value) || 0;
+                const count = parseInt(row.querySelector('.gpu-count-slider').value) || 0;
                 if (count > 0) budget[type] = count;
             });
             return budget;
