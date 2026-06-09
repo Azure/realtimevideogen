@@ -566,6 +566,29 @@ async def api_remove_pod(pod_name: str) -> QuartReturn:
         k8s_cluster=k8s_cluster)
 
 
+@route("/api/pods/wrappers", methods=["DELETE"])
+async def api_delete_all_wrappers() -> QuartReturn:
+    """Delete all wrapper pods (non-app pods) in the namespace."""
+    svcs = await get_services(namespace=NAMESPACE, k8s_cluster=k8s_cluster)
+    wrapper_pods = [
+        svc["pod_name"] for svc in svcs
+        if svc.get("container_name") not in STREAMWISE_APPS and svc.get("pod_name")
+    ]
+    deleted = 0
+    errors: list[str] = []
+    for pod_name in wrapper_pods:
+        try:
+            await pod_manager.remove_pod(
+                pod_name, namespace=NAMESPACE, k8s_cluster=k8s_cluster)
+            deleted += 1
+        except Exception as e:
+            errors.append(f"{pod_name}: {e}")
+    result: dict[str, object] = {"deleted": deleted, "total": len(wrapper_pods)}
+    if errors:
+        result["errors"] = errors
+    return jsonify(result), HTTPStatus.OK
+
+
 @route("/api/services", methods=["GET"])
 async def api_get_services() -> QuartReturn:
     """API interface to get the list of services."""
