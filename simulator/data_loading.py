@@ -28,15 +28,17 @@ from constants import NUM_PIXELS_MEDIUM_FLUX
 from constants import POWER_GPU_IDLE
 from constants import POWER_GPU_TDP
 
+_DEFAULT_DATA_DIR = Path("data")
+
 
 def load_latency_data(
-    data_dir: str = "data/",
+    data_dir: str | Path = _DEFAULT_DATA_DIR,
 ) -> LatencyData:
     """
     Load latency and throughput mapping data from CSV files.
 
     Args:
-        data_dir (str): The directory where the CSV files are stored.
+        data_dir: The directory where the CSV files are stored.
     Returns:
         LatencyData: An object containing all loaded latency data.
     """
@@ -107,13 +109,13 @@ def load_latency_data(
 
 
 def load_power_data(
-    data_dir: str = "data/"
+    data_dir: str | Path = _DEFAULT_DATA_DIR
 ) -> PowerData:
     """
     Load power consumption data from CSV files.
 
     Args:
-        data_dir (str): The directory where the CSV files are stored.
+        data_dir: The directory where the CSV files are stored.
     Returns:
         PowerData: An object containing all loaded power consumption data.
     """
@@ -216,7 +218,7 @@ def load_power_data(
 
 
 def load_adaptive_quality_data(
-    data_dir: str,
+    data_dir: str | Path,
     level: QualityLevel,
 ) -> LatencyData:
     """Load latency data for adaptive quality."""

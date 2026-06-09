@@ -6,7 +6,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from plot_utils import plot_ttff_vs_cost
     from plot_utils import plot_ttff_vs_energy
     from plot_utils import plot_adaptive_quality

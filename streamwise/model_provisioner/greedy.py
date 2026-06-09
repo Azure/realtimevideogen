@@ -33,9 +33,9 @@ from evaluator import evaluate_model_allocation
 
 from model_allocator import ModelAllocator
 
-from policies import STREAMWISE_POLICY
-from policies import MAX_ITERATIONS
-from policies import USE_ALL_GPUS
+from .policies import STREAMWISE_POLICY
+from .policies import MAX_ITERATIONS
+from .policies import USE_ALL_GPUS
 
 from actions import gen_actions
 from actions import choose_action

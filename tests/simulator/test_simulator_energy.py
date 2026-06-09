@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from constants import DEFAULT_WORKFLOW_CONFIG
 
     from sim_types import GPUType
@@ -21,11 +21,11 @@ with temp_sys_path("simulator"):
     from data_loading import load_power_data
 
     from auto_model_allocator import AutoModelAllocator
-    from greedy import GreedyAllocator
-    from naive_baseline import NaiveAllocator
+    from model_provisioner.greedy import GreedyAllocator
+    from model_provisioner.naive_baseline import NaiveAllocator
 
-    from policies import NAIVE_POLICY
-    from policies import STREAMWISE_POLICY
+    from model_provisioner.policies import NAIVE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
 
 
 def test_energy() -> None:

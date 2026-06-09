@@ -30,15 +30,15 @@ from utils import simplify_model_allocations
 from evaluator import calc_used_gpus
 from evaluator import evaluate_model_allocation
 
-from greedy import GreedyAllocator
+from .greedy import GreedyAllocator
 
 from actions import gen_actions
 from actions import choose_action
 from actions import apply_action
 
-from policies import HEXGEN_POLICY
-from policies import MAX_ITERATIONS
-from policies import USE_ALL_GPUS
+from .policies import HEXGEN_POLICY
+from .policies import MAX_ITERATIONS
+from .policies import USE_ALL_GPUS
 
 
 def _get_model_order(workflow: WorkflowConfig) -> list[Model]:

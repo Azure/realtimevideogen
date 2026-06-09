@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from constants import DEFAULT_WORKFLOW_CONFIG
 
     from provisioning import get_provisioning_results
@@ -23,9 +23,9 @@ with temp_sys_path("simulator"):
 
     from data_loading import load_latency_data
 
-    from policies import NAIVE_POLICY
-    from policies import STREAMWISE_POLICY
-    from policies import HEXGEN_POLICY
+    from model_provisioner.policies import NAIVE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
+    from model_provisioner.policies import HEXGEN_POLICY
 
 
 @pytest.mark.parametrize("gpu_type", [gpu_type for gpu_type in GPUType])

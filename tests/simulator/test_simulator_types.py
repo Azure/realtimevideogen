@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from sim_types import Model
     from sim_types import GPUType
 
@@ -20,7 +20,7 @@ with temp_sys_path("simulator"):
     from models import GemmaModelAllocation
     from models import FluxModelAllocation
 
-    from policies import STREAMWISE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
 
     from workflows import PODCAST_WORKFLOW
 

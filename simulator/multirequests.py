@@ -18,7 +18,7 @@ from data_loading import load_adaptive_quality_data
 
 from workflows import PODCAST_WORKFLOW
 
-from policies import STREAMWISE_POLICY
+from model_provisioner.policies import STREAMWISE_POLICY
 
 from auto_model_allocator import AutoModelAllocator
 

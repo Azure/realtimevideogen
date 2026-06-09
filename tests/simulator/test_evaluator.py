@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 from tests.test_utils import assert_equals_approx
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from constants import DEFAULT_WORKFLOW_CONFIG
     from constants import SECONDS_IN_HOUR
 
@@ -20,7 +20,7 @@ with temp_sys_path("simulator"):
 
     from evaluator import evaluate_model_allocation
 
-    from policies import STREAMWISE_POLICY
+    from model_provisioner.policies import STREAMWISE_POLICY
 
     from models import FluxModelAllocation
     from models import GemmaModelAllocation

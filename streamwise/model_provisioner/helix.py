@@ -43,10 +43,10 @@ from model_allocator import ModelAllocator
 
 from evaluator import evaluate_model_allocation
 
-from milp import MILPAllocator
+from .milp import MILPAllocator
 
-from policies import HELIX_POLICY
-from policies import MAX_DEVICES
+from .policies import HELIX_POLICY
+from .policies import MAX_DEVICES
 
 from constants import DEVICE_OPTIONS
 

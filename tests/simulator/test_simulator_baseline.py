@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from sim_types import GPUType
     from sim_types import Model
 
@@ -24,12 +24,12 @@ with temp_sys_path("simulator"):
     from data_loading import load_power_data
 
     from auto_model_allocator import AutoModelAllocator
-    from naive_baseline import NaiveAllocator
-    from greedy import GreedyAllocator
+    from model_provisioner.naive_baseline import NaiveAllocator
+    from model_provisioner.greedy import GreedyAllocator
 
-    from policies import NAIVE_POLICY
-    from policies import BASELINE_POLICIES
-    from policies import STREAMWISE_POLICY
+    from model_provisioner.policies import NAIVE_POLICY
+    from model_provisioner.policies import BASELINE_POLICIES
+    from model_provisioner.policies import STREAMWISE_POLICY
 
     from workflows import SHORTS_WORKFLOW
     from workflows import WORKFLOWS
