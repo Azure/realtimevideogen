@@ -193,7 +193,7 @@ async def test_auto_deploy_confirm_success() -> None:
             "mig_profile": None,
         },
     ]
-    with patch("streamwise.pod_manager.add_pod") as mock_add_pod:
+    with patch.object(sw.pod_manager, "add_pod") as mock_add_pod:
         response = await client.post(
             "/api/auto_deploy/confirm",
             json={"specs": specs},

@@ -104,7 +104,7 @@ class DeploymentPlan:
 
 def _get_data_dir() -> str:
     """Get the path to the simulator data directory."""
-    default_path = os.path.join(os.path.dirname(__file__), "simulator", "data")
+    default_path = os.path.join(_REPO_ROOT, "simulator", "data")
     return os.getenv("SIMULATOR_DATA_DIR", default_path)
 
 
