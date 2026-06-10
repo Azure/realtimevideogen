@@ -148,9 +148,9 @@ def test_result_to_deployment_specs_basic() -> None:
     assert kokoro_spec.mig_profile is None
     assert kokoro_spec.gpu == 1
 
-    # Co-located container gets gpu=0
+    # With disaggregation=True for HF, VAE runs on its own GPU
     vae_spec = next(s for s in specs if s.container_name == "hunyuanframepackvae")
-    assert vae_spec.gpu == 0
+    assert vae_spec.gpu == 1
 
 
 def test_result_to_deployment_specs_skips_zero_replicas() -> None:
