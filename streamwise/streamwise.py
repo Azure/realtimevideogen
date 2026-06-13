@@ -34,6 +34,8 @@ import http_session_manager
 import pod_manager
 import node_manager
 import job_manager
+import allocator_bridge
+from container_config import get_minimum_service_container_specs
 
 from service_manager import get_services
 from service_manager import get_service_timestamps
@@ -219,7 +221,8 @@ async def index() -> QuartReturn:
             svc["load_balancer"] = await get_lb_pod(pod_name)
 
     app_svcs = [svc for svc in svcs if svc.get("container_name") in STREAMWISE_APPS]
-    wrapper_svcs = [svc for svc in svcs if svc.get("container_name") not in STREAMWISE_APPS]
+    _system_containers = set(STREAMWISE_APPS) | {"streamwise"}
+    wrapper_svcs = [svc for svc in svcs if svc.get("container_name") not in _system_containers]
 
     return await render_template(
         "index.html",
@@ -545,6 +548,12 @@ async def add_pod(service_name: str) -> str:
     )
 
 
+@route("/auto_deploy", methods=["GET"])
+async def auto_deploy_page() -> str:
+    """Render the standalone auto-deploy page. (TODO: enable customization after auto-deploy plan is generated)"""
+    return await render_template("auto_deploy.html")
+
+
 @route("/api/pod/<pod_name>", methods=["DELETE"])
 async def api_remove_pod(pod_name: str) -> QuartReturn:
     """API interface to remove a pod by name."""
@@ -555,6 +564,31 @@ async def api_remove_pod(pod_name: str) -> QuartReturn:
         pod_name,
         namespace=namespace,
         k8s_cluster=k8s_cluster)
+
+
+@route("/api/pods/wrappers", methods=["DELETE"])
+async def api_delete_all_wrappers() -> QuartReturn:
+    """Delete all wrapper pods (non-app, non-system pods) in the namespace."""
+    svcs = await get_services(namespace=NAMESPACE, k8s_cluster=k8s_cluster)
+    # Exclude app pods and the streamwise management pod itself
+    excluded = set(STREAMWISE_APPS) | {"streamwise"}
+    wrapper_pods = [
+        svc["pod_name"] for svc in svcs
+        if svc.get("container_name") not in excluded and svc.get("pod_name")
+    ]
+    deleted = 0
+    errors: list[str] = []
+    for pod_name in wrapper_pods:
+        try:
+            await pod_manager.remove_pod(
+                pod_name, namespace=NAMESPACE, k8s_cluster=k8s_cluster)
+            deleted += 1
+        except Exception as e:
+            errors.append(f"{pod_name}: {e}")
+    result: dict[str, object] = {"deleted": deleted, "total": len(wrapper_pods)}
+    if errors:
+        result["errors"] = errors
+    return jsonify(result), HTTPStatus.OK
 
 
 @route("/api/services", methods=["GET"])
@@ -594,32 +628,15 @@ async def api_add_service(
 ) -> QuartReturn:
     """API interface to add pods for all services."""
     try:
-        # CPU, memory GiB, ephemeral storage GiB, GPU count, GPU type
-        # Keep in sync with the helm values
-        container_dict: dict[str, tuple[int, int, int, Union[int, str]]] = {
-            "podcasttranscript": (1, 4, 16, 0),
-            "slidetranscript": (1, 4, 16, 0),
-            "gemma": (16, 192, 64, min(2, max_gpus)),
-            # "hunyuanframepackf1": (32, 192, 64, min(2, max_gpus)),
-            "hunyuanframepackf1": (24, 128, 64, min(2, max_gpus)),
-            "hunyuanframepackvae": (4, 32, 16, 1),
-            # "flux": (16, 192, 64, min(2, max_gpus)),
-            "flux": (12, 128, 64, min(2, max_gpus)),
-            "fluxkontext": (12, 128, 64, 1),
-            # "fantasytalking": (16, 256, 64, min(2, max_gpus)),
-            "fantasytalking": (12, 192, 64, min(2, max_gpus)),
-            "realesrgan": (4, 32, 16, "1g.10gb"),
-            "yolo": (4, 8, 16, "1g.10gb"),
-            "kokoro": (2, 8, 16, "1g.10gb"),
-            "whisper": (2, 8, 16, 1),
-        }
-        for container_name, (cpu, mem_gib, sotrage_gib, gpu_info) in container_dict.items():
-            num_gpus, mig_profile = parse_gpu_info(gpu_info)
+        container_specs = get_minimum_service_container_specs(max_gpus=max_gpus)
+
+        for container_name, spec in container_specs.items():
+            num_gpus, mig_profile = parse_gpu_info(spec.gpu)
             await pod_manager.add_pod(
                 container_name,
-                cpu,
-                mem_gib,
-                ephemeral_storage_gib=sotrage_gib,
+                spec.cpu,
+                spec.memory_gib,
+                ephemeral_storage_gib=spec.ephemeral_storage_gib,
                 gpu=num_gpus,
                 mig_profile=mig_profile,
                 namespace=NAMESPACE,
@@ -724,6 +741,247 @@ async def api_add_pod() -> QuartReturn:
         logging.error(f"Error adding pod for {container_name}: {ex}.")
         traceback.print_exc()
         return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@route("/api/auto_deploy", methods=["POST"])
+async def api_auto_deploy() -> QuartReturn:
+    """Run the model allocator to produce an optimized deployment plan.
+
+    Expects JSON body:
+        {
+            "gpu_budget": {"A100": 8, "H100": 0, ...},
+            "workflow": "streamcast"
+        }
+
+    Returns the deployment plan with estimated metrics and per-container specs.
+    """
+    try:
+        data = await request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), HTTPStatus.BAD_REQUEST
+
+        gpu_budget = data.get("gpu_budget")
+        workflow_name = data.get("workflow")
+
+        if not gpu_budget or not isinstance(gpu_budget, dict):
+            return jsonify({"error": "Missing or invalid 'gpu_budget' field"}), HTTPStatus.BAD_REQUEST
+        for gpu_type_name, count in gpu_budget.items():
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                return (
+                    jsonify(
+                        {
+                            "error": (
+                                "Invalid 'gpu_budget' field: each GPU type count must be a "
+                                "non-negative integer"
+                            )
+                        }
+                    ),
+                    HTTPStatus.BAD_REQUEST,
+                )
+        if not workflow_name or not isinstance(workflow_name, str):
+            return jsonify({"error": "Missing or invalid 'workflow' field"}), HTTPStatus.BAD_REQUEST
+
+        plan = await asyncio.to_thread(
+            allocator_bridge.run_allocator,
+            gpu_budget=gpu_budget,
+            workflow_name=workflow_name,
+        )
+        result_json = allocator_bridge.deployment_plan_to_json(plan)
+
+        # Enrich specs with friendly names from services.json and uppercase GPU types
+        for spec in result_json.get("specs", []):
+            spec["friendly_name"] = await get_friendly_container_name(spec["container_name"])
+            if spec.get("gpu_type"):
+                spec["gpu_type"] = spec["gpu_type"].upper()
+
+        return jsonify(result_json), HTTPStatus.OK
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), HTTPStatus.BAD_REQUEST
+    except AssertionError as ae:
+        msg = str(ae) if str(ae) else (
+            "GPU budget too small. Each GPU type must have at least 8 GPUs "
+            "(one full server). Use a single GPU type with 8+ GPUs, or "
+            "ensure each type has at least 8."
+        )
+        return jsonify({"error": msg}), HTTPStatus.BAD_REQUEST
+    except Exception as ex:
+        logging.exception("Error in auto_deploy: %s", ex)
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@route("/api/auto_deploy/confirm", methods=["POST"])
+async def api_auto_deploy_confirm() -> QuartReturn:
+    """Execute a deployment plan produced by /api/auto_deploy.
+
+    Expects JSON body:
+        {
+            "specs": [...],
+            "workflow": "streamcast"  (optional: also deploys the application container)
+        }
+
+    Deploys all model wrapper containers in the plan, plus the application
+    container if a workflow name is provided.
+    """
+    try:
+        data = await request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), HTTPStatus.BAD_REQUEST
+
+        specs = data.get("specs")
+        if not specs or not isinstance(specs, list):
+            return jsonify({"error": "Missing or invalid 'specs' field"}), HTTPStatus.BAD_REQUEST
+
+        workflow = data.get("workflow")
+
+        deployed: List[str] = []
+        errors: List[str] = []
+
+        for spec in specs:
+            container_name = spec.get("container_name")
+            if not container_name:
+                errors.append("Spec missing 'container_name'")
+                continue
+
+            try:
+                add_pod_result = await pod_manager.add_pod(
+                    container_name=container_name,
+                    cpu=int(spec.get("cpu", 4)),
+                    memory_gib=int(spec.get("memory_gib", 16)),
+                    ephemeral_storage_gib=int(spec.get("ephemeral_storage_gib", 16)),
+                    gpu=int(spec.get("gpu", 0)),
+                    gpu_type=spec.get("gpu_type"),
+                    mig_profile=spec.get("mig_profile"),
+                    namespace=NAMESPACE,
+                    k8s_cluster=k8s_cluster,
+                )
+
+                status_code = HTTPStatus.OK
+                if isinstance(add_pod_result, tuple) and len(add_pod_result) >= 2:
+                    status_value = add_pod_result[1]
+                    if isinstance(status_value, HTTPStatus):
+                        status_code = status_value
+                    elif isinstance(status_value, int):
+                        status_code = HTTPStatus(status_value)
+
+                if status_code >= HTTPStatus.BAD_REQUEST:
+                    msg = f"Failed to deploy '{container_name}' (status={int(status_code)})"
+                    logging.error(msg)
+                    errors.append(msg)
+                else:
+                    deployed.append(container_name)
+            except Exception as pod_ex:
+                msg = f"Failed to deploy '{container_name}': {pod_ex}"
+                logging.error(msg)
+                errors.append(msg)
+
+        # Also deploy the application container if workflow is specified
+        if workflow and workflow in STREAMWISE_APPS:
+            try:
+                add_pod_result = await pod_manager.add_pod(
+                    container_name=workflow,
+                    cpu=4,
+                    memory_gib=16,
+                    ephemeral_storage_gib=16,
+                    gpu=0,
+                    gpu_type=None,
+                    mig_profile=None,
+                    namespace=NAMESPACE,
+                    k8s_cluster=k8s_cluster,
+                )
+                status_code = HTTPStatus.OK
+                if isinstance(add_pod_result, tuple) and len(add_pod_result) >= 2:
+                    status_value = add_pod_result[1]
+                    if isinstance(status_value, HTTPStatus):
+                        status_code = status_value
+                    elif isinstance(status_value, int):
+                        status_code = HTTPStatus(status_value)
+                if status_code >= HTTPStatus.BAD_REQUEST:
+                    msg = f"Failed to deploy app '{workflow}' (status={int(status_code)})"
+                    logging.error(msg)
+                    errors.append(msg)
+                else:
+                    deployed.append(workflow)
+            except Exception as app_ex:
+                msg = f"Failed to deploy app '{workflow}': {app_ex}"
+                logging.error(msg)
+                errors.append(msg)
+
+        total_deployed = len(deployed)
+        total_specs = len(specs) + (1 if workflow and workflow in STREAMWISE_APPS else 0)
+        status = HTTPStatus.OK if not errors else HTTPStatus.MULTI_STATUS
+        return jsonify({
+            "deployed": deployed,
+            "errors": errors,
+            "message": f"Deployed {total_deployed}/{total_specs} containers.",
+        }), status
+
+    except Exception as ex:
+        logging.exception("Error in auto_deploy/confirm: %s", ex)
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@route("/api/auto_deploy/workflows", methods=["GET"])
+async def api_auto_deploy_workflows() -> QuartReturn:
+    """Return available workflows and GPU types for the auto-deploy UI."""
+    return jsonify({
+        "workflows": allocator_bridge.get_available_workflows(),
+        "gpu_types": allocator_bridge.get_available_gpu_types(),
+    }), HTTPStatus.OK
+
+
+@route("/api/auto_deploy/cluster_gpus", methods=["GET"])
+async def api_auto_deploy_cluster_gpus() -> QuartReturn:
+    """Return aggregated GPU counts by type from the current cluster.
+
+    Inspects all ready nodes and sums up allocatable GPUs grouped by the
+    nvidia.com/gpu.product label (mapped to canonical names like A100, H100, etc.).
+    """
+    try:
+        nodes = await get_k8s_nodes(k8s_cluster)
+        gpu_counts: dict[str, int] = {}
+        for node in nodes:
+            if not node.get("is_ready"):
+                continue
+            gpu_model = node.get("gpu_model", "N/A")
+            if gpu_model == "N/A":
+                continue
+            gpu_count = node.get("allocatable_resources", {}).get("gpu", 0)
+            if isinstance(gpu_count, str):
+                try:
+                    gpu_count = int(gpu_count)
+                except ValueError:
+                    continue
+            if gpu_count <= 0:
+                continue
+            # Map gpu_model label to canonical type name
+            canonical = _gpu_label_to_canonical(gpu_model)
+            gpu_counts[canonical] = gpu_counts.get(canonical, 0) + gpu_count
+        return jsonify({"gpu_budget": gpu_counts}), HTTPStatus.OK
+    except Exception as ex:
+        logging.exception("Error in cluster_gpus: %s", ex)
+        return jsonify({"error": str(ex)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+def _gpu_label_to_canonical(gpu_model: str) -> str:
+    """Map a GPU product label to a canonical type name for the allocator."""
+    model_upper = gpu_model.upper()
+    if "H100" in model_upper:
+        return "H100"
+    elif "H200" in model_upper:
+        return "H200"
+    elif "A100" in model_upper:
+        return "A100"
+    elif "GB200" in model_upper:
+        return "GB200"
+    elif "GB300" in model_upper:
+        return "GB300"
+    elif "V100" in model_upper:
+        return "V100"
+    elif "A10" in model_upper:
+        return "A10"
+    # Fallback: return as-is
+    return gpu_model
 
 
 @route("/api/node/<node_name>", methods=["DELETE"])
