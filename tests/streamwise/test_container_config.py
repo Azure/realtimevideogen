@@ -30,3 +30,14 @@ def test_minimum_service_specs_reuse_container_resources_values() -> None:
     assert gemma.cpu == CONTAINER_RESOURCES["gemma"].cpu
     assert gemma.memory_gib == CONTAINER_RESOURCES["gemma"].memory_gib
     assert gemma.ephemeral_storage_gib == CONTAINER_RESOURCES["gemma"].ephemeral_storage_gib
+
+
+def test_minimum_service_specs_gpu_scaling_edge_cases() -> None:
+    """Scalable services should clamp GPU defaults to min(2, max_gpus)."""
+    specs_zero = get_minimum_service_container_specs(max_gpus=0)
+    specs_one = get_minimum_service_container_specs(max_gpus=1)
+
+    assert specs_zero["gemma"].gpu == 0
+    assert specs_one["gemma"].gpu == 1
+    # MIG containers always keep their MIG profile regardless of max_gpus.
+    assert specs_zero["yolo"].gpu == "1g.10gb"
