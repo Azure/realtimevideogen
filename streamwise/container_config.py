@@ -82,6 +82,7 @@ MIG_AVAILABLE: bool = False
 
 def get_minimum_service_container_specs(max_gpus: int) -> dict[str, ContainerResourceSpec]:
     """Build container defaults for /api/service minimal deployment."""
+    validated_max_gpus = max(0, max_gpus)
     container_specs: dict[str, ContainerResourceSpec] = {
         "podcasttranscript": ContainerResourceSpec(cpu=1, memory_gib=4, ephemeral_storage_gib=16, gpu=0),
         "slidetranscript": ContainerResourceSpec(cpu=1, memory_gib=4, ephemeral_storage_gib=16, gpu=0),
@@ -95,7 +96,7 @@ def get_minimum_service_container_specs(max_gpus: int) -> dict[str, ContainerRes
         elif name == "hunyuanframepackvae":
             assigned_gpu = 1
         else:
-            assigned_gpu = min(2, max_gpus)
+            assigned_gpu = min(2, validated_max_gpus)
 
         container_specs[name] = ContainerResourceSpec(
             cpu=spec.cpu,
