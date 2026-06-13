@@ -33,7 +33,7 @@ def test_minimum_service_specs_reuse_container_resources_values() -> None:
 
 
 def test_minimum_service_specs_gpu_scaling_edge_cases() -> None:
-    """Scalable services should clamp GPU defaults to min(2, max_gpus)."""
+    """Scalable services should clamp GPU defaults and treat negative max_gpus as zero."""
     specs_zero = get_minimum_service_container_specs(max_gpus=0)
     specs_one = get_minimum_service_container_specs(max_gpus=1)
     specs_negative = get_minimum_service_container_specs(max_gpus=-2)

@@ -81,7 +81,10 @@ MIG_AVAILABLE: bool = False
 
 
 def get_minimum_service_container_specs(max_gpus: int) -> dict[str, ContainerResourceSpec]:
-    """Build container defaults for /api/service minimal deployment."""
+    """Build container defaults for /api/service minimal deployment.
+
+    Negative `max_gpus` values are clamped to 0 to avoid invalid GPU assignments.
+    """
     validated_max_gpus = max(0, max_gpus)
     container_specs: dict[str, ContainerResourceSpec] = {
         "podcasttranscript": ContainerResourceSpec(cpu=1, memory_gib=4, ephemeral_storage_gib=16, gpu=0),
