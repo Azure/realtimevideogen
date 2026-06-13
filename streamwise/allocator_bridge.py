@@ -34,6 +34,7 @@ from container_config import GPU_TYPE_TO_POD_STR
 from container_config import MIG_AVAILABLE
 from container_config import MIG_CAPABLE_GPU_TYPES
 from container_config import MIG_CONTAINERS
+from container_config import MODEL_TO_CONTAINER_NAME
 from data_loading import load_latency_data
 from model_provisioner.policies import STREAMWISE_POLICY
 from streamwise_apps import STREAMWISE_APPS
@@ -43,11 +44,11 @@ from workflows import WORKFLOWS
 # Mapping from simulator Model enum to concrete container names used by pod_manager.
 # Some Model entries map to multiple containers (e.g., OTHERS -> kokoro + yolo).
 MODEL_TO_CONTAINERS: dict[Model, list[str]] = {
-    Model.GEMMA: ["gemma"],
-    Model.FLUX: ["flux"],
-    Model.HF: ["hunyuanframepackf1"],
-    Model.HF_VAE: ["hunyuanframepackvae"],
-    Model.FT: ["fantasytalking"],
+    Model.GEMMA: [MODEL_TO_CONTAINER_NAME[Model.GEMMA]],
+    Model.FLUX: [MODEL_TO_CONTAINER_NAME[Model.FLUX]],
+    Model.HF: [MODEL_TO_CONTAINER_NAME[Model.HF]],
+    Model.HF_VAE: [MODEL_TO_CONTAINER_NAME[Model.HF_VAE]],
+    Model.FT: [MODEL_TO_CONTAINER_NAME[Model.FT]],
     Model.FT_VAE: [],  # FT_VAE is handled within fantasytalking container
     Model.UPSCALER: ["realesrgan"],
     Model.OTHERS: ["kokoro", "yolo"],

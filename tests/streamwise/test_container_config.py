@@ -6,6 +6,8 @@ from tests.test_utils import temp_sys_path
 
 with temp_sys_path("streamwise", "simulator"):
     from container_config import CONTAINER_RESOURCES
+    from container_config import MODEL_CONTAINER_RESOURCES
+    from container_config import MODEL_TO_CONTAINER_NAME
     from container_config import get_minimum_service_container_specs
 
 
@@ -30,6 +32,14 @@ def test_minimum_service_specs_reuse_container_resources_values() -> None:
     assert gemma.cpu == CONTAINER_RESOURCES["gemma"].cpu
     assert gemma.memory_gib == CONTAINER_RESOURCES["gemma"].memory_gib
     assert gemma.ephemeral_storage_gib == CONTAINER_RESOURCES["gemma"].ephemeral_storage_gib
+
+
+def test_model_container_resources_map_into_container_resources() -> None:
+    """Model-keyed defaults should be exposed through string container names."""
+    for model, spec in MODEL_CONTAINER_RESOURCES.items():
+        container_name = MODEL_TO_CONTAINER_NAME[model]
+        assert container_name in CONTAINER_RESOURCES
+        assert CONTAINER_RESOURCES[container_name] == spec
 
 
 def test_minimum_service_specs_gpu_scaling_edge_cases() -> None:

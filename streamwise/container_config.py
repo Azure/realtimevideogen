@@ -25,6 +25,7 @@ if _REPO_ROOT not in sys.path:
 import model_provisioner  # noqa: E402, F401
 
 from sim_types import GPUType  # noqa: E402
+from sim_types import Model  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -38,16 +39,31 @@ class ContainerResourceSpec:
 
 # Default CPU/memory/storage and baseline GPU settings for key services.
 # Keep in sync with deployment defaults in streamwise/templates/add_pod.html.
+MODEL_TO_CONTAINER_NAME: dict[Model, str] = {
+    Model.GEMMA: "gemma",
+    Model.FLUX: "flux",
+    Model.HF: "hunyuanframepackf1",
+    Model.HF_VAE: "hunyuanframepackvae",
+    Model.FT: "fantasytalking",
+}
+
+MODEL_CONTAINER_RESOURCES: dict[Model, ContainerResourceSpec] = {
+    Model.GEMMA: ContainerResourceSpec(cpu=16, memory_gib=192, ephemeral_storage_gib=64, gpu=2),
+    Model.FLUX: ContainerResourceSpec(cpu=12, memory_gib=128, ephemeral_storage_gib=64, gpu=2),
+    Model.HF: ContainerResourceSpec(cpu=24, memory_gib=128, ephemeral_storage_gib=64, gpu=2),
+    Model.HF_VAE: ContainerResourceSpec(cpu=4, memory_gib=32, ephemeral_storage_gib=16, gpu=1),
+    Model.FT: ContainerResourceSpec(cpu=12, memory_gib=192, ephemeral_storage_gib=64, gpu=2),
+}
+
 CONTAINER_RESOURCES: dict[str, ContainerResourceSpec] = {
-    "gemma": ContainerResourceSpec(cpu=16, memory_gib=192, ephemeral_storage_gib=64, gpu=2),
-    "flux": ContainerResourceSpec(cpu=12, memory_gib=128, ephemeral_storage_gib=64, gpu=2),
-    "hunyuanframepackf1": ContainerResourceSpec(cpu=24, memory_gib=128, ephemeral_storage_gib=64, gpu=2),
-    "hunyuanframepackvae": ContainerResourceSpec(cpu=4, memory_gib=32, ephemeral_storage_gib=16, gpu=1),
-    "fantasytalking": ContainerResourceSpec(cpu=12, memory_gib=192, ephemeral_storage_gib=64, gpu=2),
+    MODEL_TO_CONTAINER_NAME[model]: spec
+    for model, spec in MODEL_CONTAINER_RESOURCES.items()
+}
+CONTAINER_RESOURCES.update({
     "realesrgan": ContainerResourceSpec(cpu=4, memory_gib=32, ephemeral_storage_gib=16, gpu="1g.10gb"),
     "kokoro": ContainerResourceSpec(cpu=2, memory_gib=8, ephemeral_storage_gib=16, gpu="1g.10gb"),
     "yolo": ContainerResourceSpec(cpu=4, memory_gib=8, ephemeral_storage_gib=16, gpu="1g.10gb"),
-}
+})
 
 # GPU type string used by pod_manager (lowercase).
 GPU_TYPE_TO_POD_STR: dict[GPUType, str] = {
