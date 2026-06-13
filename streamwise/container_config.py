@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import sys
 import os
+from dataclasses import dataclass
+from typing import Union
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -25,18 +27,26 @@ import model_provisioner  # noqa: E402, F401
 from sim_types import GPUType  # noqa: E402
 
 
-# Default CPU/memory/storage for each container when deployed via auto-deploy.
-# Format: (cpu_cores, memory_gib, ephemeral_storage_gib)
-# Keep in sync with the Helm values in deployment/helm/values.yaml.
-CONTAINER_RESOURCES: dict[str, tuple[int, int, int]] = {
-    "gemma": (16, 192, 64),
-    "flux": (12, 128, 64),
-    "hunyuanframepackf1": (24, 128, 64),
-    "hunyuanframepackvae": (4, 32, 16),
-    "fantasytalking": (12, 192, 64),
-    "realesrgan": (4, 32, 16),
-    "kokoro": (2, 8, 16),
-    "yolo": (4, 8, 16),
+@dataclass(frozen=True)
+class ContainerResourceSpec:
+    """Default resource settings for a container deployment."""
+    cpu: int
+    memory_gib: int
+    ephemeral_storage_gib: int
+    gpu: Union[int, str] = 0
+
+
+# Default CPU/memory/storage and baseline GPU settings for key services.
+# Keep in sync with deployment defaults in streamwise/templates/add_pod.html.
+CONTAINER_RESOURCES: dict[str, ContainerResourceSpec] = {
+    "gemma": ContainerResourceSpec(cpu=16, memory_gib=192, ephemeral_storage_gib=64, gpu=2),
+    "flux": ContainerResourceSpec(cpu=12, memory_gib=128, ephemeral_storage_gib=64, gpu=2),
+    "hunyuanframepackf1": ContainerResourceSpec(cpu=24, memory_gib=128, ephemeral_storage_gib=64, gpu=2),
+    "hunyuanframepackvae": ContainerResourceSpec(cpu=4, memory_gib=32, ephemeral_storage_gib=16, gpu=1),
+    "fantasytalking": ContainerResourceSpec(cpu=12, memory_gib=192, ephemeral_storage_gib=64, gpu=2),
+    "realesrgan": ContainerResourceSpec(cpu=4, memory_gib=32, ephemeral_storage_gib=16, gpu="1g.10gb"),
+    "kokoro": ContainerResourceSpec(cpu=2, memory_gib=8, ephemeral_storage_gib=16, gpu="1g.10gb"),
+    "yolo": ContainerResourceSpec(cpu=4, memory_gib=8, ephemeral_storage_gib=16, gpu="1g.10gb"),
 }
 
 # GPU type string used by pod_manager (lowercase).
@@ -68,3 +78,30 @@ COLOCATED_CONTAINERS: frozenset[str] = frozenset({"hunyuanframepackvae"})
 # Whether MIG is actually configured on the cluster.
 # When False, MIG_CONTAINERS entries fall back to full GPUs.
 MIG_AVAILABLE: bool = False
+
+
+def get_minimum_service_container_specs(max_gpus: int) -> dict[str, ContainerResourceSpec]:
+    """Build container defaults for /api/service minimal deployment."""
+    container_specs: dict[str, ContainerResourceSpec] = {
+        "podcasttranscript": ContainerResourceSpec(cpu=1, memory_gib=4, ephemeral_storage_gib=16, gpu=0),
+        "slidetranscript": ContainerResourceSpec(cpu=1, memory_gib=4, ephemeral_storage_gib=16, gpu=0),
+        "fluxkontext": ContainerResourceSpec(cpu=12, memory_gib=128, ephemeral_storage_gib=64, gpu=1),
+        "whisper": ContainerResourceSpec(cpu=2, memory_gib=8, ephemeral_storage_gib=16, gpu=1),
+    }
+
+    for name, spec in CONTAINER_RESOURCES.items():
+        if name in MIG_CONTAINERS:
+            assigned_gpu: Union[int, str] = MIG_CONTAINERS[name]
+        elif name == "hunyuanframepackvae":
+            assigned_gpu = 1
+        else:
+            assigned_gpu = min(2, max_gpus)
+
+        container_specs[name] = ContainerResourceSpec(
+            cpu=spec.cpu,
+            memory_gib=spec.memory_gib,
+            ephemeral_storage_gib=spec.ephemeral_storage_gib,
+            gpu=assigned_gpu,
+        )
+
+    return container_specs

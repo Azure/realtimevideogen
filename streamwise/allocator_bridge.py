@@ -29,6 +29,7 @@ from sim_types import Result
 from auto_model_allocator import AutoModelAllocator
 from container_config import COLOCATED_CONTAINERS
 from container_config import CONTAINER_RESOURCES
+from container_config import ContainerResourceSpec
 from container_config import GPU_TYPE_TO_POD_STR
 from container_config import MIG_AVAILABLE
 from container_config import MIG_CAPABLE_GPU_TYPES
@@ -276,8 +277,13 @@ def result_to_deployment_specs(result: Result) -> list[DeploymentSpec]:
                     continue
 
                 for container_name in containers:
-                    resources = CONTAINER_RESOURCES.get(container_name, (4, 16, 16))
-                    cpu, memory_gib, ephemeral_storage_gib = resources
+                    resources = CONTAINER_RESOURCES.get(
+                        container_name,
+                        ContainerResourceSpec(cpu=4, memory_gib=16, ephemeral_storage_gib=16, gpu=0),
+                    )
+                    cpu = resources.cpu
+                    memory_gib = resources.memory_gib
+                    ephemeral_storage_gib = resources.ephemeral_storage_gib
 
                     mig_profile: Optional[str] = None
                     # Co-locate VAE only when disaggregation is disabled

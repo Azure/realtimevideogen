@@ -35,8 +35,7 @@ import pod_manager
 import node_manager
 import job_manager
 import allocator_bridge
-from container_config import CONTAINER_RESOURCES
-from container_config import MIG_CONTAINERS
+from container_config import get_minimum_service_container_specs
 
 from service_manager import get_services
 from service_manager import get_service_timestamps
@@ -629,36 +628,15 @@ async def api_add_service(
 ) -> QuartReturn:
     """API interface to add pods for all services."""
     try:
-        # Build container_dict from shared constants (CONTAINER_RESOURCES + MIG_CONTAINERS).
-        # Format: container_name -> (cpu, memory_gib, ephemeral_storage_gib, gpu_info)
-        # gpu_info is either an int (GPU count) or a MIG profile string.
-        container_dict: dict[str, tuple[int, int, int, Union[int, str]]] = {}
+        container_specs = get_minimum_service_container_specs(max_gpus=max_gpus)
 
-        # Services not in CONTAINER_RESOURCES (CPU-only or extra services)
-        container_dict["podcasttranscript"] = (1, 4, 16, 0)
-        container_dict["slidetranscript"] = (1, 4, 16, 0)
-
-        for name, (cpu, mem, storage) in CONTAINER_RESOURCES.items():
-            if name in MIG_CONTAINERS:
-                container_dict[name] = (cpu, mem, storage, MIG_CONTAINERS[name])
-            else:
-                container_dict[name] = (cpu, mem, storage, min(2, max_gpus))
-
-        # Additional services not covered by CONTAINER_RESOURCES
-        container_dict["fluxkontext"] = (12, 128, 64, 1)
-        container_dict["whisper"] = (2, 8, 16, 1)
-
-        # hunyuanframepackvae uses exactly 1 GPU (not scaled by max_gpus)
-        cpu, mem, storage = CONTAINER_RESOURCES["hunyuanframepackvae"]
-        container_dict["hunyuanframepackvae"] = (cpu, mem, storage, 1)
-
-        for container_name, (cpu, mem_gib, sotrage_gib, gpu_info) in container_dict.items():
-            num_gpus, mig_profile = parse_gpu_info(gpu_info)
+        for container_name, spec in container_specs.items():
+            num_gpus, mig_profile = parse_gpu_info(spec.gpu)
             await pod_manager.add_pod(
                 container_name,
-                cpu,
-                mem_gib,
-                ephemeral_storage_gib=sotrage_gib,
+                spec.cpu,
+                spec.memory_gib,
+                ephemeral_storage_gib=spec.ephemeral_storage_gib,
                 gpu=num_gpus,
                 mig_profile=mig_profile,
                 namespace=NAMESPACE,
