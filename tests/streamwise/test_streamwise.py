@@ -730,3 +730,76 @@ def test_set_verify_ssl_true() -> None:
         assert http_session_manager.VERIFY_SSL is True
     finally:
         http_session_manager.set_verify_ssl(original)
+
+
+@pytest.mark.asyncio
+async def test_api_cluster_gpus_aggregates_by_type() -> None:
+    """The cluster_gpus endpoint aggregates GPU counts by canonical type name."""
+    mock_nodes = [
+        {
+            "node_name": "h100-node-0",
+            "is_ready": True,
+            "gpu_model": "NVIDIA-H100-80GB-HBM3",
+            "allocatable_resources": {"gpu": "8"},
+        },
+        {
+            "node_name": "h100-node-1",
+            "is_ready": True,
+            "gpu_model": "NVIDIA-H100-80GB-HBM3",
+            "allocatable_resources": {"gpu": "8"},
+        },
+        {
+            "node_name": "a100-node-0",
+            "is_ready": True,
+            "gpu_model": "NVIDIA A100-SXM4-80GB",
+            "allocatable_resources": {"gpu": "8"},
+        },
+        {
+            "node_name": "cpu-node",
+            "is_ready": True,
+            "gpu_model": "N/A",
+            "allocatable_resources": {"gpu": "0"},
+        },
+    ]
+    client = _get_client()
+    with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=mock_nodes)):
+        response = await client.get("/api/auto_deploy/cluster_gpus")
+    assert response.status_code == HTTPStatus.OK
+    data = await response.get_json()
+    assert data["gpu_budget"] == {"H100": 16, "A100": 8}
+
+
+@pytest.mark.asyncio
+async def test_api_cluster_gpus_skips_not_ready_nodes() -> None:
+    """The cluster_gpus endpoint skips nodes that are not ready."""
+    mock_nodes = [
+        {
+            "node_name": "h100-node-0",
+            "is_ready": True,
+            "gpu_model": "NVIDIA-H100-80GB-HBM3",
+            "allocatable_resources": {"gpu": "8"},
+        },
+        {
+            "node_name": "h100-node-1",
+            "is_ready": False,
+            "gpu_model": "NVIDIA-H100-80GB-HBM3",
+            "allocatable_resources": {"gpu": "8"},
+        },
+    ]
+    client = _get_client()
+    with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=mock_nodes)):
+        response = await client.get("/api/auto_deploy/cluster_gpus")
+    assert response.status_code == HTTPStatus.OK
+    data = await response.get_json()
+    assert data["gpu_budget"] == {"H100": 8}
+
+
+@pytest.mark.asyncio
+async def test_api_cluster_gpus_empty_cluster() -> None:
+    """The cluster_gpus endpoint returns empty budget for a cluster with no GPU nodes."""
+    client = _get_client()
+    with patch("streamwise.streamwise.get_k8s_nodes", new=AsyncMock(return_value=[])):
+        response = await client.get("/api/auto_deploy/cluster_gpus")
+    assert response.status_code == HTTPStatus.OK
+    data = await response.get_json()
+    assert data["gpu_budget"] == {}

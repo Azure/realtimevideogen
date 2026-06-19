@@ -244,6 +244,18 @@
         </table>
         {% endmacro %}
 
+        <h2 class="mt-5 mb-3">🤖 Auto Deploy</h2>
+        <div class="text-begin mb-3">
+            <a
+                class="btn btn-outline-warning btn-lg"
+                href="{{ url_for('auto_deploy_page') }}"
+                title="Auto Deploy"
+                aria-label="Auto Deploy">
+                🤖 Auto Deploy
+            </a>
+            <span class="text-muted ms-2">Optimize and deploy all services automatically</span>
+        </div>
+
         <h2 class="mt-5 mb-3">🎯 Applications</h2>
         <div class="text-begin mb-3">
             <a
@@ -284,6 +296,15 @@
                     Add Wrapper
                 {% endif %}
             </a>
+            {% if wrapper_svcs and wrapper_svcs | length > 0 %}
+            <button
+                class="btn btn-outline-danger ms-2"
+                title="Delete All Wrappers"
+                aria-label="Delete All Wrappers"
+                onclick="deleteAllWrappers()">
+                🗑️ Delete All
+            </button>
+            {% endif %}
         </div>
         {% if wrapper_svcs %}
             {{ svc_table(wrapper_svcs, 'rtgen-table') }}
@@ -573,6 +594,29 @@
                 }
             });
         });
+    </script>
+    <script>
+        async function deleteAllWrappers() {
+            if (!confirm('Delete ALL wrapper pods? This cannot be undone.')) return;
+            const btn = event.currentTarget;
+            btn.disabled = true;
+            btn.textContent = '⏳ Deleting…';
+            try {
+                const resp = await fetch('/api/pods/wrappers', {method: 'DELETE'});
+                const data = await resp.json();
+                if (resp.ok) {
+                    alert(`Deleted ${data.deleted} wrapper pod(s).`);
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || resp.statusText));
+                }
+            } catch (e) {
+                alert('Request failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🗑️ Delete All';
+            }
+        }
     </script>
 </body>
 </html>
