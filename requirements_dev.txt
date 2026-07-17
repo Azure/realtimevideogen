@@ -8,13 +8,13 @@ pytest-forked
 flake8
 mypy
 # Code dependencies
-torch==2.8.0
+torch==2.13.0
 torchvision
 numpy<2
 imageio
 imageio-ffmpeg
 xfuser==0.4.5
-diffusers==0.37.0
+diffusers==0.38.0
 einops
 soundfile
 quart

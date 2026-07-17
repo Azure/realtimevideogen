@@ -5,9 +5,9 @@ packaging
 # torchvision==0.22.1
 # xformers==0.0.31
 
-torch==2.8.0
-torchvision==0.23.0
-xformers==0.0.32.post2
+torch==2.13.0
+torchvision==0.28.0
+xformers==0.0.35
 
 # torch==2.9.0
 # torchvision==0.24.0
@@ -18,8 +18,8 @@ xformers==0.0.32.post2
 # xformers==0.0.35
 
 xfuser==0.4.5
-diffusers==0.37.0
-transformers==5.0.0
+diffusers==0.38.0
+transformers==5.5.0
 
 # flash-attn==2.8.3 # requires --no-build-isolation
 
