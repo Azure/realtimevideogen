@@ -12,6 +12,7 @@ from http import HTTPStatus
 from unittest.mock import patch
 from unittest.mock import MagicMock
 from unittest.mock import AsyncMock
+from unittest.mock import ANY
 
 from tests.torch_mock import TorchMock
 
@@ -373,10 +374,18 @@ async def test_gen_audio() -> None:
     assert response_msg["error"] == "No audio generated"
 
     # Use existing audio file
+    mock_quart.send_from_directory.reset_mock()
     mock_model.generate = AsyncMock(return_value="tests/data/audio_4675.wav")
     response = await gen_audio(mock_model)
     assert response is not None
-    assert response == "mocked_file"  # send_file() returns this
+    assert response == "mocked_file"  # send_from_directory() returns this
+    mock_quart.send_from_directory.assert_awaited_once_with(
+        "tests/data",
+        "audio_4675.wav",
+        mimetype="audio/wav",
+        as_attachment=True,
+        attachment_filename=ANY,
+    )
 
 
 def test_setup_dist_environment_mig_warning(caplog: pytest.LogCaptureFixture) -> None:
