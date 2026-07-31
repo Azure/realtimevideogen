@@ -386,6 +386,7 @@ async def test_gen_audio() -> None:
         as_attachment=True,
         attachment_filename=ANY,
     )
+    mock_quart.send_file.assert_not_awaited()
 
 
 def test_setup_dist_environment_mig_warning(caplog: pytest.LogCaptureFixture) -> None:
