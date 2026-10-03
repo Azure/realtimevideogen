@@ -21,6 +21,8 @@ MAX_FRONTIER_COST = 5_000
 MAX_PLOT_TTFF = 1.5 * SECONDS_IN_HOUR
 MAX_PLOT_COST = 225
 REQUIRED_COLUMNS = ("ttff_s", "cost")
+PRIMARY_LABEL = "StreamPilot"
+LEGEND_COLUMNS = 2
 
 
 @dataclass(frozen=True)
@@ -30,14 +32,14 @@ class CurveSpec:
 
 
 CURVE_SPECS = (
-    CurveSpec("StreamWise", "provisioning_streamwise.csv"),
+    CurveSpec("StreamPilot", "provisioning_streamwise.csv"),
     CurveSpec("No Spot", "provisioning_streamwise_no_spot.csv"),
     CurveSpec("No disaggregation", "provisioning_streamwise_no_disag.csv"),
     CurveSpec("No upscaler", "provisioning_streamwise_no_upscaler.csv"),
     CurveSpec("Naive", "provisioning_streamwise_naive.csv"),
     CurveSpec("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
     CurveSpec("Naive Combo", "provisioning_naive_combo.csv"),
-    CurveSpec("A100 Only", "provisioning_streamwise_A100.csv"),
+    CurveSpec("StreamPilot (A100)", "provisioning_streamwise_A100.csv"),
 )
 
 
@@ -145,7 +147,7 @@ def plot_ablation(data_dir: Path, output_path: Path) -> None:
                 pareto_front[:, 1],
                 linewidth=3,
                 label=curve.label,
-                zorder=1 if curve.label == "StreamWise" else 0,
+                zorder=1 if curve.label == PRIMARY_LABEL else 0,
             )
 
         ticks, tick_labels = get_time_ticklabels(exclude_x={5 * 60})
@@ -156,7 +158,7 @@ def plot_ablation(data_dir: Path, output_path: Path) -> None:
 
         ax.set_ylim(0, MAX_PLOT_COST)
         ax.set_ylabel("Cost ($)")
-        ax.legend(loc="upper right", fontsize=9)
+        ax.legend(loc="upper right", fontsize=9, ncol=LEGEND_COLUMNS)
         ax.grid(True, linestyle="--", alpha=0.7)
         ax.set_axisbelow(True)
 
