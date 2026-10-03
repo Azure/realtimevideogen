@@ -40,6 +40,7 @@ CURVE_SPECS = (
     CurveSpec("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
     CurveSpec("Naive Combo", "provisioning_naive_combo.csv"),
     CurveSpec("StreamPilot (A100)", "provisioning_streamwise_A100.csv"),
+    CurveSpec("Optimal", "provisioning_streamwise_milp.csv"),
 )
 
 

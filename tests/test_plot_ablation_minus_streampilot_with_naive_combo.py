@@ -18,7 +18,7 @@ with temp_sys_path("paper"):
     from plot_ablation_minus_streampilot_with_naive_combo import plot_ablation
 
 
-def test_curve_specs_include_eight_expected_series() -> None:
+def test_curve_specs_include_nine_expected_series() -> None:
     assert [(curve.label, curve.filename) for curve in CURVE_SPECS] == [
         ("StreamPilot", "provisioning_streamwise.csv"),
         ("No Spot", "provisioning_streamwise_no_spot.csv"),
@@ -28,6 +28,7 @@ def test_curve_specs_include_eight_expected_series() -> None:
         ("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
         ("Naive Combo", "provisioning_naive_combo.csv"),
         ("StreamPilot (A100)", "provisioning_streamwise_A100.csv"),
+        ("Optimal", "provisioning_streamwise_milp.csv"),
     ]
 
 
