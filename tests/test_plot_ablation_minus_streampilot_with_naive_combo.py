@@ -95,3 +95,6 @@ def test_plot_ablation_creates_pdf(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert [text.get_text() for text in legend.get_texts()] == [curve.label for curve in CURVE_SPECS]
     lines = {line.get_label(): line for line in figure.axes[0].get_lines()}
     assert lines[PRIMARY_LABEL].get_zorder() == 1
+    assert {label: line.get_linestyle() for label, line in lines.items()} == {
+        curve.label: "--" if curve.label == "Naive" else "-" for curve in CURVE_SPECS
+    }

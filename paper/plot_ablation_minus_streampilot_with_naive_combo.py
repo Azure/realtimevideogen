@@ -29,6 +29,7 @@ LEGEND_COLUMNS = 2
 class CurveSpec:
     label: str
     filename: str
+    linestyle: str = "-"
 
 
 CURVE_SPECS = (
@@ -36,7 +37,7 @@ CURVE_SPECS = (
     CurveSpec("No Spot", "provisioning_streamwise_no_spot.csv"),
     CurveSpec("No disaggregation", "provisioning_streamwise_no_disag.csv"),
     CurveSpec("No upscaler", "provisioning_streamwise_no_upscaler.csv"),
-    CurveSpec("Naive", "provisioning_streamwise_naive.csv"),
+    CurveSpec("Naive", "provisioning_streamwise_naive.csv", linestyle="--"),
     CurveSpec("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
     CurveSpec("Naive Combo", "provisioning_naive_combo.csv"),
     CurveSpec("StreamPilot (A100)", "provisioning_streamwise_A100.csv"),
@@ -147,6 +148,7 @@ def plot_ablation(data_dir: Path, output_path: Path) -> None:
                 pareto_front[:, 0],
                 pareto_front[:, 1],
                 linewidth=3,
+                linestyle=curve.linestyle,
                 label=curve.label,
                 zorder=1 if curve.label == PRIMARY_LABEL else 0,
             )
