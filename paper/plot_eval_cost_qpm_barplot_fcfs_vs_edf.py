@@ -7,7 +7,6 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 
@@ -22,15 +21,100 @@ finally:
     sys.path.pop(0)
 
 
-PAPER_FIG_SIZE = (5.5, 2.5)
+PAPER_FIG_SIZE = (4.0, 3.6)
 DPI = 300
-Y_TICKS = [1, 10, 100, 1_000, 10_000, 100_000]
-Y_TICK_LABELS = ["1", "10", "100", "1k", "10k", "100k"]
-STAGE_LABELS = {
-    "FramePack VAE": "VAE",
-    "FantasyTalking VAE": "VAE",
-    "Fantasy Talking VAE": "VAE",
-}
+LEGEND_FONT_SIZE = 9
+LEGEND_ANCHOR = (1.01, 0.5)
+STAGE_LEGEND_ANCHOR = (1.01, 0.38)
+STAGE_Y_TICKS = [1, 10, 100, 1_000, 10_000, 100_000]
+STAGE_Y_TICK_LABELS = ["1", "10", "100", "1k", "10k", "100k"]
+TOTAL_Y_TICKS = [100, 1_000, 10_000, 100_000, 1_000_000]
+TOTAL_Y_TICK_LABELS = ["100", "1k", "10k", "100k", "1M"]
+BAR_WIDTH = 0.2
+# (label, face color, hatch, alpha) for each total-cost bar series.
+BAR_STYLES = (
+    ("StreamPilot", "#404040", "", 1.0),
+    ("StreamPilot (FCFS)", "#404040", "////", 0.55),
+    ("DDiT (EDF)", "#b0b0b0", "xxxx", 1.0),
+    ("DDiT (FCFS)", "#b0b0b0", "\\\\\\\\", 0.55),
+)
+
+
+def plot_stage_costs(
+    ax: plt.Axes,
+    qpm_values: np.ndarray,
+    x_labels: list[str],
+    stage_costs: pd.DataFrame,
+) -> None:
+    for stage in stage_costs.columns:
+        ax.plot(qpm_values, stage_costs[stage], marker="o", label=stage)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_ylim(1, None)
+    ax.set_xticks(qpm_values, x_labels)
+    ax.set_yticks(STAGE_Y_TICKS, STAGE_Y_TICK_LABELS)
+    ax.set_ylabel("Cost ($/hour)")
+    ax.grid(True, linestyle="--", alpha=0.7)
+    ax.set_axisbelow(True)
+    ax.legend(
+        loc="center left",
+        bbox_to_anchor=STAGE_LEGEND_ANCHOR,
+        fontsize=LEGEND_FONT_SIZE,
+    )
+
+
+def plot_total_costs(
+    ax: plt.Axes,
+    x_labels: list[str],
+    totals: list[np.ndarray],
+    fcfs_savings_percent: list[np.ndarray],
+) -> None:
+    x = np.arange(len(x_labels))
+    offsets = (np.arange(len(BAR_STYLES)) - (len(BAR_STYLES) - 1) / 2) * BAR_WIDTH
+    for offset, series, (label, color, hatch, alpha) in zip(
+        offsets, totals, BAR_STYLES, strict=True
+    ):
+        ax.bar(
+            x + offset,
+            series,
+            BAR_WIDTH,
+            color=color,
+            alpha=alpha,
+            hatch=hatch,
+            edgecolor="black",
+            linewidth=0.35,
+            label=label,
+        )
+    # Annotate FCFS bars with the StreamPilot cost saving relative to them.
+    for offset, series, percents in zip(
+        offsets[[1, 3]], totals[1::2], fcfs_savings_percent, strict=True
+    ):
+        for bar_x, total, percent in zip(x + offset, series, percents, strict=True):
+            if percent <= 0:
+                continue
+            ax.text(
+                bar_x,
+                total * 1.15,
+                f"{percent:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+                rotation=90,
+            )
+    ax.set_yscale("log")
+    ax.set_yticks(TOTAL_Y_TICKS, TOTAL_Y_TICK_LABELS)
+    ax.set_ylim(TOTAL_Y_TICKS[0], TOTAL_Y_TICKS[-1] * 10)
+    ax.set_xticks(x, x_labels)
+    ax.set_xlim(-0.5, len(x_labels) - 0.5)
+    ax.set_ylabel("Cost ($/hour)")
+    ax.set_xlabel("Queries per minute (QPM)")
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+    ax.set_axisbelow(True)
+    ax.legend(
+        loc="center left",
+        bbox_to_anchor=LEGEND_ANCHOR,
+        fontsize=LEGEND_FONT_SIZE,
+    )
 
 
 def plot_fcfs_vs_edf(
@@ -92,175 +176,25 @@ def plot_fcfs_vs_edf(
         edf_totals,
     )
 
-    fig, ax = plt.subplots(figsize=PAPER_FIG_SIZE)
-    x = np.arange(len(df_qpm))
-    width = 0.21
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"][
-        : len(stage_columns)
-    ]
-    fcfs_bottom = np.zeros(len(df_qpm))
-    edf_bottom = np.zeros(len(df_qpm))
-    ddit_bottom = np.zeros(len(df_qpm))
-    ddit_fcfs_bottom = np.zeros(len(df_qpm))
-
-    for stage_index, (stage, color) in enumerate(
-        zip(stage_columns, colors, strict=True)
-    ):
-        ax.bar(
-            x - 1.5 * width,
-            edf_costs[:, stage_index],
-            width,
-            bottom=edf_bottom,
-            color=color,
-            edgecolor="black",
-            linewidth=0.35,
-        )
-        ax.bar(
-            x - 0.5 * width,
-            fcfs_costs[:, stage_index],
-            width,
-            bottom=fcfs_bottom,
-            color=color,
-            edgecolor="black",
-            linewidth=0.35,
-            hatch="////",
-            alpha=0.7,
-        )
-        ax.bar(
-            x + 0.5 * width,
-            ddit_costs[:, stage_index],
-            width,
-            bottom=ddit_bottom,
-            color=color,
-            edgecolor="black",
-            linewidth=0.35,
-            hatch="xxxx",
-        )
-        ax.bar(
-            x + 1.5 * width,
-            ddit_fcfs_costs[:, stage_index],
-            width,
-            bottom=ddit_fcfs_bottom,
-            color=color,
-            edgecolor="black",
-            linewidth=0.35,
-            hatch="\\\\\\\\",
-            alpha=0.7,
-        )
-        fcfs_bottom += fcfs_costs[:, stage_index]
-        edf_bottom += edf_costs[:, stage_index]
-        ddit_bottom += ddit_costs[:, stage_index]
-        ddit_fcfs_bottom += ddit_fcfs_costs[:, stage_index]
-
+    qpm_values = df_qpm["QPM"].to_numpy()
     x_labels = [
-        "Single" if qpm == 0.5 else f"{qpm:g}" for qpm in df_qpm["QPM"]
+        "Single" if qpm == 0.5 else f"{qpm:g}" for qpm in qpm_values
     ]
-    ax.set_yscale("log")
-    ax.set_ylim(1, None)
-    ax.set_yticks(Y_TICKS)
-    ax.set_yticklabels(Y_TICK_LABELS)
-    ax.set_xticks(x)
-    ax.set_xticklabels(x_labels)
-    ax.set_ylabel("Cost ($/hour)")
-    ax.set_xlabel("Queries per minute (QPM)")
-    ax.grid(axis="y", linestyle="--", alpha=0.7)
-    ax.set_axisbelow(True)
-    tallest_totals = np.maximum(fcfs_totals, ddit_fcfs_totals)
-    ax.set_ylim(1, tallest_totals.max() * 9)
-
-    for bar_x, total, saved_percent in zip(
-        x - 0.5 * width,
-        fcfs_totals,
-        savings_percent,
-        strict=True,
-    ):
-        if saved_percent <= 0:
-            continue
-        ax.text(
-            bar_x,
-            total * 1.06,
-            f"{saved_percent:.1f}%",
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            rotation=90,
-        )
-    for bar_x, total, saved_percent in zip(
-        x + 1.5 * width,
-        ddit_fcfs_totals,
-        ddit_fcfs_vs_stream_pilot_percent,
-        strict=True,
-    ):
-        ax.text(
-            bar_x,
-            total * 1.06,
-            f"{saved_percent:.1f}%",
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            rotation=90,
-        )
-    stage_handles = {
-        stage: Patch(
-            facecolor=color,
-            label=STAGE_LABELS.get(stage, stage),
-        )
-        for stage, color in zip(stage_columns, colors, strict=True)
-    }
-    stream_pilot_handle = Patch(
-        facecolor="white",
-        edgecolor="black",
-        label="StreamPilot",
+    fig, (stage_ax, total_ax) = plt.subplots(
+        2,
+        1,
+        figsize=PAPER_FIG_SIZE,
+        gridspec_kw={"hspace": 0.3},
     )
-    fcfs_handle = Patch(
-        facecolor="white",
-        edgecolor="black",
-        hatch="////",
-        alpha=0.7,
-        label="StreamPilot (FCFS)",
-    )
-    ddit_handle = Patch(
-        facecolor="white",
-        edgecolor="black",
-        hatch="xxxx",
-        label="DDiT (EDF)",
-    )
-    ddit_fcfs_handle = Patch(
-        facecolor="white",
-        edgecolor="black",
-        hatch="\\\\\\\\",
-        alpha=0.7,
-        label="DDiT (FCFS)",
-    )
-    legend_handles = [
-        stage_handles[stage_columns[0]],
-        stage_handles[stage_columns[5]],
-        stage_handles[stage_columns[1]],
-        stage_handles[stage_columns[6]],
-        stage_handles[stage_columns[2]],
-        stage_handles[stage_columns[3]],
-        stage_handles[stage_columns[4]],
-        stream_pilot_handle,
-        fcfs_handle,
-        ddit_handle,
-        ddit_fcfs_handle,
-    ]
-    fig.legend(
-        handles=legend_handles,
-        ncols=4,
-        loc="upper center",
-        bbox_to_anchor=(0.06, 0.72, 0.88, 0.275),
-        mode="expand",
-        fontsize=ax.xaxis.label.get_fontsize()-1,
-        borderaxespad=0,
-        borderpad=0.2,
-        columnspacing=0.4,
-        handlelength=1.4,
-        handletextpad=0.4,
+    plot_stage_costs(stage_ax, qpm_values, x_labels, df_qpm[stage_columns])
+    plot_total_costs(
+        total_ax,
+        x_labels,
+        [edf_totals, fcfs_totals, ddit_totals, ddit_fcfs_totals],
+        [savings_percent, ddit_fcfs_vs_stream_pilot_percent],
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout(rect=(0.005, 0.005, 0.995, 0.72), pad=0)
     fig.savefig(output_path, dpi=DPI, bbox_inches="tight", pad_inches=0)
     plt.close(fig)
 
