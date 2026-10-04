@@ -22,7 +22,7 @@ def test_curve_specs_include_nine_expected_series() -> None:
     assert [(curve.label, curve.filename) for curve in CURVE_SPECS] == [
         ("StreamPilot", "provisioning_streamwise.csv"),
         ("No Spot", "provisioning_streamwise_no_spot.csv"),
-        ("No disaggregation", "provisioning_streamwise_no_disag.csv"),
+        ("No disagg", "provisioning_streamwise_no_disag.csv"),
         ("No upscaler", "provisioning_streamwise_no_upscaler.csv"),
         ("Naive", "provisioning_streamwise_naive.csv"),
         ("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),

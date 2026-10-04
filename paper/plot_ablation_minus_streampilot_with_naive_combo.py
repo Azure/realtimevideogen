@@ -16,9 +16,9 @@ import pandas as pd
 DPI = 300
 PAPER_FIG_SIZE = (5.5, 2)
 SECONDS_IN_HOUR = 60 * 60
-MAX_FRONTIER_TTFF = 2 * SECONDS_IN_HOUR
+MAX_FRONTIER_TTFF = 6 * SECONDS_IN_HOUR
 MAX_FRONTIER_COST = 5_000
-MAX_PLOT_TTFF = 1.5 * SECONDS_IN_HOUR
+MAX_PLOT_TTFF = 5.5 * SECONDS_IN_HOUR
 MAX_PLOT_COST = 225
 REQUIRED_COLUMNS = ("ttff_s", "cost")
 PRIMARY_LABEL = "StreamPilot"
@@ -35,7 +35,7 @@ class CurveSpec:
 CURVE_SPECS = (
     CurveSpec("StreamPilot", "provisioning_streamwise.csv"),
     CurveSpec("No Spot", "provisioning_streamwise_no_spot.csv"),
-    CurveSpec("No disaggregation", "provisioning_streamwise_no_disag.csv"),
+    CurveSpec("No disagg", "provisioning_streamwise_no_disag.csv"),
     CurveSpec("No upscaler", "provisioning_streamwise_no_upscaler.csv"),
     CurveSpec("Naive", "provisioning_streamwise_naive.csv", linestyle="--"),
     CurveSpec("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
@@ -153,11 +153,13 @@ def plot_ablation(data_dir: Path, output_path: Path) -> None:
                 zorder=1 if curve.label == PRIMARY_LABEL else 0,
             )
 
-        ticks, tick_labels = get_time_ticklabels(exclude_x={5 * 60})
+        ticks, tick_labels = get_time_ticklabels(exclude_x={5 * 60, 40 * 60, 3 * SECONDS_IN_HOUR})
         ax.set_xscale("log")
         ax.set_xticks(ticks, tick_labels)
         ax.set_xlim(10, MAX_PLOT_TTFF)
-        ax.set_xlabel("TTFF", labelpad=-8)
+        # Place the label in the gap left by the excluded 5m tick.
+        label_x = np.log(5 * 60 / 10) / np.log(MAX_PLOT_TTFF / 10)
+        ax.set_xlabel("TTFF", labelpad=-8, x=label_x)
 
         ax.set_ylim(0, MAX_PLOT_COST)
         ax.set_ylabel("Cost ($)")

@@ -190,7 +190,7 @@ BASELINE_POLICIES = {
     "naive combo": Policy(
         name="naive combo",
         gpu_cost=GPU_SPOT_COST,
-        objective=Objective.TTFF_COST,
+        objective=Objective.TIME_COST,
         disaggregation={
             Model.HF: True,
             Model.FT: False,

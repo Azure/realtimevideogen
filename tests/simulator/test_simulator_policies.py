@@ -46,7 +46,7 @@ def test_naive_combo_policy() -> None:
     policy = BASELINE_POLICIES["naive combo"]
 
     assert policy.gpu_cost == GPU_SPOT_COST
-    assert policy.objective == Objective.TTFF_COST
+    assert policy.objective == Objective.TIME_COST
     assert policy.disaggregation == {
         Model.HF: True,
         Model.FT: False,
