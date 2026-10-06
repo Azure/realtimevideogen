@@ -1,0 +1,11 @@
+# 8xA100 generating 10 minutes of 1280x80
+Component,Name,GPU,TTFF,Time
+Orchestrator,StreamCast,0,1.2,3.5
+LLM,Gemma,1,6.6,31.8
+T2I,Flux,1,9.8,9.8
+I2I,YOLO,0.5,0.1,0.6
+TTS,Kokoro,0.5,0.6,25.8
+I2V,FramePack,1,8.6,1486.2
+I2V VAE,FramePack VAE,1,2.0,343.0
+V+A,Fantasy Talking,2,78.8,13588.7
+Upscale,Real-ESRGAN,1,15.4,2663.4
