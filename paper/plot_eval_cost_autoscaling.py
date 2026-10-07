@@ -1,7 +1,8 @@
 """Cost of a warm-pool autoscaled deployment replaying the Azure LMM production trace.
 
-Compares StreamPilot and DDiT resizing the warm GPU pool at the same SLO attainment (99%), for a static pool,
-a reactive autoscaler, and a predictive (forecast-driven) warm pool. See ``simulator/autoscaling.py``.
+Compares StreamPilot with the Naive Combo and DDiT baselines resizing the warm GPU pool at the same SLO
+attainment (99%), for a static pool, a reactive autoscaler, and a predictive (forecast-driven) warm pool.
+See ``simulator/autoscaling.py``.
 """
 from argparse import ArgumentParser
 from pathlib import Path
@@ -28,7 +29,7 @@ try:
     from autoscaling import load_stage_cost_curve
     from autoscaling import load_trace
     from autoscaling import run_experiment
-    from autoscaling import stream_pilot_and_ddit
+    from autoscaling import stream_pilot_and_baselines
     from deadline_scheduling import get_latency_matched_reference
 finally:
     sys.path.pop(0)
@@ -42,19 +43,22 @@ LEGEND_ANCHOR = (1.18, 0.5)
 TIMELINE_BIN_MIN = 30
 TIMELINE_DAY_FONT_SIZE = 8
 LOAD_MAX_QPM = 30
-BAR_WIDTH = 0.36
+BAR_WIDTH = 0.27
+SAVING_FONT_SIZE = 6.5
 TIMELINE_STRATEGY = "Predictive warm pool"
 STRATEGY_LABELS = {
     "Static peak": "Static",
     "Reactive": "Reactive",
     "Predictive warm pool": "Predictive",
 }
+BASELINES = ("Naive Combo", "DDiT")
 # (system, color, line style) in plotting order.
 SYSTEM_STYLES = (
     ("StreamPilot", "#404040", "-"),
-    ("DDiT", "#b0b0b0", "--"),
+    ("Naive Combo", "#8a8a8a", "-."),
+    ("DDiT", "#c8c8c8", "--"),
 )
-TIMELINE_COLORS = {"StreamPilot": "#202020", "DDiT": "#8c8c8c"}
+TIMELINE_COLORS = {"StreamPilot": "#202020", "Naive Combo": "#606060", "DDiT": "#9a9a9a"}
 WARM_HATCH = "////"
 LOAD_COLOR = "#cfe2f3"
 
@@ -72,6 +76,33 @@ def get_ddit_cost_multiplier(qpm_path: Path, stream_pilot_single_path: Path, ddi
         candidate_costs=df_ddit["cost"].to_numpy(),
     )
     return float(ddit_cost / reference_cost)
+
+
+def get_frontier_cost_multiplier(
+    qpm_path: Path,
+    stream_pilot_single_path: Path,
+    candidate_single_path: Path,
+) -> float:
+    """Candidate/StreamPilot ratio of the cheapest configurations meeting the reference TTFF.
+
+    The reference TTFF is the StreamPilot operating point of the steady-state QPM figure. Both systems are
+    compared on their Pareto frontier, which is fair for a candidate (like Naive Combo) that can meet it.
+    """
+    df_qpm = pd.read_csv(qpm_path)
+    df_stream_pilot = pd.read_csv(stream_pilot_single_path, comment="#")
+    df_candidate = pd.read_csv(candidate_single_path, comment="#")
+    target_ttff, _, _, _, met_target = get_latency_matched_reference(
+        target_cost=float(df_qpm["Total"].iloc[0]),
+        reference_ttff=df_stream_pilot["ttff_s"].to_numpy(),
+        reference_costs=df_stream_pilot["cost"].to_numpy(),
+        candidate_ttff=df_candidate["ttff_s"].to_numpy(),
+        candidate_costs=df_candidate["cost"].to_numpy(),
+    )
+    if not met_target:
+        raise ValueError(f"{candidate_single_path} has no configuration meeting TTFF {target_ttff:.2f}s")
+    stream_pilot_cost = df_stream_pilot.loc[df_stream_pilot["ttff_s"] <= target_ttff, "cost"].min()
+    candidate_cost = df_candidate.loc[df_candidate["ttff_s"] <= target_ttff, "cost"].min()
+    return float(candidate_cost / stream_pilot_cost)
 
 
 def _bin(values: np.ndarray, size: int) -> np.ndarray:
@@ -150,18 +181,20 @@ def plot_strategy_bars(
             edgecolor="black",
             linewidth=0.35,
         )
-    # Annotate DDiT bars with the StreamPilot cost saving relative to them.
-    for bar_x, strategy in zip(x + offsets[-1], strategies, strict=True):
-        stream_pilot = results[strategy]["StreamPilot"].avg_cost
-        ddit = results[strategy]["DDiT"].avg_cost
-        ax.text(
-            bar_x,
-            ddit / 1000 * 1.03,
-            f"-{(1 - stream_pilot / ddit) * 100:.0f}%",
-            ha="center",
-            va="bottom",
-            fontsize=7,
-        )
+    # Annotate baseline bars with the StreamPilot cost saving relative to them.
+    system_offsets = {system: offset for offset, (system, _, _) in zip(offsets, SYSTEM_STYLES, strict=True)}
+    for baseline in BASELINES:
+        for bar_x, strategy in zip(x + system_offsets[baseline], strategies, strict=True):
+            stream_pilot = results[strategy]["StreamPilot"].avg_cost
+            baseline_cost = results[strategy][baseline].avg_cost
+            ax.text(
+                bar_x,
+                baseline_cost / 1000 * 1.03,
+                f"-{(1 - stream_pilot / baseline_cost) * 100:.0f}%",
+                ha="center",
+                va="bottom",
+                fontsize=SAVING_FONT_SIZE,
+            )
     max_cost = max(result.avg_cost for by_system in results.values() for result in by_system.values())
     ax.set_ylim(0, max_cost / 1000 * 1.18)
     ax.set_xticks(x, [STRATEGY_LABELS.get(strategy, strategy) for strategy in strategies])
@@ -179,14 +212,17 @@ def plot_autoscaling(
     trace_path: Path,
     qpm_path: Path,
     stream_pilot_single_path: Path,
+    naive_combo_single_path: Path,
     ddit_single_path: Path,
     output_path: Path,
     config: AutoscalingConfig = AutoscalingConfig(),
 ) -> dict[str, dict[str, SimulationResult]]:
     arrivals = load_trace(trace_path, config.rate_scale)
     curve = load_stage_cost_curve(qpm_path)
+    naive_combo_multiplier = get_frontier_cost_multiplier(qpm_path, stream_pilot_single_path, naive_combo_single_path)
     ddit_multiplier = get_ddit_cost_multiplier(qpm_path, stream_pilot_single_path, ddit_single_path)
-    results = run_experiment(arrivals, curve, stream_pilot_and_ddit(ddit_multiplier), config)
+    systems = stream_pilot_and_baselines(naive_combo_multiplier, ddit_multiplier)
+    results = run_experiment(arrivals, curve, systems, config)
 
     fig, (timeline_ax, bar_ax) = plt.subplots(2, 1, figsize=PAPER_FIG_SIZE, gridspec_kw={"hspace": 0.45})
     plot_timeline(timeline_ax, arrivals, results[TIMELINE_STRATEGY])
@@ -197,7 +233,7 @@ def plot_autoscaling(
 
     print(
         f"Trace: {len(arrivals)} min, mean {arrivals.mean():.1f} QPM, peak {arrivals.max():.1f} QPM; "
-        f"DDiT cost multiplier {ddit_multiplier:.3f}; forecast MAPE "
+        f"cost multipliers Naive Combo {naive_combo_multiplier:.3f}, DDiT {ddit_multiplier:.3f}; forecast MAPE "
         f"predictive {forecast_error(arrivals, config, Predictor.ORACLE) * 100:.1f}%, "
         f"reactive {forecast_error(arrivals, config, Predictor.PERSISTENCE) * 100:.1f}%"
     )
@@ -209,14 +245,17 @@ def plot_autoscaling(
                 f"{result.avg_warm_cost:>9.0f} {result.avg_warm_cost / result.avg_cost * 100:>6.1f}% "
                 f"{result.slo_attainment * 100:>6.2f}%"
             )
-        saving = 1 - by_system["StreamPilot"].avg_cost / by_system["DDiT"].avg_cost
-        print(f"{'':>22} StreamPilot saves {saving * 100:.1f}% vs DDiT")
+        for baseline in BASELINES:
+            saving = 1 - by_system["StreamPilot"].avg_cost / by_system[baseline].avg_cost
+            print(f"{'':>22} StreamPilot saves {saving * 100:.1f}% vs {baseline}")
     return results
 
 
 def parse_args() -> ArgumentParser:
     paper_dir = Path(__file__).resolve().parent
-    parser = ArgumentParser(description="Warm-pool autoscaling cost: StreamPilot vs DDiT on a production trace.")
+    parser = ArgumentParser(
+        description="Warm-pool autoscaling cost: StreamPilot vs Naive Combo and DDiT on a production trace."
+    )
     parser.add_argument(
         "--trace",
         type=Path,
@@ -234,6 +273,12 @@ def parse_args() -> ArgumentParser:
         type=Path,
         default=paper_dir / "data" / "provisioning_streamwise.csv",
         help="StreamPilot single-request latency-cost results.",
+    )
+    parser.add_argument(
+        "--naive-combo-single-data",
+        type=Path,
+        default=paper_dir / "data" / "provisioning_naive_combo.csv",
+        help="Naive Combo single-request latency-cost results.",
     )
     parser.add_argument(
         "--ddit-single-data",
@@ -256,6 +301,7 @@ if __name__ == "__main__":
         trace_path=args.trace,
         qpm_path=args.data,
         stream_pilot_single_path=args.stream_pilot_single_data,
+        naive_combo_single_path=args.naive_combo_single_data,
         ddit_single_path=args.ddit_single_data,
         output_path=args.output,
     )

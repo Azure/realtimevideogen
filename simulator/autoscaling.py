@@ -12,9 +12,10 @@ A discrete-time (1-minute) fluid simulation of a GPU pool serving StreamCast req
   The predictive pool assumes a traffic predictor with ~10% MAPE (true load with AR(1) relative error);
   the reactive pool uses recent load (persistence); the static pool is a fixed size.
   The margin (or static size) is tuned per system so every system meets the same SLO attainment target.
-* DDiT capacity costs a latency-matched multiple of StreamPilot's (same as the steady-state QPM figure).
+* DDiT and Naive Combo capacity cost a latency-matched multiple of StreamPilot's.
 * StreamPilot schedules with EDF and sizes the pool deadline-aware (batch work is deferred into troughs);
-  DDiT schedules FCFS and must provision for all arrivals.
+  the baselines (DDiT, and Naive Combo, which combines StreamPilot's resource optimizations without its
+  scheduler) schedule FCFS and must provision for all arrivals.
 """
 from __future__ import annotations
 
@@ -374,6 +375,18 @@ def stream_pilot_and_ddit(ddit_cost_multiplier: float) -> tuple[SystemSpec, Syst
         SystemSpec("StreamPilot", Scheduler.EDF, deadline_aware_sizing=True),
         SystemSpec("DDiT", Scheduler.FCFS, deadline_aware_sizing=False, cost_multiplier=ddit_cost_multiplier),
     )
+
+
+def stream_pilot_and_baselines(
+    naive_combo_cost_multiplier: float,
+    ddit_cost_multiplier: float,
+) -> tuple[SystemSpec, SystemSpec, SystemSpec]:
+    """StreamPilot, Naive Combo (FCFS, no deadline-aware sizing), and DDiT."""
+    stream_pilot, ddit = stream_pilot_and_ddit(ddit_cost_multiplier)
+    naive_combo = SystemSpec(
+        "Naive Combo", Scheduler.FCFS, deadline_aware_sizing=False, cost_multiplier=naive_combo_cost_multiplier
+    )
+    return stream_pilot, naive_combo, ddit
 
 
 def run_experiment(

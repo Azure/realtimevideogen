@@ -12,6 +12,7 @@ with temp_sys_path("paper"):
     import plot_eval_cost_autoscaling as plot_module
     from plot_eval_cost_autoscaling import SYSTEM_STYLES
     from plot_eval_cost_autoscaling import get_ddit_cost_multiplier
+    from plot_eval_cost_autoscaling import get_frontier_cost_multiplier
     from plot_eval_cost_autoscaling import plot_autoscaling
     from prepare_azure_lmm_trace import aggregate_per_minute
     from prepare_azure_lmm_trace import prepare_trace
@@ -52,6 +53,25 @@ def test_ddit_cost_multiplier_matches_steady_state_figure() -> None:
     assert multiplier == pytest.approx(1405.62 / 687.61, rel=1e-3)
 
 
+def test_naive_combo_cost_multiplier_matches_frontiers_at_reference_ttff() -> None:
+    multiplier = get_frontier_cost_multiplier(
+        DATA_DIR / "provisioning_qpm.csv",
+        DATA_DIR / "provisioning_streamwise.csv",
+        DATA_DIR / "provisioning_naive_combo.csv",
+    )
+    # Cheapest configurations with TTFF <= 26.01s (StreamPilot's steady-state operating point).
+    assert multiplier == pytest.approx(62.76 / 43.28, rel=1e-3)
+
+
+def test_frontier_cost_multiplier_rejects_unreachable_ttff() -> None:
+    with pytest.raises(ValueError, match="no configuration meeting TTFF"):
+        get_frontier_cost_multiplier(
+            DATA_DIR / "provisioning_qpm.csv",
+            DATA_DIR / "provisioning_streamwise.csv",
+            DATA_DIR / "llm" / "provisioning_ddit.csv",
+        )
+
+
 def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Two days of the committed trace keep the test fast.
     per_minute = pd.read_csv(DATA_DIR / "azure_lmm_trace_2024_per_minute.csv", comment="#")
@@ -65,6 +85,7 @@ def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest
         trace_path=trace_path,
         qpm_path=DATA_DIR / "provisioning_qpm.csv",
         stream_pilot_single_path=DATA_DIR / "provisioning_streamwise.csv",
+        naive_combo_single_path=DATA_DIR / "provisioning_naive_combo.csv",
         ddit_single_path=DATA_DIR / "llm" / "provisioning_ddit.csv",
         output_path=output_path,
     )
@@ -72,6 +93,7 @@ def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest
     assert output_path.stat().st_size > 0
     timeline_ax, bar_ax, load_ax = figures[0].axes
     systems = [style[0] for style in SYSTEM_STYLES]
+    assert systems == ["StreamPilot", "Naive Combo", "DDiT"]
     assert [line.get_label() for line in timeline_ax.get_lines()] == systems
     timeline_legend = timeline_ax.get_legend()
     assert timeline_legend is not None
@@ -85,6 +107,9 @@ def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest
     # Serving + warm-pool stacked bar per system.
     assert len(bar_ax.containers) == 2 * len(systems)
     assert all(len(container) == 3 for container in bar_ax.containers)
+    # One saving label per baseline bar.
+    assert len(bar_ax.texts) == 2 * 3
+    assert all(text.get_text().startswith("-") for text in bar_ax.texts)
     bar_legend = bar_ax.get_legend()
     assert bar_legend is not None
     assert [text.get_text() for text in bar_legend.get_texts()] == systems + ["Warm pool"]
@@ -92,6 +117,6 @@ def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest
     for by_system in results.values():
         stream_pilot = by_system["StreamPilot"]
         assert stream_pilot.slo_attainment >= 0.99
-        assert stream_pilot.avg_cost < by_system["DDiT"].avg_cost
+        assert stream_pilot.avg_cost < by_system["Naive Combo"].avg_cost < by_system["DDiT"].avg_cost
     monkeypatch.undo()
     plt.close(figures[0])

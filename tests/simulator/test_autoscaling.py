@@ -22,6 +22,7 @@ with temp_sys_path("simulator"):
     from autoscaling import provision_iso_slo
     from autoscaling import run_experiment
     from autoscaling import simulate
+    from autoscaling import stream_pilot_and_baselines
     from autoscaling import stream_pilot_and_ddit
 
 
@@ -125,3 +126,16 @@ def test_stream_pilot_needs_smaller_warm_pool_than_ddit() -> None:
     for by_system in results.values():
         assert by_system["StreamPilot"].avg_cost < by_system["DDiT"].avg_cost
         assert by_system["StreamPilot"].avg_warm_cost < by_system["DDiT"].avg_warm_cost
+
+
+def test_naive_combo_sits_between_stream_pilot_and_ddit() -> None:
+    systems = stream_pilot_and_baselines(1.5, 2.0)
+    assert [system.name for system in systems] == ["StreamPilot", "Naive Combo", "DDiT"]
+    naive_combo = systems[1]
+    assert naive_combo.scheduler is Scheduler.FCFS
+    assert not naive_combo.deadline_aware_sizing
+    assert naive_combo.cost_multiplier == 1.5
+
+    results = run_experiment(bursty_arrivals(), CURVE, systems, CONFIG)
+    for by_system in results.values():
+        assert by_system["StreamPilot"].avg_cost < by_system["Naive Combo"].avg_cost < by_system["DDiT"].avg_cost
