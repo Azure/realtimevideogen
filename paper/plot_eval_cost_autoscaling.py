@@ -54,11 +54,10 @@ STRATEGY_LABELS = {
 BASELINES = ("Naive Combo", "DDiT")
 # (system, color, line style) in plotting order.
 SYSTEM_STYLES = (
-    ("StreamPilot", "#404040", "-"),
-    ("Naive Combo", "#8a8a8a", "-."),
-    ("DDiT", "#c8c8c8", "--"),
+    ("StreamPilot", "seagreen", "-"),
+    ("Naive Combo", "darkorange", "-."),
+    ("DDiT", "firebrick", "--"),
 )
-TIMELINE_COLORS = {"StreamPilot": "#202020", "Naive Combo": "#606060", "DDiT": "#9a9a9a"}
 WARM_HATCH = "////"
 LOAD_COLOR = "#cfe2f3"
 
@@ -127,7 +126,7 @@ def plot_timeline(
         ax.plot(
             hours,
             _bin(result.cost_rate, TIMELINE_BIN_MIN) / 1000,
-            color=TIMELINE_COLORS.get(system, color),
+            color=color,
             linestyle=style,
             linewidth=1.1,
             label=system,
