@@ -77,6 +77,10 @@ def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest
     assert timeline_legend is not None
     assert [text.get_text() for text in timeline_legend.get_texts()] == systems + ["Load"]
     assert load_ax.get_ylabel() == "Load (QPM)"
+    assert load_ax.get_ylim() == (0, 30)
+    assert timeline_ax.get_xlabel() == ""
+    assert [tick.get_text() for tick in timeline_ax.get_xticklabels(minor=True)] == ["Day1", "Day2"]
+    assert bar_ax.get_xlabel() == ""
 
     # Serving + warm-pool stacked bar per system.
     assert len(bar_ax.containers) == 2 * len(systems)

@@ -40,6 +40,8 @@ LEGEND_FONT_SIZE = 9
 # Right of the timeline twin axis; shared by both panels so the legends align.
 LEGEND_ANCHOR = (1.18, 0.5)
 TIMELINE_BIN_MIN = 30
+TIMELINE_DAY_FONT_SIZE = 8
+LOAD_MAX_QPM = 30
 BAR_WIDTH = 0.36
 TIMELINE_STRATEGY = "Predictive warm pool"
 STRATEGY_LABELS = {
@@ -85,7 +87,7 @@ def plot_timeline(
     hours = _bin(np.arange(len(arrivals)) / 60.0, TIMELINE_BIN_MIN)
     load_ax = ax.twinx()
     load_ax.fill_between(hours, _bin(arrivals, TIMELINE_BIN_MIN), color=LOAD_COLOR, linewidth=0, label="Load")
-    load_ax.set_ylim(0, None)
+    load_ax.set_ylim(0, LOAD_MAX_QPM)
     load_ax.set_ylabel("Load (QPM)")
     ax.set_zorder(load_ax.get_zorder() + 1)
     ax.patch.set_visible(False)
@@ -100,10 +102,14 @@ def plot_timeline(
             label=system,
         )
     num_days = len(arrivals) // MINUTES_PER_DAY
-    ax.set_xticks(np.arange(num_days + 1) * 24, [str(day) for day in range(num_days + 1)])
+    # Gridlines at day boundaries; "DayN" labels centered within each day.
+    ax.set_xticks(np.arange(num_days + 1) * 24, [""] * (num_days + 1))
+    ax.set_xticks(
+        np.arange(num_days) * 24 + 12, [f"Day{day + 1}" for day in range(num_days)], minor=True
+    )
+    ax.tick_params(axis="x", which="minor", length=0, labelsize=TIMELINE_DAY_FONT_SIZE)
     ax.set_xlim(0, hours[-1])
     ax.set_ylim(0, None)
-    ax.set_xlabel("Time (days)", labelpad=1)
     ax.set_ylabel("Cost (k$/hour)")
     ax.grid(True, linestyle="--", alpha=0.7)
     ax.set_axisbelow(True)
@@ -161,7 +167,6 @@ def plot_strategy_bars(
     ax.set_xticks(x, [STRATEGY_LABELS.get(strategy, strategy) for strategy in strategies])
     ax.set_xlim(-0.5, len(strategies) - 0.5)
     ax.set_ylabel("Avg. cost (k$/hour)")
-    ax.set_xlabel("Pool provisioning (iso-SLO, 99%)", labelpad=1)
     ax.grid(axis="y", linestyle="--", alpha=0.7)
     ax.set_axisbelow(True)
     handles, labels = ax.get_legend_handles_labels()
