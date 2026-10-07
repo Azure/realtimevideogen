@@ -18,16 +18,17 @@ with temp_sys_path("paper"):
     from plot_ablation_minus_streampilot_with_naive_combo import plot_ablation
 
 
-def test_curve_specs_include_nine_expected_series() -> None:
+def test_curve_specs_include_ten_expected_series() -> None:
     assert [(curve.label, curve.filename) for curve in CURVE_SPECS] == [
         ("StreamPilot", "provisioning_streamwise.csv"),
         ("No Spot", "provisioning_streamwise_no_spot.csv"),
         ("No disagg", "provisioning_streamwise_no_disag.csv"),
         ("No upscaler", "provisioning_streamwise_no_upscaler.csv"),
+        ("A100 only", "provisioning_streamwise_A100.csv"),
         ("Naive", "provisioning_streamwise_naive.csv"),
         ("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
         ("Naive Combo", "provisioning_naive_combo.csv"),
-        ("StreamPilot (A100)", "provisioning_streamwise_A100.csv"),
+        ("DDiT", "llm/provisioning_ddit_spot_upscaler.csv"),
         ("Optimal", "provisioning_streamwise_milp.csv"),
     ]
 
@@ -68,6 +69,7 @@ def test_plot_ablation_creates_pdf(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     for index, curve in enumerate(CURVE_SPECS):
+        (data_dir / curve.filename).parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame({
             "ttff_s": [10.0, 60.0, 600.0, 5_000.0],
             "cost": [200.0 + index, 120.0 + index, 70.0 + index, 40.0 + index],
@@ -87,6 +89,7 @@ def test_plot_ablation_creates_pdf(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert output_path.is_file()
     assert output_path.stat().st_size > 0
     figure = closed_figures[0]
+    assert figure.axes[0].get_xlabel() == r"$TTFF_{eff}$"
     legend = figure.axes[0].get_legend()
     assert legend is not None
     figure.canvas.draw()
@@ -96,5 +99,5 @@ def test_plot_ablation_creates_pdf(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     lines = {line.get_label(): line for line in figure.axes[0].get_lines()}
     assert lines[PRIMARY_LABEL].get_zorder() == 1
     assert {label: line.get_linestyle() for label, line in lines.items()} == {
-        curve.label: "--" if curve.label == "Naive" else "-" for curve in CURVE_SPECS
+        curve.label: curve.linestyle for curve in CURVE_SPECS
     }

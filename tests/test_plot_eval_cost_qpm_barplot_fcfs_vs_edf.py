@@ -47,6 +47,11 @@ def test_plot_has_stage_lines_and_total_bars(tmp_path: Path, monkeypatch: pytest
     bar_labels = [container.get_label() for container in total_ax.containers]
     assert bar_labels == [style[0] for style in BAR_STYLES]
     assert all(len(container) == 9 for container in total_ax.containers)
+    assert [bar.get_height() for bar in total_ax.containers[0]] == [0.0] * 9
+    assert total_ax.get_yscale() == "symlog"
+    assert total_ax.get_ylabel() == "Cost Reduction ($/hour)"
+    assert total_ax.get_ylim() == (0.0, 1_000_000.0)
+    assert len(total_ax.texts) == 0
     total_legend = total_ax.get_legend()
     assert total_legend is not None
     assert [text.get_text() for text in total_legend.get_texts()] == bar_labels

@@ -37,11 +37,12 @@ CURVE_SPECS = (
     CurveSpec("No Spot", "provisioning_streamwise_no_spot.csv"),
     CurveSpec("No disagg", "provisioning_streamwise_no_disag.csv"),
     CurveSpec("No upscaler", "provisioning_streamwise_no_upscaler.csv"),
+    CurveSpec("A100 only", "provisioning_streamwise_A100.csv"),
     CurveSpec("Naive", "provisioning_streamwise_naive.csv", linestyle="--"),
     CurveSpec("Static Allocation", "provisioning_streamwise_naive_allocator.csv"),
     CurveSpec("Naive Combo", "provisioning_naive_combo.csv"),
-    CurveSpec("StreamPilot (A100)", "provisioning_streamwise_A100.csv"),
-    CurveSpec("Optimal", "provisioning_streamwise_milp.csv"),
+    CurveSpec("DDiT", "llm/provisioning_ddit_spot_upscaler.csv"),
+    CurveSpec("Optimal", "provisioning_streamwise_milp.csv", linestyle="--"),
 )
 
 
@@ -159,7 +160,7 @@ def plot_ablation(data_dir: Path, output_path: Path) -> None:
         ax.set_xlim(10, MAX_PLOT_TTFF)
         # Place the label in the gap left by the excluded 5m tick.
         label_x = np.log(5 * 60 / 10) / np.log(MAX_PLOT_TTFF / 10)
-        ax.set_xlabel("TTFF", labelpad=-8, x=label_x)
+        ax.set_xlabel(r"$TTFF_{eff}$", labelpad=-8, x=label_x)
 
         ax.set_ylim(0, MAX_PLOT_COST)
         ax.set_ylabel("Cost ($)")

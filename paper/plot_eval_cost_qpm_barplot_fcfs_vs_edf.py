@@ -28,8 +28,8 @@ LEGEND_ANCHOR = (1.01, 0.5)
 STAGE_LEGEND_ANCHOR = (1.01, 0.38)
 STAGE_Y_TICKS = [1, 10, 100, 1_000, 10_000, 100_000]
 STAGE_Y_TICK_LABELS = ["1", "10", "100", "1k", "10k", "100k"]
-TOTAL_Y_TICKS = [100, 1_000, 10_000, 100_000, 1_000_000]
-TOTAL_Y_TICK_LABELS = ["100", "1k", "10k", "100k", "1M"]
+TOTAL_Y_TICKS = [0, 1_000, 10_000, 100_000, 1_000_000]
+TOTAL_Y_TICK_LABELS = ["0", "1k", "10k", "100k", "1M"]
 BAR_WIDTH = 0.2
 # (label, face color, hatch, alpha) for each total-cost bar series.
 BAR_STYLES = (
@@ -66,13 +66,12 @@ def plot_stage_costs(
 def plot_total_costs(
     ax: plt.Axes,
     x_labels: list[str],
-    totals: list[np.ndarray],
-    fcfs_savings_percent: list[np.ndarray],
+    cost_differences: list[np.ndarray],
 ) -> None:
     x = np.arange(len(x_labels))
     offsets = (np.arange(len(BAR_STYLES)) - (len(BAR_STYLES) - 1) / 2) * BAR_WIDTH
     for offset, series, (label, color, hatch, alpha) in zip(
-        offsets, totals, BAR_STYLES, strict=True
+        offsets, cost_differences, BAR_STYLES, strict=True
     ):
         ax.bar(
             x + offset,
@@ -85,28 +84,12 @@ def plot_total_costs(
             linewidth=0.35,
             label=label,
         )
-    # Annotate FCFS bars with the StreamPilot cost saving relative to them.
-    for offset, series, percents in zip(
-        offsets[[1, 3]], totals[1::2], fcfs_savings_percent, strict=True
-    ):
-        for bar_x, total, percent in zip(x + offset, series, percents, strict=True):
-            if percent <= 0:
-                continue
-            ax.text(
-                bar_x,
-                total * 1.15,
-                f"{percent:.1f}%",
-                ha="center",
-                va="bottom",
-                fontsize=7,
-                rotation=90,
-            )
-    ax.set_yscale("log")
+    ax.set_yscale("symlog", linthresh=100)
     ax.set_yticks(TOTAL_Y_TICKS, TOTAL_Y_TICK_LABELS)
-    ax.set_ylim(TOTAL_Y_TICKS[0], TOTAL_Y_TICKS[-1] * 10)
+    ax.set_ylim(TOTAL_Y_TICKS[0], TOTAL_Y_TICKS[-1])
     ax.set_xticks(x, x_labels)
     ax.set_xlim(-0.5, len(x_labels) - 0.5)
-    ax.set_ylabel("Cost ($/hour)")
+    ax.set_ylabel("Cost Reduction ($/hour)")
     ax.set_xlabel("Queries per minute (QPM)")
     ax.grid(axis="y", linestyle="--", alpha=0.7)
     ax.set_axisbelow(True)
@@ -171,11 +154,6 @@ def plot_fcfs_vs_edf(
         ddit_fcfs_totals,
         ddit_totals,
     )
-    _, ddit_fcfs_vs_stream_pilot_percent = get_cost_savings(
-        ddit_fcfs_totals,
-        edf_totals,
-    )
-
     qpm_values = df_qpm["QPM"].to_numpy()
     x_labels = [
         "Single" if qpm == 0.5 else f"{qpm:g}" for qpm in qpm_values
@@ -190,8 +168,12 @@ def plot_fcfs_vs_edf(
     plot_total_costs(
         total_ax,
         x_labels,
-        [edf_totals, fcfs_totals, ddit_totals, ddit_fcfs_totals],
-        [savings_percent, ddit_fcfs_vs_stream_pilot_percent],
+        [
+            edf_totals - edf_totals,
+            fcfs_totals - edf_totals,
+            ddit_totals - edf_totals,
+            ddit_fcfs_totals - edf_totals,
+        ],
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
