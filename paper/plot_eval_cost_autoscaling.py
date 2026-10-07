@@ -60,6 +60,14 @@ SYSTEM_STYLES = (
 )
 WARM_HATCH = "////"
 LOAD_COLOR = "#cfe2f3"
+# Start the week at the 7th trace day (Monday) so the weekend trough is at the right end. Trace days start at
+# the same time of day, so the rotated week stays continuous.
+TRACE_START_DAY = 6
+
+
+def rotate_days(arrivals: np.ndarray, start_day: int) -> np.ndarray:
+    """Rotate per-minute arrivals so that day ``start_day`` (0-based) comes first."""
+    return np.roll(arrivals, -start_day * MINUTES_PER_DAY)
 
 
 def get_ddit_cost_multiplier(qpm_path: Path, stream_pilot_single_path: Path, ddit_single_path: Path) -> float:
@@ -215,8 +223,9 @@ def plot_autoscaling(
     ddit_single_path: Path,
     output_path: Path,
     config: AutoscalingConfig = AutoscalingConfig(),
+    start_day: int = TRACE_START_DAY,
 ) -> dict[str, dict[str, SimulationResult]]:
-    arrivals = load_trace(trace_path, config.rate_scale)
+    arrivals = rotate_days(load_trace(trace_path, config.rate_scale), start_day)
     curve = load_stage_cost_curve(qpm_path)
     naive_combo_multiplier = get_frontier_cost_multiplier(qpm_path, stream_pilot_single_path, naive_combo_single_path)
     ddit_multiplier = get_ddit_cost_multiplier(qpm_path, stream_pilot_single_path, ddit_single_path)

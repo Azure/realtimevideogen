@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -13,7 +14,9 @@ with temp_sys_path("paper"):
     from plot_eval_cost_autoscaling import SYSTEM_STYLES
     from plot_eval_cost_autoscaling import get_ddit_cost_multiplier
     from plot_eval_cost_autoscaling import get_frontier_cost_multiplier
+    from plot_eval_cost_autoscaling import TRACE_START_DAY
     from plot_eval_cost_autoscaling import plot_autoscaling
+    from plot_eval_cost_autoscaling import rotate_days
     from prepare_azure_lmm_trace import aggregate_per_minute
     from prepare_azure_lmm_trace import prepare_trace
 
@@ -42,6 +45,17 @@ def test_committed_trace_covers_one_week() -> None:
     per_minute = pd.read_csv(DATA_DIR / "azure_lmm_trace_2024_per_minute.csv", comment="#")
     assert len(per_minute) == 7 * 24 * 60
     assert per_minute["requests"].sum() == 1_000_000
+
+
+def test_rotate_days_starts_week_at_weekday_and_ends_with_weekend_trough() -> None:
+    minutes_per_day = 24 * 60
+    arrivals = np.repeat(np.arange(7.0), minutes_per_day)
+    assert rotate_days(arrivals, 6)[::minutes_per_day].tolist() == [6, 0, 1, 2, 3, 4, 5]
+
+    per_minute = pd.read_csv(DATA_DIR / "azure_lmm_trace_2024_per_minute.csv", comment="#")
+    daily = rotate_days(per_minute["requests"].to_numpy(dtype=float), TRACE_START_DAY).reshape(7, -1).sum(axis=1)
+    # Saturday and Sunday (trace days 5 and 6) are the two quietest days and now come last.
+    assert set(np.argsort(daily)[:2]) == {5, 6}
 
 
 def test_ddit_cost_multiplier_matches_steady_state_figure() -> None:
