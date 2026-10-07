@@ -5,7 +5,7 @@ import pytest
 
 from tests.test_utils import temp_sys_path
 
-with temp_sys_path("simulator"):
+with temp_sys_path("simulator", "streamwise"):
     from generate_naive_combo import CSV_COLUMNS
     from generate_naive_combo import combine_checkpoints
     from generate_naive_combo import get_batch_path

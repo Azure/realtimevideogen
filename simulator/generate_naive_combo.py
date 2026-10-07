@@ -10,7 +10,7 @@ import pandas as pd
 
 from data_loading import load_latency_data
 from data_loading import load_power_data
-from policies import BASELINE_POLICIES
+from model_provisioner.policies import BASELINE_POLICIES
 from provisioning import get_provisioning_results
 from provisioning import get_provisions
 from sim_types import GPUType
