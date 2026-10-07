@@ -223,7 +223,7 @@ def plot_autoscaling(
     systems = stream_pilot_and_baselines(naive_combo_multiplier, ddit_multiplier)
     results = run_experiment(arrivals, curve, systems, config)
 
-    fig, (timeline_ax, bar_ax) = plt.subplots(2, 1, figsize=PAPER_FIG_SIZE, gridspec_kw={"hspace": 0.45})
+    fig, (timeline_ax, bar_ax) = plt.subplots(2, 1, figsize=PAPER_FIG_SIZE, gridspec_kw={"hspace": 0.2})
     plot_timeline(timeline_ax, arrivals, results[TIMELINE_STRATEGY])
     plot_strategy_bars(bar_ax, results)
     output_path.parent.mkdir(parents=True, exist_ok=True)
