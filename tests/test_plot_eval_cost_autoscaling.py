@@ -1,0 +1,138 @@
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
+
+from matplotlib.figure import Figure
+
+from tests.test_utils import load_paper_figure_module
+from tests.test_utils import temp_sys_path
+
+plot_module = load_paper_figure_module("plot_eval_cost_autoscaling")
+SYSTEM_STYLES = plot_module.SYSTEM_STYLES
+get_ddit_cost_multiplier = plot_module.get_ddit_cost_multiplier
+get_frontier_cost_multiplier = plot_module.get_frontier_cost_multiplier
+TRACE_START_DAY = plot_module.TRACE_START_DAY
+plot_autoscaling = plot_module.plot_autoscaling
+rotate_days = plot_module.rotate_days
+
+with temp_sys_path("paper"):
+    from prepare_azure_lmm_trace import aggregate_per_minute
+    from prepare_azure_lmm_trace import prepare_trace
+
+DATA_DIR = Path("paper") / "data"
+
+
+def test_aggregate_per_minute_fills_empty_minutes(tmp_path: Path) -> None:
+    trace = pd.DataFrame({"TIMESTAMP": [
+        "2024-10-15T12:00:00.269Z",
+        "2024-10-15T12:00:59.000Z",
+        "2024-10-15T12:02:01.000Z",
+    ]})
+    per_minute = aggregate_per_minute(trace)
+    assert per_minute["requests"].tolist() == [2, 0, 1]
+    assert per_minute["minute"].tolist() == [0, 1, 2]
+
+    source = tmp_path / "trace.csv"
+    trace.to_csv(source, index=False)
+    output = tmp_path / "per_minute.csv"
+    prepare_trace(str(source), output)
+    assert output.read_text(encoding="utf-8").startswith("# ")
+    assert pd.read_csv(output, comment="#")["requests"].sum() == 3
+
+
+def test_committed_trace_covers_one_week() -> None:
+    per_minute = pd.read_csv(DATA_DIR / "azure_lmm_trace_2024_per_minute.csv", comment="#")
+    assert len(per_minute) == 7 * 24 * 60
+    assert per_minute["requests"].sum() == 1_000_000
+
+
+def test_rotate_days_starts_week_at_weekday_and_ends_with_weekend_trough() -> None:
+    minutes_per_day = 24 * 60
+    arrivals = np.repeat(np.arange(7.0), minutes_per_day)
+    assert rotate_days(arrivals, 6)[::minutes_per_day].tolist() == [6, 0, 1, 2, 3, 4, 5]
+
+    per_minute = pd.read_csv(DATA_DIR / "azure_lmm_trace_2024_per_minute.csv", comment="#")
+    daily = rotate_days(per_minute["requests"].to_numpy(dtype=float), TRACE_START_DAY).reshape(7, -1).sum(axis=1)
+    # Saturday and Sunday (trace days 5 and 6) are the two quietest days and now come last.
+    assert set(np.argsort(daily)[:2]) == {5, 6}
+
+
+def test_ddit_cost_multiplier_matches_steady_state_figure() -> None:
+    multiplier = get_ddit_cost_multiplier(
+        DATA_DIR / "provisioning_qpm.csv",
+        DATA_DIR / "provisioning_streamwise.csv",
+        DATA_DIR / "llm" / "provisioning_ddit.csv",
+    )
+    assert multiplier == pytest.approx(1405.62 / 687.61, rel=1e-3)
+
+
+def test_naive_combo_cost_multiplier_matches_frontiers_at_reference_ttff() -> None:
+    multiplier = get_frontier_cost_multiplier(
+        DATA_DIR / "provisioning_qpm.csv",
+        DATA_DIR / "provisioning_streamwise.csv",
+        DATA_DIR / "provisioning_naive_combo.csv",
+    )
+    # Cheapest configurations with TTFF <= 26.01s (StreamPilot's steady-state operating point).
+    assert multiplier == pytest.approx(62.76 / 43.28, rel=1e-3)
+
+
+def test_frontier_cost_multiplier_rejects_unreachable_ttff() -> None:
+    with pytest.raises(ValueError, match="no configuration meeting TTFF"):
+        get_frontier_cost_multiplier(
+            DATA_DIR / "provisioning_qpm.csv",
+            DATA_DIR / "provisioning_streamwise.csv",
+            DATA_DIR / "llm" / "provisioning_ddit.csv",
+        )
+
+
+def test_plot_has_timeline_and_strategy_bars(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Two days of the committed trace keep the test fast.
+    per_minute = pd.read_csv(DATA_DIR / "azure_lmm_trace_2024_per_minute.csv", comment="#")
+    trace_path = tmp_path / "trace.csv"
+    per_minute.iloc[:2 * 24 * 60].to_csv(trace_path, index=False)
+    figures: list[Figure] = []
+    monkeypatch.setattr(plot_module.plt, "close", figures.append)
+    output_path = tmp_path / "figure.pdf"
+
+    results = plot_autoscaling(
+        trace_path=trace_path,
+        qpm_path=DATA_DIR / "provisioning_qpm.csv",
+        stream_pilot_single_path=DATA_DIR / "provisioning_streamwise.csv",
+        naive_combo_single_path=DATA_DIR / "provisioning_naive_combo.csv",
+        ddit_single_path=DATA_DIR / "llm" / "provisioning_ddit.csv",
+        output_path=output_path,
+    )
+
+    assert output_path.stat().st_size > 0
+    timeline_ax, bar_ax, load_ax = figures[0].axes
+    systems = [style[0] for style in SYSTEM_STYLES]
+    assert systems == ["StreamPilot", "Naive Combo", "DDiT"]
+    assert [line.get_label() for line in timeline_ax.get_lines()] == systems
+    timeline_legend = timeline_ax.get_legend()
+    assert timeline_legend is not None
+    assert [text.get_text() for text in timeline_legend.get_texts()] == systems + ["Load"]
+    assert load_ax.get_ylabel() == "Load (QPM)"
+    assert load_ax.get_ylim() == (0, 30)
+    assert timeline_ax.get_xlabel() == ""
+    assert [tick.get_text() for tick in timeline_ax.get_xticklabels(minor=True)] == ["Day1", "Day2"]
+    assert bar_ax.get_xlabel() == ""
+
+    # Serving + warm-pool stacked bar per system.
+    assert len(bar_ax.containers) == 2 * len(systems)
+    assert all(len(container) == 3 for container in bar_ax.containers)
+    # One saving label per baseline bar.
+    assert len(bar_ax.texts) == 2 * 3
+    assert all(text.get_text().startswith("-") for text in bar_ax.texts)
+    bar_legend = bar_ax.get_legend()
+    assert bar_legend is not None
+    assert [text.get_text() for text in bar_legend.get_texts()] == systems + ["Warm pool"]
+    assert [tick.get_text() for tick in bar_ax.get_xticklabels()] == ["Static", "Reactive", "Predictive"]
+    for by_system in results.values():
+        stream_pilot = by_system["StreamPilot"]
+        assert stream_pilot.slo_attainment >= 0.99
+        assert stream_pilot.avg_cost < by_system["Naive Combo"].avg_cost < by_system["DDiT"].avg_cost
+    monkeypatch.undo()
+    plt.close(figures[0])
