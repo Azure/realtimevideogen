@@ -5,12 +5,11 @@ import pytest
 
 from matplotlib.figure import Figure
 
-from tests.test_utils import temp_sys_path
+from tests.test_utils import load_paper_figure_module
 
-with temp_sys_path("paper"):
-    import plot_eval_cost_qpm_barplot_fcfs_vs_edf as plot_module
-    from plot_eval_cost_qpm_barplot_fcfs_vs_edf import BAR_STYLES
-    from plot_eval_cost_qpm_barplot_fcfs_vs_edf import plot_fcfs_vs_edf
+plot_module = load_paper_figure_module("plot_eval_cost_qpm_barplot_fcfs_vs_edf")
+BAR_STYLES = plot_module.BAR_STYLES
+plot_fcfs_vs_edf = plot_module.plot_fcfs_vs_edf
 
 DATA_DIR = Path("paper") / "data"
 

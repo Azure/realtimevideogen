@@ -4,11 +4,10 @@ import pytest
 
 from matplotlib.figure import Figure
 
-from tests.test_utils import temp_sys_path
+from tests.test_utils import load_paper_figure_module
 
-with temp_sys_path("paper"):
-    import plot_eval_llm as plot_module
-    from plot_eval_llm import plot_eval_llm
+plot_module = load_paper_figure_module("plot_eval_llm")
+plot_eval_llm = plot_module.plot_eval_llm
 
 
 def test_plot_uses_stream_pilot_and_effective_ttff(

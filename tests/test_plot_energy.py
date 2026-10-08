@@ -5,11 +5,10 @@ import pytest
 
 from matplotlib.figure import Figure
 
-from tests.test_utils import temp_sys_path
+from tests.test_utils import load_paper_figure_module
 
-with temp_sys_path("paper"):
-    import plot_energy as plot_module
-    from plot_energy import plot_energy
+plot_module = load_paper_figure_module("plot_energy")
+plot_energy = plot_module.plot_energy
 
 
 DATA_DIR = Path("paper") / "data"

@@ -6,16 +6,15 @@ import pytest
 
 from matplotlib.figure import Figure
 
-from tests.test_utils import temp_sys_path
+from tests.test_utils import load_paper_figure_module
 
-with temp_sys_path("paper"):
-    import plot_ablation_minus_streampilot_with_naive_combo as plot_module
-    from plot_ablation_minus_streampilot_with_naive_combo import CURVE_SPECS
-    from plot_ablation_minus_streampilot_with_naive_combo import LEGEND_COLUMNS
-    from plot_ablation_minus_streampilot_with_naive_combo import PRIMARY_LABEL
-    from plot_ablation_minus_streampilot_with_naive_combo import get_pareto_frontier
-    from plot_ablation_minus_streampilot_with_naive_combo import load_curve_points
-    from plot_ablation_minus_streampilot_with_naive_combo import plot_ablation
+plot_module = load_paper_figure_module("plot_ablation_minus_streampilot_with_naive_combo")
+CURVE_SPECS = plot_module.CURVE_SPECS
+LEGEND_COLUMNS = plot_module.LEGEND_COLUMNS
+PRIMARY_LABEL = plot_module.PRIMARY_LABEL
+get_pareto_frontier = plot_module.get_pareto_frontier
+load_curve_points = plot_module.load_curve_points
+plot_ablation = plot_module.plot_ablation
 
 
 def test_curve_specs_include_ten_expected_series() -> None:

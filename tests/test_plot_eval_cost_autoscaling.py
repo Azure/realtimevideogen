@@ -7,16 +7,18 @@ import pytest
 
 from matplotlib.figure import Figure
 
+from tests.test_utils import load_paper_figure_module
 from tests.test_utils import temp_sys_path
 
+plot_module = load_paper_figure_module("plot_eval_cost_autoscaling")
+SYSTEM_STYLES = plot_module.SYSTEM_STYLES
+get_ddit_cost_multiplier = plot_module.get_ddit_cost_multiplier
+get_frontier_cost_multiplier = plot_module.get_frontier_cost_multiplier
+TRACE_START_DAY = plot_module.TRACE_START_DAY
+plot_autoscaling = plot_module.plot_autoscaling
+rotate_days = plot_module.rotate_days
+
 with temp_sys_path("paper"):
-    import plot_eval_cost_autoscaling as plot_module
-    from plot_eval_cost_autoscaling import SYSTEM_STYLES
-    from plot_eval_cost_autoscaling import get_ddit_cost_multiplier
-    from plot_eval_cost_autoscaling import get_frontier_cost_multiplier
-    from plot_eval_cost_autoscaling import TRACE_START_DAY
-    from plot_eval_cost_autoscaling import plot_autoscaling
-    from plot_eval_cost_autoscaling import rotate_days
     from prepare_azure_lmm_trace import aggregate_per_minute
     from prepare_azure_lmm_trace import prepare_trace
 

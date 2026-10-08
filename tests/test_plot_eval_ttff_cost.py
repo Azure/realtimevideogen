@@ -5,11 +5,10 @@ import pytest
 
 from matplotlib.figure import Figure
 
-from tests.test_utils import temp_sys_path
+from tests.test_utils import load_paper_figure_module
 
-with temp_sys_path("paper"):
-    import plot_eval_ttff_cost as plot_module
-    from plot_eval_ttff_cost import plot_eval_ttff_cost
+plot_module = load_paper_figure_module("plot_eval_ttff_cost")
+plot_eval_ttff_cost = plot_module.plot_eval_ttff_cost
 
 
 DATA_DIR = Path("paper") / "data"
