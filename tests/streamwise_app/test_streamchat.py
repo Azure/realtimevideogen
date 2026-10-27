@@ -14,12 +14,11 @@ from http import HTTPStatus
 from PIL import Image  # noqa: F401 - import before patch.dict to keep PIL in sys.modules
 
 from quart import Quart
+from quart.datastructures import FileStorage
 
 from unittest.mock import AsyncMock
 from unittest.mock import patch
 from unittest.mock import MagicMock
-
-from werkzeug.datastructures import FileStorage
 
 # Add current path
 sys.path.append(os.getcwd())

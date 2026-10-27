@@ -72,11 +72,11 @@ class StreamChatApp(StreamWiseApp):
                 }), HTTPStatus.BAD_REQUEST
 
             if audio_message:
-                logging.info("Transcribing audio message.")
+                job.logger.info("Transcribing audio message.")
                 audio_path = f"/tmp/{job_id}_audio_input.webm"
                 await audio_message.save(Path(audio_path))
                 user_message = await job.transcribe_audio(audio_path)
-                logging.info(f"Transcribed audio message: {user_message}")
+                job.logger.info(f"Transcribed audio message: {user_message}")
 
             try:
                 reply = await job.gen_chat(user_message)
