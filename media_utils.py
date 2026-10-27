@@ -95,7 +95,7 @@ def base64_to_video_frames(
     # fmt: imageio.Format = formats[video_format]
     video_frames = imageio.get_reader(
         video_buffer,
-        format=video_format)  # type: ignore[arg-type]
+        format=video_format)
     frames = [
         Image.fromarray(frame_np).convert("RGB")
         for frame_np in video_frames  # type: ignore[attr-defined]
@@ -117,7 +117,7 @@ def video_frames_to_base64(
     # fmt: imageio.Format = formats[format]
     with imageio.get_writer(
         video_buffer,
-        format=format,  # type: ignore[arg-type]
+        format=format,
         fps=fps
     ) as writer:
         for frame in video_frames:

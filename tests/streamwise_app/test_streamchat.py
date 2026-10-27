@@ -7,14 +7,19 @@ import os
 import sys
 import pytest
 
+from io import BytesIO
+from pathlib import Path
 from http import HTTPStatus
 
 from PIL import Image  # noqa: F401 - import before patch.dict to keep PIL in sys.modules
 
 from quart import Quart
 
+from unittest.mock import AsyncMock
 from unittest.mock import patch
 from unittest.mock import MagicMock
+
+from werkzeug.datastructures import FileStorage
 
 # Add current path
 sys.path.append(os.getcwd())
@@ -299,6 +304,32 @@ async def test_chat_route_with_message(test_app: Quart) -> None:
     del streamchat_app.jobs["test_chat_msg_job"]
     del job
     del service_manager
+
+
+@pytest.mark.asyncio
+async def test_chat_route_with_audio(test_app: Quart) -> None:
+    """POST /chat/<job_id> saves audio before transcribing it."""
+    job_id = "test_chat_audio_upload"
+    audio_path = Path(f"/tmp/{job_id}_audio_input.webm")
+    job = MagicMock()
+    job.transcribe_audio = AsyncMock(return_value="Transcribed message")
+    job.gen_chat = AsyncMock(return_value={"reply": "Response"})
+    streamchat_app.jobs[job_id] = job
+
+    try:
+        client = test_app.test_client()
+        response = await client.post(
+            f"/chat/{job_id}",
+            files={"audio": FileStorage(stream=BytesIO(b"audio data"), filename="input.webm")},
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        assert audio_path.read_bytes() == b"audio data"
+        job.transcribe_audio.assert_awaited_once_with(str(audio_path))
+        job.gen_chat.assert_awaited_once_with("Transcribed message")
+    finally:
+        streamchat_app.jobs.pop(job_id, None)
+        audio_path.unlink(missing_ok=True)
 
 
 @pytest.mark.asyncio
