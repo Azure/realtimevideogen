@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
     - name: Use Python 3.12
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.12'
         cache: 'pip'
@@ -53,7 +53,7 @@ jobs:
 
     - name: Annotate flake8 results
       if: always()
-      uses: reviewdog/action-setup@v1
+      uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
 
     - name: Python reviewdog
       if: always()
@@ -251,7 +251,7 @@ jobs:
 
     - name: Add lint PR comment
       if: always() && github.event_name == 'pull_request'
-      uses: marocchino/sticky-pull-request-comment@v3
+      uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
       with:
         header: lint
         recreate: true
