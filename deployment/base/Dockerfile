@@ -1,5 +1,5 @@
 ARG DOCKER_REPO=reposmustbeset.azurecr.io
-ARG BASE_IMAGE=${DOCKER_REPO}/cuda:12.9.1-devel-ubuntu24.04
+ARG BASE_IMAGE=${DOCKER_REPO}/cuda:13.2.1-devel-ubuntu24.04
 
 FROM ${BASE_IMAGE}
 
@@ -33,10 +33,13 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-ARG TORCH_PACKAGE=torch==2.8.0+cu128
-ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
+ARG TORCH_PACKAGE=torch==2.15.0+cu132
+ARG TORCHVISION_PACKAGE=torchvision==0.29.2+cu132
+ARG TORCHAUDIO_PACKAGE=torchaudio==2.11.1+cu132
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu132
 
-RUN pip install "${TORCH_PACKAGE}" --index-url "${TORCH_INDEX_URL}" && \
+RUN pip install "${TORCH_PACKAGE}" "${TORCHVISION_PACKAGE}" "${TORCHAUDIO_PACKAGE}" \
+        --index-url "${TORCH_INDEX_URL}" --extra-index-url https://pypi.org/simple && \
     pip install ninja packaging && \
     pip cache purge
 

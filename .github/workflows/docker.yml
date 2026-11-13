@@ -50,7 +50,9 @@ jobs:
       env:
         DOCKER_REPO: localhost:5000
         BASE_IMAGE: ubuntu:24.04
-        TORCH_PACKAGE: torch
+        TORCH_PACKAGE: torch==2.15.0
+        TORCHVISION_PACKAGE: torchvision==0.29.2
+        TORCHAUDIO_PACKAGE: torchaudio==2.11.1
         TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
       run: bash setup_image.sh
 
