@@ -607,8 +607,9 @@ async def gen_audio(model: Optional[ModelGeneration]) -> QuartReturn:
         if not await aiofiles.os.path.exists(audio_path):
             return jsonify({"error": f"Audio file not found: {audio_path}"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
-        return await send_file(
-            audio_path,
+        return await send_from_directory(
+            os.path.dirname(audio_path),
+            os.path.basename(audio_path),
             mimetype="audio/wav",
             as_attachment=True,
             attachment_filename=f"{job_id}.wav")
