@@ -187,6 +187,18 @@ BASELINE_POLICIES = {
         hardware=list(GPUType),  # Changed hardware
         solver=Solver.NAIVE,
     ),
+    "naive combo": Policy(
+        name="naive combo",
+        gpu_cost=GPU_SPOT_COST,
+        objective=Objective.TIME_COST,
+        disaggregation={
+            Model.HF: True,
+            Model.FT: False,
+        },
+        use_upscaler=True,
+        hardware=list(GPUType),
+        solver=Solver.HEXGEN,
+    ),
 }
 
 
