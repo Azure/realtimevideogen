@@ -5,7 +5,7 @@ packaging
 # torchvision==0.22.1
 # xformers==0.0.31
 
-torch==2.13.0
+torch==2.8.0
 torchvision==0.23.0
 xformers==0.0.32.post2
 
@@ -24,7 +24,7 @@ transformers==5.5.0
 # flash-attn==2.8.3 # requires --no-build-isolation
 
 huggingface_hub
-torchaudio
+torchaudio==2.8.0
 accelerate
 safetensors
 sentencepiece
