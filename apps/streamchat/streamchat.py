@@ -8,6 +8,7 @@ import re
 import sys
 import os
 import logging
+from pathlib import Path
 import aiofiles
 import aiofiles.os
 
@@ -71,11 +72,11 @@ class StreamChatApp(StreamWiseApp):
                 }), HTTPStatus.BAD_REQUEST
 
             if audio_message:
-                self.logger.info("Transcribing audio message.")
+                job.logger.info("Transcribing audio message.")
                 audio_path = f"/tmp/{job_id}_audio_input.webm"
-                audio_message.save(audio_path)  # TODO this may not work
+                await audio_message.save(Path(audio_path))
                 user_message = await job.transcribe_audio(audio_path)
-                self.logger.info(f"Transcribed audio message: {user_message}")
+                job.logger.info(f"Transcribed audio message: {user_message}")
 
             try:
                 reply = await job.gen_chat(user_message)
