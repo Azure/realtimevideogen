@@ -15,6 +15,7 @@ imageio
 imageio-ffmpeg
 xfuser==0.4.5
 diffusers==0.38.0
+transformers==4.57.6
 einops
 soundfile
 quart
