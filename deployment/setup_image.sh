@@ -123,6 +123,12 @@ fi
 if [[ -n "${TORCH_PACKAGE:-}" ]]; then
   BUILD_ARGS+=(--build-arg "TORCH_PACKAGE=${TORCH_PACKAGE}")
 fi
+if [[ -n "${TORCHVISION_PACKAGE:-}" ]]; then
+  BUILD_ARGS+=(--build-arg "TORCHVISION_PACKAGE=${TORCHVISION_PACKAGE}")
+fi
+if [[ -n "${TORCHAUDIO_PACKAGE:-}" ]]; then
+  BUILD_ARGS+=(--build-arg "TORCHAUDIO_PACKAGE=${TORCHAUDIO_PACKAGE}")
+fi
 if [[ -n "${TORCH_INDEX_URL:-}" ]]; then
   BUILD_ARGS+=(--build-arg "TORCH_INDEX_URL=${TORCH_INDEX_URL}")
 fi
